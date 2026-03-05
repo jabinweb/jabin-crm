@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Play, Pause, Check, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export default function Dashboard() {
   const { data: stats, isLoading } = useQuery({
@@ -31,11 +32,11 @@ export default function Dashboard() {
     },
   });
 
-  const { data: recentJobs } = useQuery({
-    queryKey: ['recent-scraping-jobs'],
+  const { data: recentTickets } = useQuery({
+    queryKey: ['recent-tickets'],
     queryFn: async () => {
-      const response = await fetch('/api/dashboard/recent-jobs');
-      if (!response.ok) throw new Error('Failed to fetch recent jobs');
+      const response = await fetch('/api/tickets?limit=5');
+      if (!response.ok) return [];
       return response.json();
     },
   });
@@ -48,27 +49,14 @@ export default function Dashboard() {
     );
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'RUNNING':
-        return <Play className="h-4 w-4" />;
-      case 'COMPLETED':
-        return <Check className="h-4 w-4" />;
-      case 'FAILED':
-        return <AlertCircle className="h-4 w-4" />;
-      default:
-        return <Pause className="h-4 w-4" />;
-    }
-  };
-
-  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case 'RUNNING':
-        return 'default';
-      case 'COMPLETED':
-        return 'secondary';
-      case 'FAILED':
+  const getPriorityVariant = (priority: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (priority) {
+      case 'CRITICAL':
         return 'destructive';
+      case 'HIGH':
+        return 'default';
+      case 'MEDIUM':
+        return 'secondary';
       default:
         return 'outline';
     }
@@ -80,7 +68,10 @@ export default function Dashboard() {
         <h2 className="text-2xl md:text-3xl font-bold tracking-tight hidden lg:block">Dashboard</h2>
         <div className="flex items-center space-x-2">
           <Button asChild className="w-full sm:w-auto">
-            <Link href="/dashboard/scraping/new">Start New Job</Link>
+            <Link href="/dashboard/tickets/new">New Support Ticket</Link>
+          </Button>
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href="/dashboard/customers/new">Add Customer</Link>
           </Button>
         </div>
       </div>
@@ -92,48 +83,54 @@ export default function Dashboard() {
 
       <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-7">
         <LeadsChart />
-        
+
         <Card className="lg:col-span-3">
           <CardHeader>
-            <CardTitle>Recent Scraping Jobs</CardTitle>
-            <CardDescription>
-              Your latest lead generation activities
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Support Tickets</CardTitle>
+                <CardDescription>
+                  Latest customer issues and service requests
+                </CardDescription>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/dashboard/tickets">View All</Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {!recentJobs || recentJobs.length === 0 ? (
+            {!recentTickets || recentTickets.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <p className="mb-4">No scraping jobs yet</p>
+                <p className="mb-4">No tickets recently</p>
                 <Button asChild variant="outline">
-                  <Link href="/dashboard/scraping/new">
-                    Start Your First Job
+                  <Link href="/dashboard/tickets/new">
+                    Create a Ticket
                   </Link>
                 </Button>
               </div>
             ) : (
               <div className="space-y-4">
-                {recentJobs?.map((job: any) => (
-                  <div key={job.id} className="flex items-center justify-between space-x-4">
-                    <div className="flex items-center space-x-4">
-                      {getStatusIcon(job.status)}
-                      <div>
-                        <p className="text-sm font-medium leading-none">
-                          {job.name}
+                {recentTickets?.map((ticket: any) => (
+                  <div key={ticket.id} className="flex items-center justify-between space-x-4">
+                    <div className="flex items-center space-x-4 min-w-0">
+                      <div className={cn(
+                        "w-2 h-2 rounded-full",
+                        ticket.status === 'OPEN' ? "bg-red-500" :
+                          ticket.status === 'IN_PROGRESS' ? "bg-blue-500" : "bg-green-500"
+                      )} />
+                      <div className="truncate">
+                        <p className="text-sm font-medium leading-none truncate">
+                          {ticket.subject}
                         </p>
-                        <p className="text-sm text-muted-foreground">
-                          {job.totalFound} leads found
+                        <p className="text-xs text-muted-foreground truncate">
+                          {ticket.customer.hospitalName}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Badge variant={getStatusVariant(job.status)}>
-                        {job.status}
+                      <Badge variant={getPriorityVariant(ticket.priority)}>
+                        {ticket.priority}
                       </Badge>
-                      {job.status === 'RUNNING' && (
-                        <div className="w-20">
-                          <Progress value={job.progress} className="h-2" />
-                        </div>
-                      )}
                     </div>
                   </div>
                 ))}

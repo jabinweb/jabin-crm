@@ -1,19 +1,19 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building, TrendingUp, Clock, Copy, AlertTriangle } from 'lucide-react';
+import { Users, Building, AlertTriangle, Activity, Database, Copy } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface StatsCardsProps {
-  stats: {
-    totalLeads: number;
-    totalCompanies: number;
-    activeJobs: number;
-    weeklyGrowth: number;
-    activeCampaigns?: number;
-    totalEmailsSent?: number;
-    openRate?: number;
+  stats?: {
+    totalLeads?: number;
+    totalCompanies?: number;
+    totalCustomers?: number;
+    openTickets?: number;
+    equipmentInstalled?: number;
+    weeklyGrowth?: number;
     duplicateLeadsCount?: number;
     duplicateGroupsCount?: number;
   };
@@ -24,49 +24,59 @@ export function StatsCards({ stats }: StatsCardsProps) {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+          <Building className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">
+            {stats?.totalCustomers !== undefined ? stats.totalCustomers.toLocaleString() : '0'}
+          </div>
+          <p className="text-xs text-muted-foreground">Active hospitals & clinics</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
+          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats?.openTickets ?? 0}</div>
+          <p className="text-xs text-muted-foreground">Awaiting resolution</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Equipment Installed</CardTitle>
+          <Activity className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{stats?.equipmentInstalled ?? 0}</div>
+          <p className="text-xs text-muted-foreground">Units in field</p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats.totalLeads.toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">All time leads collected</p>
+          <div className="text-2xl font-bold">{stats?.totalLeads?.toLocaleString() ?? '0'}</div>
+          <div className="flex items-center gap-1 mt-1">
+            <span className={cn(
+              "text-xs font-medium",
+              (stats?.weeklyGrowth ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+            )}>
+              {(stats?.weeklyGrowth ?? 0) >= 0 ? "+" : ""}{stats?.weeklyGrowth ?? 0}%
+            </span>
+            <span className="text-xs text-muted-foreground">vs last week</span>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Companies</CardTitle>
-          <Building className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats.totalCompanies.toLocaleString()}</div>
-          <p className="text-xs text-muted-foreground">Unique companies found</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Jobs</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{stats.activeJobs}</div>
-          <p className="text-xs text-muted-foreground">Currently running</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Weekly Growth</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">+{stats.weeklyGrowth}%</div>
-          <p className="text-xs text-muted-foreground">From last week</p>
-        </CardContent>
-      </Card>
-
-      {stats.duplicateLeadsCount !== undefined && stats.duplicateLeadsCount > 0 && (
+      {stats?.duplicateLeadsCount !== undefined && stats.duplicateLeadsCount > 0 && (
         <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Duplicates Found</CardTitle>

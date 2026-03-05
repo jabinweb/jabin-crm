@@ -88,7 +88,6 @@ export default function ReportsPage() {
     leads = {},
     emails = {},
     campaigns = {},
-    scraping = {},
     performance = {},
     topSources = [],
     topIndustries = [],
@@ -376,12 +375,12 @@ export default function ReportsPage() {
                       <TableCell className="text-right">{status.percentage}%</TableCell>
                     </TableRow>
                   )) || (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center text-muted-foreground">
-                        No data available
-                      </TableCell>
-                    </TableRow>
-                  )}
+                      <TableRow>
+                        <TableCell colSpan={3} className="text-center text-muted-foreground">
+                          No data available
+                        </TableCell>
+                      </TableRow>
+                    )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -465,12 +464,12 @@ export default function ReportsPage() {
                       </TableCell>
                     </TableRow>
                   )) || (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground">
-                        No campaigns found
-                      </TableCell>
-                    </TableRow>
-                  )}
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No campaigns found
+                        </TableCell>
+                      </TableRow>
+                    )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -524,32 +523,7 @@ export default function ReportsPage() {
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Scraping Job Performance</CardTitle>
-              <CardDescription>Efficiency metrics for scraping operations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Total Jobs Completed</span>
-                  <span className="text-2xl font-bold">{scraping.completed || 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Success Rate</span>
-                  <span className="text-2xl font-bold">{scraping.successRate || 0}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Avg. Leads per Job</span>
-                  <span className="text-2xl font-bold">{scraping.avgLeadsPerJob || 0}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Avg. Job Duration</span>
-                  <span className="text-2xl font-bold">{scraping.avgDuration || 'N/A'}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+
         </TabsContent>
       </Tabs>
     </div>

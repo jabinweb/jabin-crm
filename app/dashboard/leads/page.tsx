@@ -6,20 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import {
   DropdownMenu,
@@ -40,10 +40,10 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Download, 
-  Search, 
-  Filter, 
+import {
+  Download,
+  Search,
+  Filter,
   ExternalLink,
   Mail,
   Phone,
@@ -63,8 +63,7 @@ export default function LeadsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const scrapingJobId = searchParams.get('scrapingJobId');
-  
+
   const [search, setSearch] = useState('');
   const [industry, setIndustry] = useState('');
   const [source, setSource] = useState('');
@@ -126,7 +125,7 @@ export default function LeadsPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['leads', { search, industry, source, status, page, limit, scrapingJobId }],
+    queryKey: ['leads', { search, industry, source, status, page, limit }],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
@@ -135,7 +134,6 @@ export default function LeadsPage() {
         ...(industry && industry !== 'all' && { industry }),
         ...(source && source !== 'all' && { source }),
         ...(status && status !== 'all' && { status }),
-        ...(scrapingJobId && { scrapingJobId }),
       });
 
       const response = await fetch(`/api/leads?${params}`);
@@ -151,7 +149,6 @@ export default function LeadsPage() {
       format,
       ...(search && { search }),
       ...(industry && industry !== 'all' && { industry }),
-      ...(scrapingJobId && { scrapingJobId }),
     });
 
     const response = await fetch(`/api/leads/export?${params}`);
@@ -234,7 +231,7 @@ export default function LeadsPage() {
       toast.error('Please select leads to contact');
       return;
     }
-    
+
     setIsGeneratingEmail(true);
     toast.loading(`Generating ${selectedLeads.length} personalized emails with AI...`, { id: 'generating-emails' });
     try {
@@ -423,8 +420,8 @@ export default function LeadsPage() {
               <span className="text-sm text-muted-foreground w-full sm:w-auto">
                 {selectedLeads.length} selected
               </span>
-              <Button 
-                variant="default" 
+              <Button
+                variant="default"
                 onClick={handleBulkContact}
                 disabled={isGeneratingEmail}
                 size="sm"
@@ -433,24 +430,24 @@ export default function LeadsPage() {
                 <Mail className="mr-2 h-4 w-4" />
                 {isGeneratingEmail ? 'Generating...' : 'Contact'}
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowEnrollSequenceDialog(true)}
                 size="sm"
                 className="hidden md:inline-flex"
               >
                 Enroll in Sequence
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowCreateTaskDialog(true)}
                 size="sm"
                 className="hidden lg:inline-flex"
               >
                 Create Task
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowCreateDealDialog(true)}
                 size="sm"
                 className="hidden lg:inline-flex"
@@ -575,8 +572,8 @@ export default function LeadsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">
-                      <Checkbox 
-checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0}
+                      <Checkbox
+                        checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
                     </TableHead>
@@ -594,7 +591,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                   {data?.leads?.map((lead: any) => (
                     <TableRow key={lead.id}>
                       <TableCell>
-                        <Checkbox 
+                        <Checkbox
                           checked={selectedLeads.includes(lead.id)}
                           onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
                         />
@@ -619,8 +616,8 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                             </p>
                           )}
                           {lead.website && (
-                            <Link 
-                              href={lead.website} 
+                            <Link
+                              href={lead.website}
                               target="_blank"
                               className="text-xs text-blue-600 hover:underline flex items-center"
                             >
@@ -642,7 +639,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                       <TableCell>
                         <div className="space-y-1">
                           {lead.email && (
-                            <a 
+                            <a
                               href={`mailto:${lead.email}`}
                               className="flex items-center text-xs text-blue-600 hover:underline"
                             >
@@ -651,7 +648,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                             </a>
                           )}
                           {lead.phone && (
-                            <a 
+                            <a
                               href={`tel:${lead.phone}`}
                               className="flex items-center text-xs text-blue-600 hover:underline"
                             >
@@ -662,8 +659,8 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                         </div>
                       </TableCell>
                       <TableCell>
-                        <LeadScoreBadge 
-                          score={lead.leadScore?.score || 0} 
+                        <LeadScoreBadge
+                          score={lead.leadScore?.score || 0}
                           showNumber={true}
                           size="sm"
                         />
@@ -674,15 +671,15 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge 
+                        <Badge
                           variant={
                             lead.status === 'CONVERTED' ? 'default' :
-                            lead.status === 'QUALIFIED' ? 'default' :
-                            lead.status === 'RESPONDED' ? 'secondary' :
-                            lead.status === 'CONTACTED' ? 'secondary' :
-                            lead.status === 'LOST' ? 'destructive' :
-                            lead.status === 'UNSUBSCRIBED' ? 'destructive' :
-                            'outline'
+                              lead.status === 'QUALIFIED' ? 'default' :
+                                lead.status === 'RESPONDED' ? 'secondary' :
+                                  lead.status === 'CONTACTED' ? 'secondary' :
+                                    lead.status === 'LOST' ? 'destructive' :
+                                      lead.status === 'UNSUBSCRIBED' ? 'destructive' :
+                                        'outline'
                           }
                           className="text-xs"
                         >
@@ -716,7 +713,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => handleContactLead(lead.id)}
                               disabled={isGeneratingEmail}
                             >
@@ -809,7 +806,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
               Manually add a new lead to your database. Fill in as much information as you have.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="companyName">
@@ -946,7 +943,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
               Select a sequence to enroll {selectedLeads.length} lead(s) in automated email follow-up.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="sequence">Select Sequence</Label>
@@ -991,7 +988,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
               Create a task for {selectedLeads.length} selected lead(s).
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="taskTitle">Task Title *</Label>
@@ -1075,7 +1072,7 @@ checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0
               Create a deal for {selectedLeads.length} selected lead(s).
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label htmlFor="dealTitle">Deal Title *</Label>

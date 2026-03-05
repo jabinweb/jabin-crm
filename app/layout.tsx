@@ -6,7 +6,7 @@ import { QueryProvider } from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ErrorBoundary } from '@/components/error-boundary';
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   fallback: ['system-ui', 'arial'],
   display: 'swap',
@@ -14,7 +14,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'LeadGen Pro - Lead Generation Platform',
-  description: 'Professional lead generation and web scraping platform',
+  description: 'Professional lead generation and CRM platform',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

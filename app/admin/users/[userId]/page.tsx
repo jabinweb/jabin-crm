@@ -31,15 +31,10 @@ async function getUserDetails(userId: string) {
         take: 10,
         orderBy: { createdAt: "desc" },
       },
-      scrapingJobs: {
-        take: 10,
-        orderBy: { createdAt: "desc" },
-      },
       _count: {
         select: {
           leads: true,
           emailCampaigns: true,
-          scrapingJobs: true,
           emailLogs: true,
         },
       },
@@ -158,9 +153,6 @@ export default async function UserDetailPage({
               <TabsTrigger value="campaigns">
                 Campaigns ({user._count.emailCampaigns})
               </TabsTrigger>
-              <TabsTrigger value="scraping">
-                Scraping Jobs ({user._count.scrapingJobs})
-              </TabsTrigger>
               <TabsTrigger value="profile">Profile</TabsTrigger>
             </TabsList>
 
@@ -220,32 +212,7 @@ export default async function UserDetailPage({
               </Table>
             </TabsContent>
 
-            <TabsContent value="scraping" className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Results</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {user.scrapingJobs.map((job) => (
-                    <TableRow key={job.id}>
-                      <TableCell className="font-medium">{job.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{job.status}</Badge>
-                      </TableCell>
-                      <TableCell>{job.successCount}</TableCell>
-                      <TableCell>
-                        {new Date(job.createdAt).toLocaleDateString()}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TabsContent>
+
 
             <TabsContent value="profile" className="mt-4">
               {user.profile ? (

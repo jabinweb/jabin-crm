@@ -197,7 +197,7 @@ export class EmailQueueService {
 
       // Generate unsubscribe link
       const unsubscribeToken = Buffer.from(queueItem.to).toString('base64');
-      const unsubscribeLink = `${process.env.NEXTAUTH_URL}/unsubscribe/${unsubscribeToken}`;
+      const unsubscribeLink = `${process.env.AUTH_URL}/unsubscribe/${unsubscribeToken}`;
 
       // Add unsubscribe footer
       const unsubscribeHtml = `<p style="font-size: 12px; color: #999; margin-top: 40px;">
@@ -207,7 +207,7 @@ export class EmailQueueService {
       const bodyWithFooter = queueItem.body + unsubscribeHtml;
 
       // Add email tracking (pixel + link wrapping)
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      const baseUrl = process.env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       const bodyWithTracking = addEmailTracking(bodyWithFooter, emailLog.id, baseUrl);
 
       // Send email

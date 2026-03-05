@@ -6,7 +6,7 @@ import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const leadsGrowth = previousLeads > 0 
-      ? Math.round(((totalLeads - previousLeads) / previousLeads) * 100) 
+    const leadsGrowth = previousLeads > 0
+      ? Math.round(((totalLeads - previousLeads) / previousLeads) * 100)
       : 0;
 
     // Lead status breakdown
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const activeCampaigns = campaigns.filter(c => 
+    const activeCampaigns = campaigns.filter(c =>
       c.status === 'SCHEDULED' || c.status === 'SENDING'
     ).length;
 
@@ -159,12 +159,12 @@ export async function GET(request: NextRequest) {
     const totalClicked = campaigns.reduce((sum, c) => sum + c.clickCount, 0);
     const totalReplied = campaigns.reduce((sum, c) => sum + c.replyCount, 0);
 
-    const openRate = totalEmailsSent > 0 
-      ? Math.round((totalOpened / totalEmailsSent) * 100) 
+    const openRate = totalEmailsSent > 0
+      ? Math.round((totalOpened / totalEmailsSent) * 100)
       : 0;
 
-    const clickRate = totalEmailsSent > 0 
-      ? Math.round((totalClicked / totalEmailsSent) * 100) 
+    const clickRate = totalEmailsSent > 0
+      ? Math.round((totalClicked / totalEmailsSent) * 100)
       : 0;
 
     const campaignList = campaigns.map(c => ({
@@ -176,50 +176,7 @@ export async function GET(request: NextRequest) {
       replied: c.replyCount,
     }));
 
-    // Scraping jobs data
-    const scrapingJobs = await prisma.scrapingJob.findMany({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-      },
-      select: {
-        status: true,
-        successCount: true,
-        startedAt: true,
-        completedAt: true,
-      },
-    });
 
-    const completedJobs = scrapingJobs.filter(j => j.status === 'COMPLETED').length;
-    const totalJobs = scrapingJobs.length;
-    const successRate = totalJobs > 0 
-      ? Math.round((completedJobs / totalJobs) * 100) 
-      : 0;
-
-    const avgLeadsPerJob = completedJobs > 0
-      ? Math.round(
-          scrapingJobs
-            .filter(j => j.status === 'COMPLETED')
-            .reduce((sum, j) => sum + j.successCount, 0) / completedJobs
-        )
-      : 0;
-
-    // Calculate average job duration
-    const jobsWithDuration = scrapingJobs.filter(
-      j => j.startedAt && j.completedAt && j.status === 'COMPLETED'
-    );
-    
-    let avgDuration = 'N/A';
-    if (jobsWithDuration.length > 0) {
-      const totalMinutes = jobsWithDuration.reduce((sum, j) => {
-        const duration = new Date(j.completedAt!).getTime() - new Date(j.startedAt!).getTime();
-        return sum + duration / (1000 * 60);
-      }, 0);
-      const avgMinutes = Math.round(totalMinutes / jobsWithDuration.length);
-      avgDuration = avgMinutes < 60 
-        ? `${avgMinutes}m` 
-        : `${Math.round(avgMinutes / 60)}h ${avgMinutes % 60}m`;
-    }
 
     // Recent activities
     const recentActivities = await prisma.leadActivity.findMany({
@@ -237,16 +194,16 @@ export async function GET(request: NextRequest) {
     });
 
     const activities = recentActivities.map(a => ({
-      type: a.activityType.includes('EMAIL') ? 'email' : 
-            a.activityType.includes('CREATED') ? 'lead' : 'campaign',
+      type: a.activityType.includes('EMAIL') ? 'email' :
+        a.activityType.includes('CREATED') ? 'lead' : 'campaign',
       description: a.description,
       createdAt: a.createdAt,
       status: 'success',
     }));
 
     // Performance metrics
-    const conversionRate = totalLeads > 0 
-      ? Math.round((convertedLeads / totalLeads) * 100) 
+    const conversionRate = totalLeads > 0
+      ? Math.round((convertedLeads / totalLeads) * 100)
       : 0;
 
     return NextResponse.json({
@@ -273,13 +230,6 @@ export async function GET(request: NextRequest) {
         active: activeCampaigns,
         list: campaignList,
       },
-      scraping: {
-        completed: completedJobs,
-        total: totalJobs,
-        successRate,
-        avgLeadsPerJob,
-        avgDuration,
-      },
       performance: {
         conversionRate,
         conversions: convertedLeads,
@@ -295,9 +245,9 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('Error fetching reports:', error);
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Failed to fetch reports',
-      details: error.message 
+      details: error.message
     }, { status: 500 });
   }
 }

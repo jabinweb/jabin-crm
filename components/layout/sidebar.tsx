@@ -2,15 +2,13 @@
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { 
-  Database, 
-  FileText, 
-  Settings, 
-  Users, 
-  BarChart3, 
-  Search,
-  Download,
-  PlayCircle,
+import { useSession } from 'next-auth/react';
+import {
+  Database,
+  FileText,
+  Settings,
+  Users,
+  BarChart3,
   Mail,
   ChevronDown,
   ChevronRight,
@@ -24,7 +22,14 @@ import {
   Trash2,
   BookOpen,
   Receipt,
-  FileCheck
+  FileCheck,
+  LayoutDashboard,
+  Wrench,
+  Stethoscope,
+  Activity,
+  ShieldAlert,
+  Globe,
+  CreditCard as BillingIcon
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -35,48 +40,67 @@ interface NavigationItem {
   href: string;
   icon: any;
   children?: NavigationItem[];
+  roles?: string[];
 }
 
-const navigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-  { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-  { name: 'Calendar', href: '/dashboard/calendar', icon: BarChart3 },
-  { name: 'Team', href: '/dashboard/team', icon: Users },
-  { name: 'Leads', href: '/dashboard/leads', icon: Users },
-  { name: 'Duplicates', href: '/dashboard/duplicates', icon: Copy },
-  { 
-    name: 'Emails', 
-    href: '/dashboard/emails', 
-    icon: Mail,
-    children: [
-      { name: 'Sent', href: '/dashboard/emails?folder=sent', icon: Send },
-      { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText },
-      { name: 'Starred', href: '/dashboard/emails?folder=starred', icon: Star },
-      { name: 'Trash', href: '/dashboard/emails?folder=trash', icon: Trash2 },
-      { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen },
-      { name: 'Email Log', href: '/dashboard/emails/log', icon: List },
-      { name: 'Email Tester', href: '/dashboard/emails/test', icon: FlaskConical },
-      { name: 'Email Settings', href: '/dashboard/emails/settings', icon: Settings },
-    ]
-  },
-  { name: 'Sequences', href: '/dashboard/sequences', icon: Send },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: List },
-  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard },
+const mainNav: NavigationItem[] = [
+  { name: 'Admin Hub', href: '/dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Hospital Portal', href: '/portal', icon: LayoutDashboard, roles: ['CUSTOMER', 'ADMIN', 'SUPER_ADMIN'] },
+  { name: 'Technician Desk', href: '/dashboard/technician', icon: Wrench, roles: ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'] },
+];
+
+const crmNav: NavigationItem[] = [
+  { name: 'Customer Dash', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Hospitals', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Inventory', href: '/dashboard/products', icon: Stethoscope, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Equipments', href: '/dashboard/equipment', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+];
+
+const salesNav: NavigationItem[] = [
+  { name: 'Leads Pipeline', href: '/dashboard/leads', icon: Activity },
   { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck },
   { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
-  { name: 'Email Templates', href: '/dashboard/email-templates', icon: FileText },
-  { name: 'Scraping Jobs', href: '/dashboard/scraping', icon: Search },
-  { name: 'New Scraping Job', href: '/dashboard/scraping/new', icon: PlayCircle },
-  // { name: 'Export', href: '/dashboard/export', icon: Download },
-  { name: 'Reports', href: '/dashboard/reports', icon: FileText },
+  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard },
+];
+
+const supportNav: NavigationItem[] = [
+  { name: 'Ticket Queue', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'My Tickets', href: '/portal/tickets', icon: List, roles: ['CUSTOMER'] },
+  { name: 'Service Reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'] },
+];
+
+const saasNav: NavigationItem[] = [
+  { name: 'SaaS Dashboard', href: '/admin', icon: ShieldAlert, roles: ['SUPER_ADMIN'] },
+  { name: 'User Management', href: '/admin/users', icon: Users, roles: ['SUPER_ADMIN'] },
+  { name: 'Subscriptions', href: '/admin/subscriptions', icon: BillingIcon, roles: ['SUPER_ADMIN'] },
+  { name: 'Platform Settings', href: '/admin/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
+];
+
+const emailNav: NavigationItem[] = [
+  {
+    name: 'Communication',
+    href: '/dashboard/emails',
+    icon: Mail,
+    children: [
+      { name: 'Sent Box', href: '/dashboard/emails?folder=sent', icon: Send },
+      { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText },
+      { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen },
+      { name: 'Sequences', href: '/dashboard/sequences', icon: Activity },
+      { name: 'Templates', href: '/dashboard/email-templates', icon: FileText },
+    ]
+  }
+];
+
+const settingsNav: NavigationItem[] = [
+  { name: 'Reporting', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Documentation', href: '/dashboard/docs', icon: BookOpen },
-  { 
-    name: 'Settings', 
-    href: '/dashboard/settings', 
+  {
+    name: 'Settings',
+    href: '/dashboard/settings',
     icon: Settings,
     children: [
-      { name: 'General', href: '/dashboard/settings', icon: Settings },
-      { name: 'Subscription', href: '/dashboard/settings/subscription', icon: CreditCard },
+      { name: 'Account', href: '/dashboard/settings', icon: Settings },
+      { name: 'Billing', href: '/dashboard/settings/subscription', icon: CreditCard },
     ]
   },
 ];
@@ -86,47 +110,34 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onNavigate }: SidebarProps) {
+  const { data: session } = useSession();
+  const userRole = (session?.user as any)?.role || 'SALES';
+
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Emails']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Communication']);
 
   const toggleMenu = (menuName: string) => {
-    setExpandedMenus(prev => 
-      prev.includes(menuName) 
+    setExpandedMenus(prev =>
+      prev.includes(menuName)
         ? prev.filter(name => name !== menuName)
         : [...prev, menuName]
     );
   };
 
   const isActive = (href: string) => {
-    // Split href into path and query
     const [hrefPath, hrefQuery] = href.split('?');
-    
-    // Check if pathname matches
-    if (pathname !== hrefPath) {
-      return false;
-    }
-    
-    // If no query in href, just check pathname
-    if (!hrefQuery) {
-      return pathname === hrefPath;
-    }
-    
-    // Parse query params from href
+    if (pathname !== hrefPath) return false;
+    if (!hrefQuery) return pathname === hrefPath;
     const hrefParams = new URLSearchParams(hrefQuery);
-    
-    // Check if all href params match current params
     const hrefParamsArray = Array.from(hrefParams.entries());
     for (let i = 0; i < hrefParamsArray.length; i++) {
       const [key, value] = hrefParamsArray[i];
-      if (searchParams.get(key) !== value) {
-        return false;
-      }
+      if (searchParams.get(key) !== value) return false;
     }
-    
     return true;
   };
-  
+
   const isParentActive = (item: NavigationItem) => {
     if (item.children) {
       return item.children.some(child => isActive(child.href) || pathname.startsWith(child.href.split('?')[0] + '/'));
@@ -134,87 +145,107 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     return false;
   };
 
-  return (
-    <div className="pb-12 w-64">
-      <div className="space-y-4 py-4">
-        <div className="px-3 py-2">
-          <h2 className="mb-2 px-4 text-lg font-semibold tracking-tight">
-            Lead Generation
-          </h2>
-          <div className="space-y-1">
-            {navigation.map((item) => (
-              <div key={item.name}>
-                {item.children ? (
-                  <>
-                    <Button
-                      variant={isParentActive(item) ? "secondary" : "ghost"}
-                      className={cn(
-                        "w-full justify-between",
-                        isParentActive(item) && "bg-muted font-medium"
-                      )}
-                      onClick={() => toggleMenu(item.name)}
-                    >
-                      <div className="flex items-center">
-                        <item.icon className={cn(
-                          "mr-2 h-4 w-4",
-                          isParentActive(item) && "text-blue-600"
-                        )} />
-                        {item.name}
-                      </div>
-                      {expandedMenus.includes(item.name) ? (
-                        <ChevronDown className="h-4 w-4" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" />
-                      )}
-                    </Button>
-                    {expandedMenus.includes(item.name) && (
-                      <div className="ml-4 mt-1 space-y-1">
-                        {item.children.map((child) => (
-                          <Button
-                            key={child.name}
-                            variant={isActive(child.href) ? "secondary" : "ghost"}
-                            className={cn(
-                              "w-full justify-start text-sm",
-                              isActive(child.href) && "bg-blue-50 text-blue-700 font-medium border-l-2 border-blue-500"
-                            )}
-                            asChild
-                            onClick={onNavigate}
-                          >
-                            <Link href={child.href}>
-                              <child.icon className={cn(
-                                "mr-2 h-3 w-3",
-                                isActive(child.href) && "text-blue-600"
-                              )} />
-                              {child.name}
-                            </Link>
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                ) : (
+  const renderNavGroup = (items: NavigationItem[], title?: string) => {
+    const filtered = items.filter(item => !item.roles || item.roles.includes(userRole));
+    if (filtered.length === 0) return null;
+
+    return (
+      <div className="py-2">
+        {title && <h3 className="mb-2 px-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">{title}</h3>}
+        <div className="space-y-1">
+          {filtered.map((item) => (
+            <div key={item.name}>
+              {item.children ? (
+                <>
                   <Button
-                    variant={isActive(item.href) ? "secondary" : "ghost"}
+                    variant={isParentActive(item) ? "secondary" : "ghost"}
                     className={cn(
-                      "w-full justify-start",
-                      isActive(item.href) && "bg-blue-50 text-blue-700 font-medium border-l-2 border-blue-500"
+                      "w-full justify-between h-9",
+                      isParentActive(item) && "bg-muted/50 font-medium"
                     )}
-                    asChild
-                    onClick={onNavigate}
+                    onClick={() => toggleMenu(item.name)}
                   >
-                    <Link href={item.href}>
+                    <div className="flex items-center">
                       <item.icon className={cn(
                         "mr-2 h-4 w-4",
-                        isActive(item.href) && "text-blue-600"
+                        isParentActive(item) && "text-blue-600"
                       )} />
-                      {item.name}
-                    </Link>
+                      <span className="text-sm">{item.name}</span>
+                    </div>
+                    {expandedMenus.includes(item.name) ? (
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 opacity-50" />
+                    )}
                   </Button>
-                )}
-              </div>
-            ))}
-          </div>
+                  {expandedMenus.includes(item.name) && (
+                    <div className="ml-4 mt-1 space-y-1 border-l pl-2">
+                      {item.children.map((child) => (
+                        <Button
+                          key={child.name}
+                          variant={isActive(child.href) ? "secondary" : "ghost"}
+                          className={cn(
+                            "w-full justify-start text-xs h-8",
+                            isActive(child.href) && "bg-blue-50 text-blue-700 font-medium"
+                          )}
+                          asChild
+                          onClick={onNavigate}
+                        >
+                          <Link href={child.href}>
+                            <child.icon className={cn(
+                              "mr-2 h-3.5 w-3.5",
+                              isActive(child.href) && "text-blue-600"
+                            )} />
+                            {child.name}
+                          </Link>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Button
+                  variant={isActive(item.href) ? "secondary" : "ghost"}
+                  className={cn(
+                    "w-full justify-start h-9",
+                    isActive(item.href) && "bg-blue-50 text-blue-700 font-medium border-l-2 border-blue-500 rounded-l-none ml-[-12px] pl-[12px]"
+                  )}
+                  asChild
+                  onClick={onNavigate}
+                >
+                  <Link href={item.href}>
+                    <item.icon className={cn(
+                      "mr-2 h-4 w-4",
+                      isActive(item.href) && "text-blue-600"
+                    )} />
+                    <span className="text-sm">{item.name}</span>
+                  </Link>
+                </Button>
+              )}
+            </div>
+          ))}
         </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="pb-12 w-64 border-r h-full bg-background/50 backdrop-blur-sm">
+      <div className="space-y-4 py-4 px-3">
+        <div className="px-4 py-2 border-b mb-4">
+          <h2 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            Jabin CRM
+          </h2>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-1">Medical Supply Solutions</p>
+        </div>
+
+        {renderNavGroup(mainNav, "Main")}
+        {userRole === 'SUPER_ADMIN' && renderNavGroup(saasNav, "SaaS Admin")}
+        {renderNavGroup(crmNav, "CRM Core")}
+        {userRole !== 'TECHNICIAN' && renderNavGroup(salesNav, "Sales & Billing")}
+        {renderNavGroup(supportNav, "Support")}
+        {userRole !== 'TECHNICIAN' && userRole !== 'CUSTOMER' && renderNavGroup(emailNav, "Outreach")}
+        {renderNavGroup(settingsNav, "System")}
       </div>
     </div>
   );

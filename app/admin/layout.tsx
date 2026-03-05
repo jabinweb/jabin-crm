@@ -31,7 +31,6 @@ export default async function AdminLayout({
     { href: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard },
     { href: "/admin/plans", label: "Plans", icon: FileText },
     { href: "/admin/emails", label: "Email Logs", icon: Mail },
-    { href: "/admin/scraping", label: "Scraping Jobs", icon: Database },
     { href: "/admin/activity", label: "Activity", icon: Activity },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ];

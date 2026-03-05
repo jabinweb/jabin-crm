@@ -9,12 +9,23 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Get total customers count
+    const totalCustomers = await prisma.customer.count({});
+
+    // Get open tickets count
+    const openTickets = await prisma.supportTicket.count({
+      where: { status: 'OPEN' },
+    });
+
+    // Get equipment installations count
+    const equipmentInstalled = await prisma.equipmentInstallation.count({});
+
     // Get total leads count
     const totalLeads = await prisma.lead.count({
       where: { userId: session.user.id },
     });
 
-    // Get unique companies count (count distinct company names)
+    // Get unique companies count
     const allLeads = await prisma.lead.findMany({
       where: {
         userId: session.user.id,
@@ -24,18 +35,10 @@ export async function GET() {
     });
     const uniqueCompanies = new Set(allLeads.map(l => l.companyName)).size;
 
-    // Get active scraping jobs
-    const activeJobs = await prisma.scrapingJob.count({
-      where: {
-        userId: session.user.id,
-        status: { in: ['PENDING', 'RUNNING'] },
-      },
-    });
-
     // Calculate weekly growth
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
-    
+
     const leadsThisWeek = await prisma.lead.count({
       where: {
         userId: session.user.id,
@@ -45,7 +48,7 @@ export async function GET() {
 
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-    
+
     const leadsLastWeek = await prisma.lead.count({
       where: {
         userId: session.user.id,
@@ -56,61 +59,22 @@ export async function GET() {
       },
     });
 
-    const weeklyGrowth = leadsLastWeek > 0 
-      ? ((leadsThisWeek - leadsLastWeek) / leadsLastWeek) * 100 
+    const weeklyGrowth = leadsLastWeek > 0
+      ? ((leadsThisWeek - leadsLastWeek) / leadsLastWeek) * 100
       : 0;
 
-    // Get active email campaigns
-    const activeCampaigns = await prisma.emailCampaign.count({
-      where: {
-        userId: session.user.id,
-        status: { in: ['SCHEDULED', 'SENDING'] },
-      },
-    });
-
-    // Get total emails sent
-    const totalEmailsSent = await prisma.emailEvent.count({
-      where: {
-        campaignId: {
-          in: (await prisma.emailCampaign.findMany({
-            where: { userId: session.user.id },
-            select: { id: true },
-          })).map(c => c.id),
-        },
-        eventType: 'SENT',
-      },
-    });
-
-    // Get email open rate
-    const emailsOpened = await prisma.emailEvent.count({
-      where: {
-        campaignId: {
-          in: (await prisma.emailCampaign.findMany({
-            where: { userId: session.user.id },
-            select: { id: true },
-          })).map(c => c.id),
-        },
-        eventType: 'OPENED',
-      },
-    });
-
-    const openRate = totalEmailsSent > 0 
-      ? (emailsOpened / totalEmailsSent) * 100 
-      : 0;
-
-    // Get duplicate leads count (quick estimate)
+    // Get duplicate leads count
     const { findAllDuplicates } = await import('@/lib/leads/duplicate-detector');
     const duplicateGroups = await findAllDuplicates(session.user.id, 0.9);
     const duplicateLeadsCount = duplicateGroups.reduce((sum, group) => sum + group.totalMatches, 0);
 
     return NextResponse.json({
+      totalCustomers,
+      openTickets,
+      equipmentInstalled,
       totalLeads,
       totalCompanies: uniqueCompanies,
-      activeJobs,
       weeklyGrowth: Math.round(weeklyGrowth * 10) / 10,
-      activeCampaigns,
-      totalEmailsSent,
-      openRate: Math.round(openRate * 10) / 10,
       duplicateLeadsCount,
       duplicateGroupsCount: duplicateGroups.length,
     });

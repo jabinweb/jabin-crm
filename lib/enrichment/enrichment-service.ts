@@ -89,7 +89,7 @@ export class LeadEnrichmentService {
   }
 
   /**
-   * Enrich from company website using web scraping
+   * Enrich from company website using web analysis
    */
   private async enrichFromWebsite(websiteUrl: string): Promise<Partial<EnrichmentData>> {
     const data: Partial<EnrichmentData> = {
@@ -168,10 +168,10 @@ export class LeadEnrichmentService {
     try {
       // You can integrate with APIs like Clearbit, Hunter.io, etc.
       // For now, this is a placeholder for custom logic
-      
+
       // Example: Use a free API or custom search logic
       // const response = await axios.get(`https://api.example.com/company?name=${encodeURIComponent(companyName)}`);
-      
+
     } catch (error) {
       console.error('Error enriching from company name:', error);
     }

@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get('format') || 'json';
     const search = searchParams.get('search') || '';
     const industry = searchParams.get('industry') || '';
-    const scrapingJobId = searchParams.get('scrapingJobId') || '';
 
     const where = {
       userId: session.user.id,
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest) {
         ],
       }),
       ...(industry && { industry: { contains: industry, mode: 'insensitive' } }),
-      ...(scrapingJobId && { scrapingJobId }),
     };
 
     const leads = await prisma.lead.findMany({
@@ -38,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     if (format === 'csv') {
       const csvPath = path.join(process.cwd(), 'tmp', `leads-${Date.now()}.csv`);
-      
+
       // Ensure tmp directory exists
       const tmpDir = path.dirname(csvPath);
       if (!fs.existsSync(tmpDir)) {
@@ -63,7 +61,7 @@ export async function GET(request: NextRequest) {
       });
 
       await csvWriter.writeRecords(leads);
-      
+
       const csvContent = fs.readFileSync(csvPath, 'utf-8');
       fs.unlinkSync(csvPath); // Clean up
 

@@ -26,7 +26,7 @@ export class GoogleCalendarSync {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.NEXTAUTH_URL + '/api/auth/callback/google'
+      process.env.AUTH_URL + '/api/auth/callback/google'
     );
 
     oauth2Client.setCredentials({
@@ -226,7 +226,7 @@ export class GoogleCalendarSync {
 // Helper function to get sync client for user
 export async function getGoogleCalendarSync(userId: string) {
   const tokens = await GoogleCalendarSync.getAccessToken(userId);
-  
+
   if (!tokens) {
     throw new Error('No Google Calendar access. Please connect your Google account.');
   }

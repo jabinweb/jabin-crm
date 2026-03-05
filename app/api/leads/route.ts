@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
     const industry = searchParams.get('industry') || '';
     const source = searchParams.get('source') || '';
     const status = searchParams.get('status') || '';
-    const scrapingJobId = searchParams.get('scrapingJobId') || '';
 
     const skip = (page - 1) * limit;
 
@@ -32,7 +31,6 @@ export async function GET(request: NextRequest) {
       ...(industry && { industry }),
       ...(source && { source }),
       ...(status && { status }),
-      ...(scrapingJobId && { scrapingJobId }),
     };
 
     const [leads, total] = await Promise.all([
@@ -42,12 +40,6 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         include: {
-          scrapingJob: {
-            select: {
-              name: true,
-              status: true,
-            },
-          },
           score: {
             select: {
               totalScore: true,
@@ -84,12 +76,12 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await request.json();
-    
+
     // Validate required fields
     if (!data.companyName) {
       return NextResponse.json({ error: 'Company name is required' }, { status: 400 });
     }
-    
+
     const lead = await prisma.lead.create({
       data: {
         companyName: data.companyName,

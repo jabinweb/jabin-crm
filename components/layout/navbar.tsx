@@ -22,7 +22,7 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Database, LogOut, Settings, User, Crown, CreditCard, Search, Building2, Mail, Phone } from 'lucide-react';
+import { Activity, LogOut, Settings, User, Crown, CreditCard, Search, Building2, Mail, Phone, ClipboardList, Stethoscope } from 'lucide-react';
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -81,32 +81,32 @@ export function Navbar() {
       <div className="flex h-14 items-center px-3 sm:px-4 lg:px-8">
         <div className="mr-2 sm:mr-4 flex md:hidden">
           <a className="flex items-center space-x-2" href="/dashboard">
-            <Database className="h-5 w-5 sm:h-6 sm:w-6" />
+            <Stethoscope className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
           </a>
         </div>
-        
+
         <div className="mr-4 hidden md:flex">
           <a className="mr-6 flex items-center space-x-2" href="/dashboard">
-            <Database className="h-6 w-6" />
-            <span className="hidden font-bold lg:inline-block">LeadGen Pro</span>
+            <Stethoscope className="h-6 w-6 text-blue-600" />
+            <span className="hidden font-bold lg:inline-block">Jabin CRM</span>
           </a>
         </div>
-        
+
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="relative h-9 w-full justify-start px-3 py-2 text-sm sm:w-64 md:w-auto lg:w-64"
               onClick={() => setOpen(true)}
             >
               <Search className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline-flex flex-1 text-left">Search leads...</span>
+              <span className="hidden sm:inline-flex flex-1 text-left">Search customers, tickets...</span>
               <kbd className="pointer-events-none hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 ml-auto">
                 <span className="text-xs">⌘</span>K
               </kbd>
             </Button>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -178,8 +178,8 @@ export function Navbar() {
 
       {/* Command Dialog for Lead Search */}
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput 
-          placeholder="Search leads by company, email, or phone..." 
+        <CommandInput
+          placeholder="Search leads by company, email, or phone..."
           value={searchQuery}
           onValueChange={setSearchQuery}
         />

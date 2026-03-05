@@ -25,10 +25,14 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (status === 'loading') return;
-    
+
     if (!session) {
       router.push('/auth/signin');
       return;
+    }
+
+    if (session.user.role === 'CUSTOMER') {
+      router.push('/portal');
     }
   }, [session, status, router]);
 
@@ -50,7 +54,7 @@ export default function DashboardLayout({
       <PWAInstallPrompt />
       <Navbar />
       <EmailReplyChecker />
-      
+
       {/* Mobile Header with Menu Button */}
       <div className="lg:hidden sticky top-14 z-40 bg-background border-b px-4 py-3 flex items-center gap-3">
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>

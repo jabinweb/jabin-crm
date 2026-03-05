@@ -29,7 +29,6 @@ export async function GET(
           select: {
             leads: true,
             emailCampaigns: true,
-            scrapingJobs: true,
             emailLogs: true,
           },
         },

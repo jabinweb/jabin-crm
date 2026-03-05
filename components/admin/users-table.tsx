@@ -29,7 +29,6 @@ interface User {
   _count?: {
     leads: number;
     emailCampaigns: number;
-    scrapingJobs: number;
   };
   usage?: {
     leadsCreated: number;

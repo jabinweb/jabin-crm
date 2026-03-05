@@ -20,13 +20,6 @@ export async function GET(
         userId: session.user.id,
       },
       include: {
-        scrapingJob: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-          },
-        },
         score: {
           select: {
             totalScore: true,

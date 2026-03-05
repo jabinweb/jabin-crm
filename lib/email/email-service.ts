@@ -140,14 +140,14 @@ export class EmailService {
    */
   private injectTrackingPixel(html: string, trackingId?: string): string {
     if (!trackingId) return html;
-    
-    const trackingPixel = `<img src="${process.env.NEXTAUTH_URL}/api/email/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;
-    
+
+    const trackingPixel = `<img src="${process.env.AUTH_URL}/api/email/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;
+
     // Try to inject before </body> tag
     if (html.includes('</body>')) {
       return html.replace('</body>', `${trackingPixel}</body>`);
     }
-    
+
     // Otherwise append at the end
     return html + trackingPixel;
   }
@@ -157,12 +157,12 @@ export class EmailService {
    */
   replaceVariables(template: string, variables: Record<string, string>): string {
     let result = template;
-    
+
     for (const [key, value] of Object.entries(variables)) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
       result = result.replace(regex, value);
     }
-    
+
     return result;
   }
 
@@ -171,9 +171,9 @@ export class EmailService {
    */
   trackLinks(html: string, trackingId: string): string {
     const urlRegex = /href="(https?:\/\/[^"]+)"/g;
-    
+
     return html.replace(urlRegex, (match, url) => {
-      const trackedUrl = `${process.env.NEXTAUTH_URL}/api/email/track/click/${trackingId}?url=${encodeURIComponent(url)}`;
+      const trackedUrl = `${process.env.AUTH_URL}/api/email/track/click/${trackingId}?url=${encodeURIComponent(url)}`;
       return `href="${trackedUrl}"`;
     });
   }
@@ -237,7 +237,7 @@ export class CampaignManager {
         // Replace variables in subject and body
         const subject = this.emailService.replaceVariables(campaign.subject, variables);
         let html = this.emailService.replaceVariables(campaign.emailTemplate, variables);
-        
+
         // Track links
         html = this.emailService.trackLinks(html, campaignLead.id);
 
@@ -254,7 +254,7 @@ export class CampaignManager {
 
         if (result.success) {
           await this.updateCampaignLeadStatus(campaignLead.id, 'SENT');
-          
+
           // Log email event
           await prisma.emailEvent.create({
             data: {
