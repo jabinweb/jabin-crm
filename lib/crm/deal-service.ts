@@ -238,26 +238,36 @@ export class DealService {
       },
     });
 
-    const stages = ['PROSPECTING', 'QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'];
+    const stagesList = [
+      'PROSPECTING',
+      'QUALIFICATION',
+      'PROPOSAL',
+      'NEGOTIATION',
+      'CLOSED_WON',
+      'CLOSED_LOST',
+    ];
 
-    const stats: any = {
-      total: deals.length,
-      totalValue: deals.reduce((sum, d) => sum + d.value, 0),
-      weightedValue: deals
-        .filter((d) => !d.stage.includes('CLOSED'))
-        .reduce((sum, d) => sum + d.value * (d.probability / 100), 0),
-      byStage: {},
-    };
-
-    stages.forEach((stage) => {
+    const stages = stagesList.map((stage) => {
       const stageDeals = deals.filter((d) => d.stage === stage);
-      stats.byStage[stage] = {
+
+      return {
+        stage,
         count: stageDeals.length,
-        value: stageDeals.reduce((sum, d) => sum + d.value, 0),
+        totalValue: stageDeals.reduce((sum, d) => sum + d.value, 0),
       };
     });
 
-    return stats;
+    const totalValue = deals.reduce((sum, d) => sum + d.value, 0);
+
+    const weightedValue = deals
+      .filter((d) => !d.stage.includes('CLOSED'))
+      .reduce((sum, d) => sum + d.value * (d.probability / 100), 0);
+
+    return {
+      stages,
+      totalValue,
+      weightedValue,
+    };
   }
 
   /**

@@ -95,17 +95,20 @@ export default function ReportsPage() {
   } = reportData || {};
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto space-y-6">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Reports & Analytics
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground">
             Track your lead generation performance and campaign metrics
           </p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
           <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <Calendar className="mr-2 h-4 w-4" />
               <SelectValue />
             </SelectTrigger>
@@ -117,7 +120,12 @@ export default function ReportsPage() {
               <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={() => handleExportReport('csv')}>
+
+          <Button
+            variant="outline"
+            onClick={() => handleExportReport('csv')}
+            className="w-full sm:w-auto"
+          >
             <Download className="mr-2 h-4 w-4" />
             Export CSV
           </Button>

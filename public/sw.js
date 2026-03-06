@@ -1,167 +1,188 @@
-const CACHE_NAME = 'leadgen-v1';
-const STATIC_CACHE_NAME = 'leadgen-static-v1';
-const DYNAMIC_CACHE_NAME = 'leadgen-dynamic-v1';
+const APP_NAME = "jabin-crm";
+
+const STATIC_CACHE_NAME = `${APP_NAME}-static-v1`;
+const DYNAMIC_CACHE_NAME = `${APP_NAME}-dynamic-v1`;
 
 const STATIC_ASSETS = [
-  '/',
-  '/dashboard',
-  '/dashboard/leads',
-  '/dashboard/emails',
-  '/dashboard/calendar',
-  '/dashboard/sequences',
-  '/dashboard/tasks',
-  '/dashboard/deals',
-  '/manifest.json',
+  "/",
+  "/dashboard",
+  "/dashboard/leads",
+  "/dashboard/emails",
+  "/dashboard/calendar",
+  "/dashboard/sequences",
+  "/dashboard/tasks",
+  "/dashboard/deals",
+  "/manifest.json"
 ];
 
-// Install event
-self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Installing...');
+/* ---------------- INSTALL ---------------- */
+
+self.addEventListener("install", (event) => {
+  console.log("[Jabin CRM SW] Installing...");
+
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Caching static assets');
+      console.log("[Jabin CRM SW] Caching static assets");
       return cache.addAll(STATIC_ASSETS);
     })
   );
+
   self.skipWaiting();
 });
 
-// Activate event
-self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activating...');
+/* ---------------- ACTIVATE ---------------- */
+
+self.addEventListener("activate", (event) => {
+  console.log("[Jabin CRM SW] Activating...");
+
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys.map((key) => {
           if (
-            cacheName !== STATIC_CACHE_NAME &&
-            cacheName !== DYNAMIC_CACHE_NAME
+            key !== STATIC_CACHE_NAME &&
+            key !== DYNAMIC_CACHE_NAME
           ) {
-            console.log('[Service Worker] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
+            console.log("[Jabin CRM SW] Removing old cache:", key);
+            return caches.delete(key);
           }
         })
-      );
-    })
+      )
+    )
   );
+
   self.clients.claim();
 });
 
-// Fetch event - Network First for API, Cache First for static assets
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
+/* ---------------- FETCH ---------------- */
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+
+  if (request.method !== "GET") return;
+
   const url = new URL(request.url);
 
-  // API requests - Network First strategy
-  if (url.pathname.startsWith('/api/')) {
+  /* -------- API REQUESTS (Network First) -------- */
+
+  if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone response and cache it
-          const responseClone = response.clone();
+          const clone = response.clone();
+
           caches.open(DYNAMIC_CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
+            cache.put(request, clone);
           });
+
           return response;
         })
-        .catch(() => {
-          // If network fails, try cache
-          return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+
+          return new Response(
+            JSON.stringify({ error: "Offline - data unavailable" }),
+            {
+              status: 503,
+              headers: { "Content-Type": "application/json" }
             }
-            // Return offline page or error response
-            return new Response(
-              JSON.stringify({ error: 'Offline - data not available' }),
-              {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' },
-              }
-            );
-          });
+          );
         })
     );
+
     return;
   }
 
-  // Static assets - Cache First strategy
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached version and update cache in background
-        fetch(request).then((response) => {
-          caches.open(STATIC_CACHE_NAME).then((cache) => {
-            cache.put(request, response);
-          });
-        });
-        return cachedResponse;
-      }
+  /* -------- PAGE NAVIGATION (Network First) -------- */
 
-      // Not in cache, fetch from network
-      return fetch(request)
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request)
         .then((response) => {
-          // Cache successful responses
-          if (response.status === 200) {
-            const responseClone = response.clone();
-            caches.open(DYNAMIC_CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
-          }
+          const clone = response.clone();
+
+          caches.open(DYNAMIC_CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+
           return response;
         })
-        .catch(() => {
-          // Return offline page for navigation requests
-          if (request.mode === 'navigate') {
-            return caches.match('/offline.html') || new Response('Offline');
-          }
-          return new Response('Network error', {
-            status: 408,
-            headers: { 'Content-Type': 'text/plain' },
-          });
+        .catch(async () => {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+
+          return caches.match("/");
+        })
+    );
+
+    return;
+  }
+
+  /* -------- STATIC ASSETS (Cache First) -------- */
+
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(request).then((response) => {
+        const clone = response.clone();
+
+        caches.open(DYNAMIC_CACHE_NAME).then((cache) => {
+          cache.put(request, clone);
         });
+
+        return response;
+      });
     })
   );
 });
 
-// Background sync
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-leads') {
+/* ---------------- BACKGROUND SYNC ---------------- */
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === "sync-leads") {
     event.waitUntil(syncLeads());
   }
 });
 
 async function syncLeads() {
   try {
-    // Get pending leads from IndexedDB or cache
-    const cache = await caches.open(DYNAMIC_CACHE_NAME);
-    // Implement your sync logic here
-    console.log('[Service Worker] Syncing leads...');
+    console.log("[Jabin CRM SW] Syncing leads...");
+    // implement IndexedDB syncing logic here
   } catch (error) {
-    console.error('[Service Worker] Sync failed:', error);
+    console.error("[Jabin CRM SW] Sync failed:", error);
   }
 }
 
-// Push notifications
-self.addEventListener('push', (event) => {
+/* ---------------- PUSH NOTIFICATIONS ---------------- */
+
+self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'LeadGen CRM';
+
+  const title = data.title || "Jabin CRM";
+
   const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    body: data.body || "You have a new notification",
+    icon: "/icons/icon-192x192.png",
+    badge: "/icons/icon-72x72.png",
     vibrate: [200, 100, 200],
     data: {
-      url: data.url || '/dashboard',
-    },
+      url: data.url || "/dashboard"
+    }
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
 });
 
-// Notification click
-self.addEventListener('notificationclick', (event) => {
+/* ---------------- NOTIFICATION CLICK ---------------- */
+
+self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+
   event.waitUntil(
-    clients.openWindow(event.notification.data.url || '/dashboard')
+    clients.openWindow(event.notification.data.url || "/dashboard")
   );
 });

@@ -95,7 +95,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="container mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Analytics Dashboard</h1>
         <p className="text-gray-500">Track your sales performance and email engagement</p>
