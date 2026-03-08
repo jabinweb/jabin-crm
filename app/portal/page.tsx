@@ -38,7 +38,7 @@ export default function HospitalPortalPage() {
         <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight bg-slate-900 dark:text-white">Facility Dashboard</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">Facility Dashboard</h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your hospital's medical equipment and support requests.</p>
                 </div>
                 <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 transition-all hover:scale-105 active:scale-95">

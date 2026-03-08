@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FeatureModulesCard } from "@/components/admin/feature-modules-card";
 import {
   Table,
   TableBody,
@@ -143,6 +144,8 @@ export default async function UserDetailPage({
       </div>
 
       {/* Detailed Tabs */}
+      <FeatureModulesCard userId={user.id} />
+
       <Card>
         <CardContent className="p-6">
           <Tabs defaultValue="leads">

@@ -8,8 +8,10 @@ export async function GET(
 ) {
   try {
     const session = await auth();
+    const sessionRole = (session?.user as any)?.role;
+    const isSuperAdmin = sessionRole === "SUPER_ADMIN" || sessionRole === "admin";
 
-    if (!session?.user || session.user.role !== "admin") {
+    if (!session?.user || !isSuperAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -55,19 +57,21 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
+    const sessionRole = (session?.user as any)?.role;
+    const isSuperAdmin = sessionRole === "SUPER_ADMIN" || sessionRole === "admin";
 
-    if (!session?.user || session.user.role !== "admin") {
+    if (!session?.user || !isSuperAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { userId } = await params;
     const body = await request.json();
-    const { role, name, email } = body;
+    const { role: nextRole, name, email } = body;
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        ...(role && { role }),
+        ...(nextRole && { role: nextRole }),
         ...(name && { name }),
         ...(email && { email }),
       },
@@ -89,8 +93,10 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
+    const sessionRole = (session?.user as any)?.role;
+    const isSuperAdmin = sessionRole === "SUPER_ADMIN" || sessionRole === "admin";
 
-    if (!session?.user || session.user.role !== "admin") {
+    if (!session?.user || !isSuperAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

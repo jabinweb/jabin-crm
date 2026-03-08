@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { type ChangeEvent, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Download,
+  Upload,
   Search,
   Filter,
   ExternalLink,
@@ -78,7 +79,9 @@ export default function LeadsPage() {
   const [showEnrollSequenceDialog, setShowEnrollSequenceDialog] = useState(false);
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
   const [showCreateDealDialog, setShowCreateDealDialog] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [selectedSequenceId, setSelectedSequenceId] = useState('');
+  const importInputRef = useRef<HTMLInputElement | null>(null);
   const [taskData, setTaskData] = useState({
     title: '',
     type: 'CALL',
@@ -161,6 +164,51 @@ export default function LeadsPage() {
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handleOpenImportPicker = () => {
+    importInputRef.current?.click();
+  };
+
+  const handleImportCsv = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Please select a CSV file');
+      event.target.value = '';
+      return;
+    }
+
+    setIsImporting(true);
+    const loadingToastId = toast.loading('Importing leads from CSV...');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/leads/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.error || 'Failed to import CSV');
+      }
+
+      toast.success(
+        `Imported ${result.summary.imported} leads (skipped ${result.summary.skippedDuplicates + result.summary.skippedMissingCompany}, failed ${result.summary.failed})`,
+        { id: loadingToastId }
+      );
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      queryClient.invalidateQueries({ queryKey: ['lead-filters'] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import CSV', { id: loadingToastId });
+    } finally {
+      setIsImporting(false);
+      event.target.value = '';
+    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -412,6 +460,14 @@ export default function LeadsPage() {
 
   return (
     <div className="container mx-auto space-y-4">
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={handleImportCsv}
+      />
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Leads</h2>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -466,6 +522,10 @@ export default function LeadsPage() {
           <Button onClick={() => setShowAddLeadDialog(true)} size="sm" className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
             Add Lead
+          </Button>
+          <Button variant="outline" onClick={handleOpenImportPicker} size="sm" disabled={isImporting}>
+            <Upload className="mr-2 h-4 w-4" />
+            {isImporting ? 'Importing...' : 'Import CSV'}
           </Button>
           <Button variant="outline" onClick={() => handleExport('csv')} size="sm" className="hidden sm:inline-flex">
             <Download className="mr-2 h-4 w-4" />

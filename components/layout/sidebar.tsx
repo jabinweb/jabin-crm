@@ -29,11 +29,15 @@ import {
   Activity,
   ShieldAlert,
   Globe,
-  CreditCard as BillingIcon
+  CreditCard as BillingIcon,
+  MessageCircle,
+  Wallet,
+  Route,
+  MapPin
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface NavigationItem {
   name: string;
@@ -41,6 +45,7 @@ interface NavigationItem {
   icon: any;
   children?: NavigationItem[];
   roles?: string[];
+  module?: string;
 }
 
 const mainNav: NavigationItem[] = [
@@ -57,16 +62,20 @@ const crmNav: NavigationItem[] = [
 ];
 
 const salesNav: NavigationItem[] = [
-  { name: 'Leads Pipeline', href: '/dashboard/leads', icon: Activity },
-  { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck },
-  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt },
-  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard },
+  { name: 'Leads Pipeline', href: '/dashboard/leads', icon: Activity, module: 'LEADS' },
+  { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck, module: 'QUOTATIONS' },
+  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES' },
+  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard, module: 'DEALS' },
+  { name: 'WhatsApp Hub', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP' },
 ];
 
 const supportNav: NavigationItem[] = [
-  { name: 'Ticket Queue', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Ticket Queue', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS' },
   { name: 'My Tickets', href: '/portal/tickets', icon: List, roles: ['CUSTOMER'] },
-  { name: 'Service Reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'] },
+  { name: 'Service Reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_REPORTS' },
+  { name: 'Cash On Hand', href: '/dashboard/service/cash', icon: Wallet, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_CASH' },
+  { name: 'Travel & Expense', href: '/dashboard/service/expenses', icon: Route, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_EXPENSES' },
+  { name: 'GPS Tracking', href: '/dashboard/service/gps', icon: MapPin, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_GPS' },
 ];
 
 const saasNav: NavigationItem[] = [
@@ -81,6 +90,7 @@ const emailNav: NavigationItem[] = [
     name: 'Communication',
     href: '/dashboard/emails',
     icon: Mail,
+    module: 'EMAIL_OUTREACH',
     children: [
       { name: 'Sent Box', href: '/dashboard/emails?folder=sent', icon: Send },
       { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText },
@@ -116,6 +126,21 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Communication']);
+  const [moduleMap, setModuleMap] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const loadModules = async () => {
+      try {
+        const res = await fetch('/api/features/me');
+        if (!res.ok) return;
+        const data = await res.json();
+        setModuleMap(data.modules || {});
+      } catch (_) {
+        setModuleMap({});
+      }
+    };
+    loadModules();
+  }, []);
 
   const toggleMenu = (menuName: string) => {
     setExpandedMenus(prev =>
@@ -146,7 +171,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   const renderNavGroup = (items: NavigationItem[], title?: string) => {
-    const filtered = items.filter(item => !item.roles || item.roles.includes(userRole));
+    const filtered = items.filter(item => {
+      const roleAllowed = !item.roles || item.roles.includes(userRole);
+      const moduleAllowed = !item.module || moduleMap[item.module] !== false;
+      return roleAllowed && moduleAllowed;
+    });
     if (filtered.length === 0) return null;
 
     return (

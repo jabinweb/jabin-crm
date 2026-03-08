@@ -18,10 +18,10 @@ export async function GET(
     });
 
     // Return 1x1 transparent pixel
-    const pixel = Buffer.from(
+    const pixel = Uint8Array.from(Buffer.from(
       'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
       'base64'
-    );
+    ));
 
     return new NextResponse(pixel, {
       headers: {
@@ -35,10 +35,10 @@ export async function GET(
     console.error('Email tracking error:', error);
     
     // Still return pixel even on error (don't break email display)
-    const pixel = Buffer.from(
+    const pixel = Uint8Array.from(Buffer.from(
       'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
       'base64'
-    );
+    ));
     
     return new NextResponse(pixel, {
       headers: { 'Content-Type': 'image/gif' },

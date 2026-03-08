@@ -46,6 +46,16 @@ export default function PortalTicketDetailPage() {
         },
     });
 
+    const { data: sla } = useQuery({
+        queryKey: ['portal-ticket-sla', id],
+        enabled: !!id,
+        queryFn: async () => {
+            const response = await fetch(`/api/tickets/${id}/sla`);
+            if (!response.ok) throw new Error('Failed to fetch SLA');
+            return response.json();
+        },
+    });
+
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
         setIsSubmittingComment(true);
@@ -73,6 +83,13 @@ export default function PortalTicketDetailPage() {
     if (!ticket) return <div className="text-center py-20"><h3 className="text-xl font-semibold">Support request not found</h3></div>;
 
     const isResolved = ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
+    const slaStateLabel = sla?.state ? String(sla.state).replace(/_/g, ' ') : 'Monitoring';
+    const slaTone =
+        sla?.state === 'BREACHED' || sla?.state === 'RESOLVED_BREACHED'
+            ? 'bg-red-500'
+            : sla?.state === 'AT_RISK'
+                ? 'bg-amber-500'
+                : 'bg-green-500';
 
     return (
         <div className="space-y-6">
@@ -236,9 +253,14 @@ export default function PortalTicketDetailPage() {
                                     <div className="absolute top-[-10px] right-[-10px] h-20 w-20 bg-blue-600 rounded-full blur-[40px] opacity-20 transition-transform group-hover:scale-150 duration-700" />
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 relative z-10">Live SLA Status</p>
                                     <div className="flex items-center space-x-2 relative z-10">
-                                        <div className="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                                        <p className="text-xs font-semibold">Priority Monitoring Active</p>
+                                        <div className={`h-2 w-2 rounded-full ${slaTone} shadow-[0_0_8px_rgba(34,197,94,0.5)]`} />
+                                        <p className="text-xs font-semibold">{slaStateLabel}</p>
                                     </div>
+                                    {sla && (
+                                        <p className="text-[10px] text-slate-300 mt-2 relative z-10">
+                                            Response target: {sla.responseTargetHours}h | Resolution target: {sla.resolutionTargetHours}h
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>

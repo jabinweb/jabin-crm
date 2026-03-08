@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -34,46 +33,55 @@ model Session {
 }
 
 model User {
-  id               String                  @id @default(cuid())
-  name             String?
-  email            String                  @unique
-  emailVerified    DateTime?
-  image            String?
-  role             UserRole                @default(SALES)
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  customerId       String?
-  accounts         Account[]
-  auditLogs        AuditLog[]
-  calendarEvents   CalendarEvent[]
-  assignedDeals    Deal[]                  @relation("DealAssignee")
-  deals            Deal[]                  @relation("DealCreator")
-  emailCampaigns   EmailCampaign[]
-  emailDrafts      EmailDraft[]
-  emailLogs        EmailLog[]
-  sequences        EmailSequence[]
-  emailTemplates   EmailTemplate[]
-  files            File[]
-  invoices         Invoice[]
-  assignedLeads    Lead[]                  @relation("LeadAssignee")
-  leads            Lead[]                  @relation("LeadCreator")
-  leadActivities   LeadActivity[]
-  quotations       Quotation[]
-  serviceReports   ServiceReport[]         @relation("ServiceReports")
-  sessions         Session[]
-  subscription     Subscription?
-  assignedTickets  SupportTicket[]         @relation("AssignedTickets")
-  assignedTasks    Task[]                  @relation("TaskAssignee")
-  tasks            Task[]                  @relation("TaskCreator")
-  ticketActivities TicketActivity[]        @relation("TicketActivities")
-  transfersFrom    TicketTransferHistory[] @relation("TransfersFrom")
-  transfersTo      TicketTransferHistory[] @relation("TransfersTo")
-  usage            UsageTracking?
-  customer         Customer?               @relation("HospitalStaff", fields: [customerId], references: [id])
-  profile          UserProfile?
-  userRoles        UserRoleAssignment[]
-  workflows        Workflow[]
-  notifications    Notification[]
+  id                String                  @id @default(cuid())
+  name              String?
+  email             String                  @unique
+  emailVerified     DateTime?
+  image             String?
+  role              UserRole                @default(SALES)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  customerId        String?
+  accounts          Account[]
+  auditLogs         AuditLog[]
+  calendarEvents    CalendarEvent[]
+  assignedDeals     Deal[]                  @relation("DealAssignee")
+  deals             Deal[]                  @relation("DealCreator")
+  emailCampaigns    EmailCampaign[]
+  emailDrafts       EmailDraft[]
+  emailLogs         EmailLog[]
+  sequences         EmailSequence[]
+  emailTemplates    EmailTemplate[]
+  files             File[]
+  invoices          Invoice[]
+  assignedLeads     Lead[]                  @relation("LeadAssignee")
+  leads             Lead[]                  @relation("LeadCreator")
+  leadActivities    LeadActivity[]
+  quotations        Quotation[]
+  serviceReports    ServiceReport[]         @relation("ServiceReports")
+  sessions          Session[]
+  subscription      Subscription?
+  assignedTickets   SupportTicket[]         @relation("AssignedTickets")
+  assignedTasks     Task[]                  @relation("TaskAssignee")
+  tasks             Task[]                  @relation("TaskCreator")
+  ticketActivities  TicketActivity[]        @relation("TicketActivities")
+  transfersFrom     TicketTransferHistory[] @relation("TransfersFrom")
+  transfersTo       TicketTransferHistory[] @relation("TransfersTo")
+  usage             UsageTracking?
+  customer          Customer?               @relation("HospitalStaff", fields: [customerId], references: [id])
+  profile           UserProfile?
+  userRoles         UserRoleAssignment[]
+  workflows         Workflow[]
+  notifications     Notification[]
+  cashEntries       CashOnHandEntry[]       @relation("CashEntryCreator")
+  cashAssignments   CashOnHandEntry[]       @relation("CashTechnician")
+  travelExpenses    TravelExpense[]         @relation("TechnicianExpenses")
+  approvedExpenses  TravelExpense[]         @relation("ExpenseApprover")
+  submittedExpenses TravelExpense[]         @relation("ExpenseCreator")
+  locationLogs      TechnicianLocationLog[] @relation("TechnicianLocations")
+  whatsappConfig    WhatsAppProviderConfig?
+  whatsappMessages  WhatsAppMessage[]
+  featureModules    FeatureModuleSetting[]
 }
 
 model UserProfile {
@@ -189,6 +197,7 @@ model Lead {
   quotations          Quotation[]
   sequenceEnrollments SequenceEnrollment[]
   tasks               Task[]
+  whatsappMessages    WhatsAppMessage[]
 
   @@index([companyName])
   @@index([industry])
@@ -866,6 +875,7 @@ model Customer {
   supportTickets         SupportTicket[]
   staff                  User[]                  @relation("HospitalStaff")
   notifications          Notification[]
+  whatsappMessages       WhatsAppMessage[]
 
   @@index([hospitalName])
   @@index([city])
@@ -954,6 +964,10 @@ model SupportTicket {
   equipment            EquipmentInstallation?  @relation(fields: [equipmentId], references: [id])
   activities           TicketActivity[]
   transferHistory      TicketTransferHistory[]
+  cashEntries          CashOnHandEntry[]
+  travelExpenses       TravelExpense[]
+  locationLogs         TechnicianLocationLog[]
+  whatsappMessages     WhatsAppMessage[]
 
   @@index([customerId])
   @@index([equipmentId])
@@ -1009,6 +1023,154 @@ model ServiceReport {
 
   @@index([ticketId])
   @@index([technicianId])
+}
+
+model CashOnHandEntry {
+  id           String         @id @default(cuid())
+  userId       String
+  technicianId String
+  ticketId     String?
+  entryType    CashEntryType
+  amount       Float
+  currency     String         @default("USD")
+  description  String
+  referenceNo  String?
+  recordedAt   DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  user         User           @relation("CashEntryCreator", fields: [userId], references: [id], onDelete: Cascade)
+  technician   User           @relation("CashTechnician", fields: [technicianId], references: [id], onDelete: Cascade)
+  ticket       SupportTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([technicianId])
+  @@index([ticketId])
+  @@index([entryType])
+  @@index([recordedAt])
+}
+
+model TravelExpense {
+  id              String                @id @default(cuid())
+  userId          String
+  technicianId    String
+  ticketId        String?
+  category        TravelExpenseCategory
+  amount          Float
+  currency        String                @default("USD")
+  distanceKm      Float?
+  fromLocation    String?
+  toLocation      String?
+  description     String
+  expenseDate     DateTime              @default(now())
+  status          ExpenseStatus         @default(PENDING)
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectionReason String?
+  receiptUrl      String?
+  metadata        Json?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  user            User                  @relation("ExpenseCreator", fields: [userId], references: [id], onDelete: Cascade)
+  technician      User                  @relation("TechnicianExpenses", fields: [technicianId], references: [id], onDelete: Cascade)
+  approver        User?                 @relation("ExpenseApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  ticket          SupportTicket?        @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([technicianId])
+  @@index([ticketId])
+  @@index([status])
+  @@index([category])
+  @@index([expenseDate])
+}
+
+model TechnicianLocationLog {
+  id           String         @id @default(cuid())
+  technicianId String
+  ticketId     String?
+  latitude     Float
+  longitude    Float
+  accuracy     Float?
+  speed        Float?
+  heading      Float?
+  source       GpsSource      @default(PWA)
+  capturedAt   DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+  technician   User           @relation("TechnicianLocations", fields: [technicianId], references: [id], onDelete: Cascade)
+  ticket       SupportTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([technicianId])
+  @@index([ticketId])
+  @@index([capturedAt])
+}
+
+model WhatsAppMessage {
+  id                String           @id @default(cuid())
+  userId            String
+  leadId            String?
+  customerId        String?
+  ticketId          String?
+  channel           WhatsAppChannel
+  direction         MessageDirection
+  toPhone           String
+  fromPhone         String?
+  message           String
+  status            WhatsAppStatus   @default(QUEUED)
+  externalMessageId String?
+  errorMessage      String?
+  metadata          Json?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead              Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customer          Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  ticket            SupportTicket?   @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([customerId])
+  @@index([ticketId])
+  @@index([channel])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model WhatsAppProviderConfig {
+  id                 String           @id @default(cuid())
+  userId             String           @unique
+  provider           WhatsAppProvider @default(DISABLED)
+  twilioAccountSid   String?
+  twilioAuthToken    String?
+  twilioFromNumber   String?
+  metaAccessToken    String?
+  metaPhoneNumberId  String?
+  metaBusinessId     String?
+  metaApiVersion     String?          @default("v22.0")
+  isActive           Boolean          @default(false)
+  webhookVerifyToken String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([provider])
+  @@index([isActive])
+}
+
+model FeatureModuleSetting {
+  id        String        @id @default(cuid())
+  userId    String
+  module    FeatureModule
+  enabled   Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, module])
+  @@index([userId])
+  @@index([module])
+  @@index([enabled])
 }
 
 model AuditLog {
@@ -1272,6 +1434,72 @@ enum TicketStatus {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum CashEntryType {
+  ADVANCE
+  EXPENSE
+  SETTLEMENT
+  ADJUSTMENT
+}
+
+enum TravelExpenseCategory {
+  TRAVEL
+  LODGING
+  MEAL
+  PARTS
+  OTHER
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REIMBURSED
+}
+
+enum GpsSource {
+  PWA
+  DEVICE
+  MANUAL
+}
+
+enum WhatsAppChannel {
+  SALES
+  SERVICE
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum WhatsAppStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WhatsAppProvider {
+  DISABLED
+  TWILIO
+  META_CLOUD
+}
+
+enum FeatureModule {
+  LEADS
+  DEALS
+  QUOTATIONS
+  INVOICES
+  TICKETS
+  SERVICE_REPORTS
+  SERVICE_CASH
+  SERVICE_EXPENSES
+  SERVICE_GPS
+  WHATSAPP
+  EMAIL_OUTREACH
 }
 
 enum UserRole {

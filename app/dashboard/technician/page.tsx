@@ -57,6 +57,16 @@ export default function TechnicianDashboard() {
                             View Full Queue
                         </Link>
                     </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/service/gps">
+                            GPS Check-In
+                        </Link>
+                    </Button>
+                    <Button asChild variant="outline">
+                        <Link href="/dashboard/service/expenses">
+                            Submit Expense
+                        </Link>
+                    </Button>
                 </div>
             </div>
 

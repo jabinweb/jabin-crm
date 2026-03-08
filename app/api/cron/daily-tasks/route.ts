@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { slaService } from '@/lib/crm/sla-service';
 
 // This cron job consolidates all daily tasks for Vercel Hobby plan
 // Runs once per day at 2 AM UTC
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest) {
       sequences: { processed: 0, errors: 0 },
       queue: { processed: 0, errors: 0 },
       scores: { calculated: 0, errors: 0 },
+      sla: { scanned: 0, escalated: 0, skippedRecentlyEscalated: 0, errors: 0 },
     };
 
     // Task 1: Process Email Sequences
@@ -190,6 +192,17 @@ export async function GET(request: NextRequest) {
       }
     } catch (error) {
       console.error('Error calculating scores:', error);
+    }
+
+    // Task 4: SLA escalation sweep
+    try {
+      const slaResult = await slaService.runEscalationSweep();
+      results.sla.scanned = slaResult.scanned;
+      results.sla.escalated = slaResult.escalatedCount;
+      results.sla.skippedRecentlyEscalated = slaResult.skippedRecentlyEscalated;
+    } catch (error) {
+      console.error('Error processing SLA escalation sweep:', error);
+      results.sla.errors += 1;
     }
 
     return NextResponse.json({
