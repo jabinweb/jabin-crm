@@ -106,7 +106,7 @@ export class GoogleCalendarSync {
       });
 
       const events = response.data.items || [];
-      const imported = [];
+      const imported: any[] = [];
 
       for (const googleEvent of events) {
         if (!googleEvent.id || !googleEvent.summary) continue;

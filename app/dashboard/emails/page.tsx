@@ -692,7 +692,7 @@ export default function EmailsPage() {
                 <div
                   key={email.id}
                   className={cn(
-                    'cursor-pointer border-b transition-all hover:shadow-sm',
+                    'cursor-pointer border-b transition-all hover:shadow-none',
                     selectedEmail?.id === email.id 
                       ? 'bg-blue-50 border-l-4 border-l-blue-500 pl-3 pr-3 py-2.5' 
                       : email.repliedAt && !email.openedAt
@@ -841,7 +841,7 @@ export default function EmailsPage() {
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-3 pb-3 border-b">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-none bg-blue-100 flex items-center justify-center">
                       <span className="text-sm font-semibold text-blue-700">
                         {selectedFolder === 'sent' ? 'You' : (selectedEmail.from?.charAt(0).toUpperCase() || 'U')}
                       </span>
@@ -878,12 +878,12 @@ export default function EmailsPage() {
                   {/* Show replies from LeadActivity (newer threaded format) */}
                   {emailReplies.map((reply, index) => (
                     <div key={reply.id} className={cn(
-                      "border rounded-lg p-4",
+                      "border rounded-none p-4",
                       reply.isNew ? "bg-blue-50 border-blue-200" : "bg-muted/30"
                     )}>
                       <div className="flex items-center justify-between mb-3 pb-3 border-b">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                          <div className="h-10 w-10 rounded-none bg-emerald-100 flex items-center justify-center">
                             <span className="text-sm font-semibold text-emerald-700">
                               {reply.from.charAt(0).toUpperCase()}
                             </span>
@@ -924,7 +924,7 @@ export default function EmailsPage() {
                       
                       {/* AI Sentiment Analysis */}
                       {sentimentResults[reply.id] ? (
-                        <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg">
+                        <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-none">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <Sparkles className="h-4 w-4 text-purple-600" />
@@ -1014,10 +1014,10 @@ export default function EmailsPage() {
                   
                   {/* Fallback: Show single reply from EmailLog (older format) */}
                   {emailReplies.length === 0 && selectedEmail.repliedAt && selectedEmail.replyBody && (
-                    <div className="border rounded-lg p-4 bg-muted/30">
+                    <div className="border rounded-none p-4 bg-muted/30">
                       <div className="flex items-center justify-between mb-3 pb-3 border-b">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                          <div className="h-10 w-10 rounded-none bg-emerald-100 flex items-center justify-center">
                             <span className="text-sm font-semibold text-emerald-700">
                               {selectedEmail.to.charAt(0).toUpperCase()}
                             </span>
@@ -1070,7 +1070,7 @@ export default function EmailsPage() {
                   
                   {/* Loading state */}
                   {loadingReplies && (
-                    <div className="border rounded-lg p-6 bg-muted/30 flex items-center justify-center">
+                    <div className="border rounded-none p-6 bg-muted/30 flex items-center justify-center">
                       <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
                       <span className="text-sm text-muted-foreground">Loading replies...</span>
                     </div>
@@ -1101,3 +1101,4 @@ export default function EmailsPage() {
     </div>
   );
 }
+

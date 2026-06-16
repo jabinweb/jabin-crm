@@ -267,7 +267,7 @@ export function EmailComposeDialog({
                         {subjectVariants.map((variant, idx) => (
                           <div
                             key={idx}
-                            className="p-2 border rounded-md hover:bg-accent cursor-pointer transition-colors"
+                            className="p-2 border rounded-none hover:bg-accent cursor-pointer transition-colors"
                             onClick={() => {
                               setFormData({ ...formData, subject: variant.subject });
                               setSubjectVariants([]);
@@ -419,3 +419,4 @@ export function EmailComposeDialog({
     </Dialog>
   );
 }
+

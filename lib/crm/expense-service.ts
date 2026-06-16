@@ -142,10 +142,10 @@ export class ExpenseService {
         .filter((e: ExpenseStatRow) => e.status === 'APPROVED' || e.status === 'REIMBURSED')
         .reduce((sum: number, e: ExpenseStatRow) => sum + e.amount, 0),
       byCategory: Object.entries(
-        expenses.reduce<Record<string, number>>((acc: Record<string, number>, e: ExpenseStatRow) => {
+        expenses.reduce((acc: Record<string, number>, e: ExpenseStatRow) => {
           acc[e.category] = (acc[e.category] || 0) + e.amount;
           return acc;
-        }, {})
+        }, {} as Record<string, number>)
       ).map(([category, amount]) => ({ category, amount })),
     };
   }

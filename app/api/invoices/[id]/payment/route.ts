@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { invoiceService } from '@/lib/invoice-service';
 import { validateRequest } from '@/lib/validation';
 import { z } from 'zod';
-import { handleApiError } from '@/lib/api-error-handler';
 
 const paymentSchema = z.object({
   amount: z.number().min(0.01, 'Payment amount must be greater than 0'),
@@ -17,7 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('INVOICES');
     const { id } = await params;
     
     const validatedData = await validateRequest(req, paymentSchema);
@@ -26,6 +27,7 @@ export async function POST(
 
     return NextResponse.json(invoice);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

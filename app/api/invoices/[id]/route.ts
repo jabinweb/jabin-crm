@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
-import { invoiceService } from '@/lib/invoice-service';
 import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
+import { invoiceService } from '@/lib/invoice-service';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('INVOICES');
     const { id } = await params;
     
     const invoice = await invoiceService.getInvoice(id);
@@ -19,6 +20,7 @@ export async function GET(
 
     return NextResponse.json(invoice);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }
@@ -28,7 +30,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireAuth(req);
+    const session = await withModuleAccess('INVOICES');
     const { id } = await params;
     const body = await req.json();
     
@@ -36,6 +38,7 @@ export async function PATCH(
     
     return NextResponse.json(invoice);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

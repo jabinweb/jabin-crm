@@ -196,7 +196,7 @@ export function TemplateSelector({ onSelect, leadData }: TemplateSelectorProps) 
             {templates.map((template) => (
               <Card
                 key={template.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
+                className="cursor-pointer hover:shadow-none transition-shadow"
                 onClick={() => handleSelectTemplate(template)}
               >
                 <CardHeader>
@@ -254,3 +254,4 @@ export function TemplateSelector({ onSelect, leadData }: TemplateSelectorProps) 
     </Dialog>
   );
 }
+

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { ApiErrors } from './api-error-handler';
+import { hasLegacyRole, requirePermission } from './auth/permissions';
 
 /**
  * Require authentication for API routes
@@ -22,9 +23,11 @@ export async function requireAuth(request: NextRequest) {
 export async function requireAdmin(request: NextRequest) {
   const session = await requireAuth(request);
   
-  if (session.user.role !== 'ADMIN') {
-    throw ApiErrors.forbidden();
-  }
+  // Back-compat: ADMIN or SUPER_ADMIN can pass.
+  if (hasLegacyRole(session as any, 'ADMIN', 'SUPER_ADMIN')) return session;
+
+  // RBAC path (gradual migration)
+  await requirePermission(session as any, 'admin:access');
   
   return session;
 }

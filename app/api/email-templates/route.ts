@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { templateService } from '@/lib/email/template-service';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH');
 
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -19,6 +18,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(templates);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Template fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch templates' },
@@ -29,10 +29,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH');
 
     const body = await request.json();
     const { name, subject, body: templateBody, category, isDefault } = body;
@@ -55,6 +52,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Template creation error:', error);
     return NextResponse.json(
       { error: 'Failed to create template' },

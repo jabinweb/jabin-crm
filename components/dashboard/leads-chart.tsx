@@ -18,10 +18,10 @@ export function LeadsChart() {
   return (
     <Card className="lg:col-span-4">
       <CardHeader>
-        <CardTitle>Leads Overview</CardTitle>
-        <CardDescription>
-          Monthly leads generation performance
-        </CardDescription>
+        <CardTitle className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">Performance</CardTitle>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold tracking-tight">Leads Generation</h3>
+        </div>
       </CardHeader>
       <CardContent className="pl-2">
         {isLoading ? (
@@ -33,8 +33,8 @@ export function LeadsChart() {
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="currentColor" stopOpacity={0.1} />
+                  <stop offset="95%" stopColor="currentColor" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
@@ -56,10 +56,11 @@ export function LeadsChart() {
               <Area
                 type="monotone"
                 dataKey="leads"
-                stroke="#3b82f6"
-                strokeWidth={2}
+                stroke="currentColor"
+                strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorLeads)"
+                className="text-primary"
               />
             </AreaChart>
           </ResponsiveContainer>

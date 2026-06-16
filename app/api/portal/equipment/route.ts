@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { resolvePortalDataAccess } from '@/lib/api/portal-access';
 
 export async function GET() {
     try {
         const session = await auth();
+        const access = resolvePortalDataAccess(session);
 
-        if (!session?.user || session.user.role !== 'CUSTOMER' || !session.user.customerId) {
+        if (!access.ok) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        if (access.scope === 'staff') {
+            return NextResponse.json([]);
+        }
+
         const equipment = await prisma.equipmentInstallation.findMany({
-            where: { customerId: session.user.customerId },
+            where: { customerId: access.customerId },
             orderBy: { installationDate: 'desc' },
             include: {
                 product: {

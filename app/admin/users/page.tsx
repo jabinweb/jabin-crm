@@ -57,8 +57,13 @@ export default function UsersPage() {
       const response = await fetch("/api/admin/users");
       if (!response.ok) throw new Error("Failed to fetch users");
       const data = await response.json();
-      setUsers(data);
-      setFilteredUsers(data);
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : [];
+      setUsers(list);
+      setFilteredUsers(list);
     } catch (error) {
       toast({
         title: "Error",
@@ -138,12 +143,12 @@ export default function UsersPage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="inline-block animate-spin rounded-none h-8 w-8 border-b-2 border-gray-900"></div>
           <p className="mt-2 text-gray-600">Loading users...</p>
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-lg shadow">
+          <div className="bg-white rounded-none shadow">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold">
@@ -190,3 +195,4 @@ export default function UsersPage() {
     </div>
   );
 }
+

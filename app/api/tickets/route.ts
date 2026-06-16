@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { ticketService } from '@/lib/crm/ticket-service';
 import { ticketNotifications } from '@/lib/email/ticket-notifications';
 import { prisma } from '@/lib/prisma';
+import { ensureFeatureEnabled } from '@/lib/feature-modules';
+import { handleApiError } from '@/lib/api-error-handler';
 
 export async function GET(request: NextRequest) {
     try {
@@ -14,15 +16,27 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status') || undefined;
         const priority = searchParams.get('priority') || undefined;
+        const channel = searchParams.get('channel') || undefined;
         const customerId = searchParams.get('customerId') || undefined;
         const technicianId = searchParams.get('technicianId') || undefined;
+        const includeMerged = searchParams.get('includeMerged') === 'true';
 
-        const where: any = {};
+        if (session.user.role !== 'CUSTOMER') {
+            if (channel) {
+                await ensureFeatureEnabled(session.user.id, 'SUPPORT_INBOX');
+            } else {
+                await ensureFeatureEnabled(session.user.id, 'TICKETS');
+            }
+        }
+
+        const where: Record<string, unknown> = {};
         if (session.user.role === 'CUSTOMER') {
             where.customerId = session.user.customerId;
         } else {
+            if (!includeMerged) where.mergedIntoId = null;
             if (status) where.status = status;
             if (priority) where.priority = priority;
+            if (channel) where.channel = channel;
             if (customerId) where.customerId = customerId;
             if (technicianId) where.assignedTechnicianId = technicianId;
         }
@@ -30,7 +44,7 @@ export async function GET(request: NextRequest) {
         const tickets = await prisma.supportTicket.findMany({
             where,
             include: {
-                customer: { select: { hospitalName: true } },
+                customer: { select: { organizationName: true } },
                 assignedTechnician: { select: { name: true } },
             },
             orderBy: { createdAt: 'desc' },
@@ -38,6 +52,8 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(tickets);
     } catch (error) {
+        const handled = handleApiError(error);
+        if (handled.status !== 500) return handled;
         console.error('Error fetching tickets:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -48,6 +64,10 @@ export async function POST(request: NextRequest) {
         const session = await auth();
         if (!session) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        if (session.user.role !== 'CUSTOMER') {
+            await ensureFeatureEnabled(session.user.id, 'TICKETS');
         }
 
         const data = await request.json();
@@ -79,7 +99,7 @@ export async function POST(request: NextRequest) {
                 technicianName: ticket.assignedTechnician.name || 'Technician',
                 ticketId: ticket.id,
                 subject: ticket.subject,
-                hospitalName: ticket.customer.hospitalName
+                organizationName: ticket.customer.organizationName
             }).catch(err => console.error('Technician notification failed:', err));
         }
 

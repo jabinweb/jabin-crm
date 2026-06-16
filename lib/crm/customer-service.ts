@@ -1,13 +1,16 @@
 import { prisma } from '@/lib/prisma';
 
 export interface CreateCustomerData {
-    hospitalName: string;
+    organizationName: string;
     contactPerson: string;
     email?: string;
     phone?: string;
     address?: string;
     city?: string;
     state?: string;
+    industry?: string;
+    accountType?: string;
+    companyId?: string;
     notes?: string;
 }
 
@@ -25,19 +28,22 @@ export class CustomerService {
     async createCustomer(data: CreateCustomerData) {
         const customer = await prisma.customer.create({
             data: {
-                hospitalName: data.hospitalName,
+                organizationName: data.organizationName,
                 contactPerson: data.contactPerson,
                 email: data.email,
                 phone: data.phone,
                 address: data.address,
                 city: data.city,
                 state: data.state,
+                industry: data.industry,
+                accountType: data.accountType,
+                companyId: data.companyId,
                 notes: data.notes,
             },
         });
 
         // Log activity
-        await this.logActivity(customer.id, 'UPDATED', `Customer record created for ${customer.hospitalName}`);
+        await this.logActivity(customer.id, 'UPDATED', `Customer record created for ${customer.organizationName}`);
 
         return customer;
     }
@@ -121,14 +127,18 @@ export class CustomerService {
         city?: string;
         page?: number;
         limit?: number;
+        companyId?: string;
     }) {
-        const { search, city, page = 1, limit = 10 } = params;
+        const { search, city, page = 1, limit = 10, companyId } = params;
         const skip = (page - 1) * limit;
 
-        const where: any = {};
+        const where: Record<string, unknown> = {};
+        if (companyId) {
+            where.companyId = companyId;
+        }
         if (search) {
             where.OR = [
-                { hospitalName: { contains: search, mode: 'insensitive' } },
+                { organizationName: { contains: search, mode: 'insensitive' } },
                 { contactPerson: { contains: search, mode: 'insensitive' } },
                 { email: { contains: search, mode: 'insensitive' } },
             ];
@@ -143,7 +153,7 @@ export class CustomerService {
                 where,
                 skip,
                 take: limit,
-                orderBy: { hospitalName: 'asc' },
+                orderBy: { organizationName: 'asc' },
                 include: {
                     _count: {
                         select: {

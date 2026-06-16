@@ -108,7 +108,7 @@ export default function CustomerDetailPage() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `hospital_history_${customer.hospitalName.replace(/\s+/g, '_')}.csv`;
+            a.download = `client_history_${customer.organizationName.replace(/\s+/g, '_')}.csv`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -149,7 +149,7 @@ export default function CustomerDetailPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="space-y-1">
                     <div className="flex items-center space-x-2">
-                        <h2 className="text-3xl font-bold tracking-tight">{customer.hospitalName}</h2>
+                        <h2 className="text-3xl font-bold tracking-tight">{customer.organizationName}</h2>
                         <Badge variant="outline">{customer.city || 'Location Pending'}</Badge>
                     </div>
                     <p className="text-muted-foreground flex items-center">
@@ -251,7 +251,7 @@ export default function CustomerDetailPage() {
                                         <DialogContent>
                                             <DialogHeader>
                                                 <DialogTitle>Add New Contact</DialogTitle>
-                                                <DialogDescription>Add a person associated with this facility.</DialogDescription>
+                                                <DialogDescription>Add a person associated with this organization.</DialogDescription>
                                             </DialogHeader>
                                             <div className="grid gap-4 py-4">
                                                 <div className="grid gap-2">
@@ -260,7 +260,7 @@ export default function CustomerDetailPage() {
                                                 </div>
                                                 <div className="grid gap-2">
                                                     <Label htmlFor="role">Role / Designation</Label>
-                                                    <Input id="role" value={newContact.role} onChange={(e) => setNewContact({ ...newContact, role: e.target.value })} placeholder="e.g. Biomedical Engineer" />
+                                                    <Input id="role" value={newContact.role} onChange={(e) => setNewContact({ ...newContact, role: e.target.value })} placeholder="e.g. Operations lead" />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div className="grid gap-2">
@@ -306,7 +306,7 @@ export default function CustomerDetailPage() {
                                 <CardHeader className="flex flex-row items-center justify-between">
                                     <div>
                                         <CardTitle>Installed Equipment</CardTitle>
-                                        <CardDescription>Listing of medical devices installed at this facility.</CardDescription>
+                                        <CardDescription>Products and assets installed for this client.</CardDescription>
                                     </div>
                                     <Button asChild size="sm">
                                         <Link href={`/dashboard/equipment/new?customerId=${id}`}>

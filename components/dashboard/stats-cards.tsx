@@ -22,77 +22,71 @@ interface StatsCardsProps {
 export function StatsCards({ stats }: StatsCardsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
-          <Building className="h-4 w-4 text-muted-foreground" />
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-row items-baseline justify-between space-y-0 pb-4">
+          <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Customers</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="text-3xl font-black tracking-tight">
             {stats?.totalCustomers !== undefined ? stats.totalCustomers.toLocaleString() : '0'}
           </div>
-          <p className="text-xs text-muted-foreground">Active hospitals & clinics</p>
+          <p className="text-[10px] font-medium text-muted-foreground mt-1 uppercase tracking-tighter">Active Accounts</p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
-          <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-row items-baseline justify-between space-y-0 pb-4">
+          <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Open Tickets</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.openTickets ?? 0}</div>
-          <p className="text-xs text-muted-foreground">Awaiting resolution</p>
+          <div className="text-3xl font-black tracking-tight">{stats?.openTickets ?? 0}</div>
+          <p className="text-[10px] font-medium text-muted-foreground mt-1 uppercase tracking-tighter">Pending Action</p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Equipment Installed</CardTitle>
-          <Activity className="h-4 w-4 text-muted-foreground" />
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-row items-baseline justify-between space-y-0 pb-4">
+          <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Equipments</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.equipmentInstalled ?? 0}</div>
-          <p className="text-xs text-muted-foreground">Units in field</p>
+          <div className="text-3xl font-black tracking-tight">{stats?.equipmentInstalled ?? 0}</div>
+          <p className="text-[10px] font-medium text-muted-foreground mt-1 uppercase tracking-tighter">In Field</p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+      <Card className="shadow-none">
+        <CardHeader className="flex flex-row items-baseline justify-between space-y-0 pb-4">
+          <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground">Pipeline Leads</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.totalLeads?.toLocaleString() ?? '0'}</div>
+          <div className="text-3xl font-black tracking-tight">{stats?.totalLeads?.toLocaleString() ?? '0'}</div>
           <div className="flex items-center gap-1 mt-1">
             <span className={cn(
-              "text-xs font-medium",
-              (stats?.weeklyGrowth ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+              "text-[10px] font-bold",
+              (stats?.weeklyGrowth ?? 0) >= 0 ? "text-emerald-600" : "text-rose-600"
             )}>
               {(stats?.weeklyGrowth ?? 0) >= 0 ? "+" : ""}{stats?.weeklyGrowth ?? 0}%
             </span>
-            <span className="text-xs text-muted-foreground">vs last week</span>
+            <span className="text-[10px] uppercase tracking-tighter font-medium text-muted-foreground">Growth</span>
           </div>
         </CardContent>
       </Card>
 
       {stats?.duplicateLeadsCount !== undefined && stats.duplicateLeadsCount > 0 && (
-        <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950">
+        <Card className="border-red-500 bg-red-500/[0.03] shadow-none">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Duplicates Found</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+            <CardTitle className="text-[10px] uppercase tracking-wider font-bold text-red-600">Action Required</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-              {stats.duplicateLeadsCount}
+            <div className="text-2xl font-black text-red-600">
+              {stats.duplicateLeadsCount} DUPLICATES
             </div>
-            <p className="text-xs text-orange-600 dark:text-orange-400 mb-2">
-              In {stats.duplicateGroupsCount} groups
+            <p className="text-[10px] font-medium text-red-600/70 mb-3 uppercase">
+              Found in {stats.duplicateGroupsCount} groups
             </p>
-            <Button asChild size="sm" variant="outline" className="text-xs h-7">
+            <Button asChild size="sm" variant="outline" className="text-[10px] h-7 border-red-200 hover:bg-red-100 hover:text-red-700 font-bold uppercase tracking-tighter">
               <Link href="/dashboard/duplicates">
-                <Copy className="mr-1 h-3 w-3" />
-                Review & Merge
+                Resolve Now
               </Link>
             </Button>
           </CardContent>

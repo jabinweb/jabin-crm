@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEmailOpen } from '@/lib/email-logger';
 
+/** Public tracking pixel — no auth or plan gate (mail clients fetch this URL). */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

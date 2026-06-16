@@ -1,7 +1,7 @@
 const APP_NAME = "jabin-crm";
 
-const STATIC_CACHE_NAME = `${APP_NAME}-static-v1`;
-const DYNAMIC_CACHE_NAME = `${APP_NAME}-dynamic-v1`;
+const STATIC_CACHE_NAME = `${APP_NAME}-static-v2`;
+const DYNAMIC_CACHE_NAME = `${APP_NAME}-dynamic-v2`;
 
 const STATIC_ASSETS = [
   "/",
@@ -62,6 +62,12 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
+
+  /* Next.js bundles & Turbopack chunks: never cache-first or HMR/module graphs break */
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(request));
+    return;
+  }
 
   /* -------- API REQUESTS (Network First) -------- */
 

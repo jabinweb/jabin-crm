@@ -19,12 +19,11 @@ export function ProfileCompletionBanner({ isComplete }: ProfileCompletionBannerP
   }
 
   return (
-    <Alert className="mb-4 border-blue-200 bg-blue-50">
-      <Building className="h-4 w-4 text-blue-600" />
-      <AlertTitle className="text-blue-900 font-semibold">
-        Complete Your Business Profile
+    <Alert className="mb-6 border-foreground/10 bg-muted/30">
+      <AlertTitle className="text-foreground font-bold uppercase tracking-wider text-[10px]">
+        Action Required: Business Profile
       </AlertTitle>
-      <AlertDescription className="text-blue-800">
+      <AlertDescription className="text-foreground mt-2">
         <div className="flex items-center justify-between">
           <p className="text-sm">
             Add your business information to generate better personalized cold emails with AI. 
@@ -34,17 +33,17 @@ export function ProfileCompletionBanner({ isComplete }: ProfileCompletionBannerP
             <Button 
               size="sm" 
               onClick={() => router.push('/dashboard/settings')}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="text-[10px] font-bold uppercase tracking-tighter h-8"
             >
-              Complete Profile
+              Complete Now
             </Button>
             <Button 
               size="sm" 
               variant="ghost"
               onClick={() => setIsDismissed(true)}
-              className="text-blue-600 hover:text-blue-700"
+              className="h-8 w-8 p-0"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3 w-3" />
             </Button>
           </div>
         </div>

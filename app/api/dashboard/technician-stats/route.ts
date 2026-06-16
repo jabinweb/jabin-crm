@@ -1,51 +1,88 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import { endOfMonth, startOfMonth } from 'date-fns';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const session = await auth();
-        if (!session || session.user.role !== 'TECHNICIAN') {
-            return NextResponse.json({ error: 'Unauthorized. Technician role required.' }, { status: 401 });
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         const technicianId = session.user.id;
+        const now = new Date();
+        const monthStart = startOfMonth(now);
+        const monthEnd = endOfMonth(now);
 
-        const [assigned, pending, resolved, recentReports] = await Promise.all([
-            // 1. Total assigned tickets (all active)
-            prisma.supportTicket.count({
-                where: { assignedTechnicianId: technicianId, status: { in: ['ASSIGNED', 'IN_PROGRESS'] } },
-            }),
-            // 2. Pending (specifically OPEN or ASSIGNED but not yet working)
-            prisma.supportTicket.count({
-                where: { assignedTechnicianId: technicianId, status: 'ASSIGNED' },
-            }),
-            // 3. Resolved by this technician
-            prisma.supportTicket.count({
-                where: { assignedTechnicianId: technicianId, status: 'RESOLVED' },
-            }),
-            // 4. Recent service reports by this technician
-            prisma.serviceReport.findMany({
-                where: { technicianId },
-                orderBy: { createdAt: 'desc' },
-                take: 5,
-                include: {
-                    ticket: { select: { subject: true } },
-                },
-            }),
-        ]);
+        const ticketBase = { assignedTechnicianId: technicianId };
+
+        const [assigned, inProgress, resolved, activeTickets, recentReports] =
+            await Promise.all([
+                prisma.supportTicket.count({
+                    where: {
+                        ...ticketBase,
+                        status: { in: ['OPEN', 'ASSIGNED'] },
+                    },
+                }),
+                prisma.supportTicket.count({
+                    where: { ...ticketBase, status: 'IN_PROGRESS' },
+                }),
+                prisma.supportTicket.count({
+                    where: {
+                        ...ticketBase,
+                        status: { in: ['RESOLVED', 'CLOSED'] },
+                        updatedAt: { gte: monthStart, lte: monthEnd },
+                    },
+                }),
+                prisma.supportTicket.findMany({
+                    where: {
+                        ...ticketBase,
+                        status: { notIn: ['RESOLVED', 'CLOSED'] },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 12,
+                    select: {
+                        id: true,
+                        subject: true,
+                        priority: true,
+                        status: true,
+                        createdAt: true,
+                        customer: { select: { organizationName: true } },
+                    },
+                }),
+                prisma.serviceReport.findMany({
+                    where: { technicianId },
+                    orderBy: { createdAt: 'desc' },
+                    take: 6,
+                    select: {
+                        id: true,
+                        serviceNotes: true,
+                        createdAt: true,
+                        ticket: {
+                            select: {
+                                subject: true,
+                                customer: { select: { organizationName: true } },
+                            },
+                        },
+                    },
+                }),
+            ]);
 
         return NextResponse.json({
-            stats: {
+            counts: {
                 assigned,
-                pending,
+                inProgress,
                 resolved,
-                totalCompleted: resolved, // Simplified for now
             },
+            activeTickets,
             recentReports,
         });
     } catch (error) {
-        console.error('Error fetching technician stats:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('[api/dashboard/technician-stats]', error);
+        return NextResponse.json(
+            { error: 'Internal server error' },
+            { status: 500 }
+        );
     }
 }

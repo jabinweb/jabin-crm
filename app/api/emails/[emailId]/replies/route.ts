@@ -67,7 +67,7 @@ export async function GET(
       replies.push(...directReplies);
       
       // Then find replies to those replies (thread chain)
-      const replyMessageIds = new Set(directReplies.map((r: any) => r.metadata?.messageId));
+      const replyMessageIds = new Set<string>(directReplies.map((r: any) => r.metadata?.messageId as string));
       
       const findThreadReplies = (parentIds: Set<string>) => {
         const threadReplies = allReplies.filter((reply: any) => 
@@ -78,7 +78,7 @@ export async function GET(
         if (threadReplies.length > 0) {
           replies.push(...threadReplies);
           // Recursively find replies to these replies
-          const newParentIds = new Set(threadReplies.map((r: any) => r.metadata?.messageId));
+          const newParentIds = new Set<string>(threadReplies.map((r: any) => r.metadata?.messageId as string));
           findThreadReplies(newParentIds);
         }
       };

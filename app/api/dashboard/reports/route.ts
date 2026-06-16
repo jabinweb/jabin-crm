@@ -1,253 +1,201 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { LeadStatus, CampaignStatus } from '@prisma/client';
+import {
+  endOfMonth,
+  endOfWeek,
+  startOfMonth,
+  startOfWeek,
+  subDays,
+} from 'date-fns';
 
-export async function GET(request: NextRequest) {
+type DateRange = '7d' | '30d' | 'week' | 'month' | 'all';
+
+function resolveRange(range: DateRange): { start: Date; end: Date; prevStart: Date; prevEnd: Date } {
+  const end = new Date();
+  if (range === '7d') {
+    const start = subDays(end, 7);
+    return { start, end, prevStart: subDays(start, 7), prevEnd: start };
+  }
+  if (range === '30d') {
+    const start = subDays(end, 30);
+    return { start, end, prevStart: subDays(start, 30), prevEnd: start };
+  }
+  if (range === 'week') {
+    const start = startOfWeek(end);
+    const prevEnd = start;
+    return { start, end: endOfWeek(end), prevStart: subDays(start, 7), prevEnd };
+  }
+  if (range === 'month') {
+    const start = startOfMonth(end);
+    const prevEnd = start;
+    return { start, end: endOfMonth(end), prevStart: startOfMonth(subDays(start, 1)), prevEnd };
+  }
+  const start = new Date(0);
+  return { start, end, prevStart: new Date(0), prevEnd: start };
+}
+
+function growthPercent(current: number, previous: number): number {
+  if (previous === 0) return current > 0 ? 100 : 0;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '30d';
+    const range = (req.nextUrl.searchParams.get('range') || '30d') as DateRange;
+    const { start, end, prevStart, prevEnd } = resolveRange(range);
+    const userId = session.user.id;
 
-    // Calculate date range
-    let startDate: Date;
-    let previousStartDate: Date;
-    const now = new Date();
-
-    switch (range) {
-      case '7d':
-        startDate = subDays(now, 7);
-        previousStartDate = subDays(now, 14);
-        break;
-      case '30d':
-        startDate = subDays(now, 30);
-        previousStartDate = subDays(now, 60);
-        break;
-      case 'week':
-        startDate = startOfWeek(now);
-        previousStartDate = startOfWeek(subDays(now, 7));
-        break;
-      case 'month':
-        startDate = startOfMonth(now);
-        previousStartDate = startOfMonth(subDays(now, 30));
-        break;
-      case 'all':
-        startDate = new Date(0);
-        previousStartDate = new Date(0);
-        break;
-      default:
-        startDate = subDays(now, 30);
-        previousStartDate = subDays(now, 60);
-    }
-
-    // Fetch leads data
-    const totalLeads = await prisma.lead.count({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-      },
+    const leadWhere = (from: Date, to: Date) => ({
+      userId,
+      createdAt: { gte: from, lte: to },
     });
 
-    const previousLeads = await prisma.lead.count({
-      where: {
-        userId: session.user.id,
-        createdAt: {
-          gte: previousStartDate,
-          lt: startDate,
+    const [
+      totalLeads,
+      prevLeads,
+      newLeads,
+      contactedLeads,
+      convertedLeads,
+      statusGroups,
+      emailsSent,
+      emailsOpened,
+      emailsClicked,
+      campaignsTotal,
+      campaignsActive,
+      campaignList,
+      sourceGroups,
+      industryGroups,
+      recentLeadActivities,
+    ] = await Promise.all([
+      prisma.lead.count({ where: leadWhere(start, end) }),
+      prisma.lead.count({ where: leadWhere(prevStart, prevEnd) }),
+      prisma.lead.count({ where: leadWhere(start, end) }),
+      prisma.lead.count({
+        where: {
+          userId,
+          status: { not: LeadStatus.NEW },
+          updatedAt: { gte: start, lte: end },
         },
-      },
-    });
-
-    const leadsGrowth = previousLeads > 0
-      ? Math.round(((totalLeads - previousLeads) / previousLeads) * 100)
-      : 0;
-
-    // Lead status breakdown
-    const leadsByStatus = await prisma.lead.groupBy({
-      by: ['status'],
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-      },
-      _count: true,
-    });
-
-    const leadStatusBreakdown = leadsByStatus.map(item => ({
-      status: item.status,
-      count: item._count,
-      percentage: totalLeads > 0 ? Math.round((item._count / totalLeads) * 100) : 0,
-    }));
-
-    // Leads by specific statuses
-    const newLeads = leadsByStatus.find(s => s.status === 'NEW')?._count || 0;
-    const contactedLeads = leadsByStatus.find(s => s.status === 'CONTACTED')?._count || 0;
-    const convertedLeads = leadsByStatus.find(s => s.status === 'CONVERTED')?._count || 0;
-
-    // Top sources
-    const leadsBySource = await prisma.lead.groupBy({
-      by: ['source'],
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-      },
-      _count: true,
-      orderBy: {
-        _count: {
-          source: 'desc',
+      }),
+      prisma.lead.count({
+        where: {
+          userId,
+          status: { in: [LeadStatus.WON, LeadStatus.CONVERTED] },
+          updatedAt: { gte: start, lte: end },
         },
-      },
-      take: 5,
-    });
+      }),
+      prisma.lead.groupBy({
+        by: ['status'],
+        where: { userId, createdAt: { gte: start, lte: end } },
+        _count: true,
+      }),
+      prisma.emailLog.count({
+        where: { userId, sentAt: { gte: start, lte: end } },
+      }),
+      prisma.emailLog.count({
+        where: { userId, openedAt: { gte: start, lte: end } },
+      }),
+      prisma.emailLog.count({
+        where: { userId, clickedAt: { gte: start, lte: end } },
+      }),
+      prisma.emailCampaign.count({ where: { userId } }),
+      prisma.emailCampaign.count({
+        where: { userId, status: { in: [CampaignStatus.SENDING, CampaignStatus.SCHEDULED] } },
+      }),
+      prisma.emailCampaign.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: { id: true, name: true, status: true, createdAt: true },
+      }),
+      prisma.lead.groupBy({
+        by: ['source'],
+        where: { userId, createdAt: { gte: start, lte: end } },
+        _count: true,
+        orderBy: { _count: { source: 'desc' } },
+        take: 8,
+      }),
+      prisma.lead.groupBy({
+        by: ['industry'],
+        where: { userId, industry: { not: null }, createdAt: { gte: start, lte: end } },
+        _count: true,
+        orderBy: { _count: { industry: 'desc' } },
+        take: 8,
+      }),
+      prisma.leadActivity.findMany({
+        where: { lead: { userId } },
+        orderBy: { createdAt: 'desc' },
+        take: 12,
+        include: { lead: { select: { companyName: true } } },
+      }),
+    ]);
 
-    const topSources = leadsBySource.map(item => ({
-      name: item.source,
-      count: item._count,
-      percentage: totalLeads > 0 ? Math.round((item._count / totalLeads) * 100) : 0,
-    }));
-
-    // Top industries
-    const leadsByIndustry = await prisma.lead.groupBy({
-      by: ['industry'],
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-        industry: { not: null },
-      },
-      _count: true,
-      orderBy: {
-        _count: {
-          industry: 'desc',
-        },
-      },
-      take: 5,
-    });
-
-    const topIndustries = leadsByIndustry.map(item => ({
-      name: item.industry,
-      count: item._count,
-      percentage: totalLeads > 0 ? Math.round((item._count / totalLeads) * 100) : 0,
-    }));
-
-    // Email campaigns data
-    const campaigns = await prisma.emailCampaign.findMany({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-      },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        sentCount: true,
-        openCount: true,
-        clickCount: true,
-        replyCount: true,
-      },
-    });
-
-    const activeCampaigns = campaigns.filter(c =>
-      c.status === 'SCHEDULED' || c.status === 'SENDING'
-    ).length;
-
-    const totalEmailsSent = campaigns.reduce((sum, c) => sum + c.sentCount, 0);
-    const totalOpened = campaigns.reduce((sum, c) => sum + c.openCount, 0);
-    const totalClicked = campaigns.reduce((sum, c) => sum + c.clickCount, 0);
-    const totalReplied = campaigns.reduce((sum, c) => sum + c.replyCount, 0);
-
-    const openRate = totalEmailsSent > 0
-      ? Math.round((totalOpened / totalEmailsSent) * 100)
-      : 0;
-
-    const clickRate = totalEmailsSent > 0
-      ? Math.round((totalClicked / totalEmailsSent) * 100)
-      : 0;
-
-    const campaignList = campaigns.map(c => ({
-      name: c.name,
-      status: c.status,
-      sent: c.sentCount,
-      opened: c.openCount,
-      clicked: c.clickCount,
-      replied: c.replyCount,
-    }));
-
-
-
-    // Recent activities
-    const recentActivities = await prisma.leadActivity.findMany({
-      where: {
-        userId: session.user.id,
-        createdAt: { gte: startDate },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: {
-        activityType: true,
-        description: true,
-        createdAt: true,
-      },
-    });
-
-    const activities = recentActivities.map(a => ({
-      type: a.activityType.includes('EMAIL') ? 'email' :
-        a.activityType.includes('CREATED') ? 'lead' : 'campaign',
-      description: a.description,
-      createdAt: a.createdAt,
-      status: 'success',
-    }));
-
-    // Performance metrics
-    const conversionRate = totalLeads > 0
-      ? Math.round((convertedLeads / totalLeads) * 100)
-      : 0;
+    const openRate = emailsSent ? Math.round((emailsOpened / emailsSent) * 1000) / 10 : 0;
+    const clickRate = emailsSent ? Math.round((emailsClicked / emailsSent) * 1000) / 10 : 0;
+    const contactRate = totalLeads ? Math.round((contactedLeads / totalLeads) * 1000) / 10 : 0;
+    const conversionRate = totalLeads ? Math.round((convertedLeads / totalLeads) * 1000) / 10 : 0;
 
     return NextResponse.json({
       leads: {
         total: totalLeads,
-        growth: leadsGrowth,
+        growth: growthPercent(totalLeads, prevLeads),
         new: newLeads,
         contacted: contactedLeads,
         converted: convertedLeads,
-        contactRate: totalLeads > 0 ? Math.round((contactedLeads / totalLeads) * 100) : 0,
+        contactRate,
         conversionRate,
-        byStatus: leadStatusBreakdown,
+        byStatus: statusGroups.map((row) => ({
+          status: row.status,
+          count: row._count,
+        })),
       },
       emails: {
-        sent: totalEmailsSent,
-        opened: totalOpened,
-        clicked: totalClicked,
-        replied: totalReplied,
+        sent: emailsSent,
+        opened: emailsOpened,
+        clicked: emailsClicked,
         openRate,
         clickRate,
       },
       campaigns: {
-        total: campaigns.length,
-        active: activeCampaigns,
+        total: campaignsTotal,
+        active: campaignsActive,
         list: campaignList,
       },
       performance: {
         conversionRate,
         conversions: convertedLeads,
-        avgResponseTime: 'N/A', // TODO: Calculate from email events
-        qualityScore: 0, // TODO: Implement quality scoring
-        roi: 0, // TODO: Calculate ROI
-        costPerLead: 0, // TODO: Calculate cost per lead
+        avgResponseTime: 'N/A',
+        qualityScore: 0,
+        roi: 0,
+        costPerLead: 0,
       },
-      topSources,
-      topIndustries,
-      recentActivities: activities,
+      topSources: sourceGroups.map((row) => ({
+        source: row.source,
+        count: row._count,
+      })),
+      topIndustries: industryGroups
+        .filter((row) => row.industry)
+        .map((row) => ({
+          industry: row.industry,
+          count: row._count,
+        })),
+      recentActivities: recentLeadActivities.map((a) => ({
+        id: a.id,
+        type: a.activityType,
+        description: a.description,
+        createdAt: a.createdAt,
+        lead: a.lead,
+      })),
     });
-
-  } catch (error: any) {
-    console.error('Error fetching reports:', error);
-    return NextResponse.json({
-      error: 'Failed to fetch reports',
-      details: error.message
-    }, { status: 500 });
+  } catch (error) {
+    console.error('[api/dashboard/reports]', error);
+    return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });
   }
 }

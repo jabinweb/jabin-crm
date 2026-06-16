@@ -167,7 +167,7 @@ export default function EmailLogPage() {
     
     return (
       <Badge variant="outline" className="flex items-center gap-1 w-fit">
-        <div className={`w-2 h-2 rounded-full ${config.color}`} />
+        <div className={`w-2 h-2 rounded-none ${config.color}`} />
         <Icon className="h-3 w-3" />
         {config.label}
       </Badge>
@@ -318,7 +318,7 @@ export default function EmailLogPage() {
             </div>
           ) : (
             <>
-              <div className="border rounded-lg">
+              <div className="border rounded-none">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -488,7 +488,7 @@ export default function EmailLogPage() {
                   {selectedEmail.sentAt && (
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        <div className="w-2 h-2 rounded-none bg-blue-500" />
                       </div>
                       <div>
                         <div className="text-sm font-medium">Sent</div>
@@ -502,7 +502,7 @@ export default function EmailLogPage() {
                   {selectedEmail.deliveredAt && (
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <div className="w-2 h-2 rounded-none bg-green-500" />
                       </div>
                       <div>
                         <div className="text-sm font-medium">Delivered</div>
@@ -516,7 +516,7 @@ export default function EmailLogPage() {
                   {selectedEmail.openedAt && (
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="w-2 h-2 rounded-full bg-purple-500" />
+                        <div className="w-2 h-2 rounded-none bg-purple-500" />
                       </div>
                       <div>
                         <div className="text-sm font-medium">Opened</div>
@@ -530,7 +530,7 @@ export default function EmailLogPage() {
                   {selectedEmail.clickedAt && (
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="w-2 h-2 rounded-full bg-indigo-500" />
+                        <div className="w-2 h-2 rounded-none bg-indigo-500" />
                       </div>
                       <div>
                         <div className="text-sm font-medium">Clicked</div>
@@ -544,7 +544,7 @@ export default function EmailLogPage() {
                   {selectedEmail.repliedAt && (
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <div className="w-2 h-2 rounded-none bg-emerald-500" />
                       </div>
                       <div className="flex-1">
                         <div className="text-sm font-medium text-emerald-600">Replied</div>
@@ -552,7 +552,7 @@ export default function EmailLogPage() {
                           {format(new Date(selectedEmail.repliedAt), 'MMM d, yyyy h:mm a')}
                         </div>
                         {selectedEmail.replySubject && (
-                          <div className="mt-2 p-3 bg-muted rounded-lg">
+                          <div className="mt-2 p-3 bg-muted rounded-none">
                             <div className="text-xs font-medium mb-1">
                               Subject: {selectedEmail.replySubject}
                             </div>
@@ -571,7 +571,7 @@ export default function EmailLogPage() {
                   {selectedEmail.errorMessage && (
                     <div className="flex items-start gap-3">
                       <div className="mt-1">
-                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                        <div className="w-2 h-2 rounded-none bg-red-500" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-red-600">Error</div>
@@ -594,3 +594,4 @@ export default function EmailLogPage() {
 function Label({ children, className }: { children: React.ReactNode; className?: string }) {
   return <div className={className}>{children}</div>;
 }
+

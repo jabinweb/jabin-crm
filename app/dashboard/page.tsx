@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { StatsCards } from '@/components/dashboard/stats-cards';
 import { LeadsChart } from '@/components/dashboard/leads-chart';
 import { ProfileCompletionBanner } from '@/components/dashboard/profile-completion-banner';
+import { NoCompanyWorkspaceDialog } from '@/components/company/no-company-workspace-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,15 +14,50 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, Play, Pause, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+type DashboardStatsResult =
+  | { kind: 'stats'; employees: number; clients: number; products: number; projects: number }
+  | { kind: 'no_company' }
+
 export default function Dashboard() {
-  const { data: stats, isLoading } = useQuery({
+  const [noCompanyDialogOpen, setNoCompanyDialogOpen] = useState(false);
+
+  const { data: statsResult, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: async () => {
+    queryFn: async (): Promise<DashboardStatsResult> => {
       const response = await fetch('/api/dashboard/stats');
-      if (!response.ok) throw new Error('Failed to fetch stats');
-      return response.json();
+      const body = (await response.json().catch(() => ({}))) as {
+        code?: string;
+        error?: string;
+        employees?: number;
+        clients?: number;
+        products?: number;
+        projects?: number;
+      };
+      if (response.status === 403 && body.code === 'NO_COMPANY') {
+        return { kind: 'no_company' };
+      }
+      if (!response.ok) {
+        throw new Error(typeof body.error === 'string' ? body.error : 'Failed to fetch stats');
+      }
+      return {
+        kind: 'stats',
+        employees: body.employees ?? 0,
+        clients: body.clients ?? 0,
+        products: body.products ?? 0,
+        projects: body.projects ?? 0,
+      };
     },
+    retry: false,
   });
+
+  useEffect(() => {
+    if (statsResult?.kind === 'no_company') {
+      setNoCompanyDialogOpen(true);
+    }
+    if (statsResult?.kind === 'stats') {
+      setNoCompanyDialogOpen(false);
+    }
+  }, [statsResult]);
 
   const { data: profile } = useQuery({
     queryKey: ['user-profile'],
@@ -63,15 +99,20 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex-1 space-y-4 md:space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight hidden lg:block">Dashboard</h2>
-        <div className="flex items-center space-x-2">
-          <Button asChild className="w-full sm:w-auto">
-            <Link href="/dashboard/tickets/new">New Support Ticket</Link>
+    <div className="flex-1 space-y-6">
+      <NoCompanyWorkspaceDialog open={noCompanyDialogOpen} onOpenChange={setNoCompanyDialogOpen} />
+
+      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between border-b pb-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Dashboard</h2>
+          <p className="text-muted-foreground text-xs mt-1">Overview of your workspace performance.</p>
+        </div>
+        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+          <Button asChild size="sm" className="px-4">
+            <Link href="/dashboard/tickets/new">New Ticket</Link>
           </Button>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/dashboard/customers/new">Add Customer</Link>
+          <Button asChild variant="outline" size="sm" className="px-4">
+            <Link href="/dashboard/customers/new">Add Client</Link>
           </Button>
         </div>
       </div>
@@ -79,7 +120,7 @@ export default function Dashboard() {
       {/* Profile Completion Banner */}
       {profile && <ProfileCompletionBanner isComplete={profile.isComplete} />}
 
-      <StatsCards stats={stats!} />
+      {statsResult?.kind === 'stats' ? <StatsCards stats={statsResult as any} /> : null}
 
       <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-7">
         <LeadsChart />
@@ -113,19 +154,19 @@ export default function Dashboard() {
                 {recentTickets?.map((ticket: any) => (
                   <div key={ticket.id} className="flex items-center justify-between space-x-4">
                     <div className="flex items-center space-x-4 min-w-0">
-                      <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        ticket.status === 'OPEN' ? "bg-red-500" :
-                          ticket.status === 'IN_PROGRESS' ? "bg-blue-500" : "bg-green-500"
-                      )} />
-                      <div className="truncate">
-                        <p className="text-sm font-medium leading-none truncate">
-                          {ticket.subject}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {ticket.customer.hospitalName}
-                        </p>
-                      </div>
+                        <div className={cn(
+                          "w-2 h-2 rounded-none",
+                          ticket.status === 'OPEN' ? "bg-red-500" :
+                            ticket.status === 'IN_PROGRESS' ? "bg-amber-500" : "bg-emerald-500"
+                        )} />
+                        <div className="truncate">
+                          <p className="text-sm font-medium leading-none truncate group-hover:underline">
+                            {ticket.subject}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate mt-1">
+                            {ticket.customer.organizationName}
+                          </p>
+                        </div>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Badge variant={getPriorityVariant(ticket.priority)}>
@@ -142,3 +183,4 @@ export default function Dashboard() {
     </div>
   );
 }
+

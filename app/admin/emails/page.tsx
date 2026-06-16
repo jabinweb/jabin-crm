@@ -1,4 +1,15 @@
 import { prisma } from "@/lib/prisma";
+import type { EmailLogStatus, Prisma } from "@prisma/client";
+
+type EmailLogRow = Prisma.EmailLogGetPayload<{
+  include: {
+    user: { select: { name: true; email: true } };
+    lead: { select: { companyName: true } };
+    campaign: { select: { name: true } };
+  };
+}>;
+
+type EmailStatRow = { status: EmailLogStatus; _count: number };
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -11,7 +22,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Mail, CheckCircle, XCircle, Clock } from "lucide-react";
 
-async function getEmailLogs() {
+async function getEmailLogs(): Promise<{
+  emailLogs: EmailLogRow[];
+  emailStats: EmailStatRow[];
+}> {
   const [emailLogs, emailStats] = await Promise.all([
     prisma.emailLog.findMany({
       take: 100,
@@ -41,16 +55,19 @@ async function getEmailLogs() {
     }),
   ]);
 
-  return { emailLogs, emailStats };
+  return {
+    emailLogs: emailLogs as EmailLogRow[],
+    emailStats: emailStats as EmailStatRow[],
+  };
 }
 
 export default async function EmailLogsPage() {
   const { emailLogs, emailStats } = await getEmailLogs();
 
-  const sentCount = emailStats.find((s) => s.status === "SENT")?._count || 0;
-  const deliveredCount = emailStats.find((s) => s.status === "DELIVERED")?._count || 0;
-  const failedCount = emailStats.find((s) => s.status === "FAILED")?._count || 0;
-  const pendingCount = emailStats.find((s) => s.status === "PENDING")?._count || 0;
+  const sentCount = emailStats.find((s: EmailStatRow) => s.status === "SENT")?._count || 0;
+  const deliveredCount = emailStats.find((s: EmailStatRow) => s.status === "DELIVERED")?._count || 0;
+  const failedCount = emailStats.find((s: EmailStatRow) => s.status === "FAILED")?._count || 0;
+  const pendingCount = emailStats.find((s: EmailStatRow) => s.status === "PENDING")?._count || 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -93,7 +110,7 @@ export default async function EmailLogsPage() {
                   {sentCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-green-100">
+              <div className="p-3 rounded-none bg-green-100">
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
@@ -109,7 +126,7 @@ export default async function EmailLogsPage() {
                   {deliveredCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-blue-100">
+              <div className="p-3 rounded-none bg-blue-100">
                 <Mail className="w-6 h-6 text-blue-600" />
               </div>
             </div>
@@ -125,7 +142,7 @@ export default async function EmailLogsPage() {
                   {failedCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-red-100">
+              <div className="p-3 rounded-none bg-red-100">
                 <XCircle className="w-6 h-6 text-red-600" />
               </div>
             </div>
@@ -141,7 +158,7 @@ export default async function EmailLogsPage() {
                   {pendingCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-yellow-100">
+              <div className="p-3 rounded-none bg-yellow-100">
                 <Clock className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
@@ -155,7 +172,7 @@ export default async function EmailLogsPage() {
           <CardTitle>Recent Email Logs</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-none border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -218,3 +235,4 @@ export default async function EmailLogsPage() {
     </div>
   );
 }
+

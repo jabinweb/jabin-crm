@@ -79,7 +79,7 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
 
   const toggleSequence = async () => {
     if (!stats) return;
-    
+
     try {
       const res = await fetch(`/api/sequences/${params.id}`, {
         method: 'PATCH',
@@ -116,11 +116,11 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
   };
 
   if (loading) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Loading...</div>;
+    return <div className="container mx-auto">Loading...</div>;
   }
 
   if (!stats) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Sequence not found</div>;
+    return <div className="container mx-auto">Sequence not found</div>;
   }
 
   return (

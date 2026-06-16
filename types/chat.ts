@@ -1,0 +1,94 @@
+import type { CallData } from './call';
+
+export interface EmployeeMessage {
+  id: number;
+  content: string;
+  senderId: string;
+  receiverId: string;
+  status: 'SENT' | 'DELIVERED' | 'READ';
+  type: 'TEXT' | 'FILE' | 'IMAGE';
+  createdAt: Date;
+  sender: {
+    name: string;
+    avatar: string | null;
+  };
+}
+
+export interface ChatUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+
+export interface CallUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+}
+
+export interface ChatState {
+  messages: EmployeeMessage[];
+  isLoading: boolean;
+  selectedChat: string | null;
+  activeCall: CallData | null;
+  incomingCall: CallData | null;
+  isTyping: boolean;
+  onlineUsers: Set<string>;
+}
+
+export interface ChatContextType {
+  messages: EmployeeMessage[];
+  sendMessage: (content: string, receiverId: string) => void;
+  isTyping: boolean;
+  onlineUsers: Set<string>;
+  isLoading: boolean;
+  selectedChat: string | null;
+  setSelectedChat: (userId: string) => void;
+  navigateToChat: (userId: string) => void;
+  activeCall: CallData | null;
+  incomingCall: CallData | null;
+  initiateCall: (userId: string, type: 'audio' | 'video') => void;
+  acceptCall: () => void;
+  rejectCall: () => void;
+  endCall: () => void;
+  currentUserId: string;
+  notifyTyping: (receiverId: string) => void;
+}
+
+export interface ChatStateActions {
+  setMessages: (messages: EmployeeMessage[]) => void;
+  setIsLoading: (loading: boolean) => void;
+  setSelectedChat: (userId: string | null) => void;
+  setActiveCall: (call: CallData | null) => void;
+  setIncomingCall: (call: CallData | null) => void;
+  setIsTyping: (typing: boolean) => void;
+  addMessage: (message: EmployeeMessage) => void;
+  updateOnlineUsers: (userId: string, status: 'online' | 'offline') => void;
+  fetchMessages: (userId: string) => Promise<void>;
+}
+
+export interface ChatStateRefs {
+  typingTimeoutRef: React.MutableRefObject<NodeJS.Timeout | undefined>;
+  messageQueueRef: React.MutableRefObject<any[]>;
+  prevMessagesRef: React.MutableRefObject<EmployeeMessage[]>;
+  lastTypingNotificationRef: React.MutableRefObject<number>;
+}
+
+export interface ChatItem {
+  id: string;
+  name: string;
+  avatar: string;
+  variant: "secondary" | "ghost";
+  lastMessage?: {
+    content: string;
+    timestamp: string;
+    unread: boolean;
+  };
+}
+
+export interface Employee {
+  id: string;
+  name: string;
+  avatar: string | null;
+  department: string;
+}

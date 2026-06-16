@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEmailReply, findEmailLogForReply } from '@/lib/email-logger';
 import { prisma } from '@/lib/prisma';
+import { handleSupportInboundEmail } from '@/lib/crm/support-email-handler';
+
+import { verifyEmailWebhookSecret } from '@/lib/email-webhook-auth';
+
+function verifyInboundWebhook(request: NextRequest): boolean {
+  return verifyEmailWebhookSecret(request);
+}
 
 /**
  * Inbound Email Webhook
@@ -15,6 +22,10 @@ import { prisma } from '@/lib/prisma';
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!verifyInboundWebhook(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const contentType = request.headers.get('content-type') || '';
     let emailData: any = {};
 
@@ -124,16 +135,29 @@ export async function POST(request: NextRequest) {
       }
     } else {
       console.log('⚠️ Could not find original email for reply from:', from);
-      
-      // Still log this as a new inbound email for tracking
-      // Find user by email domain or create a general log
-      const recipientDomain = to?.split('@')[1];
-      
-      // Try to find a user with this email domain or just log it
-      console.log('📝 Logging as unmatched inbound email');
+
+      const supportResult = await handleSupportInboundEmail({
+        from,
+        to,
+        subject,
+        textBody,
+        htmlBody,
+        inReplyTo,
+        messageId,
+      });
+
+      if (supportResult.handled) {
+        return NextResponse.json({
+          success: true,
+          matched: false,
+          support: supportResult,
+        });
+      }
+
+      console.log('📝 Unmatched inbound email (no lead or support customer):', supportResult.reason);
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       matched: !!originalLog,
       logId: originalLog?.id,

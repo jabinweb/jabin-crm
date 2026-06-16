@@ -23,6 +23,11 @@ import { Loader2, CheckCircle2, XCircle, Calendar, CreditCard, TrendingUp, Alert
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import {
+  ALL_FEATURE_MODULES,
+  FEATURE_MODULE_LABELS,
+  type FeatureModuleKey,
+} from '@/lib/feature-module-keys';
 
 interface Plan {
   id: string;
@@ -67,13 +72,27 @@ export default function SubscriptionSettingsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  // Fetch enabled modules for current user/plan
+  const { data: featureAccess } = useQuery<{
+    modules: Record<string, boolean>;
+    planModules: Record<string, boolean>;
+  }>({
+    queryKey: ['feature-modules-me'],
+    queryFn: async () => {
+      const res = await fetch('/api/features/me');
+      if (!res.ok) return { modules: {}, planModules: {} };
+      return res.json();
+    },
+  });
+
   // Fetch subscription data
-  const { data: subscription, isLoading: subLoading } = useQuery<Subscription>({
+  const { data: subscription, isLoading: subLoading } = useQuery<Subscription | null>({
     queryKey: ['subscription'],
     queryFn: async () => {
       const res = await fetch('/api/subscription/current');
-      if (!res.ok) throw new Error('Failed to fetch subscription');
-      return res.json();
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.subscription ?? null;
     },
   });
 
@@ -254,6 +273,38 @@ export default function SubscriptionSettingsPage() {
               ))}
             </div>
           </div>
+
+          {featureAccess && (
+            <>
+              <Separator />
+              <div>
+                <h4 className="font-semibold mb-1">Enabled modules</h4>
+                <p className="text-sm text-muted-foreground mb-3">
+                  HRMS (attendance, payroll, leave) is included for your company and is not
+                  limited by plan tier.
+                </p>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {ALL_FEATURE_MODULES.filter(
+                    (m) => featureAccess.modules[m as FeatureModuleKey] === true
+                  ).map((module) => (
+                    <div key={module} className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      <span className="text-sm">
+                        {FEATURE_MODULE_LABELS[module as FeatureModuleKey]}
+                      </span>
+                    </div>
+                  ))}
+                  {ALL_FEATURE_MODULES.every(
+                    (m) => featureAccess.modules[m as FeatureModuleKey] !== true
+                  ) && (
+                    <p className="text-sm text-muted-foreground col-span-2">
+                      No feature modules are enabled on your current plan.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
 
           <Separator />
 
@@ -447,9 +498,9 @@ export default function SubscriptionSettingsPage() {
           <CardContent>
             <div className="space-y-4">
               {payments.map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                <div key={payment.id} className="flex items-center justify-between p-4 border rounded-none">
                   <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full ${payment.status === 'SUCCESS' ? 'bg-green-100' : 'bg-gray-100'}`}>
+                    <div className={`p-2 rounded-none ${payment.status === 'SUCCESS' ? 'bg-green-100' : 'bg-gray-100'}`}>
                       <CreditCard className={`h-4 w-4 ${payment.status === 'SUCCESS' ? 'text-green-600' : 'text-gray-600'}`} />
                     </div>
                     <div>
@@ -476,3 +527,4 @@ export default function SubscriptionSettingsPage() {
     </div>
   );
 }
+

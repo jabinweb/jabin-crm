@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-error-handler';
+import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
 
 export async function PATCH(
   request: NextRequest,
@@ -11,6 +13,8 @@ export async function PATCH(
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
 
     const resolvedParams = await params;
     const data = await request.json();
@@ -42,6 +46,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedLead);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error updating lead status:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

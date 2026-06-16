@@ -376,7 +376,7 @@ export default function NewQuotationPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
-                <div key={index} className="p-4 border rounded-lg space-y-3">
+                <div key={index} className="p-4 border rounded-none space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Item #{index + 1}</span>
                     {items.length > 1 && (
@@ -589,3 +589,4 @@ export default function NewQuotationPage() {
     </div>
   );
 }
+

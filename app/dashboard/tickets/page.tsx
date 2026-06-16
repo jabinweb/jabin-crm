@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ export default function TicketsPage() {
 
     const filteredTickets = tickets?.filter((t: any) =>
         t.subject.toLowerCase().includes(search.toLowerCase()) ||
-        t.customer.hospitalName.toLowerCase().includes(search.toLowerCase())
+        t.customer.organizationName.toLowerCase().includes(search.toLowerCase())
     );
 
     const getPriorityVariant = (p: string) => {
@@ -72,18 +73,18 @@ export default function TicketsPage() {
 
     const getStatusColor = (s: string) => {
         switch (s) {
-            case 'OPEN': return 'text-red-500';
-            case 'IN_PROGRESS': return 'text-blue-500';
-            case 'RESOLVED': return 'text-green-500';
-            case 'CLOSED': return 'text-gray-500';
-            default: return 'text-orange-500';
+            case 'OPEN': return 'text-foreground font-black underline decoration-red-500/50 underline-offset-4';
+            case 'IN_PROGRESS': return 'text-foreground/80 font-bold';
+            case 'RESOLVED': return 'text-muted-foreground line-through opacity-50';
+            case 'CLOSED': return 'text-muted-foreground/40';
+            default: return 'text-foreground/60';
         }
     };
 
     return (
         <div className="flex-1 space-y-4 md:space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Support Management</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b pb-6 mb-8 mt-2">
+                <h2 className="text-xl font-black uppercase tracking-[0.2em]">Support Terminal</h2>
                 <Button asChild>
                     <Link href="/dashboard/tickets/new">
                         <Plus className="mr-2 h-4 w-4" />
@@ -96,16 +97,13 @@ export default function TicketsPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <CardTitle>Ticket Queue</CardTitle>
-                            <CardDescription>
-                                Monitor and manage incoming support requests.
-                            </CardDescription>
+                            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Ticket Queue Archive</CardTitle>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                             <div className="relative w-full sm:w-64">
                                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    placeholder="Ticket title or hospital..."
+                                    placeholder="Ticket title or client..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="pl-8"
@@ -141,15 +139,15 @@ export default function TicketsPage() {
                 <CardContent>
                     {isLoading ? (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     ) : (
-                        <div className="rounded-md border overflow-x-auto">
+                        <div className="rounded-none border overflow-x-auto">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead className="w-[100px]">ID</TableHead>
-                                        <TableHead>Subject / Facility</TableHead>
+                                        <TableHead>Subject / client</TableHead>
                                         <TableHead>Priority</TableHead>
                                         <TableHead>Assigned To</TableHead>
                                         <TableHead>Status</TableHead>
@@ -173,7 +171,7 @@ export default function TicketsPage() {
                                                 <TableCell>
                                                     <div className="space-y-0.5">
                                                         <p className="font-medium text-sm">{ticket.subject}</p>
-                                                        <p className="text-xs text-muted-foreground">{ticket.customer.hospitalName}</p>
+                                                        <p className="text-xs text-muted-foreground">{ticket.customer.organizationName}</p>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -188,9 +186,8 @@ export default function TicketsPage() {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center space-x-2 text-xs font-medium">
-                                                        <div className={`w-2 h-2 rounded-full ${getStatusColor(ticket.status).replace('text-', 'bg-')}`} />
-                                                        <span className={getStatusColor(ticket.status)}>{ticket.status}</span>
+                                                    <div className="flex items-center space-x-2 text-xs">
+                                                        <span className={cn("uppercase tracking-tighter", getStatusColor(ticket.status))}>{ticket.status}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">
@@ -211,3 +208,4 @@ export default function TicketsPage() {
         </div>
     );
 }
+

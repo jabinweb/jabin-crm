@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 
 // GET /api/emails/drafts - Fetch all drafts for current user
 export async function GET(request: NextRequest) {
   try {
+    await withModuleAccess('EMAIL_OUTREACH');
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,6 +32,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ drafts });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error fetching email drafts:', error);
     return NextResponse.json(
       { error: 'Failed to fetch email drafts' },
@@ -39,6 +44,7 @@ export async function GET(request: NextRequest) {
 // POST /api/emails/drafts - Create/save a new draft
 export async function POST(request: NextRequest) {
   try {
+    await withModuleAccess('EMAIL_OUTREACH');
     const session = await auth();
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

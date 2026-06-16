@@ -23,6 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PlanModulesEditor } from "@/components/admin/plan-modules-editor";
+import {
+  ALL_FEATURE_MODULES,
+} from "@/lib/feature-module-keys";
 
 interface Plan {
   id: string;
@@ -36,9 +40,14 @@ interface Plan {
   maxEmails: number;
   maxCampaigns: number;
   isActive: boolean;
+  modules?: Record<string, boolean> | null;
   _count?: {
     subscriptions: number;
   };
+}
+
+function emptyModules(): Record<string, boolean> {
+  return Object.fromEntries(ALL_FEATURE_MODULES.map((m) => [m, false]));
 }
 
 export default function PlansPage() {
@@ -60,6 +69,7 @@ export default function PlansPage() {
     maxCampaigns: "",
     isActive: true,
     features: "",
+    modules: emptyModules(),
   });
 
   const fetchPlans = async () => {
@@ -101,6 +111,7 @@ export default function PlansPage() {
       features: formData.features
         ? JSON.parse(formData.features)
         : [],
+      modules: formData.modules,
     };
 
     try {
@@ -170,6 +181,7 @@ export default function PlansPage() {
       maxCampaigns: "",
       isActive: true,
       features: "",
+      modules: emptyModules(),
     });
     setEditingPlan(null);
   };
@@ -190,6 +202,9 @@ export default function PlansPage() {
         maxCampaigns: plan.maxCampaigns.toString(),
         isActive: plan.isActive,
         features: "",
+        modules: plan.modules
+          ? { ...emptyModules(), ...(plan.modules as Record<string, boolean>) }
+          : emptyModules(),
       });
       setShowDialog(true);
     }
@@ -205,6 +220,29 @@ export default function PlansPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/admin/plans/sync-modules', { method: 'POST' });
+                if (!res.ok) throw new Error('Sync failed');
+                const data = await res.json();
+                toast({
+                  title: 'Modules synced',
+                  description: `Updated ${data.updated} plan(s) with default modules`,
+                });
+                fetchPlans();
+              } catch {
+                toast({
+                  title: 'Error',
+                  description: 'Failed to sync default modules',
+                  variant: 'destructive',
+                });
+              }
+            }}
+          >
+            Sync default modules
+          </Button>
           <Button onClick={fetchPlans} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
@@ -223,11 +261,11 @@ export default function PlansPage() {
 
       {loading ? (
         <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="inline-block animate-spin rounded-none h-8 w-8 border-b-2 border-gray-900"></div>
           <p className="mt-2 text-gray-600">Loading plans...</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-none shadow">
           <div className="p-6">
             <PlansTable
               plans={plans}
@@ -388,6 +426,11 @@ export default function PlansPage() {
                 />
                 <Label htmlFor="isActive">Active</Label>
               </div>
+
+              <PlanModulesEditor
+                modules={formData.modules}
+                onChange={(modules) => setFormData({ ...formData, modules })}
+              />
             </div>
             <DialogFooter className="mt-6">
               <Button
@@ -410,3 +453,4 @@ export default function PlansPage() {
     </div>
   );
 }
+

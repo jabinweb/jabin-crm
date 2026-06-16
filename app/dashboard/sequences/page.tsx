@@ -60,7 +60,7 @@ export default function SequencesPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Loading sequences...</div>;
+    return <div className="container mx-auto">Loading sequences...</div>;
   }
 
   return (
@@ -99,7 +99,7 @@ export default function SequencesPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {sequences.map((sequence) => (
-            <Card key={sequence.id} className="hover:shadow-lg transition-shadow">
+            <Card key={sequence.id} className="hover:shadow-none transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -157,3 +157,4 @@ export default function SequencesPage() {
     </div>
   );
 }
+

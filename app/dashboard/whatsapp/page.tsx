@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +14,11 @@ import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 
 const statusColor: Record<string, string> = {
-  SENT: 'bg-blue-100 text-blue-700',
-  DELIVERED: 'bg-green-100 text-green-700',
-  READ: 'bg-emerald-100 text-emerald-700',
-  FAILED: 'bg-red-100 text-red-700',
-  QUEUED: 'bg-yellow-100 text-yellow-700',
+  SENT: 'text-foreground underline decoration-zinc-500 underline-offset-4',
+  DELIVERED: 'text-foreground font-black tracking-widest',
+  READ: 'text-muted-foreground line-through opacity-50',
+  FAILED: 'text-foreground border border-foreground px-1 bg-foreground text-background',
+  QUEUED: 'text-muted-foreground italic',
 };
 
 export default function WhatsAppHubPage() {
@@ -55,7 +56,7 @@ export default function WhatsAppHubPage() {
       const featureRes = await fetch('/api/features/me');
       if (!featureRes.ok) return true;
       const featureData = await featureRes.json();
-      const enabled = featureData?.modules?.WHATSAPP !== false;
+      const enabled = featureData?.modules?.WHATSAPP === true;
       setFeatureEnabled(enabled);
       return enabled;
     } catch {
@@ -133,7 +134,7 @@ export default function WhatsAppHubPage() {
 
   if (!featureEnabled) {
     return (
-      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      <div className="container mx-auto">
         <Card>
           <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -190,20 +191,21 @@ export default function WhatsAppHubPage() {
 
   return (
     <div className="container mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">WhatsApp Hub</h1>
-        <p className="text-sm text-muted-foreground">Send and monitor sales and service WhatsApp conversations.</p>
+      <div className="border-b pb-6 mb-8">
+        <h1 className="text-xl font-black uppercase tracking-[0.2em]">WhatsApp Terminal</h1>
+        <p className="text-[10px] font-bold text-muted-foreground uppercase mt-2 tracking-widest opacity-60">
+          Secure Communication Gateway • Node ID-882
+        </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Provider Setup</CardTitle>
-          <CardDescription>Each customer can self-onboard Twilio or Meta Cloud API.</CardDescription>
+          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Provider Configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Provider</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Active Provider</Label>
               <Select value={config.provider} onValueChange={(value) => setConfig({ ...config, provider: value })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -213,8 +215,8 @@ export default function WhatsAppHubPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Operational Status</Label>
               <Select value={config.isActive ? 'ACTIVE' : 'INACTIVE'} onValueChange={(value) => setConfig({ ...config, isActive: value === 'ACTIVE' })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -278,13 +280,12 @@ export default function WhatsAppHubPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Send Message</CardTitle>
-          <CardDescription>Uses your selected provider configuration.</CardDescription>
+          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Message Dispatcher</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Channel</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Logic Channel</Label>
               <Select value={form.channel} onValueChange={(value) => setForm({ ...form, channel: value })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -293,8 +294,8 @@ export default function WhatsAppHubPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Recipient Phone</Label>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Destination Address</Label>
               <Input
                 value={form.toPhone}
                 onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
@@ -318,8 +319,8 @@ export default function WhatsAppHubPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Message</Label>
+          <div className="space-y-1.5">
+            <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Payload Content</Label>
             <Textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={5} />
           </div>
 
@@ -333,8 +334,7 @@ export default function WhatsAppHubPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle>Conversation Log</CardTitle>
-              <CardDescription>Latest outbound/inbound WhatsApp activity.</CardDescription>
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Conversation Archive</CardTitle>
             </div>
             <Select
               value={channelFilter}
@@ -353,7 +353,7 @@ export default function WhatsAppHubPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-none border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -378,7 +378,7 @@ export default function WhatsAppHubPage() {
                       <TableCell>{msg.direction}</TableCell>
                       <TableCell>{msg.toPhone}</TableCell>
                       <TableCell>
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColor[msg.status] || 'bg-muted'}`}>
+                        <span className={cn("text-[10px] font-bold uppercase", statusColor[msg.status] || 'text-muted-foreground')}>
                           {msg.status}
                         </span>
                       </TableCell>
@@ -394,3 +394,4 @@ export default function WhatsAppHubPage() {
     </div>
   );
 }
+

@@ -39,7 +39,7 @@ export default function TechnicianDashboard() {
     if (statsLoading) {
         return (
             <div className="flex justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-primary"></div>
             </div>
         );
     }
@@ -116,14 +116,14 @@ export default function TechnicianDashboard() {
                     <CardContent>
                         <div className="space-y-4">
                             {stats?.activeTickets?.length === 0 ? (
-                                <div className="text-center py-10 border-2 border-dashed rounded-lg">
+                                <div className="text-center py-10 border-2 border-dashed rounded-none">
                                     <CheckCircle2 className="h-10 w-10 text-green-500 mx-auto mb-2" />
                                     <p className="font-medium">All caught up!</p>
                                     <p className="text-sm text-muted-foreground">No pending tickets in your assigned slot.</p>
                                 </div>
                             ) : (
                                 stats?.activeTickets?.map((ticket: any) => (
-                                    <div key={ticket.id} className="group border rounded-lg p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+                                    <div key={ticket.id} className="group border rounded-none p-4 hover:bg-muted/30 transition-colors cursor-pointer"
                                         onClick={() => router.push(`/dashboard/tickets/${ticket.id}`)}>
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="space-y-1">
@@ -133,7 +133,7 @@ export default function TechnicianDashboard() {
                                                         {ticket.priority}
                                                     </Badge>
                                                 </div>
-                                                <p className="text-xs text-muted-foreground">{ticket.customer.hospitalName}</p>
+                                                <p className="text-xs text-muted-foreground">{ticket.customer.organizationName}</p>
                                             </div>
                                             <Badge variant="outline">{ticket.status}</Badge>
                                         </div>
@@ -174,7 +174,7 @@ export default function TechnicianDashboard() {
                                 stats?.recentReports?.map((report: any) => (
                                     <div key={report.id} className="p-3 border-l-4 border-l-green-500 bg-muted/20 rounded-r-lg space-y-1">
                                         <p className="text-xs font-bold truncate">{report.ticket.subject}</p>
-                                        <p className="text-[10px] text-muted-foreground">Facility: {report.ticket.customer.hospitalName}</p>
+                                        <p className="text-[10px] text-muted-foreground">Client: {report.ticket.customer.organizationName}</p>
                                         <p className="text-[10px] italic">" {report.serviceNotes.slice(0, 60)}... "</p>
                                         <p className="text-[9px] text-muted-foreground mt-2">{new Date(report.createdAt).toLocaleDateString()}</p>
                                     </div>
@@ -192,3 +192,4 @@ export default function TechnicianDashboard() {
         </div>
     );
 }
+

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { taskService } from '@/lib/crm/task-service';
+import { taskService } from '@/lib/tasks/task-service';
 
 export async function GET(req: NextRequest) {
   try {

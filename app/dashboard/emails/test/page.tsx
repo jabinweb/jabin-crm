@@ -412,7 +412,7 @@ export default function EmailTesterPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Add these to your .env file to enable reply checking:
                 </p>
-                <div className="bg-muted p-3 rounded-md mt-2 font-mono text-xs space-y-1">
+                <div className="bg-muted p-3 rounded-none mt-2 font-mono text-xs space-y-1">
                   <div>IMAP_HOST=imap.gmail.com</div>
                   <div>IMAP_PORT=993</div>
                   <div>IMAP_USER=your-email@gmail.com</div>
@@ -452,3 +452,4 @@ export default function EmailTesterPage() {
     </div>
   );
 }
+

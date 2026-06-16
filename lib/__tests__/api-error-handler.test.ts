@@ -69,3 +69,4 @@ describe('API Error Handler', () => {
     expect(error.code).toBe('INTERNAL_ERROR');
   });
 });
+

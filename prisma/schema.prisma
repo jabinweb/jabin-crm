@@ -68,7 +68,7 @@ model User {
   transfersFrom     TicketTransferHistory[] @relation("TransfersFrom")
   transfersTo       TicketTransferHistory[] @relation("TransfersTo")
   usage             UsageTracking?
-  customer          Customer?               @relation("HospitalStaff", fields: [customerId], references: [id])
+  customer          Customer?               @relation("CustomerStaff", fields: [customerId], references: [id])
   profile           UserProfile?
   userRoles         UserRoleAssignment[]
   workflows         Workflow[]
@@ -78,10 +78,33 @@ model User {
   travelExpenses    TravelExpense[]         @relation("TechnicianExpenses")
   approvedExpenses  TravelExpense[]         @relation("ExpenseApprover")
   submittedExpenses TravelExpense[]         @relation("ExpenseCreator")
+  supportGroupMembers SupportGroupMember[]
   locationLogs      TechnicianLocationLog[] @relation("TechnicianLocations")
   whatsappConfig    WhatsAppProviderConfig?
   whatsappMessages  WhatsAppMessage[]
   featureModules    FeatureModuleSetting[]
+
+  // ── Company Management Integration ──
+  password          String?
+  userStatus        UserStatus          @default(ACTIVE)
+  companyId         String?
+  primaryCompanyId  String?
+  managedCompanyId  String?
+  lastSeenAt        DateTime?
+  company           Company?            @relation("UserCompany", fields: [companyId], references: [id])
+  primaryCompany    Company?            @relation("UserPrimaryCompany", fields: [primaryCompanyId], references: [id])
+  managedCompany    Company?            @relation("CompanyManager", fields: [managedCompanyId], references: [id])
+  employeeProfile   Employee?           @relation("UserEmployee")
+  managedEmployees  Employee[]          @relation("EmployeeToManager")
+  userCompanies     UserCompany[]
+  companyRoles      UserCompanyRole[]
+  userSessions      UserSession[]
+  userSettings      UserSettings?
+  employeeSalaries  EmployeeSalary[]
+
+  @@index([companyId])
+  @@index([primaryCompanyId])
+  @@index([managedCompanyId])
 }
 
 model UserProfile {
@@ -110,7 +133,7 @@ model UserProfile {
   imapPassword        String?
   geminiApiKey        String?
   googlePlacesApiKey  String?
-  aiModel             String?  @default("gemini-2.0-flash")
+  aiModel             String?  @default("gemini-2.5-flash")
   preferredCurrency   String?  @default("USD")
   companyAddress      String?
   companyPhone        String?
@@ -163,6 +186,7 @@ model Lead {
   employeeCount       Int?
   revenue             String?
   contactName         String?
+  name                String?
   jobTitle            String?
   linkedinUrl         String?
   twitterUrl          String?
@@ -173,16 +197,23 @@ model Lead {
   description         String?
   source              String
   sourceUrl           String?
+  priority            Priority             @default(MEDIUM)
+  sourceType          CompanyLeadSource    @default(WEBSITE)
   userId              String
   assignedToId        String?
+  employeeId          String?
+  companyId           String?
   status              LeadStatus           @default(NEW)
   isVerified          Boolean              @default(false)
   isEnriched          Boolean              @default(false)
   tags                String[]             @default([])
   notes               String?
   lastContactedAt     DateTime?
+  convertedAt         DateTime?
+  convertedClientId   String?              @unique
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  
   calendarEvents      CalendarEvent[]
   contacts            Contact[]
   deals               Deal[]
@@ -190,6 +221,8 @@ model Lead {
   emailLogs           EmailLog[]
   invoices            Invoice[]
   assignedTo          User?                @relation("LeadAssignee", fields: [assignedToId], references: [id])
+  employee            Employee?            @relation("EmployeeAssignedLeads", fields: [employeeId], references: [id])
+  company             Company?             @relation("CompanyLeads", fields: [companyId], references: [id])
   user                User                 @relation("LeadCreator", fields: [userId], references: [id], onDelete: Cascade)
   activities          LeadActivity[]
   enrichmentData      LeadEnrichment?
@@ -198,6 +231,8 @@ model Lead {
   sequenceEnrollments SequenceEnrollment[]
   tasks               Task[]
   whatsappMessages    WhatsAppMessage[]
+  convertedClient     Client?              @relation("ClientConvertedLead", fields: [convertedClientId], references: [id])
+  documents           LeadDocument[]
 
   @@index([companyName])
   @@index([industry])
@@ -297,9 +332,14 @@ model LeadActivity {
   description  String
   metadata     Json?
   userId       String?
+  employeeId   String?
+  dueDate      DateTime?
+  completed    Boolean      @default(false)
   createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt @default(now())
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id])
+  employee     Employee?    @relation("EmployeeLeadActivities", fields: [employeeId], references: [id])
 
   @@index([leadId])
   @@index([createdAt])
@@ -396,6 +436,7 @@ model Plan {
   currency      String         @default("INR")
   interval      String
   features      Json
+  modules       Json?
   maxLeads      Int            @default(20)
   maxEmails     Int            @default(50)
   maxCampaigns  Int            @default(5)
@@ -857,13 +898,17 @@ model InvoiceItem {
 
 model Customer {
   id                     String                  @id @default(cuid())
-  hospitalName           String
+  /// Display name for the account (legacy DB column: hospitalName)
+  organizationName       String                  @map("hospitalName")
   contactPerson          String
   email                  String?
   phone                  String?
   address                String?
   city                   String?
   state                  String?
+  industry               String?
+  accountType            String?
+  companyId              String?
   notes                  String?
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
@@ -873,12 +918,16 @@ model Customer {
   invoices               Invoice[]
   quotations             Quotation[]
   supportTickets         SupportTicket[]
-  staff                  User[]                  @relation("HospitalStaff")
+  liveChatSessions       LiveChatSession[]
+  staff                  User[]                  @relation("CustomerStaff")
   notifications          Notification[]
   whatsappMessages       WhatsAppMessage[]
+  company                Company?                @relation(fields: [companyId], references: [id])
 
-  @@index([hospitalName])
+  @@index([organizationName])
   @@index([city])
+  @@index([industry])
+  @@index([companyId])
   @@index([createdAt])
 }
 
@@ -921,9 +970,33 @@ model Product {
   updatedAt     DateTime                @updatedAt
   installations EquipmentInstallation[]
 
+  // ── Inventory & Stock Management (from Company Manager) ──
+  sku           String?                 @unique
+  price         Float?
+  quantity      Int                     @default(0)
+  companyId     String?
+  imageUrl      String?
+  barcode       String?                 @unique
+  maxQuantity   Int?
+  minQuantity   Int                     @default(0)
+  qrCode        String?
+  reorderPoint  Int                     @default(0)
+  supplierId    String?
+  company       Company?                @relation(fields: [companyId], references: [id])
+  supplier      Supplier?               @relation(fields: [supplierId], references: [id])
+  batchItems    BatchItem[]
+  inventoryRecords InventoryRecord[]
+  purchaseOrders   PurchaseOrder[]      @relation("POProducts")
+  salesOrders      SalesOrder[]         @relation("SOProducts")
+  stockTransfers   StockTransfer[]
+  locations        Location[]           @relation("ProductLocations")
+
   @@index([name])
   @@index([category])
   @@index([type])
+  @@index([companyId])
+  @@index([supplierId])
+  @@index([sku])
 }
 
 model EquipmentInstallation {
@@ -951,17 +1024,29 @@ model SupportTicket {
   id                   String                  @id @default(cuid())
   customerId           String
   equipmentId          String?
+  groupId              String?
   subject              String
   description          String
   priority             TicketPriority          @default(MEDIUM)
   status               TicketStatus            @default(OPEN)
+  channel              TicketChannel           @default(PORTAL)
+  ticketType           String?
+  tags                 String[]                @default([])
   assignedTechnicianId String?
+  csatRating           Int?
+  csatComment          String?
+  csatSubmittedAt      DateTime?
+  mergedIntoId         String?
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
   serviceReports       ServiceReport[]
   assignedTechnician   User?                   @relation("AssignedTickets", fields: [assignedTechnicianId], references: [id])
   customer             Customer                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   equipment            EquipmentInstallation?  @relation(fields: [equipmentId], references: [id])
+  group                SupportGroup?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  mergedInto           SupportTicket?          @relation("TicketMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom           SupportTicket[]         @relation("TicketMerge")
+  liveChatSession      LiveChatSession?
   activities           TicketActivity[]
   transferHistory      TicketTransferHistory[]
   cashEntries          CashOnHandEntry[]
@@ -971,10 +1056,13 @@ model SupportTicket {
 
   @@index([customerId])
   @@index([equipmentId])
+  @@index([groupId])
   @@index([assignedTechnicianId])
   @@index([status])
   @@index([priority])
+  @@index([channel])
   @@index([createdAt])
+  @@index([mergedIntoId])
 }
 
 model TicketActivity {
@@ -982,6 +1070,7 @@ model TicketActivity {
   ticketId      String
   eventType     String
   description   String
+  isInternal    Boolean       @default(false)
   performedById String?
   metadata      Json?
   createdAt     DateTime      @default(now())
@@ -989,6 +1078,7 @@ model TicketActivity {
   ticket        SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
+  @@index([isInternal])
   @@index([createdAt])
 }
 
@@ -1006,6 +1096,123 @@ model TicketTransferHistory {
   @@index([ticketId])
   @@index([fromTechnicianId])
   @@index([toTechnicianId])
+}
+
+// ── Help desk (Freshdesk-style) ───────────────────────────────────────────
+
+model SupportGroup {
+  id          String               @id @default(cuid())
+  name        String
+  description String?
+  email       String?
+  companyId   String?
+  isDefault   Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  company     Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  members     SupportGroupMember[]
+  tickets     SupportTicket[]
+
+  @@index([companyId])
+  @@index([isDefault])
+}
+
+model SupportGroupMember {
+  id        String       @id @default(cuid())
+  groupId   String
+  userId    String
+  createdAt DateTime     @default(now())
+  group     SupportGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model SupportCannedResponse {
+  id          String   @id @default(cuid())
+  title       String
+  body        String   @db.Text
+  category    String?
+  isShared    Boolean  @default(true)
+  createdById String?
+  companyId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([category])
+}
+
+model KnowledgeArticle {
+  id            String   @id @default(cuid())
+  title         String
+  slug          String   @unique
+  content       String   @db.Text
+  category      String?
+  tags          String[] @default([])
+  published     Boolean  @default(false)
+  viewCount     Int      @default(0)
+  helpfulCount  Int      @default(0)
+  companyId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([category])
+  @@index([published])
+}
+
+model SlaPolicy {
+  id              String         @id @default(cuid())
+  name            String
+  priority        TicketPriority
+  responseHours   Int
+  resolutionHours Int
+  isDefault       Boolean        @default(true)
+  companyId       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  company         Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, priority])
+  @@index([companyId])
+}
+
+model LiveChatSession {
+  id           String            @id @default(cuid())
+  visitorToken String            @unique
+  visitorName  String?
+  visitorEmail String?
+  customerId   String?
+  ticketId     String?           @unique
+  companyId    String?
+  status       String            @default("OPEN")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  customer     Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  ticket       SupportTicket?    @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  company      Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages     LiveChatMessage[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([customerId])
+}
+
+model LiveChatMessage {
+  id        String          @id @default(cuid())
+  sessionId String
+  sender    String
+  senderId  String?
+  body      String          @db.Text
+  createdAt DateTime        @default(now())
+  session   LiveChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([createdAt])
 }
 
 model ServiceReport {
@@ -1246,8 +1453,12 @@ enum LeadStatus {
   CONTACTED
   RESPONDED
   QUALIFIED
+  PROPOSAL
+  NEGOTIATION
+  WON
   CONVERTED
   LOST
+  ON_HOLD
   UNSUBSCRIBED
 }
 
@@ -1293,6 +1504,14 @@ enum ActivityType {
   TAG_ADDED
   ENRICHED
   CONTACTED
+  CALL
+  MEETING
+  TASK
+  FOLLOW_UP
+  PROPOSAL
+  NOTE
+  EMAIL
+  OTHER
 }
 
 enum DraftStatus {
@@ -1428,6 +1647,15 @@ enum TicketPriority {
   CRITICAL
 }
 
+enum TicketChannel {
+  EMAIL
+  PORTAL
+  PHONE
+  WHATSAPP
+  CHAT
+  API
+}
+
 enum TicketStatus {
   OPEN
   ASSIGNED
@@ -1494,6 +1722,13 @@ enum FeatureModule {
   QUOTATIONS
   INVOICES
   TICKETS
+  SUPPORT_INBOX
+  SUPPORT_SLA
+  SUPPORT_LIVE_CHAT
+  SUPPORT_KNOWLEDGE
+  SUPPORT_CANNED
+  SUPPORT_GROUPS
+  TICKET_ADVANCED
   SERVICE_REPORTS
   SERVICE_CASH
   SERVICE_EXPENSES
@@ -1537,4 +1772,701 @@ model Notification {
   @@index([customerId])
   @@index([read])
   @@index([createdAt])
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║         COMPANY MANAGEMENT MODULE (Integrated from Company-Manager)    ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+// ── Core: Company ──────────────────────────────────────────────────────────
+
+model Company {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  slug        String        @unique
+  website     String?       @unique
+  logo        String?
+  email       String?
+  phone       String?
+  status      CompanyStatus @default(PENDING)
+  settings    Json?         @default("{}")
+  adminId     String?       @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  admin         Employee?       @relation("CompanyAdmin", fields: [adminId], references: [id])
+  employees     Employee[]      @relation("CompanyEmployees")
+  users         User[]          @relation("UserCompany")
+  primaryUsers  User[]          @relation("UserPrimaryCompany")
+  managers      User[]          @relation("CompanyManager")
+  userCompanies UserCompany[]
+  userCompanyRoles UserCompanyRole[]
+
+  announcements  Announcement[]
+  assets         Asset[]
+  budgets        Budget[]
+  clients        Client[]
+  expenses       Expense[]
+  locations      Location[]
+  projects       Project[]
+  suppliers      Supplier[]
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  salesOrders    SalesOrder[]
+  stockTransfers StockTransfer[]
+  leads          Lead[]        @relation("CompanyLeads")
+  companyTasks   CompanyTask[]
+  inventoryRecords InventoryRecord[]
+  supportCustomers Customer[]
+  supportGroups    SupportGroup[]
+  knowledgeArticles KnowledgeArticle[]
+  cannedResponses  SupportCannedResponse[]
+  slaPolicies      SlaPolicy[]
+  liveChatSessions LiveChatSession[]
+
+  @@index([slug])
+  @@index([status])
+}
+
+// ── HR: Employee & Related ────────────────────────────────────────────────
+
+model Employee {
+  id             String         @id @default(cuid())
+  userId         String?        @unique
+  employeeId     String         @unique  // Human-readable ID e.g. "EMP-001"
+  name           String
+  email          String         @unique
+  phone          String
+  address        Json
+  jobTitle       String
+  department     String
+  dateJoined     DateTime       @default(now())
+  role           EmployeeRole   @default(EMPLOYEE)
+  employmentType EmploymentType @default(FULL_TIME)
+  status         EmployeeStatus @default(PENDING)
+  companyId      String
+  managerId      String?
+  isApproved     Boolean        @default(false)
+  avatar         String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  user             User?              @relation("UserEmployee", fields: [userId], references: [id])
+  userManager      User?              @relation("EmployeeToManager", fields: [userId], references: [id], map: "Employee_manager_fkey")
+  company          Company            @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Cascade)
+  adminOf          Company?           @relation("CompanyAdmin")
+  manager          Employee?          @relation("EmployeeHierarchy", fields: [managerId], references: [id])
+  subordinates     Employee[]         @relation("EmployeeHierarchy")
+  attendance       Attendance[]
+  leaveRequests    LeaveRequest[]
+  leaveActions     LeaveRequest[]     @relation("LeaveRequestActions")
+  payslips         Payslip[]
+  salary           EmployeeSalary[]
+  sentMessages     EmployeeMessage[]  @relation("SentMessages")
+  receivedMessages EmployeeMessage[]  @relation("ReceivedMessages")
+  assignedTasks    CompanyTask[]      @relation("TaskAssignee")
+  createdTasks     CompanyTask[]      @relation("TaskCreator")
+  taskComments     CompanyTaskComment[]
+  assignedLeads    Lead[]             @relation("EmployeeAssignedLeads")
+  leadActivities   LeadActivity[]     @relation("EmployeeLeadActivities")
+  leadDocuments    LeadDocument[]
+  companyRoles     UserCompanyRole[]
+
+  @@index([companyId])
+  @@index([email])
+  @@index([managerId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  employeeId String
+  status     AttendanceStatus @default(ABSENT)
+  checkIn    DateTime?
+  checkOut   DateTime?
+  overtime   Int?
+  metadata   Json?            @default("{}")
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  employee   Employee         @relation(fields: [employeeId], references: [id])
+
+  @@index([employeeId])
+  @@index([createdAt])
+}
+
+model LeaveRequest {
+  id         String      @id @default(cuid())
+  startDate  DateTime
+  endDate    DateTime
+  type       String
+  reason     String
+  status     LeaveStatus @default(PENDING)
+  employeeId String
+  actionById String?
+  actionAt   DateTime?
+  comment    String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  actor      Employee?   @relation("LeaveRequestActions", fields: [actionById], references: [id])
+
+  @@index([employeeId])
+  @@index([actionById])
+}
+
+model Payslip {
+  id          String    @id @default(cuid())
+  month       Int
+  year        Int
+  basicSalary Float
+  deductions  Float
+  additions   Float
+  netSalary   Float
+  isPaid      Boolean   @default(false)
+  paidAt      DateTime?
+  employeeId  String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+}
+
+model EmployeeSalary {
+  id               String   @id @default(cuid())
+  employeeId       String
+  basicSalary      Float
+  houseRent        Float    @default(0)
+  transport        Float    @default(0)
+  medicalAllowance Float    @default(0)
+  taxDeduction     Float    @default(0)
+  otherDeductions  Float    @default(0)
+  effectiveFrom    DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  createdById      String
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([employeeId])
+  @@index([createdById])
+}
+
+// ── Communication: Employee Messaging ─────────────────────────────────────
+
+model EmployeeMessage {
+  id         String               @id @default(cuid())
+  content    String               @db.Text
+  senderId   String
+  receiverId String
+  status     EmployeeMessageStatus @default(SENT)
+  type       EmployeeMessageType   @default(TEXT)
+  readAt     DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  sender     Employee @relation("SentMessages", fields: [senderId], references: [id])
+  receiver   Employee @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+}
+
+// ── Operations: Company Assets, Budgets, Expenses ────────────────────────
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  priority  Int      @default(0)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  name         String
+  type         String
+  value        Float
+  purchaseDate DateTime
+  depreciation Float
+  companyId    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  company      Company  @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([type])
+}
+
+model Budget {
+  id        String   @id @default(cuid())
+  year      Int
+  amount    Float
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([year])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([date])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  status      String
+  startDate   DateTime
+  endDate     DateTime
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([startDate, endDate])
+}
+
+// ── B2B: Client Management ────────────────────────────────────────────────
+
+model Client {
+  id        String        @id @default(cuid())
+  name      String
+  contact   String
+  email     String        @unique
+  phone     String
+  address   Json
+  companyId String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  company   Company       @relation(fields: [companyId], references: [id])
+  convertedLeads Lead[] @relation("ClientConvertedLead")
+
+  @@index([companyId])
+  @@index([email])
+}
+
+model LeadDocument {
+  id         String   @id @default(cuid())
+  leadId     String
+  name       String
+  type       String
+  url        String
+  employeeId String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  lead       Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  uploadedBy Employee @relation(fields: [employeeId], references: [id])
+
+  @@index([leadId])
+  @@index([employeeId])
+}
+
+// ── Internal Task Management (Employee-Based with Sub-Tasks) ─────────────
+
+model CompanyTask {
+  id           String              @id @default(cuid())
+  title        String
+  description  String?
+  dueDate      DateTime?
+  status       CompanyTaskStatus   @default(TODO)
+  priority     CompanyTaskPriority @default(LOW)
+  category     CompanyTaskCategory @default(GENERAL)
+  progress     Int                 @default(0)
+
+  parentTaskId String?
+  parentTask   CompanyTask?  @relation("SubTasks", fields: [parentTaskId], references: [id])
+  subTasks     CompanyTask[] @relation("SubTasks")
+
+  createdById  String
+  assignedToId String
+  companyId    String
+
+  startedAt    DateTime?
+  completedAt  DateTime?
+  attachments  Json?
+  tags         String[]
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  comments  CompanyTaskComment[]
+  creator   Employee @relation("TaskCreator", fields: [createdById], references: [id])
+  assignee  Employee @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([companyId])
+  @@index([status])
+  @@index([priority])
+  @@index([category])
+  @@index([parentTaskId])
+}
+
+model CompanyTaskComment {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  taskId    String
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   CompanyTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author Employee    @relation(fields: [createdBy], references: [id])
+
+  @@index([taskId])
+  @@index([createdBy])
+}
+
+// ── Inventory & Procurement ───────────────────────────────────────────────
+
+model Location {
+  id            String          @id @default(cuid())
+  name          String
+  type          String
+  address       String
+  code          String          @unique
+  companyId     String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  company       Company         @relation(fields: [companyId], references: [id])
+  batchItems    BatchItem[]
+  inventoryRecords InventoryRecord[]
+  products      Product[]       @relation("ProductLocations")
+  transfersFrom StockTransfer[] @relation("TransferSource")
+  transfersTo   StockTransfer[] @relation("TransferTarget")
+
+  @@index([companyId])
+}
+
+model BatchItem {
+  id           String    @id @default(cuid())
+  batchNumber  String
+  serialNumber String?
+  quantity     Int
+  expiryDate   DateTime?
+  productId    String
+  locationId   String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  location     Location  @relation(fields: [locationId], references: [id])
+  product      Product   @relation(fields: [productId], references: [id])
+
+  @@unique([batchNumber, productId])
+  @@index([locationId])
+  @@index([productId])
+}
+
+model InventoryRecord {
+  id             String    @id @default(cuid())
+  productId      String
+  quantity       Int
+  price          Float
+  companyId      String
+  type           String
+  notes          String?
+  reason         String
+  batchNumber    String?
+  locationId     String?
+  serialNumber   String?
+  sourceLocation String?
+  targetLocation String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  company        Company   @relation(fields: [companyId], references: [id])
+  location       Location? @relation(fields: [locationId], references: [id])
+  product        Product   @relation(fields: [productId], references: [id])
+
+  @@index([companyId])
+  @@index([locationId])
+  @@index([productId])
+  @@index([type])
+}
+
+model Supplier {
+  id        String          @id @default(cuid())
+  name      String
+  email     String          @unique
+  phone     String
+  address   String
+  companyId String
+  rating    Float?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  products  Product[]
+  orders    PurchaseOrder[]
+  company   Company         @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+}
+
+model PurchaseOrder {
+  id          String    @id @default(cuid())
+  poNumber    String    @unique
+  supplierId  String
+  status      POStatus  @default(DRAFT)
+  totalAmount Float
+  companyId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  supplier    Supplier  @relation(fields: [supplierId], references: [id])
+  products    Product[] @relation("POProducts")
+
+  @@index([companyId])
+  @@index([supplierId])
+}
+
+model SalesOrder {
+  id          String    @id @default(cuid())
+  orderNumber String    @unique
+  status      SOStatus  @default(PENDING)
+  totalAmount Float
+  companyId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  products    Product[] @relation("SOProducts")
+
+  @@index([companyId])
+}
+
+model StockTransfer {
+  id               String   @id @default(cuid())
+  productId        String
+  sourceLocationId String
+  targetLocationId String
+  quantity         Int
+  batchNumber      String?
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  product        Product  @relation(fields: [productId], references: [id])
+  sourceLocation Location @relation("TransferSource", fields: [sourceLocationId], references: [id])
+  targetLocation Location @relation("TransferTarget", fields: [targetLocationId], references: [id])
+  company        Company  @relation(fields: [companyId], references: [id])
+
+  @@index([productId])
+  @@index([sourceLocationId])
+  @@index([targetLocationId])
+  @@index([companyId])
+}
+
+// ── Multi-Tenancy: User ↔ Company ─────────────────────────────────────────
+
+model UserSession {
+  id         String   @id @default(cuid())
+  userId     String
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  lastActive DateTime @default(now())
+  isValid    Boolean  @default(true)
+  metadata   Json?    @default("{}")
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model UserCompany {
+  id        String  @id @default(cuid())
+  userId    String
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([userId])
+}
+
+model UserCompanyRole {
+  id           String      @id @default(cuid())
+  userId       String
+  companyId    String
+  role         CompanyRole @default(USER)
+  assignedById String
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  employee     Employee    @relation(fields: [assignedById], references: [id], onDelete: Cascade)
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([role])
+  @@index([userId])
+}
+
+model UserSettings {
+  id            String @id @default(cuid())
+  userId        String @unique
+  notifications Json
+  theme         String
+  language      String
+  user          User   @relation(fields: [userId], references: [id])
+}
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║         COMPANY MANAGEMENT ENUMS                                      ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+
+enum CompanyStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum EmployeeRole {
+  EMPLOYEE
+  MANAGER
+  ADMIN
+}
+
+enum EmployeeStatus {
+  PENDING
+  REJECTED
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+  SABBATICAL
+  MEDICAL_LEAVE
+  MATERNITY_LEAVE
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  TEMPORARY
+  INDEPENDENT_CONTRACTOR
+  VOLUNTEER
+  SELF_EMPLOYED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum CompanyRole {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  USER
+  EMPLOYEE
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  APPROVED
+  REJECTED
+  SUSPENDED
+  DELETED
+}
+
+enum EmployeeMessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum EmployeeMessageType {
+  TEXT
+  FILE
+  IMAGE
+}
+
+enum POStatus {
+  DRAFT
+  SENT
+  RECEIVED
+  CANCELLED
+}
+
+enum SOStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum CompanyTaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CompanyTaskCategory {
+  GENERAL
+  PROJECT
+  MAINTENANCE
+  DEVELOPMENT
+  MEETING
+  DOCUMENTATION
+  REVIEW
+  OTHER
+}
+
+enum CompanyTaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  BLOCKED
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum CompanyLeadSource {
+  WEBSITE
+  REFERRAL
+  SOCIAL_MEDIA
+  DIRECT
+  EMAIL
+  PHONE
+  EVENT
+  OTHER
 }

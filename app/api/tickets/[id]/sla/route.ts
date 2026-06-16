@@ -3,6 +3,8 @@ import { requireAuth } from '@/lib/auth-middleware';
 import { ApiErrors, handleApiError } from '@/lib/api-error-handler';
 import { prisma } from '@/lib/prisma';
 import { slaService } from '@/lib/crm/sla-service';
+import { guardTicketAccess } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function GET(
   req: NextRequest,
@@ -10,6 +12,8 @@ export async function GET(
 ) {
   try {
     const session = await requireAuth(req);
+    await guardTicketAccess(session.user);
+
     const { id } = await params;
 
     const ticket = await prisma.supportTicket.findUnique({
@@ -32,6 +36,9 @@ export async function GET(
 
     return NextResponse.json(sla);
   } catch (error) {
+    if (!isApiException(error)) {
+      console.error('[api/tickets/[id]/sla]', error);
+    }
     return handleApiError(error);
   }
 }

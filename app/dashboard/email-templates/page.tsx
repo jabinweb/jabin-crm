@@ -70,7 +70,7 @@ export default function EmailTemplatesPage() {
 
   const fetchTemplates = async () => {
     try {
-      const url = selectedCategory === 'all' 
+      const url = selectedCategory === 'all'
         ? '/api/email-templates'
         : `/api/email-templates?category=${selectedCategory}`;
       const response = await fetch(url);
@@ -253,11 +253,11 @@ export default function EmailTemplatesPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Loading templates...</div>;
+    return <div className="container mx-auto">Loading templates...</div>;
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+    <div className="container mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Email Templates</h1>
@@ -291,7 +291,7 @@ export default function EmailTemplatesPage() {
       {/* Templates Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {templates.map((template) => (
-          <Card key={template.id} className="hover:shadow-lg transition-shadow">
+          <Card key={template.id} className="hover:shadow-none transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -493,3 +493,4 @@ export default function EmailTemplatesPage() {
     </div>
   );
 }
+

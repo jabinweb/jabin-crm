@@ -50,19 +50,19 @@ export default function CustomerEquipmentInventory() {
     );
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+        return <div className="flex justify-center py-20"><div className="animate-spin rounded-none h-12 w-12 border-b-2 border-primary"></div></div>;
     }
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center space-x-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-full">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-none">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold ">Medical Equipment Assets</h1>
-                        <p className="text-sm text-slate-500">Full inventory of life-saving devices installed at your facility.</p>
+                        <h1 className="text-2xl font-bold ">Installed assets</h1>
+                        <p className="text-sm text-slate-500">Inventory of products and equipment deployed for your organization.</p>
                     </div>
                 </div>
                 <Button variant="outline" className="border-slate-200">
@@ -81,12 +81,12 @@ export default function CustomerEquipmentInventory() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg">
+                <div className="text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-none">
                     {filteredInventory?.length || 0} Assets Registered
                 </div>
             </div>
 
-            <Card className="border-none bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+            <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
@@ -103,7 +103,7 @@ export default function CustomerEquipmentInventory() {
                             {filteredInventory?.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="text-center py-24 text-slate-400 italic">
-                                        No equipment assets found in your facility inventory.
+                                        No equipment assets found in your inventory.
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -125,7 +125,7 @@ export default function CustomerEquipmentInventory() {
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                <div className={`inline-flex flex-col items-start px-2 py-1 rounded-lg border ${isWarrantyActive ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'
+                                                <div className={`inline-flex flex-col items-start px-2 py-1 rounded-none border ${isWarrantyActive ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'
                                                     }`}>
                                                     <span className={`text-[10px] font-bold tracking-wider uppercase ${isWarrantyActive ? 'text-green-700' : 'text-red-700'
                                                         }`}>
@@ -140,7 +140,7 @@ export default function CustomerEquipmentInventory() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right pr-6">
-                                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 shadow-sm text-xs h-8 px-4" asChild>
+                                                <Button size="sm" className="bg-blue-600 hover:bg-blue-700 shadow-none text-xs h-8 px-4" asChild>
                                                     <Link href={`/portal/tickets/new?equipmentId=${item.id}`}>
                                                         Request Service
                                                     </Link>
@@ -157,3 +157,4 @@ export default function CustomerEquipmentInventory() {
         </div>
     );
 }
+

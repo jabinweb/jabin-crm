@@ -44,8 +44,8 @@ export function DocSteps({ steps }: { steps: any[] }) {
       {steps.map((step, index) => {
         const Icon = step.icon ? iconMap[step.icon] : null;
         return (
-          <div key={index} className="flex gap-4 rounded-lg border p-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-semibold">
+          <div key={index} className="flex gap-4 rounded-none border p-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground font-semibold">
               {step.number}
             </div>
             <div className="space-y-1 flex-1">
@@ -92,7 +92,7 @@ export function DocGrid({ data }: { data: any[] }) {
         const color = item.color ? colorMap[item.color] : 'text-blue-500';
         
         return (
-          <div key={index} className="flex gap-3 rounded-lg border p-3">
+          <div key={index} className="flex gap-3 rounded-none border p-3">
             <div className="shrink-0 mt-0.5">
               <Icon className={`h-4 w-4 ${color}`} />
             </div>
@@ -111,7 +111,7 @@ export function DocTable({ data }: { data: any }) {
   return (
     <div className="space-y-3">
       {data.title && <h4 className="font-semibold">{data.title}</h4>}
-      <div className="rounded-lg border overflow-hidden">
+      <div className="rounded-none border overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
@@ -205,3 +205,4 @@ export function DocSection({ section }: { section: any }) {
     </Card>
   );
 }
+

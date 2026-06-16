@@ -87,7 +87,7 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-500">Loading analytics...</p>
         </div>
       </div>
@@ -328,7 +328,7 @@ export default function AnalyticsPage() {
                   <p className="text-center text-gray-500 py-8">No active sequences yet</p>
                 ) : (
                   emailData?.sequencePerformance.map((seq) => (
-                    <div key={seq.sequenceId} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={seq.sequenceId} className="flex items-center justify-between p-4 border rounded-none">
                       <div className="flex-1">
                         <h3 className="font-medium">{seq.name}</h3>
                         <p className="text-sm text-gray-500">
@@ -390,3 +390,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

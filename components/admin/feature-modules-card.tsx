@@ -5,24 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-
-const MODULE_LABELS: Record<string, string> = {
-  LEADS: 'Leads',
-  DEALS: 'Deals',
-  QUOTATIONS: 'Quotations',
-  INVOICES: 'Invoices',
-  TICKETS: 'Tickets',
-  SERVICE_REPORTS: 'Service Reports',
-  SERVICE_CASH: 'Service Cash',
-  SERVICE_EXPENSES: 'Service Expenses',
-  SERVICE_GPS: 'Service GPS',
-  WHATSAPP: 'WhatsApp',
-  EMAIL_OUTREACH: 'Email Outreach',
-};
+import { FEATURE_MODULE_LABELS, type FeatureModuleKey } from '@/lib/feature-module-keys';
 
 export function FeatureModulesCard({ userId }: { userId: string }) {
   const [modules, setModules] = useState<Record<string, boolean>>({});
+  const [planModules, setPlanModules] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -33,6 +22,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
       if (!res.ok) throw new Error('Failed to fetch modules');
       const data = await res.json();
       setModules(data.modules || {});
+      setPlanModules(data.planModules || {});
     } catch {
       toast.error('Failed to load feature modules');
     } finally {
@@ -55,6 +45,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
       });
       if (!res.ok) throw new Error('Failed to save');
       toast.success('Feature modules updated');
+      await loadModules();
     } catch {
       toast.error('Failed to update feature modules');
     } finally {
@@ -72,17 +63,32 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
           <p className="text-sm text-muted-foreground">Loading modules...</p>
         ) : (
           <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Toggles apply on top of the user&apos;s subscription plan. Modules not included in the plan cannot be enabled.
+            </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.keys(MODULE_LABELS).map((module) => (
-                <div key={module} className="flex items-center justify-between p-3 rounded border">
-                  <Label htmlFor={`module-${module}`}>{MODULE_LABELS[module]}</Label>
-                  <Switch
-                    id={`module-${module}`}
-                    checked={modules[module] !== false}
-                    onCheckedChange={(checked) => setModules((prev) => ({ ...prev, [module]: checked }))}
-                  />
-                </div>
-              ))}
+              {Object.keys(FEATURE_MODULE_LABELS).map((module) => {
+                const key = module as FeatureModuleKey;
+                const planAllowed = planModules[key] === true;
+                return (
+                  <div key={module} className="flex items-center justify-between p-3 rounded border">
+                    <div className="space-y-1">
+                      <Label htmlFor={`module-${module}`}>{FEATURE_MODULE_LABELS[key]}</Label>
+                      {!planAllowed && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Not on plan
+                        </Badge>
+                      )}
+                    </div>
+                    <Switch
+                      id={`module-${module}`}
+                      checked={modules[module] === true}
+                      disabled={!planAllowed}
+                      onCheckedChange={(checked) => setModules((prev) => ({ ...prev, [module]: checked }))}
+                    />
+                  </div>
+                );
+              })}
             </div>
             <Button onClick={saveModules} disabled={saving}>
               {saving ? 'Saving...' : 'Save Module Access'}

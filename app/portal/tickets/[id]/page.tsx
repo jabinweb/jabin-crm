@@ -26,6 +26,7 @@ import {
     Building,
     Wrench
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AITicketSummary } from '@/components/tickets/AITicketSummary';
@@ -36,6 +37,9 @@ export default function PortalTicketDetailPage() {
     const queryClient = useQueryClient();
     const [newComment, setNewComment] = useState('');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const [csatRating, setCsatRating] = useState(0);
+    const [csatComment, setCsatComment] = useState('');
+    const [isSubmittingCsat, setIsSubmittingCsat] = useState(false);
 
     const { data: ticket, isLoading } = useQuery({
         queryKey: ['portal-ticket', id],
@@ -55,6 +59,28 @@ export default function PortalTicketDetailPage() {
             return response.json();
         },
     });
+
+    const handleSubmitCsat = async () => {
+        if (csatRating < 1) {
+            toast.error('Please select a rating');
+            return;
+        }
+        setIsSubmittingCsat(true);
+        try {
+            const response = await fetch(`/api/tickets/${id}/csat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rating: csatRating, comment: csatComment || undefined }),
+            });
+            if (!response.ok) throw new Error('Failed to submit feedback');
+            toast.success('Thank you for your feedback!');
+            queryClient.invalidateQueries({ queryKey: ['portal-ticket', id] });
+        } catch {
+            toast.error('Could not submit feedback');
+        } finally {
+            setIsSubmittingCsat(false);
+        }
+    };
 
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
@@ -77,7 +103,7 @@ export default function PortalTicketDetailPage() {
     };
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+        return <div className="flex justify-center py-20"><div className="w-8 h-px bg-foreground animate-pulse"></div></div>;
     }
 
     if (!ticket) return <div className="text-center py-20"><h3 className="text-xl font-semibold">Support request not found</h3></div>;
@@ -99,11 +125,11 @@ export default function PortalTicketDetailPage() {
                     Back to Queue
                 </Button>
                 <div className="flex items-center space-x-2">
-                    <Badge variant={ticket.status === 'RESOLVED' ? 'outline' : 'default'} className={cn(
-                        "px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase",
-                        ticket.status === 'RESOLVED' ? "bg-green-100 text-green-700 border-green-200" : "bg-blue-600 text-white"
+                    <Badge variant="outline" className={cn(
+                        "px-3 py-1 text-[10px] font-black tracking-widest uppercase",
+                        ticket.status === 'RESOLVED' ? "line-through opacity-50" : "underline decoration-2 underline-offset-4"
                     )}>
-                        {ticket.status}
+                        STATUS: {ticket.status}
                     </Badge>
                 </div>
             </div>
@@ -111,8 +137,8 @@ export default function PortalTicketDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left: Content */}
                 <div className="lg:col-span-2 space-y-6">
-                    <Card className="border-none shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
-                        <div className="h-2 bg-blue-600" />
+                    <Card className="border-2 border-foreground/5 shadow-none bg-background overflow-hidden">
+                        <div className="h-1 bg-foreground" />
                         <CardHeader className="pb-4">
                             <div className="flex items-center justify-between mb-2">
                                 <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border-slate-200">
@@ -125,14 +151,56 @@ export default function PortalTicketDetailPage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                                <p className="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
+                            <div className="p-8 border border-foreground/5 bg-muted/5">
+                                <p className="text-xs font-mono text-foreground whitespace-pre-wrap leading-relaxed">
                                     {ticket.description}
                                 </p>
                             </div>
                         </CardContent>
                     </Card>
                     <AITicketSummary ticketId={id as string} className="mt-6" />
+
+                    {isResolved && !ticket.csatRating && (
+                        <Card className="border-blue-100 bg-blue-50/30 dark:bg-blue-950/20">
+                            <CardHeader>
+                                <CardTitle className="text-base">How did we do?</CardTitle>
+                                <CardDescription>Rate your support experience for this request.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex gap-2">
+                                    {[1, 2, 3, 4, 5].map((n) => (
+                                        <Button
+                                            key={n}
+                                            type="button"
+                                            variant={csatRating === n ? 'default' : 'outline'}
+                                            size="sm"
+                                            onClick={() => setCsatRating(n)}
+                                        >
+                                            {n} ★
+                                        </Button>
+                                    ))}
+                                </div>
+                                <Textarea
+                                    placeholder="Optional feedback…"
+                                    value={csatComment}
+                                    onChange={(e) => setCsatComment(e.target.value)}
+                                    className="min-h-[80px]"
+                                />
+                                <Button onClick={handleSubmitCsat} disabled={isSubmittingCsat || csatRating < 1}>
+                                    {isSubmittingCsat ? 'Submitting…' : 'Submit feedback'}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {ticket.csatRating && (
+                        <Card>
+                            <CardContent className="pt-6">
+                                <p className="text-sm font-medium">Your rating: {ticket.csatRating} / 5</p>
+                                {ticket.csatComment && <p className="text-sm text-muted-foreground mt-1">{ticket.csatComment}</p>}
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Tabs defaultValue="conversation" className="space-y-6">
                         <TabsList className="bg-slate-100/50 dark:bg-slate-900/50 p-1">
@@ -152,16 +220,16 @@ export default function PortalTicketDetailPage() {
                                         ) : (
                                             ticket.activities?.filter((a: any) => a.eventType === 'COMMENT').map((comment: any) => (
                                                 <div key={comment.id} className={cn(
-                                                    "p-4 rounded-2xl border max-w-[85%]",
-                                                    comment.performedById ? "bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-800 ml-0 mr-auto" : "bg-blue-600 text-white border-blue-500 ml-auto mr-0"
+                                                    "p-6 border border-foreground/5 max-w-full",
+                                                    comment.performedById ? "bg-background ml-0 mr-auto" : "bg-muted/5 ml-auto mr-0"
                                                 )}>
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
-                                                            {comment.performedBy?.name || 'Your Facility'}
+                                                    <div className="flex items-center justify-between mb-4">
+                                                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground">
+                                                            SOURCE: {comment.performedBy?.name || 'Support Team'}
                                                         </p>
-                                                        <p className="text-[9px] opacity-60 italic">{new Date(comment.createdAt).toLocaleString()}</p>
+                                                        <p className="text-[9px] font-mono opacity-40">{new Date(comment.createdAt).toLocaleString().toUpperCase()}</p>
                                                     </div>
-                                                    <p className="text-sm leading-relaxed">{comment.description}</p>
+                                                    <p className="text-xs font-mono leading-relaxed">{comment.description}</p>
                                                 </div>
                                             ))
                                         )}
@@ -176,13 +244,13 @@ export default function PortalTicketDetailPage() {
                                                 value={newComment}
                                                 onChange={(e) => setNewComment(e.target.value)}
                                             />
-                                            <div className="flex justify-end">
+                                            <div className="flex justify-end pt-4">
                                                 <Button
                                                     onClick={handleAddComment}
                                                     disabled={isSubmittingComment || !newComment.trim()}
-                                                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 px-8 rounded-xl"
+                                                    className="bg-foreground text-background hover:bg-foreground/80 px-10 h-11 uppercase font-black tracking-[0.2em]"
                                                 >
-                                                    {isSubmittingComment ? 'Sending...' : 'Send Message'}
+                                                    {isSubmittingComment ? 'TRANSMITTING...' : 'SEND MESSAGE'}
                                                 </Button>
                                             </div>
                                         </div>
@@ -232,7 +300,7 @@ export default function PortalTicketDetailPage() {
                                     </div>
                                     <div>
                                         <p className="text-sm font-bold text-slate-900 dark:text-white">{ticket.assignedTechnician?.name || 'Triage in Progress'}</p>
-                                        <p className="text-xs text-slate-500">{ticket.assignedTechnician?.email || 'Jabin Medical Support'}</p>
+                                        <p className="text-xs text-slate-500">{ticket.assignedTechnician?.email || 'Support team'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -242,19 +310,18 @@ export default function PortalTicketDetailPage() {
                                 <div className="p-4 border border-blue-100/50 dark:border-blue-900/30 rounded-2xl bg-blue-50/30 dark:bg-blue-950/20 group hover:border-blue-200 transition-colors cursor-default">
                                     <div className="flex items-center text-blue-700 dark:text-blue-300 font-bold text-sm mb-1">
                                         <Wrench className="h-3.5 w-3.5 mr-2" />
-                                        {ticket.equipment?.product?.name || 'Facility Infrastructure'}
+                                        {ticket.equipment?.product?.name || 'General product / service'}
                                     </div>
                                     <p className="text-[10px] font-mono text-blue-600/60 dark:text-blue-400/60">SN: {ticket.equipment?.serialNumber || 'N/A'}</p>
                                 </div>
                             </div>
 
                             <div className="pt-2">
-                                <div className="p-4 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white shadow-xl relative overflow-hidden group">
-                                    <div className="absolute top-[-10px] right-[-10px] h-20 w-20 bg-blue-600 rounded-full blur-[40px] opacity-20 transition-transform group-hover:scale-150 duration-700" />
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 relative z-10">Live SLA Status</p>
-                                    <div className="flex items-center space-x-2 relative z-10">
-                                        <div className={`h-2 w-2 rounded-full ${slaTone} shadow-[0_0_8px_rgba(34,197,94,0.5)]`} />
-                                        <p className="text-xs font-semibold">{slaStateLabel}</p>
+                                <div className="p-6 bg-foreground text-background border-2 border-foreground shadow-none relative overflow-hidden">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-40 mb-4">Live SLA Parameters</p>
+                                    <div className="flex items-center space-x-3">
+                                        <div className="w-1.5 h-1.5 bg-background animate-pulse" />
+                                        <p className="text-[11px] font-black uppercase tracking-widest">{slaStateLabel}</p>
                                     </div>
                                     {sla && (
                                         <p className="text-[10px] text-slate-300 mt-2 relative z-10">
@@ -271,9 +338,11 @@ export default function PortalTicketDetailPage() {
                             <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-400">Help Resources</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <Button variant="outline" className="w-full justify-start h-11 rounded-xl text-xs border-slate-100 hover:bg-slate-50 hover:text-blue-600 transition-all">
-                                <ActivityIcon className="h-3.5 w-3.5 mr-3 text-slate-400" />
-                                View Service Standards
+                            <Button variant="outline" className="w-full justify-start h-11 rounded-xl text-xs border-slate-100 hover:bg-slate-50 hover:text-blue-600 transition-all" asChild>
+                                <Link href="/portal/support">
+                                    <ActivityIcon className="h-3.5 w-3.5 mr-3 text-slate-400" />
+                                    View Help Center
+                                </Link>
                             </Button>
                         </CardContent>
                     </Card>

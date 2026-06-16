@@ -114,7 +114,7 @@ export default function NewTicketPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Left side: Main details */}
                     <div className="md:col-span-2 space-y-6">
-                        <Card className="border-t-4 border-t-primary shadow-lg overflow-hidden">
+                        <Card className="border-t-4 border-t-primary shadow-none overflow-hidden">
                             <CardHeader className="bg-muted/30">
                                 <CardTitle className="text-lg flex items-center">
                                     <Ticket className="h-5 w-5 mr-2 text-primary" />
@@ -151,7 +151,7 @@ export default function NewTicketPage() {
 
                     {/* Right side: Selection & Context */}
                     <div className="space-y-6">
-                        <Card className="shadow-md">
+                        <Card className="shadow-none">
                             <CardHeader className="pb-3 bg-muted/20">
                                 <CardTitle className="text-sm font-semibold flex items-center">
                                     <Building className="h-4 w-4 mr-2" />
@@ -160,18 +160,18 @@ export default function NewTicketPage() {
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Hospital / Facility</Label>
+                                    <Label>Client / site</Label>
                                     <Select
                                         value={formData.customerId}
                                         onValueChange={(val) => setFormData({ ...formData, customerId: val, equipmentId: '' })}
                                     >
                                         <SelectTrigger className="w-full">
-                                            <SelectValue placeholder={isLoadingCustomers ? "Loading facilities..." : "Select hospital"} />
+                                            <SelectValue placeholder={isLoadingCustomers ? "Loading clients..." : "Select client"} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {customerData?.customers?.map((customer: any) => (
                                                 <SelectItem key={customer.id} value={customer.id}>
-                                                    {customer.hospitalName}
+                                                    {customer.organizationName}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -187,7 +187,7 @@ export default function NewTicketPage() {
                                     >
                                         <SelectTrigger className="w-full">
                                             <SelectValue placeholder={
-                                                !formData.customerId ? "Select hospital first" :
+                                                !formData.customerId ? "Select a client first" :
                                                     isLoadingEquipment ? "Loading equipment..." :
                                                         selectedCustomer?.equipmentInstallations?.length === 0 ? "No equipment found" :
                                                             "Select equipment"
@@ -203,14 +203,14 @@ export default function NewTicketPage() {
                                     </Select>
                                     {formData.customerId && !isLoadingEquipment && selectedCustomer?.equipmentInstallations?.length === 0 && (
                                         <p className="text-[10px] text-muted-foreground italic mt-1">
-                                            No equipment records found for this hospital.
+                                            No equipment records found for this client.
                                         </p>
                                     )}
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card className="shadow-md">
+                        <Card className="shadow-none">
                             <CardHeader className="pb-3 bg-muted/20">
                                 <CardTitle className="text-sm font-semibold flex items-center">
                                     <AlertCircle className="h-4 w-4 mr-2" />
@@ -230,13 +230,13 @@ export default function NewTicketPage() {
                                         <SelectContent>
                                             <SelectItem value="LOW">Low - Maintenance/Query</SelectItem>
                                             <SelectItem value="MEDIUM">Medium - Normal Fault</SelectItem>
-                                            <SelectItem value="HIGH">High - Clinical Impact</SelectItem>
+                                            <SelectItem value="HIGH">High - major business impact</SelectItem>
                                             <SelectItem value="CRITICAL">Critical - System Down</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
-                                <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-100 flex items-start gap-2">
+                                <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-none border border-blue-100 flex items-start gap-2">
                                     <Loader2 className="h-4 w-4 text-blue-600 mt-0.5 animate-spin" />
                                     <div className="space-y-1">
                                         <p className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Round Robin System</p>
@@ -266,4 +266,5 @@ export default function NewTicketPage() {
         </div>
     );
 }
+
 

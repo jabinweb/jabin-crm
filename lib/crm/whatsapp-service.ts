@@ -230,7 +230,7 @@ export class WhatsAppService {
       where,
       include: {
         lead: { select: { id: true, companyName: true, contactName: true } },
-        customer: { select: { id: true, hospitalName: true, contactPerson: true } },
+        customer: { select: { id: true, organizationName: true, contactPerson: true } },
         ticket: { select: { id: true, subject: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -240,7 +240,7 @@ export class WhatsAppService {
 
   async handleTwilioWebhook(formData: URLSearchParams, userId?: string) {
     const messageSid = formData.get('MessageSid');
-    const messageStatus = (formData.get('MessageStatus') || '').toUpperCase();
+    const messageStatus = (formData.get('EmployeeMessageStatus') || '').toUpperCase();
     const from = formData.get('From') || '';
     const to = formData.get('To') || '';
     const body = formData.get('Body') || '';
@@ -339,3 +339,4 @@ export class WhatsAppService {
 }
 
 export const whatsAppService = new WhatsAppService();
+

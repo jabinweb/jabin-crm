@@ -9,6 +9,11 @@ declare module "next-auth" {
       image?: string
       role: string
       customerId?: string
+      // Company Management fields
+      companyId?: string
+      companySlug?: string
+      employeeId?: string
+      primaryCompanyId?: string
     }
     accessToken?: string
     error?: string
@@ -29,5 +34,10 @@ declare module "next-auth/jwt" {
     refreshToken?: string
     expiresAt?: number
     error?: string
+    // Company Management fields
+    companyId?: string
+    primaryCompanyId?: string
+    companySlug?: string
+    employeeId?: string
   }
 }

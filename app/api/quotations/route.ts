@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { quotationService } from '@/lib/quotation-service';
 import { validateRequest } from '@/lib/validation';
 import { z } from 'zod';
-import { handleApiError } from '@/lib/api-error-handler';
 
 const createQuotationSchema = z.object({
   leadId: z.string().optional(),
@@ -32,8 +33,8 @@ const createQuotationSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireAuth(req);
-    
+    const session = await withModuleAccess('QUOTATIONS');
+
     const validatedData = await validateRequest(req, createQuotationSchema);
     
     const quotation = await quotationService.createQuotation({
@@ -43,6 +44,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(quotation, { status: 201 });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }
@@ -57,8 +59,8 @@ const listQuotationsSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await requireAuth(req);
-    
+    const session = await withModuleAccess('QUOTATIONS');
+
     const searchParams = Object.fromEntries(req.nextUrl.searchParams.entries());
     const validatedParams = listQuotationsSchema.parse(searchParams);
     
@@ -69,6 +71,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

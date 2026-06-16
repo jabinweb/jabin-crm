@@ -1,4 +1,22 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
+
+type RecentUserRow = Prisma.UserGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    email: true;
+    createdAt: true;
+    role: true;
+  };
+}>;
+
+type RecentActivityRow = Prisma.LeadActivityGetPayload<{
+  include: {
+    user: { select: { name: true; email: true } };
+    lead: { select: { companyName: true } };
+  };
+}>;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
@@ -9,7 +27,15 @@ import {
   Activity,
 } from "lucide-react";
 
-async function getAdminStats() {
+async function getAdminStats(): Promise<{
+  totalUsers: number;
+  activeSubscriptions: number;
+  totalLeads: number;
+  totalEmailsSent: number;
+  totalRevenue: number;
+  recentUsers: RecentUserRow[];
+  recentActivity: RecentActivityRow[];
+}> {
   const [
     totalUsers,
     activeSubscriptions,
@@ -62,8 +88,8 @@ async function getAdminStats() {
     totalLeads,
     totalEmailsSent,
     totalRevenue: (totalRevenue._sum.amount || 0) / 100, // Convert paise to rupees
-    recentUsers,
-    recentActivity,
+    recentUsers: recentUsers as RecentUserRow[],
+    recentActivity: recentActivity as RecentActivityRow[],
   };
 }
 
@@ -138,7 +164,7 @@ export default async function AdminDashboard() {
                     {stat.value}
                   </p>
                 </div>
-                <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                <div className={`p-3 rounded-none ${stat.bgColor}`}>
                   <stat.icon className={`w-6 h-6 ${stat.color}`} />
                 </div>
               </div>
@@ -211,3 +237,4 @@ export default async function AdminDashboard() {
     </div>
   );
 }
+

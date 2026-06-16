@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEmailReply, findEmailLogForReply } from '@/lib/email-logger';
 import { prisma } from '@/lib/prisma';
+import { verifyEmailWebhookSecret } from '@/lib/email-webhook-auth';
 
 /**
- * Webhook endpoint to receive email replies
- * This can be configured with your email service provider (SendGrid, Mailgun, etc.)
+ * Webhook endpoint to receive email replies (SendGrid, Mailgun, etc.).
+ * Public by design — no session or subscription check. Optional shared secret
+ * via INBOUND_EMAIL_WEBHOOK_SECRET (same as inbound email webhook).
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!verifyEmailWebhookSecret(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await request.json();
     
     // Extract reply data (format depends on your email provider)

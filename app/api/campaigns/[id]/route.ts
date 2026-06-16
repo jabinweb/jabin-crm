@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-error-handler';
+import { withModuleAccess } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH');
 
     const { id } = await params;
 
@@ -42,8 +41,10 @@ export async function GET(
 
     return NextResponse.json(campaign);
   } catch (error) {
-    console.error('Error fetching campaign:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (!isApiException(error)) {
+      console.error('Error fetching campaign:', error);
+    }
+    return handleApiError(error);
   }
 }
 
@@ -52,10 +53,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH');
 
     const { id } = await params;
     const data = await request.json();
@@ -119,8 +117,10 @@ export async function PATCH(
 
     return NextResponse.json(campaign);
   } catch (error) {
-    console.error('Error updating campaign:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (!isApiException(error)) {
+      console.error('Error updating campaign:', error);
+    }
+    return handleApiError(error);
   }
 }
 
@@ -129,10 +129,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH');
 
     const { id } = await params;
 
@@ -160,7 +157,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true, message: 'Campaign deleted' });
   } catch (error) {
-    console.error('Error deleting campaign:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (!isApiException(error)) {
+      console.error('Error deleting campaign:', error);
+    }
+    return handleApiError(error);
   }
 }

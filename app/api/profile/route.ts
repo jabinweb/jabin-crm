@@ -99,27 +99,27 @@ export async function POST(request: NextRequest) {
     // Encrypt SMTP password if provided (skip placeholder bullets)
     let encryptedSmtpPassword: string | undefined;
     if (smtpPassword && smtpPassword !== '••••••••') {
-      encryptedSmtpPassword = encrypt(smtpPassword);
+      encryptedSmtpPassword = JSON.stringify(encrypt(smtpPassword));
       logInfo('SMTP password encrypted', { userId: session.user.id });
     }
 
     // Encrypt IMAP password if provided (skip placeholder bullets)
     let encryptedImapPassword: string | undefined;
     if (imapPassword && imapPassword !== '••••••••') {
-      encryptedImapPassword = encrypt(imapPassword);
+      encryptedImapPassword = JSON.stringify(encrypt(imapPassword));
       logInfo('IMAP password encrypted', { userId: session.user.id });
     }
 
     // Encrypt API keys if provided (skip placeholder bullets)
     let encryptedGeminiApiKey: string | undefined;
     if (geminiApiKey && geminiApiKey !== '••••••••') {
-      encryptedGeminiApiKey = encrypt(geminiApiKey);
+      encryptedGeminiApiKey = JSON.stringify(encrypt(geminiApiKey));
       logInfo('Gemini API key encrypted', { userId: session.user.id });
     }
 
     let encryptedGooglePlacesApiKey: string | undefined;
     if (googlePlacesApiKey && googlePlacesApiKey !== '••••••••') {
-      encryptedGooglePlacesApiKey = encrypt(googlePlacesApiKey);
+      encryptedGooglePlacesApiKey = JSON.stringify(encrypt(googlePlacesApiKey));
       logInfo('Google Places API key encrypted', { userId: session.user.id });
     }
 

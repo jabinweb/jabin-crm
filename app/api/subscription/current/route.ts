@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -25,16 +25,13 @@ export async function GET() {
       },
     });
 
-    if (!subscription) {
-      return NextResponse.json({ error: 'No active subscription found' }, { status: 404 });
-    }
-
-    return NextResponse.json(subscription);
-  } catch (error: any) {
+    return NextResponse.json({ subscription: subscription ?? null });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error fetching subscription:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch subscription',
-      details: error.message 
-    }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch subscription', details: message },
+      { status: 500 }
+    );
   }
 }

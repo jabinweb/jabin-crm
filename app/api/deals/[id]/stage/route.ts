@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { dealService } from '@/lib/crm/deal-service';
 
 export async function POST(
@@ -7,10 +9,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await withModuleAccess('DEALS');
 
     const params = await context.params;
     const body = await req.json();
@@ -29,6 +28,7 @@ export async function POST(
 
     return NextResponse.json(deal);
   } catch (error: any) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error moving deal stage:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

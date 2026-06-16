@@ -306,7 +306,7 @@ export default function CalendarPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-500">Loading calendar...</p>
         </div>
       </div>
@@ -611,3 +611,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+

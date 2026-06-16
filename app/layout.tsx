@@ -12,14 +12,16 @@ const inter = Inter({
   display: 'swap',
 });
 
+const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'CRM';
+
 export const metadata: Metadata = {
-  title: 'LeadGen Pro - Lead Generation Platform',
-  description: 'Professional lead generation and CRM platform',
+  title: `${appName} — CRM, HRMS & Customer Support`,
+  description: 'Unified CRM, HRMS, and customer support platform for modern companies.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'LeadGen CRM',
+    title: appName,
   },
 };
 
@@ -41,7 +43,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="LeadGen CRM" />
+        <meta name="apple-mobile-web-app-title" content={appName} />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body className={inter.className}>

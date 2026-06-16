@@ -72,8 +72,31 @@ export default function ReportsPage() {
   };
 
   const handleExportReport = async (format: 'pdf' | 'csv') => {
-    // TODO: Implement export functionality
-    console.log(`Exporting as ${format}`);
+    if (format === 'pdf') {
+      window.print();
+      return;
+    }
+    if (!reportData) return;
+
+    const rows = [
+      ['Metric', 'Value'],
+      ['Total Leads', String(leads.total ?? 0)],
+      ['New Leads', String(leads.new ?? 0)],
+      ['Converted Leads', String(leads.converted ?? 0)],
+      ['Emails Sent', String(emails.sent ?? 0)],
+      ['Open Rate', String(emails.openRate ?? 0)],
+      ['Click Rate', String(emails.clickRate ?? 0)],
+      ['Active Campaigns', String(campaigns.active ?? 0)],
+    ];
+
+    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `report-${dateRange}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (isLoading) {
@@ -226,7 +249,7 @@ export default function ReportsPage() {
                               {source.count} leads
                             </span>
                           </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-2 bg-muted rounded-none overflow-hidden">
                             <div
                               className="h-full bg-primary transition-all"
                               style={{ width: `${source.percentage}%` }}
@@ -261,7 +284,7 @@ export default function ReportsPage() {
                               {industry.count} leads
                             </span>
                           </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div className="h-2 bg-muted rounded-none overflow-hidden">
                             <div
                               className="h-full bg-blue-500 transition-all"
                               style={{ width: `${industry.percentage}%` }}
@@ -291,7 +314,7 @@ export default function ReportsPage() {
                 <div className="space-y-3">
                   {recentActivities.map((activity: any, index: number) => (
                     <div key={index} className="flex items-center gap-4 text-sm">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-none bg-muted">
                         {activity.type === 'lead' && <Users className="h-4 w-4" />}
                         {activity.type === 'email' && <Mail className="h-4 w-4" />}
                         {activity.type === 'campaign' && <Activity className="h-4 w-4" />}
@@ -537,3 +560,4 @@ export default function ReportsPage() {
     </div>
   );
 }
+

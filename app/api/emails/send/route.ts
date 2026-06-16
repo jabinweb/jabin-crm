@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-error-handler';
+import { withModuleAccess, afterEmailSent } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 import { sendEmail, createEmailHTML } from '@/lib/email/nodemailer';
 import { createEmailLog, updateEmailLogStatus } from '@/lib/email-logger';
 import { getUserSmtpConfig } from '@/lib/smtp-config';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH', { quota: 'emails' });
 
     const body = await request.json();
     const { draftId, to, subject, body: emailBody, leadId, campaignId } = body;
@@ -116,6 +114,8 @@ export async function POST(request: NextRequest) {
           });
           console.log(`Updated campaign stats for campaign: ${campaignId}`);
         }
+
+        await afterEmailSent(session.user.id);
 
         return NextResponse.json({
           success: true,
@@ -295,6 +295,8 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      await afterEmailSent(session.user.id);
+
       return NextResponse.json({ 
         success: true, 
         message: 'Email sent successfully',
@@ -331,12 +333,10 @@ export async function POST(request: NextRequest) {
       }, { status: 500 });
     }
 
-  } catch (error: any) {
-    console.error('Error in send email API:', error);
-
-    return NextResponse.json({ 
-      error: 'Failed to send email',
-      details: error.message 
-    }, { status: 500 });
+  } catch (error) {
+    if (!isApiException(error)) {
+      console.error('Error in send email API:', error);
+    }
+    return handleApiError(error);
   }
 }

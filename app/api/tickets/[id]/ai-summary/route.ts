@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { ticketService } from '@/lib/crm/ticket-service';
 import { ticketAIService } from '@/lib/ai/ticket-ai-service';
+import { handleApiError } from '@/lib/api-error-handler';
+import { guardTicketAccess } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(
     request: NextRequest,
@@ -10,17 +13,13 @@ export async function POST(
     try {
         const { id } = await params;
         const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        await guardTicketAccess(session?.user);
 
-        // Fetch full ticket details including description and activities
         const ticket = await ticketService.getTicketDetails(id);
         if (!ticket) {
             return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
         }
 
-        // Generate summary using Gemini
         const summary = await ticketAIService.summarizeTicket({
             subject: ticket.subject,
             description: ticket.description,
@@ -33,7 +32,9 @@ export async function POST(
 
         return NextResponse.json(summary);
     } catch (error) {
-        console.error('Error generating AI summary:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        if (!isApiException(error)) {
+            console.error('Error generating AI summary:', error);
+        }
+        return handleApiError(error);
     }
 }

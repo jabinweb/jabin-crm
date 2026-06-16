@@ -12,6 +12,31 @@ import { signOut } from 'next-auth/react';
 import { Toaster } from '@/components/ui/toaster';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { LiveChatWidget } from '@/components/support/live-chat-widget';
+
+function PortalLiveChat() {
+    const { data: session } = useSession();
+    const [companyId, setCompanyId] = useState<string | undefined>(
+        session?.user?.companyId ?? undefined
+    );
+
+    useEffect(() => {
+        if (session?.user?.companyId) {
+            setCompanyId(session.user.companyId);
+            return;
+        }
+        if (session?.user?.role === 'CUSTOMER') {
+            fetch('/api/portal/profile')
+                .then((res) => (res.ok ? res.json() : null))
+                .then((data) => {
+                    if (data?.companyId) setCompanyId(data.companyId);
+                })
+                .catch(() => undefined);
+        }
+    }, [session?.user?.companyId, session?.user?.role]);
+
+    return <LiveChatWidget companyId={companyId} />;
+}
 
 // ─── Notification Panel (real data) ──────────────────────────────────────────
 function NotificationPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
@@ -50,7 +75,7 @@ function NotificationPanel({ userId, onClose }: { userId: string; onClose: () =>
     });
 
     return (
-        <div className="absolute right-0 top-12 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-200/60 dark:shadow-slate-900/60 z-50 overflow-hidden">
+        <div className="absolute right-0 top-12 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-none shadow-none shadow-slate-200/60 dark:shadow-slate-900/60 z-50 overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                 <p className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</p>
                 <button
@@ -73,7 +98,7 @@ function NotificationPanel({ userId, onClose }: { userId: string; onClose: () =>
                             onClick={() => !n.read && markOneMutation.mutate(n.id)}
                             className={`flex gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 ${!n.read ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
                         >
-                            <div className={`mt-1 flex-shrink-0 h-2 w-2 rounded-full ${!n.read ? 'bg-blue-600' : 'bg-transparent'}`} />
+                            <div className={`mt-1 flex-shrink-0 h-2 w-2 rounded-none ${!n.read ? 'bg-blue-600' : 'bg-transparent'}`} />
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{n.title}</p>
                                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
@@ -114,9 +139,9 @@ function UserMenu() {
         <div className="relative" ref={ref}>
             <button
                 onClick={() => setOpen(v => !v)}
-                className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="flex items-center gap-2 rounded-none pl-1 pr-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                <div className="h-8 w-8 rounded-none bg-foreground flex items-center justify-center text-background text-xs font-black uppercase">
                     {initials}
                 </div>
                 <span className="hidden md:block text-xs font-medium text-slate-700 dark:text-slate-300 max-w-[100px] truncate">
@@ -125,7 +150,7 @@ function UserMenu() {
                 <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
             </button>
             {open && (
-                <div className="absolute right-0 top-12 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl shadow-slate-200/60 dark:shadow-slate-900/60 z-50 overflow-hidden py-1.5">
+                <div className="absolute right-0 top-12 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-none shadow-none shadow-slate-200/60 dark:shadow-slate-900/60 z-50 overflow-hidden py-1.5">
                     <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
                         <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{session?.user?.name}</p>
                         <p className="text-[10px] text-slate-500 truncate">{session?.user?.email}</p>
@@ -182,15 +207,17 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     useEffect(() => {
         if (status === 'loading') return;
         if (!session) { router.push('/auth/signin'); return; }
+        // Non-portal roles should go to their workspace dashboard
         if (session.user.role !== 'CUSTOMER' && session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
-            router.push('/dashboard');
+            const slug = (session.user as any).companySlug?.trim();
+            router.push(slug ? `/${slug}/dashboard` : '/dashboard');
         }
     }, [session, status, router]);
 
     if (status === 'loading') {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                <Loader2 className="h-8 w-8 animate-spin" />
             </div>
         );
     }
@@ -202,7 +229,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
             {/* Desktop Sidebar */}
-            <aside className="hidden lg:block h-screen sticky top-0 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 shadow-sm z-30">
+            <aside className="hidden lg:block h-screen sticky top-0 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 shadow-none z-30">
                 <PortalSidebar />
             </aside>
 
@@ -213,11 +240,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     <div className="flex items-center gap-3">
                         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                             <SheetTrigger asChild>
-                                <Button variant="ghost" size="icon" className="lg:hidden rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                                <Button variant="ghost" size="icon" className="lg:hidden rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                                     <Menu className="h-5 w-5" />
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="left" className="p-0 w-64">
+                            <SheetContent side="left" className="p-0 w-64" srOnlyTitle="Navigation menu">
                                 <PortalSidebar onNavigate={() => setSidebarOpen(false)} />
                             </SheetContent>
                         </Sheet>
@@ -225,8 +252,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                         <div className="hidden md:flex items-center relative">
                             <Search className="absolute left-3 h-4 w-4 text-slate-400 pointer-events-none" />
                             <Input
-                                placeholder="Search tickets, equipment..."
-                                className="pl-9 h-9 w-64 bg-slate-100 dark:bg-slate-800 border-none rounded-full text-sm focus-visible:ring-blue-500 placeholder:text-slate-400"
+                                placeholder="Search tickets, assets..."
+                                className="pl-9 h-9 w-64 bg-slate-100 dark:bg-slate-800 border-none rounded-none text-sm focus-visible:ring-blue-500 placeholder:text-slate-400"
                             />
                         </div>
                     </div>
@@ -236,12 +263,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                         <div className="relative" ref={notifRef}>
                             <button
                                 onClick={() => setNotifOpen(v => !v)}
-                                className="relative h-9 w-9 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                className="relative h-9 w-9 flex items-center justify-center rounded-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                 aria-label="Notifications"
                             >
                                 <Bell className="h-5 w-5 text-slate-600 dark:text-slate-400" />
                                 {unreadCount > 0 && (
-                                    <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900 animate-pulse" />
+                                    <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-red-500 rounded-none border-2 border-white dark:border-slate-900 animate-pulse" />
                                 )}
                             </button>
                             {notifOpen && session.user.id && (
@@ -261,6 +288,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </div>
 
             <Toaster />
+            <PortalLiveChat />
         </div>
     );
 }
+

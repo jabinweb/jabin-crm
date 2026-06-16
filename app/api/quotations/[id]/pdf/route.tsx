@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
 import { quotationService } from '@/lib/quotation-service';
 import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { QuotationPDF } from '@/lib/pdf/quotation-pdf';
 import { prisma } from '@/lib/prisma';
@@ -11,7 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('QUOTATIONS');
     const { id } = await params;
     
     const quotation = await quotationService.getQuotation(id);

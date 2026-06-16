@@ -453,6 +453,28 @@ export default function LeadDetailPage() {
                 <Target className="h-4 w-4" />
                 Create Deal
               </Button>
+              {lead.status !== 'CONVERTED' && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="gap-2"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/leads/${leadId}/convert`, { method: 'POST' });
+                      const data = await res.json().catch(() => ({}));
+                      if (!res.ok) throw new Error(data.error || 'Conversion failed');
+                      toast.success('Lead converted to customer');
+                      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+                      if (data.customerId) router.push(`/dashboard/customers/${data.customerId}`);
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : 'Failed to convert');
+                    }
+                  }}
+                >
+                  <Building className="h-4 w-4" />
+                  Convert to Customer
+                </Button>
+              )}
               {lead.linkedinUrl && (
                 <Button size="sm" variant="outline" asChild>
                   <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer">

@@ -36,7 +36,6 @@ import {
     Plus,
     Search,
     Filter,
-    Stethoscope,
     ShieldCheck,
     FileText
 } from 'lucide-react';
@@ -44,11 +43,11 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 
 const categories = [
-    'DIAGNOSTIC',
-    'IMAGING',
-    'LABORATORY',
-    'SURGICAL',
+    'HARDWARE',
+    'SOFTWARE',
+    'SERVICES',
     'CONSUMABLE',
+    'OTHER',
 ];
 
 export default function ProductsPage() {
@@ -61,7 +60,7 @@ export default function ProductsPage() {
     const [newProduct, setNewProduct] = useState({
         name: '',
         description: '',
-        category: 'DIAGNOSTIC',
+        category: 'HARDWARE',
         manufacturer: '',
         modelNumber: '',
     });
@@ -103,7 +102,7 @@ export default function ProductsPage() {
             setNewProduct({
                 name: '',
                 description: '',
-                category: 'DIAGNOSTIC',
+                category: 'HARDWARE',
                 manufacturer: '',
                 modelNumber: '',
             });
@@ -133,9 +132,9 @@ export default function ProductsPage() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px]">
                         <DialogHeader>
-                            <DialogTitle>Add New Medical Product</DialogTitle>
+                            <DialogTitle>Add new product</DialogTitle>
                             <DialogDescription>
-                                Define a new item for the inventory and equipment tracking.
+                                Define a new catalog item for inventory and tracking.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -145,7 +144,7 @@ export default function ProductsPage() {
                                     id="name"
                                     value={newProduct.name}
                                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                                    placeholder="e.g. Philips Lumify Ultra"
+                                    placeholder="e.g. Pro workstation bundle"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -171,7 +170,7 @@ export default function ProductsPage() {
                                         id="manufacturer"
                                         value={newProduct.manufacturer}
                                         onChange={(e) => setNewProduct({ ...newProduct, manufacturer: e.target.value })}
-                                        placeholder="e.g. Philips"
+                                        placeholder="e.g. Acme Industries"
                                     />
                                 </div>
                             </div>
@@ -181,7 +180,7 @@ export default function ProductsPage() {
                                     id="modelNumber"
                                     value={newProduct.modelNumber}
                                     onChange={(e) => setNewProduct({ ...newProduct, modelNumber: e.target.value })}
-                                    placeholder="e.g. S4-1 Broadband"
+                                    placeholder="e.g. SKU-10042"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -208,7 +207,7 @@ export default function ProductsPage() {
                         <div>
                             <CardTitle>Inventory List</CardTitle>
                             <CardDescription>
-                                Browse and filter medical hardware and consumables.
+                                Browse and filter products and stock.
                             </CardDescription>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
@@ -238,10 +237,10 @@ export default function ProductsPage() {
                 <CardContent>
                     {isLoading ? (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     ) : (
-                        <div className="rounded-md border">
+                        <div className="rounded-none border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -264,7 +263,7 @@ export default function ProductsPage() {
                                             <TableRow key={p.id}>
                                                 <TableCell className="font-medium">
                                                     <div className="flex items-center space-x-2">
-                                                        <Stethoscope className="h-4 w-4 text-blue-500" />
+                                                        <Package className="h-4 w-4 text-blue-500" />
                                                         <span>{p.name}</span>
                                                     </div>
                                                 </TableCell>
@@ -298,3 +297,4 @@ export default function ProductsPage() {
         </div>
     );
 }
+

@@ -28,11 +28,11 @@ function WarrantyCard({ installation }: { installation: any }) {
     const StatusIcon = ws.Icon;
 
     return (
-        <Card className={`border ${ws.borderColor} bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all group`}>
+        <Card className={`border ${ws.borderColor} bg-white dark:bg-slate-900 shadow-none hover:shadow-none transition-all group`}>
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-blue-600/10 flex items-center justify-center flex-shrink-0">
+                        <div className="h-10 w-10 rounded-none bg-blue-600/10 flex items-center justify-center flex-shrink-0">
                             <Wrench className="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
@@ -42,7 +42,7 @@ function WarrantyCard({ installation }: { installation: any }) {
                             <p className="text-xs text-slate-400 mt-0.5">{installation.product?.manufacturer ?? ''} · {installation.product?.modelNumber ?? ''}</p>
                         </div>
                     </div>
-                    <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${ws.bgColor} ${ws.color} border ${ws.borderColor} flex-shrink-0`}>
+                    <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-none ${ws.bgColor} ${ws.color} border ${ws.borderColor} flex-shrink-0`}>
                         <StatusIcon className="h-3 w-3" />
                         {ws.label}
                     </span>
@@ -98,7 +98,7 @@ export default function WarrantiesPage() {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <Button variant="ghost" size="icon" asChild className="rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                         <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
                     </Button>
                     <div>
@@ -117,9 +117,9 @@ export default function WarrantiesPage() {
                         { label: 'Expired', count: expired.length, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20', Icon: ShieldX },
                         { label: 'No Warranty', count: noWarranty.length, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-slate-800', Icon: ShieldAlert },
                     ].map(({ label, count, color, bg, Icon }) => (
-                        <Card key={label} className="border-none shadow-sm bg-white dark:bg-slate-900">
+                        <Card key={label} className="border-none shadow-none bg-white dark:bg-slate-900">
                             <CardContent className="pt-5 pb-4 flex items-center gap-4">
-                                <div className={`h-10 w-10 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
+                                <div className={`h-10 w-10 rounded-none ${bg} flex items-center justify-center flex-shrink-0`}>
                                     <Icon className={`h-5 w-5 ${color}`} />
                                 </div>
                                 <div>
@@ -135,16 +135,16 @@ export default function WarrantiesPage() {
             {/* Equipment Grid */}
             {isLoading ? (
                 <div className="flex justify-center py-24">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                    <div className="animate-spin rounded-none h-10 w-10 border-b-2 border-blue-600" />
                 </div>
             ) : equipment.length === 0 ? (
                 <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
                     <CardContent className="flex flex-col items-center justify-center py-24 text-center gap-3">
-                        <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                        <div className="h-14 w-14 rounded-none bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                             <PackageSearch className="h-6 w-6 text-slate-400" />
                         </div>
                         <p className="text-slate-600 dark:text-slate-400 font-medium">No equipment registered</p>
-                        <p className="text-sm text-slate-400">Warranty information will appear here once equipment is installed at your facility.</p>
+                        <p className="text-sm text-slate-400">Warranty information will appear here once assets are registered to your account.</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -157,3 +157,4 @@ export default function WarrantiesPage() {
         </div>
     );
 }
+

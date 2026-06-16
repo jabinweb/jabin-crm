@@ -1,17 +1,17 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
+import Link from 'next/link';
 import {
   LayoutDashboard,
   Users,
   CreditCard,
   Mail,
-  Database,
   Settings,
   Activity,
   FileText,
-} from "lucide-react";
+  ChevronLeft,
+  Building2,
+} from 'lucide-react';
 
 export default async function AdminLayout({
   children,
@@ -20,67 +20,73 @@ export default async function AdminLayout({
 }) {
   const session = await auth();
   const role = (session?.user as any)?.role;
-  const isSuperAdmin = role === "SUPER_ADMIN" || role === "admin";
+  const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'admin';
 
-  // Check if user is admin
   if (!session?.user || !isSuperAdmin) {
-    redirect("/dashboard");
+    redirect('/dashboard');
   }
 
   const navItems = [
-    { href: "/admin", label: "Overview", icon: LayoutDashboard },
-    { href: "/admin/users", label: "Users", icon: Users },
-    { href: "/admin/subscriptions", label: "Subscriptions", icon: CreditCard },
-    { href: "/admin/plans", label: "Plans", icon: FileText },
-    { href: "/admin/emails", label: "Email Logs", icon: Mail },
-    { href: "/admin/activity", label: "Activity", icon: Activity },
-    { href: "/admin/settings", label: "Settings", icon: Settings },
+    { href: '/admin', label: 'Overview', icon: LayoutDashboard },
+    { href: '/admin/companies', label: 'Companies', icon: Building2 },
+    { href: '/admin/users', label: 'Users', icon: Users },
+    { href: '/admin/subscriptions', label: 'Subscriptions', icon: CreditCard },
+    { href: '/admin/plans', label: 'Plans', icon: FileText },
+    { href: '/admin/emails', label: 'Email Logs', icon: Mail },
+    { href: '/admin/activity', label: 'Activity', icon: Activity },
+    { href: '/admin/settings', label: 'Settings', icon: Settings },
   ];
 
+  const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'CRM';
+
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      {/* Top Navigation Bar - Fixed */}
-      <header className="bg-white border-b border-gray-200 flex-shrink-0 z-20">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
-            <span className="px-2 py-1 text-xs font-semibold text-red-600 bg-red-100 rounded-full">
-              ADMIN
-            </span>
+    <div className="h-screen flex bg-background overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-64 flex-shrink-0 border-r bg-background flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-8 border-b border-foreground/5">
+          <div className="flex items-center space-x-2 mb-5">
+            <div className="w-2 h-2 bg-foreground" />
+            <p className="text-[9px] font-black uppercase tracking-[0.25em] text-foreground">
+              {appName}
+            </p>
           </div>
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard">
-              <Button variant="outline" size="sm">
-                Back to Dashboard
-              </Button>
-            </Link>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">{session.user.email}</span>
-            </div>
-          </div>
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">
+            Platform Admin
+          </h2>
+          <p className="text-[9px] font-mono text-muted-foreground opacity-30 mt-1 truncate">
+            {session.user.email}
+          </p>
         </div>
-      </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Navigation - Fixed */}
-        <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 overflow-y-auto">
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors"
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </aside>
+        {/* Nav */}
+        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground hover:bg-muted/50 border-l-2 border-transparent hover:border-foreground/20 transition-all"
+            >
+              <item.icon className="w-3.5 h-3.5 mr-3 flex-shrink-0" />
+              {item.label}
+            </Link>
+          ))}
+        </nav>
 
-        {/* Main Content - Scrollable */}
-        <main className="flex-1 overflow-y-auto p-8">{children}</main>
-      </div>
+        {/* Footer */}
+        <div className="px-4 py-4 border-t border-foreground/5">
+          <Link
+            href="/dashboard"
+            className="flex items-center px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-all"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 mr-2" />
+            Exit Admin
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-y-auto p-8">{children}</main>
     </div>
   );
 }

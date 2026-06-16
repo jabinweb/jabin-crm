@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { mergeLeads } from '@/lib/leads/duplicate-detector';
+import { handleApiError } from '@/lib/api-error-handler';
+import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,6 +11,8 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
 
     const body = await request.json();
     const { primaryLeadId, duplicateLeadIds, strategy } = body;
@@ -43,6 +47,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error merging leads:', error);
     return NextResponse.json({ 
       error: 'Failed to merge leads',

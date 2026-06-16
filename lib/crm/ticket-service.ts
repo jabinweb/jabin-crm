@@ -7,6 +7,9 @@ export interface CreateTicketData {
     subject: string;
     description: string;
     priority?: TicketPriority;
+    channel?: 'EMAIL' | 'PORTAL' | 'PHONE' | 'WHATSAPP' | 'CHAT' | 'API';
+    groupId?: string;
+    tags?: string[];
 }
 
 export class TicketService {
@@ -25,6 +28,9 @@ export class TicketService {
                 subject: data.subject,
                 description: data.description,
                 priority: data.priority || 'MEDIUM',
+                channel: data.channel || 'PORTAL',
+                groupId: data.groupId,
+                tags: data.tags ?? [],
                 status: technician ? 'ASSIGNED' : 'OPEN',
                 assignedTechnicianId: technician?.id,
             },
@@ -61,7 +67,7 @@ export class TicketService {
      */
     private async getNextAvailableTechnician() {
         const technicians = await prisma.user.findMany({
-            where: { role: 'TECHNICIAN' },
+            where: { role: { in: ['TECHNICIAN', 'SUPPORT_MANAGER'] } },
             select: {
                 id: true,
                 name: true,
@@ -89,7 +95,7 @@ export class TicketService {
             where: { id: ticketId },
             data: { status },
             include: {
-                customer: { select: { id: true, hospitalName: true, email: true, contactPerson: true } },
+                customer: { select: { id: true, organizationName: true, email: true, contactPerson: true } },
             },
         });
 
@@ -167,14 +173,33 @@ export class TicketService {
     /**
      * Add a comment/activity to a ticket
      */
-    async addComment(ticketId: string, comment: string, performedById: string) {
-        return await this.logActivity(ticketId, 'COMMENT', comment, performedById);
+    async addComment(
+        ticketId: string,
+        comment: string,
+        performedById: string,
+        options?: { isInternal?: boolean }
+    ) {
+        return await this.logActivity(
+            ticketId,
+            options?.isInternal ? 'INTERNAL_NOTE' : 'COMMENT',
+            comment,
+            performedById,
+            undefined,
+            options?.isInternal ?? false
+        );
     }
 
     /**
      * Log a ticket activity
      */
-    async logActivity(ticketId: string, eventType: string, description: string, performedById?: string, metadata?: any) {
+    async logActivity(
+        ticketId: string,
+        eventType: string,
+        description: string,
+        performedById?: string,
+        metadata?: any,
+        isInternal = false
+    ) {
         return await prisma.ticketActivity.create({
             data: {
                 ticketId,
@@ -182,6 +207,19 @@ export class TicketService {
                 description,
                 performedById,
                 metadata: metadata || {},
+                isInternal,
+            },
+        });
+    }
+
+    async submitCsat(ticketId: string, rating: number, comment?: string) {
+        if (rating < 1 || rating > 5) throw new Error('Rating must be 1–5');
+        return prisma.supportTicket.update({
+            where: { id: ticketId },
+            data: {
+                csatRating: rating,
+                csatComment: comment,
+                csatSubmittedAt: new Date(),
             },
         });
     }
@@ -189,8 +227,8 @@ export class TicketService {
     /**
      * Get ticket details with full history
      */
-    async getTicketDetails(id: string) {
-        return await prisma.supportTicket.findUnique({
+    async getTicketDetails(id: string, options?: { hideInternal?: boolean }) {
+        const ticket = await prisma.supportTicket.findUnique({
             where: { id },
             include: {
                 customer: true,
@@ -200,7 +238,9 @@ export class TicketService {
                 assignedTechnician: {
                     select: { id: true, name: true, email: true },
                 },
+                group: { select: { id: true, name: true, email: true } },
                 activities: {
+                    where: options?.hideInternal ? { isInternal: false } : undefined,
                     include: {
                         performedBy: { select: { name: true } },
                     },
@@ -219,6 +259,101 @@ export class TicketService {
                 },
             },
         });
+        return ticket;
+    }
+
+    /** Merge secondary tickets into a primary ticket */
+    async mergeTickets(primaryId: string, secondaryIds: string[], performedById?: string) {
+        const primary = await prisma.supportTicket.findUnique({ where: { id: primaryId } });
+        if (!primary) throw new Error('Primary ticket not found');
+
+        const ids = secondaryIds.filter((id) => id !== primaryId);
+        if (ids.length === 0) throw new Error('No tickets to merge');
+
+        await prisma.$transaction(async (tx) => {
+            for (const secondaryId of ids) {
+                const secondary = await tx.supportTicket.findUnique({
+                    where: { id: secondaryId },
+                    include: { activities: true },
+                });
+                if (!secondary || secondary.mergedIntoId) continue;
+
+                for (const activity of secondary.activities) {
+                    await tx.ticketActivity.create({
+                        data: {
+                            ticketId: primaryId,
+                            eventType: activity.eventType,
+                            description: `[Merged from #${secondaryId.slice(-6)}] ${activity.description}`,
+                            performedById: activity.performedById,
+                            isInternal: activity.isInternal,
+                            metadata: { mergedFrom: secondaryId, ...(activity.metadata as object) },
+                            createdAt: activity.createdAt,
+                        },
+                    });
+                }
+
+                await tx.supportTicket.update({
+                    where: { id: secondaryId },
+                    data: {
+                        mergedIntoId: primaryId,
+                        status: 'CLOSED',
+                    },
+                });
+            }
+
+            await tx.ticketActivity.create({
+                data: {
+                    ticketId: primaryId,
+                    eventType: 'MERGED',
+                    description: `Merged ${ids.length} ticket(s) into this request`,
+                    performedById,
+                    metadata: { mergedTicketIds: ids },
+                },
+            });
+        });
+
+        return this.getTicketDetails(primaryId);
+    }
+
+    /** Split a new ticket from an existing one */
+    async splitTicket(
+        sourceId: string,
+        data: { subject: string; description: string },
+        performedById?: string
+    ) {
+        const source = await prisma.supportTicket.findUnique({ where: { id: sourceId } });
+        if (!source) throw new Error('Source ticket not found');
+
+        const newTicket = await prisma.supportTicket.create({
+            data: {
+                customerId: source.customerId,
+                equipmentId: source.equipmentId,
+                groupId: source.groupId,
+                subject: data.subject,
+                description: data.description,
+                priority: source.priority,
+                channel: source.channel,
+                tags: source.tags,
+                status: 'OPEN',
+            },
+        });
+
+        await this.logActivity(
+            sourceId,
+            'SPLIT',
+            `Split new ticket #${newTicket.id.slice(-6)}: ${data.subject}`,
+            performedById,
+            { splitTicketId: newTicket.id }
+        );
+        await this.logActivity(
+            newTicket.id,
+            'CREATED',
+            `Created from split of ticket #${sourceId.slice(-6)}`,
+            performedById,
+            { sourceTicketId: sourceId }
+        );
+
+        return newTicket;
     }
 }
 

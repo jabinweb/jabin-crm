@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-error-handler';
+import { withModuleAccess, afterCampaignCreated } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('EMAIL_OUTREACH', { quota: 'campaigns' });
 
     const { 
       leadId, 
@@ -55,12 +54,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await afterCampaignCreated(session.user.id);
+
     return NextResponse.json({ 
       campaign,
       message: 'Draft saved successfully' 
     });
   } catch (error) {
-    console.error('Error saving draft:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    if (!isApiException(error)) {
+      console.error('Error saving draft:', error);
+    }
+    return handleApiError(error);
   }
 }

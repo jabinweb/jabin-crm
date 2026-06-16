@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { quotationService } from '@/lib/quotation-service';
 import { validateRequest } from '@/lib/validation';
 import { z } from 'zod';
-import { handleApiError } from '@/lib/api-error-handler';
 
 const convertSchema = z.object({
   dueInDays: z.number().min(1).optional(),
@@ -14,7 +15,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('QUOTATIONS');
     const { id } = await params;
     
     const { dueInDays } = await validateRequest(req, convertSchema);
@@ -23,6 +24,7 @@ export async function POST(
 
     return NextResponse.json(invoice);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

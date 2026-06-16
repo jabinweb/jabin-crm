@@ -92,7 +92,7 @@ export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild className="md:h-8 md:p-0">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-none bg-sidebar-primary text-sidebar-primary-foreground">
                   <Mail className="size-4" />
                 </div>
               </SidebarMenuButton>
@@ -184,3 +184,4 @@ export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
     </Sidebar>
   )
 }
+

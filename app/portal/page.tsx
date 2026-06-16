@@ -1,26 +1,28 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import {
     Card,
     CardContent,
     CardHeader,
     CardTitle,
-    CardDescription
 } from '@/components/ui/card';
 import {
     Wrench,
-    Ticket,
     ShieldCheck,
-    Activity,
     PlusCircle,
     ArrowUpRight,
-    User
+    LifeBuoy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
-export default function HospitalPortalPage() {
+export default function CustomerPortalPage() {
+    const { data: workspaceData } = useWorkspaceConfig();
+    const features = workspaceData?.config.features;
+    const terminology = workspaceData?.config.terminology;
+
     const { data: stats, isLoading } = useQuery({
         queryKey: ['portal-stats'],
         queryFn: async () => {
@@ -34,148 +36,137 @@ export default function HospitalPortalPage() {
         return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
     }
 
+    const resolvedCount = stats?.resolvedTickets ?? 0;
+    const totalTickets = (stats?.openTickets ?? 0) + resolvedCount;
+    const resolutionRate = totalTickets > 0 ? Math.round((resolvedCount / totalTickets) * 100) : 100;
+
+    const showEquipment = features?.equipment === true;
+    const showWarranties = features?.warranties === true;
+    const showServiceHistory = features?.serviceHistory === true;
+    const ticketLabel = terminology?.ticket ?? 'Ticket';
+    const equipmentLabel = terminology?.equipment ?? 'Equipment';
+    const newRequestLabel = terminology?.newRequest ?? 'New support request';
+    const subtitle =
+        terminology?.portalSubtitle ??
+        'Manage support, account activity, and self-service for your organization.';
+
+    const quickLinks = [
+        showEquipment
+            ? { href: '/portal/equipment', label: `View ${equipmentLabel.toLowerCase()}` }
+            : null,
+        { href: '/portal/support', label: 'Help center' },
+        showServiceHistory ? { href: '/portal/service-history', label: 'Service history' } : null,
+        { href: '/portal/settings', label: 'Account settings' },
+    ].filter(Boolean) as Array<{ href: string; label: string }>;
+
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Facility Dashboard</h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">Manage your hospital's medical equipment and support requests.</p>
+                    <h1 className="text-2xl font-bold tracking-tight">Customer portal</h1>
+                    <p className="text-muted-foreground mt-1">{subtitle}</p>
                 </div>
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-500/20 transition-all hover:scale-105 active:scale-95">
+                <Button asChild>
                     <Link href="/portal/tickets/new">
                         <PlusCircle className="mr-2 h-4 w-4" />
-                        New Support Request
+                        {newRequestLabel}
                     </Link>
                 </Button>
             </div>
 
-            {/* Metrics Row */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="border-none bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {showEquipment ? (
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                                Installed {equipmentLabel.toLowerCase()}
+                            </CardTitle>
+                            <Wrench className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-bold">{stats?.totalEquipment || 0}</div>
+                        </CardContent>
+                    </Card>
+                ) : null}
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-slate-500">Installed Units</CardTitle>
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                            <Wrench className="h-4 w-4 text-blue-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold">{stats?.totalEquipment || 0}</div>
-                        <p className="text-xs text-slate-400 mt-1">Registered medical devices</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-none bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-slate-500">Active Requests</CardTitle>
-                        <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg">
-                            <Ticket className="h-4 w-4 text-orange-600" />
-                        </div>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Open {ticketLabel.toLowerCase()}s
+                        </CardTitle>
+                        <LifeBuoy className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold">{stats?.openTickets || 0}</div>
-                        <p className="text-xs text-slate-400 mt-1">Support tickets in progress</p>
                     </CardContent>
                 </Card>
-                <Card className="border-none bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow">
+                {showWarranties ? (
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">Warranty alerts</CardTitle>
+                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-3xl font-bold">{stats?.pendingWarranties || 0}</div>
+                        </CardContent>
+                    </Card>
+                ) : null}
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-slate-500">Warranty Alerts</CardTitle>
-                        <div className="p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg">
-                            <ShieldCheck className="h-4 w-4 text-yellow-600" />
-                        </div>
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Resolution rate</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.pendingWarranties || 0}</div>
-                        <p className="text-xs text-slate-400 mt-1">Expiring within 30 days</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-none bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-slate-500">System Uptime</CardTitle>
-                        <div className="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
-                            <Activity className="h-4 w-4 text-green-600" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold">99.2%</div>
-                        <p className="text-xs text-slate-400 mt-1">Critical equipment health</p>
+                        <div className="text-3xl font-bold">{resolutionRate}%</div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                {/* Recent Tickets Section */}
-                <Card className="lg:col-span-4 border-none bg-white dark:bg-slate-900 shadow-sm">
-                    <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 dark:border-slate-800 pb-4">
-                        <div>
-                            <CardTitle>Recent Support Requests</CardTitle>
-                            <CardDescription>The status of your latest help requests.</CardDescription>
-                        </div>
-                        <Button variant="ghost" size="sm" asChild className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                <Card className="lg:col-span-4">
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <CardTitle className="text-base">Recent {ticketLabel.toLowerCase()}s</CardTitle>
+                        <Button variant="ghost" size="sm" asChild>
                             <Link href="/portal/tickets">
-                                View Queue <ArrowUpRight className="ml-2 h-4 w-4" />
+                                View all <ArrowUpRight className="ml-2 h-4 w-4" />
                             </Link>
                         </Button>
                     </CardHeader>
-                    <CardContent className="pt-6">
-                        <div className="space-y-4">
+                    <CardContent>
+                        <div className="space-y-3">
                             {stats?.recentTickets?.length === 0 ? (
-                                <p className="text-sm text-center py-10 text-slate-400">No recent support requests found.</p>
+                                <p className="text-sm text-center py-10 text-muted-foreground">
+                                    No recent {ticketLabel.toLowerCase()}s.
+                                </p>
                             ) : (
-                                stats?.recentTickets?.map((ticket: any) => (
-                                    <div key={ticket.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group">
+                                stats?.recentTickets?.map((ticket: { id: string; subject: string; createdAt: string; priority: string; status: string }) => (
+                                    <Link
+                                        key={ticket.id}
+                                        href={`/portal/tickets/${ticket.id}`}
+                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                                    >
                                         <div className="space-y-1">
-                                            <p className="text-sm font-semibold group-hover:text-blue-600 transition-colors">{ticket.subject}</p>
-                                            <p className="text-xs text-slate-400">
-                                                Created {new Date(ticket.createdAt).toLocaleDateString()} • {ticket.priority}
+                                            <p className="text-sm font-medium">{ticket.subject}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {new Date(ticket.createdAt).toLocaleDateString()} · {ticket.priority}
                                             </p>
                                         </div>
-                                        <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase ${ticket.status === 'RESOLVED' ? 'bg-green-100 text-green-700' :
-                                                ticket.status === 'OPEN' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                                            }`}>
-                                            {ticket.status}
-                                        </div>
-                                    </div>
+                                        <span className="text-xs font-medium uppercase">{ticket.status}</span>
+                                    </Link>
                                 ))
                             )}
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Quick Actions / Facility Info */}
-                <Card className="lg:col-span-3 border-none bg-white dark:bg-slate-900 shadow-sm">
-                    <CardHeader className="border-b border-slate-50 dark:border-slate-800 pb-4 text-center">
-                        <CardTitle>Facility Overview</CardTitle>
-                        <CardDescription>Key information about your installation.</CardDescription>
+                <Card className="lg:col-span-3">
+                    <CardHeader>
+                        <CardTitle className="text-base">Quick links</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-6 pt-6 text-center">
-                        <div className="space-y-3">
-                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Your Support Manager</p>
-                            <div className="flex flex-col items-center space-y-3 p-6 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/30">
-                                <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xl font-bold shadow-xl shadow-blue-500/20">JS</div>
-                                <div>
-                                    <p className="text-base font-bold text-slate-900 dark:text-white">Jabin Support Team</p>
-                                    <p className="text-sm text-slate-500">24/7 Priority Support Line</p>
-                                </div>
-                                <Button className="w-full bg-white text-blue-600 hover:bg-blue-50 border border-blue-100 shadow-sm" variant="outline">Contact Specialist</Button>
-                            </div>
-                        </div>
-
-                        <div className="space-y-3 pt-2">
-                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Resources</p>
-                            <div className="grid grid-cols-1 gap-2">
-                                <Button variant="outline" className="w-full justify-start h-12 border-slate-100 hover:bg-slate-50 hover:text-blue-600 transition-all px-4" asChild>
-                                    <Link href="/portal/equipment">
-                                        <Wrench className="mr-3 h-4 w-4 text-slate-400" />
-                                        Equipment Inventory
-                                    </Link>
-                                </Button>
-                                <Button variant="outline" className="w-full justify-start h-12 border-slate-100 hover:bg-slate-50 hover:text-blue-600 transition-all px-4" asChild>
-                                    <Link href="/portal/maintenance">
-                                        <Activity className="mr-3 h-4 w-4 text-slate-400" />
-                                        Compliance Reports
-                                    </Link>
-                                </Button>
-                            </div>
-                        </div>
+                    <CardContent className="space-y-3">
+                        {quickLinks.map((link) => (
+                            <Button key={link.href} variant="outline" className="w-full justify-start" asChild>
+                                <Link href={link.href}>{link.label}</Link>
+                            </Button>
+                        ))}
                     </CardContent>
                 </Card>
             </div>

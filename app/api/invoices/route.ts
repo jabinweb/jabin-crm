@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { invoiceService } from '@/lib/invoice-service';
 import { validateRequest } from '@/lib/validation';
 import { z } from 'zod';
-import { handleApiError } from '@/lib/api-error-handler';
 
 const createInvoiceSchema = z.object({
   leadId: z.string().optional(),
@@ -42,8 +43,8 @@ const createInvoiceSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireAuth(req);
-    
+    const session = await withModuleAccess('INVOICES');
+
     const validatedData = await validateRequest(req, createInvoiceSchema);
     
     const invoice = await invoiceService.createInvoice({
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }
@@ -68,8 +70,8 @@ const listInvoicesSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await requireAuth(req);
-    
+    const session = await withModuleAccess('INVOICES');
+
     const searchParams = Object.fromEntries(req.nextUrl.searchParams.entries());
     const validatedParams = listInvoicesSchema.parse(searchParams);
     
@@ -80,6 +82,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

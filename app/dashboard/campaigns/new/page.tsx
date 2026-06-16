@@ -301,7 +301,7 @@ export default function NewCampaignPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">1</span>
+                    <span className="flex items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">1</span>
                     Select Recipients
                   </CardTitle>
                   <CardDescription>Choose which leads to send this campaign to</CardDescription>
@@ -438,7 +438,7 @@ export default function NewCampaignPage() {
                       {leadsData.leads.map((lead: any) => (
                         <div
                           key={lead.id}
-                          className="flex items-center space-x-2 p-3 rounded-lg border hover:bg-accent cursor-pointer"
+                          className="flex items-center space-x-2 p-3 rounded-none border hover:bg-accent cursor-pointer"
                           onClick={() => toggleLead(lead.id)}
                         >
                           <Checkbox
@@ -474,7 +474,7 @@ export default function NewCampaignPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">2</span>
+                    <span className="flex items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">2</span>
                     Campaign Details
                   </CardTitle>
                   <CardDescription>Write your email content and subject line</CardDescription>
@@ -616,7 +616,7 @@ export default function NewCampaignPage() {
             <CardHeader>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">3</span>
+                  <span className="flex items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">3</span>
                   Sender Information
                 </CardTitle>
                 <CardDescription>Configure who the email is from</CardDescription>
@@ -723,3 +723,4 @@ export default function NewCampaignPage() {
     </div>
   );
 }
+

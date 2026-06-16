@@ -52,7 +52,7 @@ export class EmailQueueService {
     // Get user rate limits (emails sent in last hour)
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const recentSends = await prisma.emailQueue.groupBy({
+    const recentSends = (await prisma.emailQueue.groupBy({
       by: ['userId'],
       where: {
         status: 'SENT',
@@ -63,9 +63,9 @@ export class EmailQueueService {
       _count: {
         userId: true,
       },
-    });
+    })) as Array<{ userId: string; _count: { userId: number } }>;
 
-    const userSendCounts = new Map(
+    const userSendCounts = new Map<string, number>(
       recentSends.map((r) => [r.userId, r._count.userId])
     );
 
@@ -338,3 +338,4 @@ export class EmailQueueService {
 }
 
 export const emailQueueService = new EmailQueueService();
+

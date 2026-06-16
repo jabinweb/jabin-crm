@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -11,7 +12,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Activity } from "lucide-react";
 
-async function getActivityLogs() {
+type ActivityLogRow = Prisma.LeadActivityGetPayload<{
+  include: {
+    user: { select: { name: true; email: true } };
+    lead: { select: { companyName: true; email: true } };
+  };
+}>;
+
+async function getActivityLogs(): Promise<ActivityLogRow[]> {
   const activities = await prisma.leadActivity.findMany({
     take: 200,
     orderBy: { createdAt: "desc" },
@@ -76,7 +84,7 @@ export default async function ActivityPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-none border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -88,7 +96,7 @@ export default async function ActivityPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activities.map((activity) => (
+                {activities.map((activity: ActivityLogRow) => (
                   <TableRow key={activity.id}>
                     <TableCell>
                       <Badge className={getActivityColor(activity.activityType)}>
@@ -141,3 +149,4 @@ export default async function ActivityPage() {
     </div>
   );
 }
+

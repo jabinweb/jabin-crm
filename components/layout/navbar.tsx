@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -22,11 +23,17 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Activity, LogOut, Settings, User, Crown, CreditCard, Search, Building2, Mail, Phone, ClipboardList, Stethoscope } from 'lucide-react';
+import { Activity, LogOut, Settings, User, Crown, CreditCard, Search, Building2, Mail, Phone, ClipboardList } from 'lucide-react';
+import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 
 export function Navbar() {
   const { data: session } = useSession();
   const router = useRouter();
+  const params = useParams<{ company?: string }>();
+  const workspaceSlug =
+    typeof params?.company === 'string'
+      ? params.company
+      : session?.user?.companySlug ?? undefined;
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -55,10 +62,14 @@ export function Navbar() {
     const searchLeads = async () => {
       setSearching(true);
       try {
-        const response = await fetch(`/api/leads?search=${encodeURIComponent(searchQuery)}&limit=10`);
+        const headers = workspaceSlug ? workspaceSlugHeaders(workspaceSlug) : undefined;
+        const response = await fetch(
+          `/api/leads?query=${encodeURIComponent(searchQuery)}&limit=10`,
+          headers ? { headers } : undefined
+        );
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data.leads || []);
+          setSearchResults(data.data || data.leads || []);
         }
       } catch (error) {
         console.error('Search error:', error);
@@ -73,43 +84,47 @@ export function Navbar() {
 
   const handleSelectLead = (leadId: string) => {
     setOpen(false);
-    router.push(`/dashboard/leads/${leadId}`);
+    if (workspaceSlug) {
+      router.push(`/${workspaceSlug}/dashboard/leads/${leadId}`);
+    } else {
+      router.push(`/dashboard/leads/${leadId}`);
+    }
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full border-b bg-background">
       <div className="flex h-14 items-center px-3 sm:px-4 lg:px-8">
         <div className="mr-2 sm:mr-4 flex md:hidden">
-          <a className="flex items-center space-x-2" href="/dashboard">
-            <Stethoscope className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-          </a>
+          <Link className="flex items-center space-x-2" href="/dashboard">
+            <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+          </Link>
         </div>
 
         <div className="mr-4 hidden md:flex">
-          <a className="mr-6 flex items-center space-x-2" href="/dashboard">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
-            <span className="hidden font-bold lg:inline-block">Jabin CRM</span>
-          </a>
+          <Link className="mr-6 flex items-center space-x-2" href="/dashboard">
+            <Building2 className="h-5 w-5 text-foreground" />
+            <span className="hidden font-black lg:inline-block tracking-tighter">JABIN</span>
+          </Link>
         </div>
 
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
             <Button
               variant="outline"
-              className="relative h-9 w-full justify-start px-3 py-2 text-sm sm:w-64 md:w-auto lg:w-64"
+              className="relative h-8 w-full justify-start px-3 py-2 text-xs sm:w-64 md:w-auto lg:w-64 border-muted hover:bg-muted/50 transition-colors"
               onClick={() => setOpen(true)}
             >
-              <Search className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline-flex flex-1 text-left">Search customers, tickets...</span>
-              <kbd className="pointer-events-none hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 ml-auto">
-                <span className="text-xs">⌘</span>K
+              <Search className="h-3 w-3 sm:mr-2" />
+              <span className="hidden sm:inline-flex flex-1 text-left opacity-60">Search query...</span>
+              <kbd className="pointer-events-none hidden lg:inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[9px] font-medium ml-auto">
+                K
               </kbd>
             </Button>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-none">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={session?.user?.image || ''} alt={session?.user?.name || ''} />
                   <AvatarFallback className="text-xs">
@@ -136,31 +151,31 @@ export function Navbar() {
               {session?.user?.role === 'admin' && (
                 <>
                   <DropdownMenuItem asChild>
-                    <a href="/admin">
+                    <Link href="/admin">
                       <Crown className="mr-2 h-4 w-4 text-red-600" />
                       <span className="text-red-600 font-semibold">Admin Panel</span>
-                    </a>
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
               )}
               <DropdownMenuItem asChild>
-                <a href="/dashboard/settings/subscription">
+                <Link href="/dashboard/settings/subscription">
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Subscription</span>
-                </a>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href="/pricing">
+                <Link href="/pricing">
                   <Crown className="mr-2 h-4 w-4" />
                   <span>Upgrade Plan</span>
-                </a>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <a href="/dashboard/settings">
+                <Link href="/dashboard/settings">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
-                </a>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />

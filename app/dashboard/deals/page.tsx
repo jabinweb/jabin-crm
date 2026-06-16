@@ -55,13 +55,13 @@ export default function DealsPage() {
       const res = await fetch('/api/deals');
       if (res.ok) {
         const deals: Deal[] = await res.json();
-        
+
         // Group deals by stage
         const grouped = STAGES.reduce((acc, stage) => {
           acc[stage.id] = deals.filter((d) => d.stage === stage.id);
           return acc;
         }, {} as Record<string, Deal[]>);
-        
+
         setDealsByStage(grouped);
       }
     } catch (error) {
@@ -91,8 +91,8 @@ export default function DealsPage() {
 
     // Update local state optimistically
     const sourceLane = [...dealsByStage[source.droppableId]];
-    const destLane = source.droppableId === destination.droppableId 
-      ? sourceLane 
+    const destLane = source.droppableId === destination.droppableId
+      ? sourceLane
       : [...dealsByStage[destination.droppableId]];
 
     const [movedDeal] = sourceLane.splice(source.index, 1);
@@ -121,7 +121,7 @@ export default function DealsPage() {
   const { formatCurrency } = useCurrency();
 
   if (loading) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Loading deals...</div>;
+    return <div className="container mx-auto">Loading deals...</div>;
   }
 
   return (
@@ -181,7 +181,7 @@ export default function DealsPage() {
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-semibold flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${stage.color}`} />
+                    <div className={`w-3 h-3 rounded-none ${stage.color}`} />
                     {stage.label}
                   </h3>
                   <Badge variant="secondary">
@@ -202,9 +202,8 @@ export default function DealsPage() {
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[500px] p-2 rounded-lg transition-colors ${
-                      snapshot.isDraggingOver ? 'bg-accent' : 'bg-muted/50'
-                    }`}
+                    className={`min-h-[500px] p-2 rounded-none transition-colors ${snapshot.isDraggingOver ? 'bg-accent' : 'bg-muted/50'
+                      }`}
                   >
                     {(dealsByStage[stage.id] || []).map((deal, index) => (
                       <Draggable key={deal.id} draggableId={deal.id} index={index}>
@@ -213,9 +212,8 @@ export default function DealsPage() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`mb-2 cursor-move ${
-                              snapshot.isDragging ? 'shadow-lg ring-2 ring-primary' : ''
-                            }`}
+                            className={`mb-2 cursor-move ${snapshot.isDragging ? 'shadow-none ring-2 ring-primary' : ''
+                              }`}
                           >
                             <CardHeader className="p-4">
                               <CardTitle className="text-sm font-semibold">
@@ -233,7 +231,7 @@ export default function DealsPage() {
                                 )}
                               </div>
                               <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
+                                <div className="flex-1 bg-muted rounded-none h-2 overflow-hidden">
                                   <div
                                     className="bg-primary h-full transition-all"
                                     style={{ width: `${deal.probability}%` }}
@@ -257,3 +255,4 @@ export default function DealsPage() {
     </div>
   );
 }
+

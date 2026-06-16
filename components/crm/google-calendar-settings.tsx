@@ -122,7 +122,7 @@ export function GoogleCalendarSettings() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50">
+            <div className="flex items-center justify-between p-4 border rounded-none bg-green-50">
               <div>
                 <p className="font-medium">Calendar sync is active</p>
                 <p className="text-sm text-gray-600">
@@ -166,3 +166,4 @@ export function GoogleCalendarSettings() {
     </Card>
   );
 }
+

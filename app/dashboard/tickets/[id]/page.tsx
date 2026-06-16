@@ -16,6 +16,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -37,17 +45,22 @@ import {
     AlertCircle,
     ArrowRightLeft,
     Calendar,
-    Building
+    Building,
+    GitMerge,
+    SplitSquareHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AITicketSummary } from '@/components/tickets/AITicketSummary';
+import { useFeatureModule } from '@/components/feature-module-guard';
 
 export default function TicketDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const ticketAdvancedEnabled = useFeatureModule('TICKET_ADVANCED');
     const [newComment, setNewComment] = useState('');
+    const [isInternalNote, setIsInternalNote] = useState(false);
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
     // Status Update Dialog
@@ -71,11 +84,37 @@ export default function TicketDetailPage() {
         reason: '',
     });
 
+    const [showMergeDialog, setShowMergeDialog] = useState(false);
+    const [mergeTicketIds, setMergeTicketIds] = useState('');
+    const [isMerging, setIsMerging] = useState(false);
+    const [showSplitDialog, setShowSplitDialog] = useState(false);
+    const [isSplitting, setIsSplitting] = useState(false);
+    const [splitData, setSplitData] = useState({ subject: '', description: '' });
+
     const { data: ticket, isLoading } = useQuery({
         queryKey: ['ticket', id],
         queryFn: async () => {
             const response = await fetch(`/api/tickets/${id}`);
             if (!response.ok) throw new Error('Failed to fetch ticket');
+            return response.json();
+        },
+    });
+
+    const { data: cannedResponses } = useQuery({
+        queryKey: ['canned-responses'],
+        queryFn: async () => {
+            const response = await fetch('/api/support/canned-responses');
+            if (!response.ok) return [];
+            return response.json();
+        },
+    });
+
+    const { data: sla } = useQuery({
+        queryKey: ['ticket-sla', id],
+        enabled: !!id,
+        queryFn: async () => {
+            const response = await fetch(`/api/tickets/${id}/sla`);
+            if (!response.ok) return null;
             return response.json();
         },
     });
@@ -87,11 +126,12 @@ export default function TicketDetailPage() {
             const response = await fetch(`/api/tickets/${id}/activities`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment: newComment }),
+                body: JSON.stringify({ comment: newComment, isInternal: isInternalNote }),
             });
             if (!response.ok) throw new Error('Failed to add comment');
-            toast.success('Comment added');
+            toast.success(isInternalNote ? 'Internal note saved' : 'Reply sent');
             setNewComment('');
+            setIsInternalNote(false);
             queryClient.invalidateQueries({ queryKey: ['ticket', id] });
         } catch (error) {
             toast.error('Failed to add comment');
@@ -175,6 +215,55 @@ export default function TicketDetailPage() {
         }
     };
 
+    const handleMerge = async () => {
+        const ids = mergeTicketIds.split(/[\s,]+/).filter(Boolean);
+        if (ids.length === 0) {
+            toast.error('Enter ticket IDs to merge');
+            return;
+        }
+        setIsMerging(true);
+        try {
+            const response = await fetch(`/api/tickets/${id}/merge`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ticketIds: ids }),
+            });
+            if (!response.ok) throw new Error('Merge failed');
+            toast.success(`Merged ${ids.length} ticket(s)`);
+            setShowMergeDialog(false);
+            setMergeTicketIds('');
+            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+        } catch {
+            toast.error('Failed to merge tickets');
+        } finally {
+            setIsMerging(false);
+        }
+    };
+
+    const handleSplit = async () => {
+        if (!splitData.subject.trim() || !splitData.description.trim()) {
+            toast.error('Subject and description required');
+            return;
+        }
+        setIsSplitting(true);
+        try {
+            const response = await fetch(`/api/tickets/${id}/split`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(splitData),
+            });
+            if (!response.ok) throw new Error('Split failed');
+            const newTicket = await response.json();
+            toast.success('New ticket created from split');
+            setShowSplitDialog(false);
+            router.push(`/dashboard/tickets/${newTicket.id}`);
+        } catch {
+            toast.error('Failed to split ticket');
+        } finally {
+            setIsSplitting(false);
+        }
+    };
+
     if (isLoading) {
         return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
     }
@@ -189,6 +278,18 @@ export default function TicketDetailPage() {
                     Back to Queue
                 </Button>
                 <div className="flex items-center space-x-2">
+                    {ticketAdvancedEnabled && (
+                        <>
+                    <Button variant="outline" size="sm" onClick={() => setShowMergeDialog(true)}>
+                        <GitMerge className="h-4 w-4 mr-2" />
+                        Merge
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowSplitDialog(true)}>
+                        <SplitSquareHorizontal className="h-4 w-4 mr-2" />
+                        Split
+                    </Button>
+                        </>
+                    )}
                     <Button variant="outline" size="sm" onClick={() => setShowTransferDialog(true)}>
                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                         Transfer
@@ -218,7 +319,7 @@ export default function TicketDetailPage() {
                             <CardTitle className="text-2xl mt-2">{ticket.subject}</CardTitle>
                             <CardDescription className="flex items-center gap-2 mt-1">
                                 <Building className="h-4 w-4" />
-                                {ticket.customer.hospitalName}
+                                {ticket.customer.organizationName}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -263,10 +364,18 @@ export default function TicketDetailPage() {
                             <Card>
                                 <CardContent className="pt-6 space-y-4">
                                     <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                                        {ticket.activities?.filter((a: any) => a.eventType === 'COMMENT').map((comment: any) => (
-                                            <div key={comment.id} className="bg-muted/30 p-3 rounded-lg border">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <p className="text-xs font-bold">{comment.performedBy?.name || 'System User'}</p>
+                                        {ticket.activities?.filter((a: any) => ['COMMENT', 'INTERNAL_NOTE', 'EMAIL_REPLY'].includes(a.eventType)).map((comment: any) => (
+                                            <div key={comment.id} className={cn(
+                                                "p-3 rounded-lg border",
+                                                comment.isInternal ? "bg-amber-50/50 border-amber-200" : "bg-muted/30"
+                                            )}>
+                                                <div className="flex items-center justify-between mb-1 gap-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-xs font-bold">{comment.performedBy?.name || 'System User'}</p>
+                                                        {comment.isInternal && (
+                                                            <Badge variant="outline" className="text-[9px] h-4">Internal</Badge>
+                                                        )}
+                                                    </div>
                                                     <p className="text-[10px] text-muted-foreground">{new Date(comment.createdAt).toLocaleString()}</p>
                                                 </div>
                                                 <p className="text-sm">{comment.description}</p>
@@ -274,16 +383,45 @@ export default function TicketDetailPage() {
                                         ))}
                                     </div>
 
-                                    <div className="space-y-2 mt-4 pt-4 border-top">
-                                        <Label>Add a Comment</Label>
+                                    {cannedResponses?.length > 0 && (
+                                        <div className="space-y-2">
+                                            <Label>Canned response</Label>
+                                            <Select onValueChange={(val) => {
+                                                const item = cannedResponses.find((r: any) => r.id === val);
+                                                if (item) setNewComment(item.body);
+                                            }}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Insert template…" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {cannedResponses.map((r: any) => (
+                                                        <SelectItem key={r.id} value={r.id}>{r.title}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2 mt-4 pt-4 border-t">
+                                        <Label>{isInternalNote ? 'Internal note (agents only)' : 'Public reply'}</Label>
                                         <Textarea
-                                            placeholder="Type technician notes or customer updates here..."
+                                            placeholder={isInternalNote ? 'Private note for your team…' : 'Reply visible to the customer…'}
                                             value={newComment}
                                             onChange={(e) => setNewComment(e.target.value)}
                                         />
-                                        <Button onClick={handleAddComment} disabled={isSubmittingComment || !newComment.trim()}>
-                                            {isSubmittingComment ? 'Posting...' : 'Post Comment'}
-                                        </Button>
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex items-center gap-2">
+                                                <Switch
+                                                    id="internal-note"
+                                                    checked={isInternalNote}
+                                                    onCheckedChange={setIsInternalNote}
+                                                />
+                                                <Label htmlFor="internal-note" className="text-sm font-normal">Internal note</Label>
+                                            </div>
+                                            <Button onClick={handleAddComment} disabled={isSubmittingComment || !newComment.trim()}>
+                                                {isSubmittingComment ? 'Posting…' : isInternalNote ? 'Save note' : 'Send reply'}
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -322,6 +460,28 @@ export default function TicketDetailPage() {
                                     </div>
                                 </div>
                             </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase">SLA Status</p>
+                                <div className="p-3 border rounded-lg text-xs space-y-1">
+                                    <p className="font-medium">{sla?.state ? String(sla.state).replace(/_/g, ' ') : 'Monitoring'}</p>
+                                    {sla && (
+                                        <p className="text-muted-foreground">
+                                            Response: {sla.responseTargetHours}h · Resolution: {sla.resolutionTargetHours}h
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {ticket.csatRating && (
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-bold text-muted-foreground uppercase">Customer satisfaction</p>
+                                    <div className="p-3 border rounded-lg text-xs">
+                                        <p className="font-medium">{ticket.csatRating} / 5 stars</p>
+                                        {ticket.csatComment && <p className="text-muted-foreground mt-1">{ticket.csatComment}</p>}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Equipment Context</p>
@@ -368,6 +528,7 @@ export default function TicketDetailPage() {
                         <Button variant="outline" onClick={() => handleUpdateStatus('IN_PROGRESS')} disabled={isUpdatingStatus}>IN_PROGRESS</Button>
                         <Button variant="outline" onClick={() => handleUpdateStatus('ASSIGNED')} disabled={isUpdatingStatus}>ASSIGNED</Button>
                         <Button variant="outline" onClick={() => handleUpdateStatus('OPEN')} disabled={isUpdatingStatus}>OPEN</Button>
+                        <Button variant="outline" onClick={() => handleUpdateStatus('RESOLVED')} disabled={isUpdatingStatus}>RESOLVED</Button>
                         <Button variant="outline" onClick={() => handleUpdateStatus('CLOSED')} disabled={isUpdatingStatus}>CLOSED</Button>
                     </div>
                 </DialogContent>
@@ -388,7 +549,7 @@ export default function TicketDetailPage() {
                                 id="notes"
                                 value={reportData.serviceNotes}
                                 onChange={(e) => setReportData({ ...reportData, serviceNotes: e.target.value })}
-                                placeholder="e.g. Replaced motherboard and verified pulse oximeter calibration..."
+                                placeholder="Describe work performed, parts used, and verification steps…"
                                 className="h-32"
                             />
                         </div>
@@ -456,6 +617,64 @@ export default function TicketDetailPage() {
                         <Button variant="outline" onClick={() => setShowTransferDialog(false)}>Cancel</Button>
                         <Button onClick={handleTransfer} disabled={isTransferring}>
                             {isTransferring ? 'Transferring...' : 'Transfer Ticket'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Merge tickets</DialogTitle>
+                        <DialogDescription>
+                            Combine other tickets into this one. Enter comma-separated ticket IDs to merge in.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="merge-ids">Ticket IDs to merge</Label>
+                        <Input
+                            id="merge-ids"
+                            placeholder="clxxx, clyyy"
+                            value={mergeTicketIds}
+                            onChange={(e) => setMergeTicketIds(e.target.value)}
+                            className="mt-2"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowMergeDialog(false)}>Cancel</Button>
+                        <Button onClick={handleMerge} disabled={isMerging}>
+                            {isMerging ? 'Merging…' : 'Merge into this ticket'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={showSplitDialog} onOpenChange={setShowSplitDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Split ticket</DialogTitle>
+                        <DialogDescription>Create a new ticket from part of this request.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label>New subject</Label>
+                            <Input
+                                value={splitData.subject}
+                                onChange={(e) => setSplitData((s) => ({ ...s, subject: e.target.value }))}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Description</Label>
+                            <Textarea
+                                value={splitData.description}
+                                onChange={(e) => setSplitData((s) => ({ ...s, description: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowSplitDialog(false)}>Cancel</Button>
+                        <Button onClick={handleSplit} disabled={isSplitting}>
+                            {isSplitting ? 'Creating…' : 'Create split ticket'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

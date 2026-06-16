@@ -1,4 +1,5 @@
 import { sendEmail, createEmailHTML } from './nodemailer';
+import { getBrandConfig } from '@/lib/branding';
 
 export class TicketNotifications {
     /**
@@ -11,6 +12,7 @@ export class TicketNotifications {
         subject: string;
     }) {
         const { customerEmail, customerName, ticketId, subject } = params;
+        const brand = getBrandConfig();
 
         const body = `
       Hello ${customerName},
@@ -20,17 +22,17 @@ export class TicketNotifications {
 
       Ticket ID: ${ticketId}
       
-      You can track the status of your ticket in the Jabin CRM portal.
+      You can track the status of your ticket in the ${brand.appName} portal.
 
       Best regards,
-      The Jabin CRM Support Team
+      ${brand.supportTeamName}
     `;
 
         const html = createEmailHTML(body);
 
         return await sendEmail({
             to: customerEmail,
-            subject: `Support Ticket Received: ${subject} [#${ticketId.slice(-6)}]`,
+            subject: `[${brand.appName}] Support Ticket Received: ${subject} [#${ticketId.slice(-6)}]`,
             html,
         });
     }
@@ -43,30 +45,31 @@ export class TicketNotifications {
         technicianName: string;
         ticketId: string;
         subject: string;
-        hospitalName: string;
+        organizationName: string;
     }) {
-        const { technicianEmail, technicianName, ticketId, subject, hospitalName } = params;
+        const { technicianEmail, technicianName, ticketId, subject, organizationName } = params;
+        const brand = getBrandConfig();
 
         const body = `
       Hello ${technicianName},
 
       A new support ticket has been assigned to you.
 
-      Hospital/Client: ${hospitalName}
+      Account: ${organizationName}
       Ticket Subject: ${subject}
       Ticket ID: ${ticketId}
 
-      Please log in to the Jabin CRM dashboard to view full details and begin resolution.
+      Please log in to the ${brand.appName} dashboard to view full details and begin resolution.
 
       Best regards,
-      Jabin CRM System
+      ${brand.systemName}
     `;
 
         const html = createEmailHTML(body);
 
         return await sendEmail({
             to: technicianEmail,
-            subject: `New Ticket Assigned: ${hospitalName} - ${subject}`,
+            subject: `[${brand.appName}] New Ticket Assigned: ${organizationName} - ${subject}`,
             html,
         });
     }
@@ -82,6 +85,7 @@ export class TicketNotifications {
         reportSummary?: string;
     }) {
         const { customerEmail, customerName, ticketId, subject, reportSummary } = params;
+        const brand = getBrandConfig();
 
         const body = `
       Hello ${customerName},
@@ -94,14 +98,14 @@ export class TicketNotifications {
       If you have further questions, please reply to this email or reopen the ticket.
 
       Best regards,
-      The Jabin CRM Support Team
+      ${brand.supportTeamName}
     `;
 
         const html = createEmailHTML(body);
 
         return await sendEmail({
             to: customerEmail,
-            subject: `Ticket Resolved: ${subject} [#${ticketId.slice(-6)}]`,
+            subject: `[${brand.appName}] Ticket Resolved: ${subject} [#${ticketId.slice(-6)}]`,
             html,
         });
     }

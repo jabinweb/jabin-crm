@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Papa from 'papaparse';
 import { LeadStatus } from '@prisma/client';
-import { requireAuth } from '@/lib/auth-middleware';
 import { ApiErrors, handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess, afterLeadCreated } from '@/lib/api/module-guard';
+import { checkUsageLimits } from '@/lib/subscription';
 import { prisma } from '@/lib/prisma';
 
 type CsvRow = Record<string, string>;
@@ -53,7 +55,7 @@ function normalizeEmail(value: string | undefined): string | undefined {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await requireAuth(req);
+    const session = await withModuleAccess('LEADS', { quota: 'leads' });
     const formData = await req.formData();
     const csvFile = formData.get('file');
 
@@ -114,6 +116,13 @@ export async function POST(req: NextRequest) {
     const validRows = normalizedRows.filter((row) => row.companyName);
     if (!validRows.length) {
       throw ApiErrors.badRequest('No valid rows found. "companyName" (or "company") is required.');
+    }
+
+    const limits = await checkUsageLimits(session.user.id);
+    if (limits.leadsRemaining !== -1 && validRows.length > limits.leadsRemaining) {
+      throw ApiErrors.forbidden(
+        `Lead limit would be exceeded. You can import at most ${limits.leadsRemaining} more lead(s).`
+      );
     }
 
     const emails = Array.from(
@@ -181,6 +190,7 @@ export async function POST(req: NextRequest) {
 
         createdLeadIds.push(lead.id);
         imported += 1;
+        await afterLeadCreated(session.user.id);
         if (row.email) {
           duplicateEmails.add(row.email);
         }
@@ -205,6 +215,7 @@ export async function POST(req: NextRequest) {
       errors,
     });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

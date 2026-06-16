@@ -44,6 +44,7 @@ interface UsersTableProps {
 }
 
 export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
+  const rows = Array.isArray(users) ? users : [];
   const getRoleColor = (role: string) => {
     switch (role) {
       case "admin":
@@ -69,7 +70,7 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
   };
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-none border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -82,7 +83,7 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
+          {rows.map((user) => (
             <TableRow key={user.id}>
               <TableCell>
                 <div>
@@ -156,3 +157,4 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
     </div>
   );
 }
+

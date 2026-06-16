@@ -75,7 +75,7 @@ export function UpcomingEventsWidget() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-purple-600"></div>
           </div>
         </CardContent>
       </Card>
@@ -120,7 +120,7 @@ export function UpcomingEventsWidget() {
               return (
                 <div
                   key={event.id}
-                  className={`p-4 border rounded-lg ${isPastEvent ? 'opacity-50' : ''}`}
+                  className={`p-4 border rounded-none ${isPastEvent ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
@@ -161,3 +161,4 @@ export function UpcomingEventsWidget() {
     </Card>
   );
 }
+

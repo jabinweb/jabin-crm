@@ -8,6 +8,7 @@ export interface CreateProductData {
     manufacturer?: string;
     modelNumber?: string;
     type?: ProductType;
+    companyId: string;
 }
 
 export interface CreateInstallationData {
@@ -25,15 +26,27 @@ export class ProductService {
      * Create a new product in the catalog
      */
     async createProduct(data: CreateProductData) {
+        const { companyId, ...rest } = data
         return await prisma.product.create({
-            data,
+            data: { ...rest, companyId },
         });
     }
 
     /**
-     * Get all products
+     * List products for a company (tenant-scoped).
      */
-    async listProducts(category?: string) {
+    async listProducts(companyId: string, category?: string) {
+        return await prisma.product.findMany({
+            where: {
+                companyId,
+                ...(category ? { category } : {}),
+            },
+            orderBy: { name: 'asc' },
+        });
+    }
+
+    /** Platform-wide listing (e.g. super admin without workspace header). */
+    async listAllProducts(category?: string) {
         return await prisma.product.findMany({
             where: category ? { category } : {},
             orderBy: { name: 'asc' },

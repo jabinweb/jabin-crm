@@ -57,8 +57,8 @@ export class TicketAIService {
 
         const activityLog = activities.map(a => `[${a.createdAt.toISOString()}] ${a.eventType}: ${a.description}`).join('\n');
 
-        const prompt = `You are an expert medical equipment service coordinator. 
-Summarize this support ticket history for a technician.
+        const prompt = `You are an expert field service and support coordinator.
+Summarize this support ticket history for a technician or service agent.
 
 Ticket Subject: ${subject}
 Original Description: ${description}
@@ -69,8 +69,8 @@ ${activityLog}
 Provide:
 1. A concise summary of the current situation.
 2. List of key issues identified so far.
-3. Suggested next troubleshooting steps for the technician.
-4. An assessment of the priority (LOW, MEDIUM, HIGH, or CRITICAL) based on the medical context.
+3. Suggested next troubleshooting steps for the person resolving the ticket.
+4. An assessment of the priority (LOW, MEDIUM, HIGH, or CRITICAL) based on business impact and urgency.
 
 Return ONLY a JSON object:
 {
@@ -104,8 +104,8 @@ Return ONLY a JSON object:
         const { serviceNotes, partsReplaced, model = 'gemini-2.0-flash', apiKey } = params;
         const client = getAIClient(apiKey);
 
-        const prompt = `You are a medical equipment equipment service manager.
-Summarize this service report for the hospital manager.
+        const prompt = `You are a service operations manager.
+Summarize this service report for the customer or account manager.
 
 Service Notes:
 ${serviceNotes}

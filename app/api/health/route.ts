@@ -1,37 +1,32 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-/**
- * Health check endpoint for monitoring and uptime checks
- * GET /api/health
- */
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-  const checks = {
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV,
-    checks: {
-      database: 'unknown',
-      sentry: 'configured',
-    }
-  };
+  const started = Date.now();
+  let dbOk = false;
 
   try {
-    // Check database connection
     await prisma.$queryRaw`SELECT 1`;
-    checks.checks.database = 'healthy';
-  } catch (error) {
-    checks.status = 'unhealthy';
-    checks.checks.database = 'unhealthy';
-    
-    return NextResponse.json(checks, { status: 503 });
+    dbOk = true;
+  } catch {
+    dbOk = false;
   }
 
-  // Check Sentry configuration
-  if (!process.env.SENTRY_DSN && process.env.NODE_ENV === 'production') {
-    checks.checks.sentry = 'not_configured';
-  }
+  const status = dbOk ? 'healthy' : 'degraded';
+  const code = dbOk ? 200 : 503;
 
-  return NextResponse.json(checks, { status: 200 });
+  return NextResponse.json(
+    {
+      status,
+      timestamp: new Date().toISOString(),
+      checks: {
+        database: dbOk ? 'up' : 'down',
+      },
+      latencyMs: Date.now() - started,
+      version: process.env.npm_package_version ?? 'unknown',
+    },
+    { status: code }
+  );
 }

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { quotationService } from '@/lib/quotation-service';
 import { validateRequest } from '@/lib/validation';
 import { z } from 'zod';
-import { handleApiError } from '@/lib/api-error-handler';
 
 const updateQuotationSchema = z.object({
   title: z.string().optional(),
@@ -32,7 +33,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('QUOTATIONS');
     const { id } = await params;
     
     const quotation = await quotationService.getQuotation(id);
@@ -43,6 +44,7 @@ export async function GET(
 
     return NextResponse.json(quotation);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }
@@ -52,7 +54,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('QUOTATIONS');
     const { id } = await params;
     
     const validatedData = await validateRequest(req, updateQuotationSchema);
@@ -61,6 +63,7 @@ export async function PUT(
 
     return NextResponse.json(quotation);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }
@@ -70,13 +73,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAuth(req);
+    await withModuleAccess('QUOTATIONS');
     const { id } = await params;
     
     await quotationService.deleteQuotation(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     return handleApiError(error);
   }
 }

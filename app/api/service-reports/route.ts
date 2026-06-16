@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { serviceReportService } from '@/lib/crm/service-report-service';
 import { ticketNotifications } from '@/lib/email/ticket-notifications';
+import { handleApiError } from '@/lib/api-error-handler';
+import { withModuleAccess } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const session = await withModuleAccess('SERVICE_REPORTS');
 
         const data = await request.json();
         const technicianId = session.user.id;
@@ -22,12 +21,10 @@ export async function POST(request: NextRequest) {
             technicianId,
         });
 
-        // Async: Notify customer via email + create DB notification
         if (report.ticket.customer.email) {
             const { notificationService } = await import('@/lib/crm/notification-service');
             const { sendServiceReportEmail } = await import('@/lib/email/portal-notifications');
 
-            // DB notification in portal bell
             notificationService.create({
                 type: 'SERVICE_REPORT_READY',
                 title: 'Service Report Ready',
@@ -36,7 +33,6 @@ export async function POST(request: NextRequest) {
                 metadata: { ticketId: report.ticketId, reportId: report.id },
             }).catch(err => console.error('[Notification create error]', err));
 
-            // Email with service notes preview
             sendServiceReportEmail({
                 customerEmail: report.ticket.customer.email,
                 customerName: report.ticket.customer.contactPerson,
@@ -50,7 +46,9 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json(report, { status: 201 });
     } catch (error) {
-        console.error('Error creating service report:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        if (!isApiException(error)) {
+            console.error('Error creating service report:', error);
+        }
+        return handleApiError(error);
     }
 }

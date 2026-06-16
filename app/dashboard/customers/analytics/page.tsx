@@ -47,13 +47,13 @@ export default function CustomerAnalyticsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Customer Analytics Hub</h2>
-                    <p className="text-muted-foreground">Strategic overview of hospital engagement and equipment health.</p>
+                    <p className="text-muted-foreground">Strategic overview of client engagement and installed assets.</p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <Button asChild variant="outline">
                         <Link href="/dashboard/customers">
                             <Building className="mr-2 h-4 w-4" />
-                            Hospital Directory
+                            Client directory
                         </Link>
                     </Button>
                 </div>
@@ -61,29 +61,29 @@ export default function CustomerAnalyticsPage() {
 
             {/* Top Level Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="border-l-4 border-l-blue-600 shadow-sm">
+                <Card className="border-l-4 border-l-blue-600 shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Facilities</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total clients</CardTitle>
                         <Building className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{analytics?.summary?.totalCustomers || 0}</div>
-                        <p className="text-xs text-muted-foreground mt-1">Registered hospitals & clinics</p>
+                        <p className="text-xs text-muted-foreground mt-1">Registered organizations & sites</p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-green-600 shadow-sm">
+                <Card className="border-l-4 border-l-green-600 shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Field Assets</CardTitle>
                         <Activity className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{analytics?.summary?.totalEquipment || 0}</div>
-                        <p className="text-xs text-muted-foreground mt-1">Installed medical units</p>
+                        <p className="text-xs text-muted-foreground mt-1">Installed units & assets</p>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-orange-600 shadow-sm">
+                <Card className="border-l-4 border-l-orange-600 shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium">Service Pressure</CardTitle>
                         <AlertTriangle className="h-4 w-4 text-orange-600" />
@@ -103,19 +103,19 @@ export default function CustomerAnalyticsPage() {
                             <MapPin className="h-5 w-5 text-red-500" />
                             Regional Concentration
                         </CardTitle>
-                        <CardDescription>Top cities by facility count.</CardDescription>
+                        <CardDescription>Top cities by account count.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {analytics?.cityDistribution?.map((city: any, i: number) => (
                             <div key={city.name} className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold">
+                                    <div className="w-6 h-6 rounded-none bg-muted flex items-center justify-center text-[10px] font-bold">
                                         {i + 1}
                                     </div>
                                     <span className="text-sm font-medium">{city.name}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
+                                    <div className="w-32 h-2 bg-muted rounded-none overflow-hidden">
                                         <div
                                             className="h-full bg-primary"
                                             style={{ width: `${(city.count / analytics.summary.totalCustomers) * 100}%` }}
@@ -139,9 +139,9 @@ export default function CustomerAnalyticsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {analytics?.equipmentStatus?.map((status: any) => (
-                            <div key={status.status} className="flex items-center justify-between p-3 border rounded-lg">
+                            <div key={status.status} className="flex items-center justify-between p-3 border rounded-none">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-3 h-3 rounded-full ${status.status === 'ACTIVE' ? 'bg-green-500' :
+                                    <div className={`w-3 h-3 rounded-none ${status.status === 'ACTIVE' ? 'bg-green-500' :
                                             status.status === 'UNDER_MAINTENANCE' ? 'bg-orange-500' : 'bg-red-500'
                                         }`} />
                                     <span className="text-sm font-medium uppercase tracking-wider">{status.status.replace(/_/g, ' ')}</span>
@@ -167,7 +167,7 @@ export default function CustomerAnalyticsPage() {
                         <CardDescription>Facilities with highest service volume.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        {analytics?.highDemandHospitals?.map((h: any) => (
+                        {analytics?.highDemandAccounts?.map((h: any) => (
                             <div key={h.name} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded transition-colors group">
                                 <span className="text-sm truncate w-40">{h.name}</span>
                                 <Badge variant="secondary" className="group-hover:bg-primary group-hover:text-white transition-colors">
@@ -190,17 +190,17 @@ export default function CustomerAnalyticsPage() {
                     <CardContent>
                         <div className="space-y-4">
                             {analytics?.upcomingExpiries?.length === 0 ? (
-                                <div className="text-center py-8 bg-muted/20 rounded-lg border-2 border-dashed">
+                                <div className="text-center py-8 bg-muted/20 rounded-none border-2 border-dashed">
                                     <ShieldCheck className="h-8 w-8 text-green-500 mx-auto mb-2" />
                                     <p className="text-sm font-medium">No urgent expiries</p>
                                     <p className="text-xs text-muted-foreground">All unit warranties are stable for the next month.</p>
                                 </div>
                             ) : (
                                 analytics?.upcomingExpiries?.map((eq: any) => (
-                                    <div key={eq.id} className="flex items-center justify-between p-3 border rounded-lg bg-orange-50/20">
+                                    <div key={eq.id} className="flex items-center justify-between p-3 border rounded-none bg-orange-50/20">
                                         <div className="space-y-1">
                                             <p className="text-sm font-bold">{eq.product.name} (SN: {eq.serialNumber})</p>
-                                            <p className="text-xs text-muted-foreground">{eq.customer.hospitalName}</p>
+                                            <p className="text-xs text-muted-foreground">{eq.customer.organizationName}</p>
                                         </div>
                                         <div className="text-right space-y-1">
                                             <p className="text-xs font-bold text-red-600 leading-none">
@@ -223,18 +223,18 @@ export default function CustomerAnalyticsPage() {
                         <Wrench className="h-5 w-5 text-indigo-500" />
                         CRM Intelligence Stream
                     </CardTitle>
-                    <CardDescription>Live feed of facility interactions and service events.</CardDescription>
+                    <CardDescription>Live feed of customer interactions and service events.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-6 relative before:absolute before:left-[17px] before:top-2 before:bottom-2 before:w-[1px] before:bg-muted">
                         {analytics?.recentActivity?.map((activity: any) => (
                             <div key={activity.id} className="relative pl-10 flex items-start gap-3">
-                                <div className="absolute left-0 top-1 w-9 h-9 rounded-full bg-background border flex items-center justify-center z-10">
+                                <div className="absolute left-0 top-1 w-9 h-9 rounded-none bg-background border flex items-center justify-center z-10">
                                     <Activity className="h-4 w-4 text-primary" />
                                 </div>
                                 <div className="space-y-1 py-1">
                                     <div className="flex items-center gap-2">
-                                        <p className="text-sm font-bold">{activity.customer.hospitalName}</p>
+                                        <p className="text-sm font-bold">{activity.customer.organizationName}</p>
                                         <Badge variant="outline" className="text-[9px] h-4">{activity.eventType}</Badge>
                                     </div>
                                     <p className="text-sm text-muted-foreground">{activity.description}</p>
@@ -248,4 +248,5 @@ export default function CustomerAnalyticsPage() {
         </div>
     );
 }
+
 

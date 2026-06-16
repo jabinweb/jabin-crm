@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { handleApiError } from '@/lib/api-error-handler';
+import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(
   request: NextRequest,
@@ -11,6 +13,8 @@ export async function POST(
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
 
     const resolvedParams = await params;
     const { note } = await request.json();
@@ -48,6 +52,7 @@ export async function POST(
 
     return NextResponse.json(activity);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error adding note:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

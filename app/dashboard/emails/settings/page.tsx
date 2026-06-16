@@ -128,7 +128,7 @@ export default function EmailSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-amber-50 dark:bg-amber-950 p-3 rounded-lg">
+            <div className="bg-amber-50 dark:bg-amber-950 p-3 rounded-none">
               <p className="text-sm text-amber-900 dark:text-amber-100">
                 <strong>Required:</strong> You must configure your own SMTP credentials to send emails. This ensures better deliverability and keeps your sending reputation separate.
               </p>
@@ -253,7 +253,7 @@ export default function EmailSettingsPage() {
                 </p>
               </div>
 
-              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg space-y-2">
+              <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-none space-y-2">
                 <p className="text-xs font-medium text-blue-900 dark:text-blue-100">Common SMTP Settings:</p>
                 <div className="text-xs space-y-1 text-blue-800 dark:text-blue-200">
                   <div><strong>Gmail:</strong> smtp.gmail.com, Port 587, SSL OFF (STARTTLS)</div>
@@ -264,7 +264,7 @@ export default function EmailSettingsPage() {
                 </div>
               </div>
 
-              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-lg space-y-2 border border-amber-200 dark:border-amber-800">
+              <div className="bg-amber-50 dark:bg-amber-950 p-4 rounded-none space-y-2 border border-amber-200 dark:border-amber-800">
                 <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 flex items-center gap-2">
                   <span className="text-lg">🔑</span> Gmail Users - App Password Required
                 </p>
@@ -284,7 +284,7 @@ export default function EmailSettingsPage() {
               </div>
             </div>
 
-            <div className="bg-muted p-4 rounded-lg space-y-2">
+            <div className="bg-muted p-4 rounded-none space-y-2">
               <p className="text-sm font-medium">Current Email for Sending:</p>
               <div className="text-sm text-muted-foreground">
                 {formData.companyEmail || 'Not configured'}
@@ -393,7 +393,7 @@ export default function EmailSettingsPage() {
               )}
             </div>
 
-            <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg space-y-2">
+            <div className="bg-green-50 dark:bg-green-950 p-3 rounded-none space-y-2">
               <p className="text-xs font-medium text-green-900 dark:text-green-100">Common IMAP Settings:</p>
               <div className="text-xs space-y-1 text-green-800 dark:text-green-200">
                 <div><strong>Gmail:</strong> imap.gmail.com, Port 993, SSL (use App Password)</div>
@@ -426,3 +426,4 @@ export default function EmailSettingsPage() {
     </div>
   );
 }
+

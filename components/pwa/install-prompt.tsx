@@ -74,7 +74,7 @@ export function PWAInstallPrompt() {
   // iOS install instructions
   if (isIOS) {
     return (
-      <Card className="fixed bottom-4 right-4 z-50 w-80 shadow-lg">
+      <Card className="fixed bottom-4 right-4 z-50 w-80 shadow-none">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Install App</CardTitle>
@@ -112,7 +112,7 @@ export function PWAInstallPrompt() {
 
   // Chrome/Edge install prompt
   return (
-    <Card className="fixed bottom-4 right-4 z-50 w-80 shadow-lg">
+    <Card className="fixed bottom-4 right-4 z-50 w-80 shadow-none">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">Install App</CardTitle>
@@ -137,3 +137,4 @@ export function PWAInstallPrompt() {
     </Card>
   );
 }
+

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { prisma } from '@/lib/prisma';
 
 // Assign a deal to a team member
@@ -8,10 +10,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const session = await withModuleAccess('DEALS');
 
     const params = await context.params;
     const body = await request.json();
@@ -39,6 +38,7 @@ export async function PATCH(
 
     return NextResponse.json(deal);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Deal assignment error:', error);
     return NextResponse.json(
       { error: 'Failed to assign deal' },

@@ -265,7 +265,7 @@ export default function DuplicatesPage() {
               <CardContent>
                 <div className="space-y-4">
                   {/* Primary Lead */}
-                  <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+                  <div className="rounded-none border-2 border-primary bg-primary/5 p-4">
                     <div className="mb-2 flex items-center justify-between">
                       <Badge variant="outline">Primary Lead</Badge>
                       <span className="text-xs text-muted-foreground">
@@ -298,7 +298,7 @@ export default function DuplicatesPage() {
 
                   {/* Duplicate Leads */}
                   {group.duplicates.map((duplicate: any) => (
-                    <div key={duplicate.id} className="rounded-lg border p-4">
+                    <div key={duplicate.id} className="rounded-none border p-4">
                       <div className="mb-2 flex items-center justify-between">
                         <Badge variant="secondary">Duplicate</Badge>
                         <span className="text-xs text-muted-foreground">
@@ -377,7 +377,7 @@ export default function DuplicatesPage() {
             </div>
 
             {selectedGroup && (
-              <div className="rounded-lg bg-muted p-4">
+              <div className="rounded-none bg-muted p-4">
                 <div className="mb-2 text-sm font-medium">Primary Lead</div>
                 <div className="text-sm">
                   {selectedGroup.primaryLead.companyName} • {selectedGroup.primaryLead.email || 'No email'}
@@ -411,3 +411,4 @@ export default function DuplicatesPage() {
     </div>
   );
 }
+

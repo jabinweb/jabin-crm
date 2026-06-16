@@ -36,8 +36,9 @@ interface PlansTableProps {
 }
 
 export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
+  const rows = Array.isArray(plans) ? plans : [];
   return (
-    <div className="rounded-md border">
+    <div className="rounded-none border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -50,7 +51,7 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {plans.map((plan) => (
+          {rows.map((plan) => (
             <TableRow key={plan.id}>
               <TableCell>
                 <div>
@@ -117,3 +118,4 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
     </div>
   );
 }
+

@@ -6,7 +6,7 @@
  * Add tracking pixel to email HTML
  */
 export function addTrackingPixel(emailHtml: string, emailLogId: string, baseUrl: string): string {
-  const trackingPixel = `<img src="${baseUrl}/api/track/open/${emailLogId}" alt="" width="1" height="1" style="display:block;width:1px;height:1px;" />`;
+  const trackingPixel = `<img src="${baseUrl}/api/emails/track/open/${emailLogId}" alt="" width="1" height="1" style="display:block;width:1px;height:1px;" />`;
   
   // Try to insert before closing body tag
   if (emailHtml.includes('</body>')) {
@@ -26,12 +26,12 @@ export function wrapLinksWithTracking(emailHtml: string, emailLogId: string, bas
   
   return emailHtml.replace(linkRegex, (match, attributes, originalUrl) => {
     // Skip if already a tracking link or unsubscribe link
-    if (originalUrl.includes('/api/track/') || originalUrl.includes('/unsubscribe/')) {
+    if (originalUrl.includes('/api/emails/track/') || originalUrl.includes('/unsubscribe/')) {
       return match;
     }
     
     // Create tracking URL
-    const trackingUrl = `${baseUrl}/api/track/click/${emailLogId}?url=${encodeURIComponent(originalUrl)}`;
+    const trackingUrl = `${baseUrl}/api/emails/track/click/${emailLogId}?url=${encodeURIComponent(originalUrl)}`;
     
     // Replace href with tracking URL
     const newAttributes = attributes.replace(
@@ -68,7 +68,7 @@ export function textToHtmlWithTracking(text: string, emailLogId: string, baseUrl
   // Convert URLs to links
   const urlRegex = /(https?:\/\/[^\s<]+)/gi;
   html = html.replace(urlRegex, (url) => {
-    const trackingUrl = `${baseUrl}/api/track/click/${emailLogId}?url=${encodeURIComponent(url)}`;
+    const trackingUrl = `${baseUrl}/api/emails/track/click/${emailLogId}?url=${encodeURIComponent(url)}`;
     return `<a href="${trackingUrl}">${url}</a>`;
   });
   

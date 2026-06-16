@@ -311,7 +311,7 @@ export class EmailSequenceService {
       (s: any) => s.stepNumber === nextStepNumber + 1
     );
 
-    let nextDue = null;
+    let nextDue: Date | null = null;
     if (nextStepAfter) {
       nextDue = new Date();
       nextDue.setDate(nextDue.getDate() + nextStepAfter.delayDays);

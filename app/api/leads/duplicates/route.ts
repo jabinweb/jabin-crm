@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { findAllDuplicates, findDuplicatesForLead } from '@/lib/leads/duplicate-detector';
+import { handleApiError } from '@/lib/api-error-handler';
+import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +11,8 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
 
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get('leadId');
@@ -41,6 +45,7 @@ export async function GET(request: NextRequest) {
       });
     }
   } catch (error: any) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error detecting duplicates:', error);
     return NextResponse.json({ 
       error: 'Failed to detect duplicates',

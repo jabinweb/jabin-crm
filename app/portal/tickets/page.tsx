@@ -51,22 +51,22 @@ export default function CustomerTicketQueue() {
     );
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+        return <div className="flex justify-center py-20"><div className="animate-spin rounded-none h-12 w-12 border-b-2 border-primary"></div></div>;
     }
 
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center space-x-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-full hover:bg-slate-100">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-none hover:bg-slate-100">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div>
                         <h1 className="text-2xl font-bold ">Support Request Queue</h1>
-                        <p className="text-sm text-slate-500">Monitor the live status of your facility's help requests.</p>
+                        <p className="text-sm text-slate-500">Monitor the live status of your support requests.</p>
                     </div>
                 </div>
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/20">
+                <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-none shadow-blue-500/20">
                     <Link href="/portal/tickets/new">
                         <Ticket className="mr-2 h-4 w-4" />
                         Submit New Request
@@ -89,7 +89,7 @@ export default function CustomerTicketQueue() {
                 </Button>
             </div>
 
-            <Card className="border-none bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+            <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
@@ -121,7 +121,7 @@ export default function CustomerTicketQueue() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase border ${ticket.status === 'RESOLVED' ? 'bg-green-50 text-green-700 border-green-100' :
+                                            <div className={`inline-flex items-center px-2.5 py-0.5 rounded-none text-[10px] font-bold tracking-wider uppercase border ${ticket.status === 'RESOLVED' ? 'bg-green-50 text-green-700 border-green-100' :
                                                 ticket.status === 'OPEN' ? 'bg-red-50 text-red-700 border-red-100' :
                                                     'bg-blue-50 text-blue-700 border-blue-100'
                                                 }`}>
@@ -130,7 +130,7 @@ export default function CustomerTicketQueue() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center space-x-1.5">
-                                                <span className={`h-2 w-2 rounded-full ${ticket.priority === 'CRITICAL' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
+                                                <span className={`h-2 w-2 rounded-none ${ticket.priority === 'CRITICAL' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' :
                                                     ticket.priority === 'HIGH' ? 'bg-orange-500' : 'bg-blue-500'
                                                     }`} />
                                                 <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{ticket.priority}</span>
@@ -138,7 +138,7 @@ export default function CustomerTicketQueue() {
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex items-center text-xs font-medium text-slate-600 dark:text-slate-400">
-                                                <div className="h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mr-2 text-[10px] font-bold">
+                                                <div className="h-5 w-5 rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center mr-2 text-[10px] font-bold">
                                                     {ticket.assignedTechnician?.name?.charAt(0) || '?'}
                                                 </div>
                                                 {ticket.assignedTechnician?.name || 'In Triage'}
@@ -167,3 +167,4 @@ export default function CustomerTicketQueue() {
         </div>
     );
 }
+

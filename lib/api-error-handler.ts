@@ -152,7 +152,8 @@ export class ApiException extends Error implements ApiError {
  */
 export const ApiErrors = {
   unauthorized: () => new ApiException('Unauthorized', 401, 'UNAUTHORIZED'),
-  forbidden: () => new ApiException('Forbidden', 403, 'FORBIDDEN'),
+  forbidden: (message?: string) =>
+    new ApiException(message || 'Forbidden', 403, 'FORBIDDEN'),
   notFound: (resource?: string) =>
     new ApiException(
       resource ? `${resource} not found` : 'Resource not found',
@@ -166,3 +167,4 @@ export const ApiErrors = {
   internal: (message?: string) =>
     new ApiException(message || 'Internal server error', 500, 'INTERNAL_ERROR'),
 };
+

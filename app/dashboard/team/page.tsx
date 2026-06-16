@@ -61,7 +61,7 @@ export default function TeamPerformancePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-500">Loading team performance...</p>
         </div>
       </div>
@@ -141,7 +141,7 @@ export default function TeamPerformancePage() {
               {teamMembers.map((member) => (
                 <div
                   key={member.id}
-                  className="border rounded-lg p-6 space-y-4"
+                  className="border rounded-none p-6 space-y-4"
                 >
                   {/* Member Header */}
                   <div className="flex items-start justify-between">
@@ -218,3 +218,4 @@ export default function TeamPerformancePage() {
     </div>
   );
 }
+

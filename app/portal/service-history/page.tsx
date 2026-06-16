@@ -36,13 +36,13 @@ function ServiceEventCard({ report }: { report: any }) {
         <div className="relative flex gap-6">
             {/* Timeline spine */}
             <div className="flex flex-col items-center">
-                <div className="flex h-10 w-10 rounded-full bg-blue-600/10 border border-blue-200 dark:border-blue-800 items-center justify-center flex-shrink-0 shadow-sm">
+                <div className="flex h-10 w-10 rounded-none bg-blue-600/10 border border-blue-200 dark:border-blue-800 items-center justify-center flex-shrink-0 shadow-none">
                     <Wrench className="h-4 w-4 text-blue-600" />
                 </div>
                 <div className="w-px flex-1 bg-slate-200 dark:bg-slate-800 mt-2" />
             </div>
 
-            <Card className="flex-1 mb-6 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-shadow">
+            <Card className="flex-1 mb-6 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none hover:shadow-none transition-shadow">
                 <CardHeader className="pb-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
@@ -53,7 +53,7 @@ function ServiceEventCard({ report }: { report: any }) {
                                 Ref: #{report.ticketId?.slice(-6).toUpperCase()}
                             </p>
                         </div>
-                        <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${statusColors[report.ticket?.status] ?? statusColors['CLOSED']}`}>
+                        <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-none border ${statusColors[report.ticket?.status] ?? statusColors['CLOSED']}`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
                             {report.ticket?.status ?? 'CLOSED'}
                         </span>
@@ -62,7 +62,7 @@ function ServiceEventCard({ report }: { report: any }) {
                 <CardContent className="space-y-3 pt-0">
                     <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{report.serviceNotes}</p>
                     {report.partsReplaced && (
-                        <div className="flex items-start gap-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 p-3">
+                        <div className="flex items-start gap-2 rounded-none bg-slate-50 dark:bg-slate-800/60 p-3">
                             <Wrench className="h-3.5 w-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
                             <div>
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Parts Replaced</p>
@@ -107,7 +107,7 @@ export default function ServiceHistoryPage() {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" asChild className="rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <Button variant="ghost" size="icon" asChild className="rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                         <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
                     </Button>
                     <div>
@@ -120,16 +120,16 @@ export default function ServiceHistoryPage() {
             {/* Content */}
             {isLoading ? (
                 <div className="flex justify-center py-24">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+                    <div className="animate-spin rounded-none h-10 w-10 border-b-2 border-blue-600" />
                 </div>
             ) : reports.length === 0 ? (
                 <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
                     <CardContent className="flex flex-col items-center justify-center py-24 text-center gap-3">
-                        <div className="h-14 w-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                        <div className="h-14 w-14 rounded-none bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                             <FileText className="h-6 w-6 text-slate-400" />
                         </div>
                         <p className="text-slate-600 dark:text-slate-400 font-medium">No service records yet</p>
-                        <p className="text-sm text-slate-400">Service reports will appear here once a technician completes a job for your facility.</p>
+                        <p className="text-sm text-slate-400">Service reports will appear here once our team completes work on your account.</p>
                     </CardContent>
                 </Card>
             ) : (
@@ -139,7 +139,7 @@ export default function ServiceHistoryPage() {
                     ))}
                     {/* Timeline end marker */}
                     <div className="flex items-center gap-4 text-xs text-slate-400">
-                        <div className="h-3 w-3 rounded-full bg-slate-200 dark:bg-slate-700 ml-3.5" />
+                        <div className="h-3 w-3 rounded-none bg-slate-200 dark:bg-slate-700 ml-3.5" />
                         <span>End of service history</span>
                     </div>
                 </div>
@@ -147,3 +147,4 @@ export default function ServiceHistoryPage() {
         </div>
     );
 }
+

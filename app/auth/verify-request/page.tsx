@@ -7,7 +7,7 @@ export default function VerifyRequest() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-blue-100 p-3">
+            <div className="rounded-none bg-blue-100 p-3">
               <Mail className="h-8 w-8 text-blue-600" />
             </div>
           </div>
@@ -29,3 +29,4 @@ export default function VerifyRequest() {
     </div>
   );
 }
+

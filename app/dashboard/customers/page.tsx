@@ -46,7 +46,7 @@ export default function CustomersPage() {
     const [isAdding, setIsAdding] = useState(false);
 
     const [newCustomer, setNewCustomer] = useState({
-        hospitalName: '',
+        organizationName: '',
         contactPerson: '',
         email: '',
         phone: '',
@@ -69,8 +69,8 @@ export default function CustomersPage() {
     });
 
     const handleAddCustomer = async () => {
-        if (!newCustomer.hospitalName || !newCustomer.contactPerson) {
-            toast.error('Hospital Name and Contact Person are required');
+        if (!newCustomer.organizationName || !newCustomer.contactPerson) {
+            toast.error('Organization name and primary contact are required');
             return;
         }
 
@@ -88,7 +88,7 @@ export default function CustomersPage() {
             queryClient.invalidateQueries({ queryKey: ['customers'] });
             setShowAddDialog(false);
             setNewCustomer({
-                hospitalName: '',
+                organizationName: '',
                 contactPerson: '',
                 email: '',
                 phone: '',
@@ -105,29 +105,29 @@ export default function CustomersPage() {
     return (
         <div className="flex-1 space-y-4 md:space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Hospitals & Clinics</h2>
+                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Clients & organizations</h2>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
                         <Button>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Hospital
+                            Add client
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>Add New Hospital</DialogTitle>
+                            <DialogTitle>Add new client</DialogTitle>
                             <DialogDescription>
-                                Enter the details of the new medical facility.
+                                Enter the organization or account you work with.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="hospitalName">Hospital Name</Label>
+                                <Label htmlFor="organizationName">Organization name</Label>
                                 <Input
-                                    id="hospitalName"
-                                    value={newCustomer.hospitalName}
-                                    onChange={(e) => setNewCustomer({ ...newCustomer, hospitalName: e.target.value })}
-                                    placeholder="e.g. City General Hospital"
+                                    id="organizationName"
+                                    value={newCustomer.organizationName}
+                                    onChange={(e) => setNewCustomer({ ...newCustomer, organizationName: e.target.value })}
+                                    placeholder="e.g. Acme Corporation"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -136,7 +136,7 @@ export default function CustomersPage() {
                                     id="contactPerson"
                                     value={newCustomer.contactPerson}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, contactPerson: e.target.value })}
-                                    placeholder="e.g. Dr. Smith"
+                                    placeholder="e.g. Jane Smith"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
@@ -190,13 +190,13 @@ export default function CustomersPage() {
                         <div>
                             <CardTitle>Customer Directory</CardTitle>
                             <CardDescription>
-                                Manage your medical equipment client base.
+                                Manage your client and account relationships.
                             </CardDescription>
                         </div>
                         <div className="relative w-full md:w-64">
                             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search hospitals..."
+                                placeholder="Search clients..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-8"
@@ -207,14 +207,14 @@ export default function CustomersPage() {
                 <CardContent>
                     {isLoading ? (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
                         </div>
                     ) : (
-                        <div className="rounded-md border">
+                        <div className="rounded-none border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Hospital Name</TableHead>
+                                        <TableHead>Organization</TableHead>
                                         <TableHead>Primary Contact</TableHead>
                                         <TableHead>City</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -233,7 +233,7 @@ export default function CustomersPage() {
                                                 <TableCell className="font-medium">
                                                     <div className="flex items-center space-x-2">
                                                         <Building className="h-4 w-4 text-muted-foreground" />
-                                                        <span>{customer.hospitalName}</span>
+                                                        <span>{customer.organizationName}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
@@ -294,3 +294,4 @@ export default function CustomersPage() {
         </div>
     );
 }
+

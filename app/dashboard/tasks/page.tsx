@@ -114,7 +114,7 @@ export default function TasksPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Loading tasks...</div>;
+    return <div className="container mx-auto">Loading tasks...</div>;
   }
 
   return (
@@ -194,7 +194,7 @@ export default function TasksPage() {
           ) : (
             <div className="space-y-2">
               {tasks.map((task) => (
-                <Card key={task.id} className="hover:shadow-md transition-shadow">
+                <Card key={task.id} className="hover:shadow-none transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-4">
                       <Checkbox
@@ -204,7 +204,7 @@ export default function TasksPage() {
                         }
                         className="mt-1"
                       />
-                      
+
                       <div className="flex-1 space-y-1">
                         <div className="flex items-center gap-2">
                           {getTaskIcon(task.type)}
@@ -212,11 +212,11 @@ export default function TasksPage() {
                             {task.title}
                           </h3>
                         </div>
-                        
+
                         {task.description && (
                           <p className="text-sm text-muted-foreground">{task.description}</p>
                         )}
-                        
+
                         <div className="flex items-center gap-2 text-sm">
                           {task.lead && (
                             <Badge variant="outline">{task.lead.companyName}</Badge>
@@ -247,3 +247,4 @@ export default function TasksPage() {
     </div>
   );
 }
+

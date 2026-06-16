@@ -9,14 +9,14 @@ describe('Encryption Library', () => {
     expect(encrypted).toBeDefined();
     expect(encrypted).not.toBe(originalText);
     
-    const decrypted = decrypt(encrypted);
+    const decrypted = decrypt(JSON.stringify(encrypted));
     expect(decrypted).toBe(originalText);
   });
 
   test('should handle empty strings', () => {
     const originalText = '';
     const encrypted = encrypt(originalText);
-    const decrypted = decrypt(encrypted);
+    const decrypted = decrypt(JSON.stringify(encrypted));
     
     expect(decrypted).toBe(originalText);
   });
@@ -30,14 +30,14 @@ describe('Encryption Library', () => {
     expect(encrypted1).not.toBe(encrypted2);
     
     // But both should decrypt to same value
-    expect(decrypt(encrypted1)).toBe(text);
-    expect(decrypt(encrypted2)).toBe(text);
+    expect(decrypt(JSON.stringify(encrypted1))).toBe(text);
+    expect(decrypt(JSON.stringify(encrypted2))).toBe(text);
   });
 
   test('should handle special characters', () => {
     const specialText = '!@#$%^&*()_+-={}[]|\\:";\'<>?,./~`';
     const encrypted = encrypt(specialText);
-    const decrypted = decrypt(encrypted);
+    const decrypted = decrypt(JSON.stringify(encrypted));
     
     expect(decrypted).toBe(specialText);
   });
@@ -45,7 +45,7 @@ describe('Encryption Library', () => {
   test('should handle unicode characters', () => {
     const unicodeText = '你好世界 🌍 مرحبا';
     const encrypted = encrypt(unicodeText);
-    const decrypted = decrypt(encrypted);
+    const decrypted = decrypt(JSON.stringify(encrypted));
     
     expect(decrypted).toBe(unicodeText);
   });

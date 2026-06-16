@@ -104,7 +104,7 @@ export const templateService = {
     data: UpdateTemplateInput
   ) {
     // Re-extract variables if subject or body changed
-    let variables = undefined;
+    let variables: string[] | undefined = undefined;
     if (data.subject || data.body) {
       const template = await prisma.emailTemplate.findFirst({
         where: { id: templateId, userId },

@@ -127,12 +127,38 @@ export class EmailService {
   }
 
   /**
-   * Send email using SMTP
+   * Send email using SMTP (via shared nodemailer transport)
    */
   private async sendWithSMTP(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    // SMTP implementation would require nodemailer or similar
-    // This is a placeholder
-    throw new Error('SMTP not implemented yet');
+    try {
+      const { sendEmail } = await import('./nodemailer');
+      const html = this.injectTrackingPixel(params.html, params.trackingId);
+
+      const smtpConfig =
+        this.config.smtpHost && this.config.smtpUser && this.config.smtpPassword
+          ? {
+              host: this.config.smtpHost,
+              port: this.config.smtpPort ?? 587,
+              secure: this.config.smtpPort === 465,
+              user: this.config.smtpUser,
+              password: this.config.smtpPassword,
+            }
+          : undefined;
+
+      const result = await sendEmail({
+        to: params.to,
+        subject: params.subject,
+        html,
+        text: params.text,
+        from: `${params.fromName} <${params.fromEmail}>`,
+        replyTo: params.replyTo,
+        smtpConfig,
+      });
+
+      return { success: true, messageId: result.messageId };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'SMTP send failed' };
+    }
   }
 
   /**
@@ -141,7 +167,7 @@ export class EmailService {
   private injectTrackingPixel(html: string, trackingId?: string): string {
     if (!trackingId) return html;
 
-    const trackingPixel = `<img src="${process.env.AUTH_URL}/api/email/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;
+    const trackingPixel = `<img src="${process.env.AUTH_URL}/api/emails/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;
 
     // Try to inject before </body> tag
     if (html.includes('</body>')) {
@@ -173,10 +199,24 @@ export class EmailService {
     const urlRegex = /href="(https?:\/\/[^"]+)"/g;
 
     return html.replace(urlRegex, (match, url) => {
-      const trackedUrl = `${process.env.AUTH_URL}/api/email/track/click/${trackingId}?url=${encodeURIComponent(url)}`;
+      const trackedUrl = `${process.env.AUTH_URL}/api/emails/track/click/${trackingId}?url=${encodeURIComponent(url)}`;
       return `href="${trackedUrl}"`;
     });
   }
+}
+
+/** Build EmailService from environment (campaigns, cron jobs). */
+export function createEmailServiceFromEnv(): EmailService {
+  const provider = (process.env.EMAIL_PROVIDER as EmailConfig['provider']) || 'smtp';
+
+  return new EmailService({
+    provider,
+    apiKey: process.env.EMAIL_API_KEY,
+    smtpHost: process.env.SMTP_HOST,
+    smtpPort: parseInt(process.env.SMTP_PORT || '587', 10),
+    smtpUser: process.env.SMTP_USER,
+    smtpPassword: process.env.SMTP_PASSWORD,
+  });
 }
 
 /**
@@ -192,7 +232,7 @@ export class CampaignManager {
   /**
    * Send campaign to all recipients
    */
-  async sendCampaign(campaignId: string): Promise<void> {
+  async sendCampaign(campaignId: string): Promise<{ sentCount: number; failedCount: number }> {
     const campaign = await prisma.emailCampaign.findUnique({
       where: { id: campaignId },
       include: {
@@ -303,6 +343,8 @@ export class CampaignManager {
         sentCount: campaign.sentCount + sentCount,
       },
     });
+
+    return { sentCount, failedCount };
   }
 
   /**
@@ -364,3 +406,4 @@ export class CampaignManager {
     }
   }
 }
+

@@ -43,7 +43,7 @@ export function DocCodeBlock({ code, language, title }: { code: string; language
   };
 
   return (
-    <div className="my-6 rounded-lg border bg-muted/50">
+    <div className="my-6 rounded-none border bg-muted/50">
       {title && (
         <div className="flex items-center justify-between border-b px-4 py-2">
           <span className="text-sm font-medium">{title}</span>
@@ -109,7 +109,7 @@ export function DocAlert({ type, title, message }: { type: 'info' | 'success' | 
   const { icon: Icon, bg, border, iconColor, titleColor } = config[type];
 
   return (
-    <div className={cn('my-6 flex gap-3 rounded-lg border p-4', bg, border)}>
+    <div className={cn('my-6 flex gap-3 rounded-none border p-4', bg, border)}>
       <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', iconColor)} />
       <div className="flex-1">
         {title && <div className={cn('font-semibold mb-1', titleColor)}>{title}</div>}
@@ -121,7 +121,7 @@ export function DocAlert({ type, title, message }: { type: 'info' | 'success' | 
 
 export function DocTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
   return (
-    <div className="my-6 overflow-hidden rounded-lg border">
+    <div className="my-6 overflow-hidden rounded-none border">
       <table className="w-full text-sm">
         <thead className="bg-muted">
           <tr>
@@ -153,7 +153,7 @@ export function DocSteps({ steps }: { steps: Array<{ title: string; description:
     <div className="my-6 space-y-4">
       {steps.map((step, i) => (
         <div key={i} className="flex gap-4">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-none bg-primary text-sm font-bold text-primary-foreground">
             {i + 1}
           </div>
           <div className="flex-1 pt-1">
@@ -170,7 +170,7 @@ export function DocGrid({ items }: { items: Array<{ title: string; description: 
   return (
     <div className="my-6 grid gap-4 md:grid-cols-2">
       {items.map((item, i) => (
-        <div key={i} className="rounded-lg border p-4 hover:border-primary/50 transition-colors">
+        <div key={i} className="rounded-none border p-4 hover:border-primary/50 transition-colors">
           <div className="font-semibold mb-2">{item.title}</div>
           <div className="text-sm text-muted-foreground">{item.description}</div>
         </div>
@@ -182,3 +182,4 @@ export function DocGrid({ items }: { items: Array<{ title: string; description: 
 export function DocDivider() {
   return <hr className="my-8 border-border" />;
 }
+

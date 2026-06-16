@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 import { dealService } from '@/lib/crm/deal-service';
 
 export async function PATCH(
@@ -7,10 +9,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await withModuleAccess('DEALS');
 
     const params = await context.params;
     const body = await req.json();
@@ -18,6 +17,7 @@ export async function PATCH(
 
     return NextResponse.json(deal);
   } catch (error: any) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error updating deal:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -28,15 +28,13 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await withModuleAccess('DEALS');
 
     const params = await context.params;
     await dealService.deleteDeal(params.id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Error deleting deal:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

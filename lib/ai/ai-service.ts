@@ -11,7 +11,7 @@ export function getAIClient(apiKey?: string) {
   
   // Debug: Check for non-ASCII characters
   if (key) {
-    const nonAsciiChars = [];
+    const nonAsciiChars: Array<{ index: number; char: string; code: number }> = [];
     for (let i = 0; i < Math.min(key.length, 50); i++) {
       const charCode = key.charCodeAt(i);
       if (charCode > 127) {
@@ -813,3 +813,4 @@ Return JSON:
 
   return extractJSON(response.text);
 }
+

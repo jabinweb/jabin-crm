@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -9,10 +9,9 @@ import { UsageBanner } from '@/components/subscription/usage-banner';
 import { EmailReplyChecker } from '@/components/email/email-reply-checker';
 import { PWAInstallPrompt } from '@/components/pwa/install-prompt';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -21,6 +20,7 @@ export default function DashboardLayout({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -31,10 +31,19 @@ export default function DashboardLayout({
       return;
     }
 
-    if (session.user.role === 'CUSTOMER') {
+    const role = session.user.role;
+    const companySlug = (session.user as any).companySlug?.trim();
+
+    if (role === 'CUSTOMER') {
       router.push('/portal');
+      return;
     }
-  }, [session, status, router]);
+
+    // Redirect company-scoped users to the canonical /{slug}/dashboard URL
+    if (role !== 'SUPER_ADMIN' && companySlug && pathname === '/dashboard') {
+      router.replace(`/${companySlug}/dashboard`);
+    }
+  }, [session, status, router, pathname]);
 
   if (status === 'loading') {
     return (
@@ -63,21 +72,21 @@ export default function DashboardLayout({
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
+          <SheetContent side="left" className="p-0 w-64" srOnlyTitle="Navigation menu">
             <Sidebar onNavigate={() => setSidebarOpen(false)} />
           </SheetContent>
         </Sheet>
-        <h1 className="text-lg font-semibold">Dashboard</h1>
+        <h1 className="text-xs font-black uppercase tracking-[0.2em]">Dashboard</h1>
       </div>
 
       <div className="flex min-h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-3.5rem)]">
-        {/* Desktop Sidebar - Hidden on Mobile */}
+        {/* Desktop Sidebar */}
         <aside className="hidden lg:block sticky top-0 h-full overflow-y-auto border-r bg-background">
           <Sidebar />
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 w-full">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 w-full">
           <UsageBanner />
           {children}
         </main>

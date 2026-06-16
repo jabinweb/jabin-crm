@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +14,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-async function getUserDetails(userId: string) {
+type UserDetailRow = Prisma.UserGetPayload<{
+  include: {
+    profile: true;
+    subscription: { include: { plan: true } };
+    usage: true;
+    leads: { take: 10; orderBy: { createdAt: "desc" } };
+    emailCampaigns: { take: 10; orderBy: { createdAt: "desc" } };
+    _count: {
+      select: { leads: true; emailCampaigns: true; emailLogs: true };
+    };
+  };
+}>;
+
+async function getUserDetails(userId: string): Promise<UserDetailRow> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
@@ -46,7 +60,7 @@ async function getUserDetails(userId: string) {
     notFound();
   }
 
-  return user;
+  return user as UserDetailRow;
 }
 
 export default async function UserDetailPage({

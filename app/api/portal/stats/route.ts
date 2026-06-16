@@ -1,25 +1,30 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { emptyPortalStats, resolvePortalDataAccess } from '@/lib/api/portal-access';
 
 export async function GET() {
     try {
         const session = await auth();
+        const access = resolvePortalDataAccess(session);
 
-        if (!session?.user || session.user.role !== 'CUSTOMER' || !session.user.customerId) {
+        if (!access.ok) {
             return NextResponse.json({ error: 'Unauthorized or not a customer' }, { status: 401 });
         }
 
-        const customerId = session.user.customerId;
+        if (access.scope === 'staff') {
+            return NextResponse.json(emptyPortalStats);
+        }
+
+        const customerId = access.customerId;
 
         // 1. Basic Stats
-        const [totalEquipment, openTickets, pendingWarranties] = await Promise.all([
+        const [totalEquipment, openTickets, pendingWarranties, resolvedTickets] = await Promise.all([
             prisma.equipmentInstallation.count({ where: { customerId } }),
             prisma.supportTicket.count({
                 where: {
                     customerId,
-                    status: { not: 'RESOLVED' }
+                    status: { notIn: ['RESOLVED', 'CLOSED'] }
                 }
             }),
             prisma.equipmentInstallation.count({
@@ -27,10 +32,13 @@ export async function GET() {
                     customerId,
                     warrantyExpiry: {
                         gt: new Date(),
-                        lt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Next 30 days
+                        lt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
                     }
                 }
-            })
+            }),
+            prisma.supportTicket.count({
+                where: { customerId, status: { in: ['RESOLVED', 'CLOSED'] } },
+            }),
         ]);
 
         // 2. Recent Tickets
@@ -57,9 +65,10 @@ export async function GET() {
         const stats = {
             totalEquipment,
             openTickets,
+            resolvedTickets,
             pendingWarranties,
             recentTickets,
-            equipmentHealth: 95, // Calculated or placeholder
+            equipmentHealth: 95,
         };
 
         return NextResponse.json(stats);

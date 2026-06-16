@@ -40,7 +40,7 @@ function ErrorContent() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+          <div className="p-4 bg-red-50 border border-red-200 rounded-none">
             <p className="text-sm text-red-800">
               <strong>Error Code:</strong> {error}
             </p>
@@ -78,10 +78,11 @@ export default function AuthErrorPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
       </div>
     }>
       <ErrorContent />
     </Suspense>
   );
 }
+

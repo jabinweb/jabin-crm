@@ -45,7 +45,7 @@ export default function ServiceExpensesPage() {
       const featureRes = await fetch('/api/features/me');
       if (featureRes.ok) {
         const featureData = await featureRes.json();
-        if (featureData?.modules?.SERVICE_EXPENSES === false) {
+        if (featureData?.modules?.SERVICE_EXPENSES !== true) {
           setFeatureEnabled(false);
           setLoading(false);
           return;
@@ -134,12 +134,12 @@ export default function ServiceExpensesPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto p-4 md:p-6 lg:p-8">Loading expenses...</div>;
+    return <div className="container mx-auto">Loading expenses...</div>;
   }
 
   if (!featureEnabled) {
     return (
-      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+      <div className="container mx-auto">
         <Card>
           <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -251,7 +251,7 @@ export default function ServiceExpensesPage() {
       <Card>
         <CardHeader><CardTitle>Expense Register</CardTitle></CardHeader>
         <CardContent>
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-none border overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -298,3 +298,4 @@ export default function ServiceExpensesPage() {
     </div>
   );
 }
+

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { trackEmailClick } from '@/lib/email-logger';
 
+/** Public click tracker — no auth or plan gate (recipients follow this redirect URL). */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

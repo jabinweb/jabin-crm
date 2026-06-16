@@ -99,7 +99,10 @@ interface SendBulkEmailOptions {
 }
 
 export async function sendBulkEmails(options: SendBulkEmailOptions) {
-  const results = [];
+  const results: Array<
+    | { leadId?: string; email: string; success: true; messageId: string }
+    | { leadId?: string; email: string; success: false; error: string }
+  > = [];
   const delay = options.delay || 1000; // Default 1 second delay
 
   for (const recipient of options.recipients) {
@@ -199,3 +202,4 @@ export function createEmailHTML(body: string, unsubscribeLink?: string) {
 </html>
   `.trim();
 }
+

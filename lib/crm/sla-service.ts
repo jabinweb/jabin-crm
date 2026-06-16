@@ -1,10 +1,6 @@
 import { TicketPriority, TicketStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-
-type SlaConfig = {
-  responseHours: number;
-  resolutionHours: number;
-};
+import { getSlaConfigForPriority, type SlaConfig } from '@/lib/crm/sla-policies';
 
 type SlaState = 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'RESOLVED_ON_TIME' | 'RESOLVED_BREACHED';
 
@@ -43,15 +39,18 @@ export type TicketSlaStatus = {
   resolutionTargetHours: number;
 };
 
-const SLA_BY_PRIORITY: Record<TicketPriority, SlaConfig> = {
-  LOW: { responseHours: 8, resolutionHours: 72 },
-  MEDIUM: { responseHours: 4, resolutionHours: 48 },
-  HIGH: { responseHours: 2, resolutionHours: 24 },
-  CRITICAL: { responseHours: 1, resolutionHours: 8 },
-};
-
 const ACTIVE_STATUSES: TicketStatus[] = ['OPEN', 'ASSIGNED', 'IN_PROGRESS'];
 const ESCALATION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'SUPPORT_MANAGER'] as const;
+
+async function resolveSlaConfig(
+  ticket: TicketWithActivities
+): Promise<SlaConfig> {
+  const customer = await prisma.customer.findUnique({
+    where: { id: ticket.customerId },
+    select: { companyId: true },
+  });
+  return getSlaConfigForPriority(ticket.priority, customer?.companyId);
+}
 
 function addHours(date: Date, hours: number): Date {
   return new Date(date.getTime() + hours * 60 * 60 * 1000);
@@ -70,8 +69,8 @@ function isFirstResponseEvent(eventType: string): boolean {
   return true;
 }
 
-function toSlaStatus(ticket: TicketWithActivities): TicketSlaStatus {
-  const config = SLA_BY_PRIORITY[ticket.priority] || SLA_BY_PRIORITY.MEDIUM;
+async function toSlaStatus(ticket: TicketWithActivities): Promise<TicketSlaStatus> {
+  const config = await resolveSlaConfig(ticket);
   const now = new Date();
 
   const responseDueAt = addHours(ticket.createdAt, config.responseHours);
@@ -179,6 +178,7 @@ export class SlaService {
     const tickets = await prisma.supportTicket.findMany({
       where: {
         status: { in: ACTIVE_STATUSES },
+        mergedIntoId: null,
       },
       take: limit,
       orderBy: { createdAt: 'asc' },
@@ -202,9 +202,11 @@ export class SlaService {
       },
     });
 
-    return tickets
-      .map((ticket) => toSlaStatus(ticket))
-      .filter((status) => status.responseBreached || status.resolutionBreached);
+    return Promise.all(
+      tickets.map((ticket) => toSlaStatus(ticket))
+    ).then((statuses) =>
+      statuses.filter((status) => status.responseBreached || status.resolutionBreached)
+    );
   }
 
   async runEscalationSweep() {

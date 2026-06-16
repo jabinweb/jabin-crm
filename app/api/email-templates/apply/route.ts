@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { templateService } from '@/lib/email/template-service';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { withModuleAccess } from '@/lib/api/module-guard';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const session = await withModuleAccess('EMAIL_OUTREACH');
     const body = await request.json();
     const { templateId, leadData } = body;
 
@@ -27,10 +25,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
     console.error('Template apply error:', error);
-    return NextResponse.json(
-      { error: 'Failed to apply template' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to apply template' }, { status: 500 });
   }
 }

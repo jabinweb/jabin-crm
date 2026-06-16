@@ -75,7 +75,7 @@ export default function NewEquipmentPage() {
 
         setIsSubmitting(true);
         try {
-            const response = await fetch('/api/equipment', {
+            const response = await fetch('/api/equipments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
@@ -102,12 +102,12 @@ export default function NewEquipmentPage() {
                 </Button>
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Register New Equipment</h2>
-                    <p className="text-sm text-muted-foreground">Add a medical device installation to a hospital record.</p>
+                    <p className="text-sm text-muted-foreground">Record a new installation or deployment for a client account.</p>
                 </div>
             </div>
 
             <form onSubmit={handleSubmit}>
-                <Card className="shadow-xl border-t-4 border-t-orange-500">
+                <Card className="shadow-none border-t-4 border-t-orange-500">
                     <CardHeader>
                         <CardTitle className="flex items-center">
                             <Wrench className="h-5 w-5 mr-2 text-orange-500" />
@@ -120,19 +120,19 @@ export default function NewEquipmentPage() {
                             <div className="grid gap-2">
                                 <Label className="flex items-center gap-2">
                                     <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                                    Hospital Location
+                                    Client / site
                                 </Label>
                                 <Select
                                     value={formData.customerId}
                                     onValueChange={(val) => setFormData({ ...formData, customerId: val })}
                                 >
                                     <SelectTrigger>
-                                        <SelectValue placeholder={isLoadingCustomers ? "Loading..." : "Select hospital"} />
+                                        <SelectValue placeholder={isLoadingCustomers ? "Loading..." : "Select client"} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {customerData?.customers?.map((customer: any) => (
                                             <SelectItem key={customer.id} value={customer.id}>
-                                                {customer.hospitalName}
+                                                {customer.organizationName}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -199,8 +199,8 @@ export default function NewEquipmentPage() {
                             </div>
                         </div>
 
-                        <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-lg border border-orange-100 flex items-start gap-3">
-                            <div className="bg-orange-100 dark:bg-orange-900/40 p-2 rounded-full mt-1">
+                        <div className="bg-orange-50 dark:bg-orange-950/20 p-4 rounded-none border border-orange-100 flex items-start gap-3">
+                            <div className="bg-orange-100 dark:bg-orange-900/40 p-2 rounded-none mt-1">
                                 <AlertCircle className="h-4 w-4 text-orange-600" />
                             </div>
                             <div className="space-y-1">
@@ -229,4 +229,5 @@ export default function NewEquipmentPage() {
         </div>
     );
 }
+
 

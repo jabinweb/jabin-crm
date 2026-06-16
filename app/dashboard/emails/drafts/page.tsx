@@ -130,7 +130,7 @@ export default function EmailDraftsPageWithSidebar() {
               <input
                 type="text"
                 placeholder="Search drafts..."
-                className="w-full rounded-md border bg-background py-2 pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-none border bg-background py-2 pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -242,7 +242,7 @@ export default function EmailDraftsPageWithSidebar() {
               </div>
             </CardHeader>
             <CardContent className="flex-1">
-              <div className="rounded-lg border bg-muted/30 p-6">
+              <div className="rounded-none border bg-muted/30 p-6">
                 <div className="prose prose-sm max-w-none whitespace-pre-wrap">
                   {selectedDraft.body}
                 </div>
@@ -271,3 +271,4 @@ export default function EmailDraftsPageWithSidebar() {
     </div>
   );
 }
+

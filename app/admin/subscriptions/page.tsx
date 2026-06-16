@@ -1,4 +1,17 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma, SubscriptionStatus } from "@prisma/client";
+
+type SubscriptionRow = Prisma.SubscriptionGetPayload<{
+  include: {
+    user: { select: { id: true; name: true; email: true } };
+    plan: true;
+  };
+}>;
+
+type SubscriptionStatRow = {
+  status: SubscriptionStatus;
+  _count: number;
+};
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +24,10 @@ import {
 } from "@/components/ui/table";
 import { DollarSign, Users, TrendingUp } from "lucide-react";
 
-async function getSubscriptionData() {
+async function getSubscriptionData(): Promise<{
+  subscriptions: SubscriptionRow[];
+  subscriptionStats: SubscriptionStatRow[];
+}> {
   const [subscriptions, subscriptionStats] = await Promise.all([
     prisma.subscription.findMany({
       include: {
@@ -33,15 +49,24 @@ async function getSubscriptionData() {
     }),
   ]);
 
-  return { subscriptions, subscriptionStats };
+  return {
+    subscriptions: subscriptions as SubscriptionRow[],
+    subscriptionStats: subscriptionStats as SubscriptionStatRow[],
+  };
 }
 
 export default async function SubscriptionsPage() {
   const { subscriptions, subscriptionStats } = await getSubscriptionData();
 
-  const activeCount = subscriptionStats.find((s) => s.status === "ACTIVE")?._count || 0;
-  const trialingCount = subscriptionStats.find((s) => s.status === "TRIALING")?._count || 0;
-  const canceledCount = subscriptionStats.find((s) => s.status === "CANCELED")?._count || 0;
+  const activeCount =
+    subscriptionStats.find((s: SubscriptionStatRow) => s.status === "ACTIVE")
+      ?._count || 0;
+  const trialingCount =
+    subscriptionStats.find((s: SubscriptionStatRow) => s.status === "TRIALING")
+      ?._count || 0;
+  const canceledCount =
+    subscriptionStats.find((s: SubscriptionStatRow) => s.status === "CANCELED")
+      ?._count || 0;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -78,7 +103,7 @@ export default async function SubscriptionsPage() {
                   {activeCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-green-100">
+              <div className="p-3 rounded-none bg-green-100">
                 <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
             </div>
@@ -94,7 +119,7 @@ export default async function SubscriptionsPage() {
                   {trialingCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-blue-100">
+              <div className="p-3 rounded-none bg-blue-100">
                 <Users className="w-6 h-6 text-blue-600" />
               </div>
             </div>
@@ -110,7 +135,7 @@ export default async function SubscriptionsPage() {
                   {canceledCount}
                 </p>
               </div>
-              <div className="p-3 rounded-full bg-red-100">
+              <div className="p-3 rounded-none bg-red-100">
                 <DollarSign className="w-6 h-6 text-red-600" />
               </div>
             </div>
@@ -124,7 +149,7 @@ export default async function SubscriptionsPage() {
           <CardTitle>All Subscriptions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-none border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -195,3 +220,4 @@ export default async function SubscriptionsPage() {
     </div>
   );
 }
+

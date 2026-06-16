@@ -19,10 +19,10 @@ Equipment: ${equipmentName}${serialNumber ? `\nSerial Number: ${serialNumber}` :
 Warranty Expiry: ${warrantyExpiry.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
 Days Remaining: ${daysRemaining}
 
-Please contact the Jabin support team to discuss warranty renewal or maintenance options before the expiry date.
+Please contact support to discuss warranty renewal or maintenance options before the expiry date.
 
 Best regards,
-The Jabin CRM Support Team
+The support team
     `;
 
     return sendEmail({
@@ -59,7 +59,7 @@ ${nextMaintenanceDate ? `Next Scheduled Maintenance: ${nextMaintenanceDate.toLoc
 You can view the full service report in your portal at any time.
 
 Best regards,
-The Jabin CRM Support Team
+The support team
     `;
 
     return sendEmail({
@@ -79,10 +79,10 @@ export async function sendTicketStatusEmail(params: {
     const { customerEmail, customerName, ticketSubject, ticketId, newStatus } = params;
 
     const statusLabel: Record<string, string> = {
-        IN_PROGRESS: 'In Progress – A technician is now working on your request.',
+        IN_PROGRESS: 'In Progress – A team member is working on your request.',
         RESOLVED: 'Resolved – Your issue has been resolved.',
         CLOSED: 'Closed – Your support ticket has been closed.',
-        ASSIGNED: 'Assigned – A technician has been assigned to your request.',
+        ASSIGNED: 'Assigned – Someone from the team has been assigned to your request.',
     };
 
     const body = `
@@ -93,10 +93,10 @@ Your support request has been updated.
 Ticket: ${ticketSubject} [#${ticketId.slice(-6).toUpperCase()}]
 New Status: ${statusLabel[newStatus] ?? newStatus}
 
-You can track the full progress of your ticket in the Jabin Hospital Portal.
+You can track the full progress of your ticket in your customer portal.
 
 Best regards,
-The Jabin CRM Support Team
+The support team
     `;
 
     return sendEmail({

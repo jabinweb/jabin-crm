@@ -233,8 +233,8 @@ export default function LeadsPage() {
       toast.error('Please select leads to export');
       return;
     }
-    toast.success(`Exporting ${selectedLeads.length} leads...`);
-    // TODO: Implement bulk export with selected IDs
+    window.open(`/api/leads/export?format=csv&ids=${selectedLeads.join(',')}`, '_blank');
+    toast.success(`Exporting ${selectedLeads.length} leads…`);
   };
 
   const handleBulkDelete = async () => {
@@ -242,10 +242,34 @@ export default function LeadsPage() {
       toast.error('Please select leads to delete');
       return;
     }
-    if (confirm(`Are you sure you want to delete ${selectedLeads.length} leads?`)) {
+    if (!confirm(`Are you sure you want to delete ${selectedLeads.length} leads?`)) return;
+
+    try {
+      await Promise.all(
+        selectedLeads.map((leadId) =>
+          fetch(`/api/leads/${leadId}`, { method: 'DELETE' })
+        )
+      );
       toast.success(`Deleted ${selectedLeads.length} leads`);
       setSelectedLeads([]);
-      // TODO: Implement bulk delete
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    } catch {
+      toast.error('Some leads could not be deleted');
+    }
+  };
+
+  const handleConvertLead = async (leadId: string) => {
+    try {
+      const response = await fetch(`/api/leads/${leadId}/convert`, { method: 'POST' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Conversion failed');
+      toast.success('Lead converted to customer');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      if (data.customerId) {
+        router.push(`/dashboard/customers/${data.customerId}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to convert lead');
     }
   };
 
@@ -620,14 +644,14 @@ export default function LeadsPage() {
 
           {isLoading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : error ? (
             <div className="text-center py-8 text-red-500">
               Error loading leads
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <div className="rounded-none border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -796,8 +820,8 @@ export default function LeadsPage() {
                             <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'QUALIFIED')}>
                               ✅ Qualified
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'CONVERTED')}>
-                              🎉 Converted
+                            <DropdownMenuItem onClick={() => handleConvertLead(lead.id)}>
+                              🎉 Convert to Customer
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'LOST')}>
                               ❌ Lost
@@ -1207,3 +1231,4 @@ export default function LeadsPage() {
     </div>
   );
 }
+

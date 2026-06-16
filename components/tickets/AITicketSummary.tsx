@@ -37,7 +37,7 @@ export function AITicketSummary({ ticketId, initialSummary, className }: AITicke
     };
 
     return (
-        <Card className={cn("border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 shadow-sm", className)}>
+        <Card className={cn("border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 shadow-none", className)}>
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -113,7 +113,7 @@ export function AITicketSummary({ ticketId, initialSummary, className }: AITicke
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-blue-800/60 dark:text-blue-200/60">Key Issues Identified</p>
                                     <div className="flex flex-wrap gap-1.5">
                                         {summary.keyIssues?.map((issue: string, i: number) => (
-                                            <span key={i} className="text-[9px] px-2 py-0.5 rounded-full bg-blue-100/40 border border-blue-200/50 text-blue-800">
+                                            <span key={i} className="text-[9px] px-2 py-0.5 rounded-none bg-blue-100/40 border border-blue-200/50 text-blue-800">
                                                 {issue}
                                             </span>
                                         ))}
@@ -130,3 +130,4 @@ export function AITicketSummary({ ticketId, initialSummary, className }: AITicke
         </Card>
     );
 }
+

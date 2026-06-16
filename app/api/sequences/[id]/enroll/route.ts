@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { sequenceService } from '@/lib/crm/sequence-service';
+import { handleApiError } from '@/lib/api-error-handler';
+import { withModuleAccess } from '@/lib/api/module-guard';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    await withModuleAccess('EMAIL_OUTREACH');
 
     const params = await context.params;
     const body = await req.json();
@@ -37,8 +36,10 @@ export async function POST(
       succeeded,
       failed,
     });
-  } catch (error: any) {
-    console.error('Error enrolling leads:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    if (!isApiException(error)) {
+      console.error('Error enrolling leads:', error);
+    }
+    return handleApiError(error);
   }
 }
