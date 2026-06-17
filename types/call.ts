@@ -1,8 +1,6 @@
 export type CallStatus = 'ringing' | 'connected' | 'ended' | 'rejected';
 export type CallType = 'audio' | 'video';
 
-import { v4 as uuidv4 } from 'uuid'
-
 export interface CallData {
   callId: string;
   type: CallType;
@@ -42,7 +40,7 @@ export function createCallData(params: {
   timestamp: string;
 }): CallData {
   return {
-    callId: uuidv4(),
+    callId: crypto.randomUUID(),
     ...params,
     iceServers: [
       {
