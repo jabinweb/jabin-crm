@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 export class UnsubscribeService {
   /**
@@ -213,7 +214,7 @@ export class UnsubscribeService {
    */
   generateUnsubscribeLink(email: string): string {
     const token = this.generateToken(email);
-    return `${process.env.AUTH_URL}/unsubscribe/${token}`;
+    return `${getAppBaseUrl()}/unsubscribe/${token}`;
   }
 }
 

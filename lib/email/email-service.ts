@@ -1,6 +1,7 @@
 import { prisma } from '../prisma';
 import { Prisma } from '@prisma/client';
 import { logError } from '@/lib/logger';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 export interface EmailConfig {
   provider: 'smtp' | 'sendgrid' | 'resend';
@@ -167,7 +168,8 @@ export class EmailService {
   private injectTrackingPixel(html: string, trackingId?: string): string {
     if (!trackingId) return html;
 
-    const trackingPixel = `<img src="${process.env.AUTH_URL}/api/emails/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;
+    const baseUrl = getAppBaseUrl();
+    const trackingPixel = `<img src="${baseUrl}/api/emails/track/open/${trackingId}" width="1" height="1" style="display:none;" />`;
 
     // Try to inject before </body> tag
     if (html.includes('</body>')) {
@@ -199,7 +201,7 @@ export class EmailService {
     const urlRegex = /href="(https?:\/\/[^"]+)"/g;
 
     return html.replace(urlRegex, (match, url) => {
-      const trackedUrl = `${process.env.AUTH_URL}/api/emails/track/click/${trackingId}?url=${encodeURIComponent(url)}`;
+      const trackedUrl = `${getAppBaseUrl()}/api/emails/track/click/${trackingId}?url=${encodeURIComponent(url)}`;
       return `href="${trackedUrl}"`;
     });
   }

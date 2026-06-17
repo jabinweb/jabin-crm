@@ -63,4 +63,22 @@ describe('Environment Validation', () => {
 
     expect(() => validateEnv()).toThrow();
   });
+
+  test('passes validation when AUTH_URL is unset but VERCEL_URL is present', () => {
+    process.env.DATABASE_URL = 'postgresql://user:pass@localhost:5432/db';
+    process.env.AUTH_SECRET = 'a'.repeat(32);
+    delete process.env.AUTH_URL;
+    delete process.env.NEXTAUTH_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+    process.env.VERCEL_URL = 'my-app.vercel.app';
+    process.env.ENCRYPTION_KEY = 'b'.repeat(32);
+    process.env.GOOGLE_CLIENT_ID = 'test-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
+
+    const { validateEnv, resolveAuthUrl } = require('../env-validation');
+
+    expect(resolveAuthUrl()).toBe('https://my-app.vercel.app');
+    expect(() => validateEnv()).not.toThrow();
+    expect(process.env.AUTH_URL).toBeUndefined();
+  });
 });

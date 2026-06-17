@@ -1,11 +1,41 @@
 import { z } from 'zod';
 import { logError, logInfo, logWarning } from './logger';
 
+/** Resolve public app URL for NextAuth and email links (Vercel sets VERCEL_URL automatically). */
+export function resolveAuthUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const explicit =
+    env.AUTH_URL?.trim() ||
+    env.NEXTAUTH_URL?.trim() ||
+    env.NEXT_PUBLIC_APP_URL?.trim();
+
+  if (explicit) {
+    return explicit;
+  }
+
+  const vercelHost =
+    env.VERCEL_PROJECT_PRODUCTION_URL?.trim() || env.VERCEL_URL?.trim();
+
+  if (vercelHost) {
+    const host = vercelHost.replace(/^https?:\/\//, '');
+    return `https://${host}`;
+  }
+
+  return undefined;
+}
+
+/** Inject derived env vars before Zod validation (safe to call multiple times). */
+export function applyEnvDefaults(_env: NodeJS.ProcessEnv = process.env): void {
+  // Intentionally empty: do NOT set AUTH_URL from VERCEL_URL here.
+  // Auth.js binds PKCE cookies to the browser hostname; forcing AUTH_URL to a
+  // different host (e.g. *.vercel.app vs custom domain) causes "Invalid code verifier".
+}
+
 const envSchema = z
   .object({
     DATABASE_URL: z.string().url().min(1, 'DATABASE_URL is required'),
     AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be at least 32 characters'),
-    AUTH_URL: z.string().url('AUTH_URL must be a valid URL'),
+    AUTH_URL: z.string().url('AUTH_URL must be a valid URL').optional(),
+    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
     EMAIL_PROVIDER: z.enum(['smtp', 'sendgrid', 'resend']).default('smtp'),
     SMTP_HOST: z.string().min(1).optional(),
     SMTP_PORT: z.string().regex(/^\d+$/).optional(),
@@ -28,7 +58,6 @@ const envSchema = z
     REDIS_URL: z.string().url().optional(),
     INBOUND_EMAIL_WEBHOOK_SECRET: z.string().optional(),
     CRON_SECRET: z.string().optional(),
-    SENTRY_DSN: z.string().url().optional(),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).optional(),
     RATE_LIMIT_MAX_REQUESTS: z.string().regex(/^\d+$/).optional(),
@@ -39,6 +68,21 @@ const envSchema = z
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
+
+    const hasPublicUrl =
+      !!env.AUTH_URL?.trim() ||
+      !!env.NEXT_PUBLIC_APP_URL?.trim() ||
+      !!process.env.VERCEL_URL?.trim() ||
+      !!process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+
+    if (!hasPublicUrl) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          'Set AUTH_URL or NEXT_PUBLIC_APP_URL to your public site URL (must match the domain users sign in on)',
+        path: ['AUTH_URL'],
+      });
+    }
 
     if (env.EMAIL_PROVIDER === 'smtp') {
       const smtpFields = [
@@ -75,21 +119,29 @@ const envSchema = z
         path: ['RAZORPAY_KEY_SECRET'],
       });
     }
-    if (!env.RAZORPAY_WEBHOOK_SECRET) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'RAZORPAY_WEBHOOK_SECRET is required in production (subscriptions + payroll)',
-        path: ['RAZORPAY_WEBHOOK_SECRET'],
-      });
-    }
-    if (!env.CRON_SECRET || env.CRON_SECRET.length < 16) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'CRON_SECRET (min 16 chars) is required in production',
-        path: ['CRON_SECRET'],
-      });
-    }
   });
+
+function warnOptionalProductionSecrets(env: Env): void {
+  if (env.NODE_ENV !== 'production') return;
+
+  const hasRazorpay =
+    !!(env.RAZORPAY_KEY_ID || env.RAZORPAY_TEST_KEY_ID) &&
+    !!(env.RAZORPAY_KEY_SECRET || env.RAZORPAY_TEST_KEY_SECRET);
+
+  if (hasRazorpay && !env.RAZORPAY_WEBHOOK_SECRET) {
+    logWarning(
+      'RAZORPAY_WEBHOOK_SECRET is not set — subscription/payroll webhooks will reject until configured',
+      {}
+    );
+  }
+
+  if (!env.CRON_SECRET || env.CRON_SECRET.length < 16) {
+    logWarning(
+      'CRON_SECRET is not set (min 16 chars) — scheduled jobs (/api/cron/*) will not run until configured',
+      {}
+    );
+  }
+}
 
 export type Env = z.infer<typeof envSchema>;
 
@@ -100,8 +152,12 @@ export function validateEnv(): Env {
     return validatedEnv;
   }
 
+  applyEnvDefaults();
+
   try {
     validatedEnv = envSchema.parse(process.env);
+
+    warnOptionalProductionSecrets(validatedEnv);
 
     if (validatedEnv.NODE_ENV === 'production' && !process.env.REDIS_URL) {
       logWarning(

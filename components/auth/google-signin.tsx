@@ -1,14 +1,18 @@
 'use client';
 
-import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Chrome } from "lucide-react";
+import { startGoogleSignIn } from "@/lib/auth/google-sign-in-client";
 
 export default function GoogleSignIn() {
+  const handleClick = async () => {
+    await startGoogleSignIn("/dashboard");
+  };
+
   return (
     <Button
       variant="outline"
-      onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+      onClick={handleClick}
       className="w-full"
     >
       <Chrome className="mr-2 h-4 w-4" />

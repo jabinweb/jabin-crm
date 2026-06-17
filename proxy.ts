@@ -1,161 +1,136 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from "next-auth/jwt";
+import { getToken } from 'next-auth/jwt';
 import { rateLimit } from './lib/rate-limit';
 import { logError } from './lib/logger';
+import { stripAuthSessionCookiesFromRequest } from '@/lib/auth/session-cookies';
 
-/**
- * Proxy runs on every request
- * - Handles RBAC and redirection
- * - Handles rate limiting for API routes
- * - Proxies Google Fonts requests to avoid build issues
- * - Injects context headers for Company Management
- */
+const PUBLIC_PREFIXES = [
+  '/auth',
+  '/api/auth',
+  '/register',
+  '/api/webhooks',
+  '/api/uploadthing',
+  '/api/payment/callback',
+];
+
+const PUBLIC_EXACT = new Set(['/', '/pricing', '/favicon.ico', '/manifest.json', '/sw.js', '/offline.html']);
+
+function isPublicPath(pathname: string) {
+  if (PUBLIC_EXACT.has(pathname)) return true;
+  if (pathname.startsWith('/payment/')) return true;
+  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return true;
+  if (/^\/[^/]+\/register\/?$/.test(pathname)) return true;
+  if (/^\/[^/]+\/employee\/register\/?$/.test(pathname)) return true;
+  return false;
+}
+
+function isStaticAsset(pathname: string) {
+  return (
+    pathname.startsWith('/_next/static') ||
+    pathname.startsWith('/_next/image') ||
+    pathname.startsWith('/icons') ||
+    pathname.startsWith('/static') ||
+    pathname.startsWith('/.well-known')
+  );
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Omit `export const config` in `proxy.ts`: exporting it triggers a Turbopack error
-  // ("Could not parse module …/middleware.ts"). Skip static assets here instead.
-  if (
-    pathname.startsWith('/_next/static') ||
-    pathname.startsWith('/_next/image') ||
-    pathname === '/favicon.ico' ||
-    pathname.startsWith('/icons') ||
-    pathname === '/manifest.json' ||
-    pathname === '/sw.js' ||
-    pathname === '/offline.html' ||
-    pathname.startsWith('/.well-known')
-  ) {
+  // --- Hard stops (must run first) ---
+
+  // Old Sentry clients POST here — never redirect, never auth-check.
+  if (pathname === '/monitoring' || pathname.startsWith('/monitoring/')) {
+    return new NextResponse(null, { status: 204 });
+  }
+
+  // Page routes reject POST — convert to GET sign-in.
+  if (pathname === '/auth/signin' && req.method === 'POST') {
+    return NextResponse.redirect(new URL('/auth/signin', req.url), 303);
+  }
+
+  if (isStaticAsset(pathname)) {
     return NextResponse.next();
   }
 
+  // Google OAuth callback: ignore any stale session cookie.
+  if (req.method === 'GET' && pathname.startsWith('/api/auth/callback/google')) {
+    return NextResponse.next({
+      request: { headers: stripAuthSessionCookiesFromRequest(req) },
+    });
+  }
+
+  // --- Auth gate ---
+
   const token = await getToken({ req, secret: process.env.AUTH_SECRET });
   const isLoggedIn = !!token;
-  const user = token as any;
-  const role = user?.role;
+  const user = token as Record<string, unknown>;
+  const role = user?.role as string | undefined;
 
-  // Public signup under a chosen workspace slug (company may not exist / not approved yet)
   const isCompanyScopedRegister =
     /^\/[^/]+\/register\/?$/.test(pathname) ||
-    /^\/[^/]+\/employee\/register\/?$/.test(pathname)
+    /^\/[^/]+\/employee\/register\/?$/.test(pathname);
 
-  // Logged-in users who already have a workspace should not see signup again.
-  // Users with no companySlug (e.g. after "Continue to registration" from NO_COMPANY) must stay on /{slug}/register.
   if (isLoggedIn && isCompanyScopedRegister) {
-    if (role === 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
-    }
-    const companySlugFromUser =
+    const companySlug =
       typeof user?.companySlug === 'string' ? user.companySlug.trim() : '';
     const employeeId =
       typeof user?.employeeId === 'string' ? user.employeeId.trim() : '';
 
-    if (/^\/[^/]+\/employee\/register\/?$/i.test(pathname)) {
-      if (companySlugFromUser && employeeId) {
-        return NextResponse.redirect(
-          new URL(`/${companySlugFromUser}/employee/dashboard`, req.nextUrl)
-        );
-      }
-      if (companySlugFromUser) {
-        return NextResponse.redirect(
-          new URL(`/${companySlugFromUser}/dashboard`, req.nextUrl)
-        );
-      }
-    } else if (/^\/[^/]+\/register\/?$/i.test(pathname)) {
-      if (companySlugFromUser) {
-        return NextResponse.redirect(
-          new URL(`/${companySlugFromUser}/dashboard`, req.nextUrl)
-        );
-      }
+    if (role === 'SUPER_ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
     }
-  }
-
-  // 1. Skip Auth for static and public routes
-  const isAuthRoute =
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/register") ||
-    isCompanyScopedRegister
-  const isPublicRoute =
-    pathname === "/" ||
-    pathname === "/pricing" ||
-    pathname.startsWith("/payment/") ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/static") ||
-    pathname.startsWith("/icons") ||
-    pathname.startsWith("/.well-known") ||
-    isCompanyScopedRegister
-  
-  // Also skip logic for webhooks, payment callback, and public endpoints
-  if (
-    pathname.startsWith('/api/webhooks') ||
-    pathname.startsWith('/api/uploadthing') ||
-    pathname.startsWith('/api/payment/callback')
-  ) {
-    return NextResponse.next();
-  }
-
-  // 2. Google Fonts proxy workaround (non-`/_next/static` paths only; static is skipped above)
-  if (pathname.includes('fonts.googleapis.com')) {
-    try {
-      return NextResponse.next();
-    } catch (error) {
-      logError(error, { context: 'Google Fonts proxy error' });
-      return NextResponse.next();
+    if (/^\/[^/]+\/employee\/register\/?$/i.test(pathname) && companySlug && employeeId) {
+      return NextResponse.redirect(new URL(`/${companySlug}/employee/dashboard`, req.nextUrl));
     }
-  }
-
-  // 3. RBAC & Redirection Logic
-  if (!isAuthRoute && !isPublicRoute) {
-    if (!isLoggedIn) {
-      const loginUrl = new URL("/auth/signin", req.nextUrl);
-      loginUrl.searchParams.set("callbackUrl", pathname);
-      return NextResponse.redirect(loginUrl);
-    }
-
-    // Prefer tenant URL when the user has a primary workspace (single dashboard entry)
-    const companySlug = typeof user?.companySlug === "string" ? user.companySlug.trim() : ""
-    if (companySlug && pathname === "/dashboard" && role !== "SUPER_ADMIN") {
+    if (companySlug) {
       return NextResponse.redirect(new URL(`/${companySlug}/dashboard`, req.nextUrl));
     }
+  }
 
-    // Role-based top level routing
+  if (!isPublicPath(pathname) && !isLoggedIn) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const loginUrl = new URL('/auth/signin', req.nextUrl);
+    loginUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(loginUrl, 303);
+  }
+
+  if (isLoggedIn) {
+    const companySlug =
+      typeof user?.companySlug === 'string' ? user.companySlug.trim() : '';
+
+    if (companySlug && pathname === '/dashboard' && role !== 'SUPER_ADMIN') {
+      return NextResponse.redirect(new URL(`/${companySlug}/dashboard`, req.nextUrl));
+    }
     if (pathname.startsWith('/admin') && role !== 'SUPER_ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
     }
-
-    // Match app/portal/layout.tsx: customer portal + admins who need to preview/support it
     const canUsePortal =
-      role === "CUSTOMER" ||
-      role === "ADMIN" ||
-      role === "SUPER_ADMIN";
-    if (pathname.startsWith("/portal") && !canUsePortal) {
-      return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+      role === 'CUSTOMER' || role === 'ADMIN' || role === 'SUPER_ADMIN';
+    if (pathname.startsWith('/portal') && !canUsePortal) {
+      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
     }
   }
 
-  // 4. Rate Limiting for APIs (disabled in dev — in-memory limiter shares one bucket per IP and breaks RSC/hot reload)
-  const isApiRoute = pathname.startsWith("/api");
-  if (
-    isApiRoute &&
-    !isAuthRoute &&
-    process.env.NODE_ENV === "production"
-  ) {
-    let rateLimitConfig = {
-      windowMs: 15 * 60 * 1000,
-      maxRequests: 100,
-    };
+  // --- Rate limit APIs in production ---
 
+  if (
+    pathname.startsWith('/api') &&
+    !pathname.startsWith('/api/auth') &&
+    process.env.NODE_ENV === 'production'
+  ) {
+    let rateLimitConfig = { windowMs: 15 * 60 * 1000, maxRequests: 100 };
     if (pathname.includes('/email/send') || pathname.includes('/campaigns')) {
       rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 50 };
     }
-
     if (pathname.includes('/payment') || pathname.includes('/subscription')) {
       rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 10 };
     }
-
     try {
-      await rateLimit(req as any, rateLimitConfig);
+      await rateLimit(req as NextRequest, rateLimitConfig);
     } catch (error) {
       if (error instanceof Error && error.message === 'Rate limit exceeded') {
         return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
@@ -164,7 +139,8 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // 5. Inject User & Company Headers for downstream API and Layout consumption
+  // --- Pass through with context headers ---
+
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-pathname', pathname);
 
@@ -176,17 +152,13 @@ export async function proxy(req: NextRequest) {
     requestHeaders.set('x-geo-country', geoCountry.toUpperCase());
   }
 
-  if (isLoggedIn && user) {
-    requestHeaders.set('x-user-id', user.id || '');
-    requestHeaders.set('x-user-role', role || '');
-    if (user.companyId) requestHeaders.set('x-company-id', user.companyId);
-    if (user.companySlug) requestHeaders.set('x-company-slug', user.companySlug);
-    if (user.employeeId) requestHeaders.set('x-employee-id', user.employeeId);
+  if (isLoggedIn) {
+    requestHeaders.set('x-user-id', String(user?.id ?? ''));
+    requestHeaders.set('x-user-role', role ?? '');
+    if (user?.companyId) requestHeaders.set('x-company-id', String(user.companyId));
+    if (user?.companySlug) requestHeaders.set('x-company-slug', String(user.companySlug));
+    if (user?.employeeId) requestHeaders.set('x-employee-id', String(user.employeeId));
   }
 
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }

@@ -11,7 +11,6 @@ Deploy **jabin-crm** to production with Neon (Postgres), Vercel (Next.js), and e
 | Rate limiting | Redis (`REDIS_URL`) — Upstash or any Redis compatible with `ioredis` |
 | Email | SMTP / SendGrid / Resend |
 | Payments | Razorpay (subscriptions + optional company payroll) |
-| Errors | Sentry (optional) |
 
 ## 1. Neon database
 

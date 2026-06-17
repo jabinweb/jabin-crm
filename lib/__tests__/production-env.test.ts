@@ -38,11 +38,18 @@ describe('Production environment validation', () => {
     expect(() => validateEnv()).not.toThrow();
   });
 
-  test('fails without Razorpay webhook secret in production', () => {
+  test('passes without Razorpay webhook secret (warn-only until configured)', () => {
     baseEnv();
     delete process.env.RAZORPAY_WEBHOOK_SECRET;
     const { validateEnv } = require('../env-validation');
-    expect(() => validateEnv()).toThrow();
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  test('passes without CRON_SECRET (warn-only until configured)', () => {
+    baseEnv();
+    delete process.env.CRON_SECRET;
+    const { validateEnv } = require('../env-validation');
+    expect(() => validateEnv()).not.toThrow();
   });
 
   test('fails without SMTP in production when EMAIL_PROVIDER=smtp', () => {

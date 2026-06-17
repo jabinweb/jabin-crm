@@ -58,7 +58,7 @@ const nextConfig = {
             "style-src 'self' 'unsafe-inline' https://*.razorpay.com",
             "img-src 'self' data: https: blob:",
             "font-src 'self' data: https://*.razorpay.com",
-            "connect-src 'self' https://*.google.com https://*.googleapis.com https://*.googleusercontent.com https://lh3.googleusercontent.com https://*.sentry.io https://*.razorpay.com https://api.gemini.com",
+            "connect-src 'self' https://*.google.com https://*.googleapis.com https://*.googleusercontent.com https://lh3.googleusercontent.com https://*.razorpay.com https://api.gemini.com",
             "frame-src 'self' https://accounts.google.com https://www.google.com https://*.razorpay.com",
             "object-src 'none'",
             "base-uri 'self'",
@@ -72,6 +72,13 @@ const nextConfig = {
 
     return [
       {
+        source: '/auth/:path*',
+        headers: [
+          ...securityHeaders,
+          { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate' },
+        ],
+      },
+      {
         source: '/:path*',
         headers: securityHeaders,
       },
@@ -79,29 +86,4 @@ const nextConfig = {
   },
 };
 
-// Only wrap with Sentry in production to avoid dev source map issues
-if (process.env.NODE_ENV === 'production') {
-  const { withSentryConfig } = require("@sentry/nextjs");
-  
-  module.exports = withSentryConfig(
-    nextConfig,
-    {
-      org: "jabin-international-private-li",
-      project: "javascript-nextjs",
-      silent: !process.env.CI,
-      widenClientFileUpload: true,
-      tunnelRoute: "/monitoring",
-      hideSourceMaps: false,
-      
-      webpack: {
-        automaticVercelMonitors: true,
-        treeshake: {
-          removeDebugLogging: true,
-        },
-      },
-    }
-  );
-} else {
-  module.exports = nextConfig;
-}
-
+module.exports = nextConfig;

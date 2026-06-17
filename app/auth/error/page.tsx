@@ -16,7 +16,8 @@ const errorMessages: Record<string, string> = {
   OAuthCreateAccount: 'Could not create OAuth provider user in the database.',
   EmailCreateAccount: 'Could not create email provider user in the database.',
   Callback: 'Error in the OAuth callback handler route.',
-  OAuthAccountNotLinked: 'Email already exists with a different provider.',
+  OAuthAccountNotLinked:
+    'This Google account could not be linked to your email. Sign in with password or magic link, then try Google again.',
   EmailSignin: 'Check your email address.',
   CredentialsSignin: 'Sign in failed. Check the details you provided are correct.',
   SessionRequired: 'Please sign in to access this page.',

@@ -39,21 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
       errorInfo,
     });
 
-    // Log to error tracking service
-    if (typeof window !== 'undefined' && (window as any).Sentry) {
-      (window as any).Sentry.captureException(error, {
-        contexts: {
-          react: {
-            componentStack: errorInfo.componentStack,
-          },
-        },
-      });
-    }
-
-    // Log to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error Boundary caught an error:', error, errorInfo);
-    }
+    console.error('Error Boundary caught an error:', error, errorInfo);
   }
 
   handleReset = () => {
@@ -75,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 <CardTitle>Something went wrong</CardTitle>
               </div>
               <CardDescription>
-                An unexpected error occurred. Our team has been notified.
+                An unexpected error occurred. Please try again or return to the dashboard.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

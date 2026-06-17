@@ -1,12 +1,11 @@
 /**
  * Env-driven branding — use server-side in emails/API routes.
  */
+import { getAppBaseUrl } from '@/lib/app-url';
+
 export function getBrandConfig() {
   const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'CRM';
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.AUTH_URL?.trim() ||
-    'http://localhost:3000';
+  const appUrl = getAppBaseUrl();
 
   return {
     appName,

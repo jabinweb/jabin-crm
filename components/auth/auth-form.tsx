@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
+import { startGoogleSignIn } from "@/lib/auth/google-sign-in-client";
 import Link from "next/link";
 import { Mail, Lock, Chrome } from "lucide-react";
 import { loginSchema } from "@/lib/validations/auth";
@@ -83,9 +84,7 @@ export function AuthForm({ type, title, subtitle, redirectPath, registerPath }: 
       setError(null);
       setIsLoading(true);
 
-      await signIn("google", {
-        callbackUrl: callbackUrl,
-      });
+      await startGoogleSignIn(callbackUrl);
     } catch (error) {
       console.error('[Auth Form] Google sign in error:', error);
       setError("Failed to sign in with Google");

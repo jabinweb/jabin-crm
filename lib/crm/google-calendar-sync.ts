@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { prisma } from '@/lib/prisma';
 import { logError } from '@/lib/logger';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 interface GoogleCalendarEvent {
   id?: string;
@@ -26,7 +27,7 @@ export class GoogleCalendarSync {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.AUTH_URL + '/api/auth/callback/google'
+      getAppBaseUrl() + '/api/auth/callback/google'
     );
 
     oauth2Client.setCredentials({
