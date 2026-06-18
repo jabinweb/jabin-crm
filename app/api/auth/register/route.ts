@@ -13,7 +13,8 @@ import {
 } from '@prisma/client'
 import type { PrismaClient } from '@prisma/client'
 import { buildInitialCompanySettings } from '@/lib/workspace-config'
-import { isBusinessVertical } from '@/lib/workspace-templates'
+import { isBusinessVertical, type BusinessVertical } from '@/lib/workspace-templates'
+import { seedCompanySupportDesk } from '@/lib/support/seed-company-support'
 
 type RegisterTransactionClient = Pick<
   PrismaClient,
@@ -124,8 +125,13 @@ export async function POST(req: Request) {
         },
       })
 
-      return { user, company, employee }
+      return { user, company, employee, vertical }
     })
+
+    seedCompanySupportDesk(
+      result.company.id,
+      result.vertical as BusinessVertical
+    ).catch((err) => console.error('[register] support desk seed failed:', err))
 
     return NextResponse.json({
       success: true,

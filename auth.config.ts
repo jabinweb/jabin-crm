@@ -65,6 +65,7 @@ export const authConfig = {
             image: true,
             role: true,
             password: true,
+            customerId: true,
           },
         })
 
@@ -79,6 +80,7 @@ export const authConfig = {
           name: user.name,
           image: user.image,
           role: user.role,
+          customerId: user.customerId ?? undefined,
         }
       },
     }),

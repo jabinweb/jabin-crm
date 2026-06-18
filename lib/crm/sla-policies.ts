@@ -53,6 +53,26 @@ export async function listSlaPolicies(companyId?: string | null) {
   });
 }
 
+export async function getSlaConfigForTicket(options: {
+  priority: TicketPriority;
+  ticketType?: string | null;
+  companyId?: string | null;
+  supportSettings?: import('@/lib/support/ticket-types').SupportSettings;
+}): Promise<SlaConfig> {
+  const { priority, ticketType, companyId, supportSettings } = options;
+
+  if (ticketType && supportSettings?.slaByTicketType?.[ticketType]) {
+    const override = supportSettings.slaByTicketType[ticketType];
+    return {
+      responseHours: override.responseHours,
+      resolutionHours: override.resolutionHours,
+      policyName: override.name ?? `SLA — ${ticketType}`,
+    };
+  }
+
+  return getSlaConfigForPriority(priority, companyId);
+}
+
 export async function upsertSlaPolicy(data: {
   companyId?: string | null;
   priority: TicketPriority;

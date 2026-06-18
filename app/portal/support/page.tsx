@@ -14,14 +14,30 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { LifeBuoy, Search, BookOpen, MessageSquarePlus, ThumbsUp, ArrowLeft } from 'lucide-react';
+import {
+  LifeBuoy,
+  Search,
+  BookOpen,
+  MessageSquarePlus,
+  ThumbsUp,
+  ArrowLeft,
+  Mail,
+  Phone,
+  MessageCircle,
+} from 'lucide-react';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
 function PortalSupportContent() {
   const searchParams = useSearchParams();
   const slug = searchParams.get('slug');
+  const { data: workspaceData } = useWorkspaceConfig();
+  const supportChannels = workspaceData?.support?.channels;
+  const terminology = workspaceData?.config.terminology;
+  const ticketLabel = terminology?.ticket ?? 'Ticket';
 
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   const { data: article, isLoading: articleLoading } = useQuery({
     queryKey: ['portal-knowledge-article', slug],
@@ -34,10 +50,11 @@ function PortalSupportContent() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['portal-knowledge', search],
+    queryKey: ['portal-knowledge', search, categoryFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set('q', search);
+      if (categoryFilter) params.set('category', categoryFilter);
       const res = await fetch(`/api/support/knowledge?${params}`);
       if (!res.ok) throw new Error('Failed to load help articles');
       return res.json();
@@ -106,12 +123,27 @@ function PortalSupportContent() {
             <div>
               <p className="font-semibold">Was this helpful?</p>
               <p className="text-sm text-muted-foreground">
-                If you still need assistance, open a support ticket.
+                If you still need assistance, open a support {ticketLabel.toLowerCase()}.
               </p>
             </div>
-            <Button asChild>
-              <Link href="/portal/tickets/new">Contact support</Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await fetch(`/api/support/knowledge/${article.id}/helpful`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ helpful: true }),
+                  });
+                }}
+              >
+                <ThumbsUp className="mr-2 h-4 w-4" />
+                Yes
+              </Button>
+              <Button asChild>
+                <Link href="/portal/tickets/new">Contact support</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -122,17 +154,83 @@ function PortalSupportContent() {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Help Center</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Help &amp; support</h1>
           <p className="text-muted-foreground mt-1">
-            Search solutions, browse guides, or open a support ticket for any product or service.
+            {terminology?.portalSubtitle ??
+              'Search solutions, browse guides, or contact us through your preferred channel.'}
           </p>
         </div>
         <Button asChild>
           <Link href="/portal/tickets/new">
             <MessageSquarePlus className="mr-2 h-4 w-4" />
-            Contact support
+            {terminology?.newRequest ?? `New ${ticketLabel}`}
           </Link>
         </Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <BookOpen className="h-4 w-4" /> Knowledge base
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Self-service articles below</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <MessageSquarePlus className="h-4 w-4" /> {ticketLabel}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="link" className="h-auto p-0 text-xs">
+              <Link href="/portal/tickets/new">Open a {ticketLabel.toLowerCase()}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        {supportChannels?.email ? (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Mail className="h-4 w-4" /> Email
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <a href={`mailto:${supportChannels.email}`} className="text-xs text-primary hover:underline">
+                {supportChannels.email}
+              </a>
+            </CardContent>
+          </Card>
+        ) : null}
+        {supportChannels?.phone ? (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Phone className="h-4 w-4" /> Phone
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <a href={`tel:${supportChannels.phone}`} className="text-xs text-primary hover:underline">
+                {supportChannels.phone}
+              </a>
+            </CardContent>
+          </Card>
+        ) : null}
+        {supportChannels?.chat ? (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" /> Live chat
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground">Use the chat widget in the corner</p>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       <Card>
@@ -215,7 +313,11 @@ function PortalSupportContent() {
                   key={cat.category}
                   variant="ghost"
                   className="w-full justify-between"
-                  onClick={() => setSearch(cat.category ?? '')}
+                  onClick={() => {
+                    setCategoryFilter(cat.category ?? '');
+                    setSearch('');
+                    setQuery('');
+                  }}
                 >
                   <span>{cat.category || 'General'}</span>
                   <Badge variant="outline">{cat._count}</Badge>
@@ -239,7 +341,7 @@ function PortalSupportContent() {
               Still need help?
             </p>
             <p className="text-sm text-muted-foreground">
-              Our support agents handle requests from every industry — not just healthcare.
+              Our {terminology?.agent?.toLowerCase() ?? 'support'} team handles requests from every channel.
             </p>
           </div>
           <Button asChild variant="default">

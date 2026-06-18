@@ -12,6 +12,8 @@ import { NotificationsSection } from "./sections/notifications"
 import { PaymentSection } from "./sections/payment"
 import { SecuritySection } from "./sections/security"
 import { WorkspaceSection } from "./sections/workspace"
+import { SupportTicketTypesSection } from "./sections/support-ticket-types"
+import { TerminologySection } from "./sections/terminology"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { SettingsLayout } from "../settings-layout"
 import { useSettings } from "@/contexts/settings-context"
@@ -104,8 +106,10 @@ function CompanySettingsContent() {
         <TabsContent value="basic">
           <BasicInfoSection onChange={handleSettingsChange} />
         </TabsContent>
-        <TabsContent value="workspace">
+        <TabsContent value="workspace" className="space-y-6">
           <WorkspaceSection onChange={handleSettingsChange} />
+          <TerminologySection onChange={handleSettingsChange} />
+          <SupportTicketTypesSection onChange={handleSettingsChange} />
         </TabsContent>
         <TabsContent value="customization">
           <CustomizationSection onChange={handleSettingsChange} />

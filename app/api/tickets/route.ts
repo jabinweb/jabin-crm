@@ -5,6 +5,15 @@ import { ticketNotifications } from '@/lib/email/ticket-notifications';
 import { prisma } from '@/lib/prisma';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { handleApiError } from '@/lib/api-error-handler';
+import { createPortalTicket } from '@/lib/support/create-portal-ticket';
+import {
+  findTicketTypeDefinition,
+  validateCustomFields,
+} from '@/lib/support/ticket-types';
+import {
+  resolveCompanyTicketConfig,
+  resolveGroupIdForTicketType,
+} from '@/lib/support/resolve-company-ticket-config';
 
 export async function GET(request: NextRequest) {
     try {
@@ -81,7 +90,46 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Customer ID, subject, and description are required' }, { status: 400 });
         }
 
-        const ticket = await ticketService.createTicket(data);
+        let ticket;
+
+        if (session.user.role === 'CUSTOMER') {
+            if (!data.ticketType) {
+                return NextResponse.json({ error: 'Ticket type is required' }, { status: 400 });
+            }
+            try {
+                ticket = await createPortalTicket(session.user.customerId!, {
+                    ticketType: String(data.ticketType),
+                    subject: String(data.subject),
+                    description: String(data.description),
+                    priority: data.priority,
+                    equipmentId: data.equipmentId,
+                    customFields: data.customFields,
+                });
+            } catch (err) {
+                const message = err instanceof Error ? err.message : 'Invalid ticket data';
+                return NextResponse.json({ error: message }, { status: 400 });
+            }
+        } else {
+            if (data.ticketType) {
+                const customer = await prisma.customer.findUnique({
+                    where: { id: data.customerId },
+                    select: { companyId: true },
+                });
+                const { ticketTypes } = await resolveCompanyTicketConfig(customer?.companyId);
+                const typeDef = findTicketTypeDefinition(ticketTypes, String(data.ticketType));
+                if (typeDef) {
+                    const fieldError = validateCustomFields(typeDef, data.customFields);
+                    if (fieldError) {
+                        return NextResponse.json({ error: fieldError }, { status: 400 });
+                    }
+                    data.groupId =
+                        data.groupId ??
+                        (await resolveGroupIdForTicketType(customer?.companyId, typeDef));
+                    data.priority = data.priority ?? typeDef.defaultPriority;
+                }
+            }
+            ticket = await ticketService.createTicket(data);
+        }
 
         // Async: Notify customer and technician (don't await to avoid slowing down response)
         if (ticket.customer.email) {

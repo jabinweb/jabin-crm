@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import type { PortalTicketTypeDefinition } from '@/lib/support/ticket-types';
 
 export default function NewTicketPage() {
     const router = useRouter();
@@ -41,11 +42,39 @@ export default function NewTicketPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         customerId: initialCustomerId,
+        ticketType: '',
         equipmentId: '',
         subject: '',
         description: '',
         priority: 'MEDIUM',
+        customFields: {} as Record<string, string>,
     });
+
+    const { data: ticketTypeData } = useQuery({
+        queryKey: ['support-ticket-types'],
+        queryFn: async () => {
+            const response = await fetch('/api/support/ticket-types');
+            if (!response.ok) throw new Error('Failed to load ticket types');
+            return response.json() as Promise<{ ticketTypes: PortalTicketTypeDefinition[] }>;
+        },
+    });
+
+    const ticketTypes = ticketTypeData?.ticketTypes ?? [];
+
+    const selectedType = useMemo(
+        () => ticketTypes.find((t) => t.id === formData.ticketType),
+        [ticketTypes, formData.ticketType]
+    );
+
+    useEffect(() => {
+        if (ticketTypes.length && !formData.ticketType) {
+            setFormData((prev) => ({
+                ...prev,
+                ticketType: ticketTypes[0].id,
+                priority: ticketTypes[0].defaultPriority,
+            }));
+        }
+    }, [ticketTypes, formData.ticketType]);
 
     // 1. Fetch Customers for and initialization
     const { data: customerData, isLoading: isLoadingCustomers } = useQuery({
@@ -71,7 +100,7 @@ export default function NewTicketPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.customerId || !formData.subject || !formData.description) {
+        if (!formData.customerId || !formData.ticketType || !formData.subject || !formData.description) {
             toast.error('Please fill in all required fields');
             return;
         }
@@ -81,12 +110,18 @@ export default function NewTicketPage() {
             const response = await fetch('/api/tickets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify({
+                    ...formData,
+                    equipmentId: selectedType?.showEquipment ? formData.equipmentId : undefined,
+                }),
             });
 
-            if (!response.ok) throw new Error('Failed to create ticket');
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(typeof body.error === 'string' ? body.error : 'Failed to create ticket');
+            }
 
-            const ticket = await response.json();
+            const ticket = body;
             toast.success('Ticket created successfully and assigned');
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
             router.push(`/dashboard/tickets/${ticket.id}`);
@@ -106,7 +141,7 @@ export default function NewTicketPage() {
                 </Button>
                 <div>
                     <h2 className="text-3xl font-bold tracking-tight">Create Support Ticket</h2>
-                    <p className="text-sm text-muted-foreground">Log a new technical issue or service request.</p>
+                    <p className="text-sm text-muted-foreground">Log a support request with the right category and routing.</p>
                 </div>
             </div>
 
@@ -160,6 +195,34 @@ export default function NewTicketPage() {
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
                                 <div className="space-y-2">
+                                    <Label>Request category</Label>
+                                    <Select
+                                        value={formData.ticketType}
+                                        onValueChange={(val) => {
+                                            const type = ticketTypes.find((t) => t.id === val);
+                                            setFormData({
+                                                ...formData,
+                                                ticketType: val,
+                                                priority: type?.defaultPriority ?? formData.priority,
+                                                equipmentId: '',
+                                                customFields: {},
+                                            });
+                                        }}
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select category" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {ticketTypes.map((type) => (
+                                                <SelectItem key={type.id} value={type.id}>
+                                                    {type.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
                                     <Label>Client / site</Label>
                                     <Select
                                         value={formData.customerId}
@@ -178,6 +241,7 @@ export default function NewTicketPage() {
                                     </Select>
                                 </div>
 
+                                {selectedType?.showEquipment ? (
                                 <div className="space-y-2">
                                     <Label>Equipment (Optional)</Label>
                                     <Select
@@ -207,6 +271,44 @@ export default function NewTicketPage() {
                                         </p>
                                     )}
                                 </div>
+                                ) : null}
+
+                                {selectedType?.fields.map((field) => (
+                                    <div key={field.id} className="space-y-2">
+                                        <Label>{field.label}{field.required ? ' *' : ''}</Label>
+                                        {field.type === 'textarea' ? (
+                                            <Textarea
+                                                value={formData.customFields[field.id] ?? ''}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        customFields: {
+                                                            ...formData.customFields,
+                                                            [field.id]: e.target.value,
+                                                        },
+                                                    })
+                                                }
+                                                placeholder={field.placeholder}
+                                                required={field.required}
+                                            />
+                                        ) : (
+                                            <Input
+                                                value={formData.customFields[field.id] ?? ''}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        customFields: {
+                                                            ...formData.customFields,
+                                                            [field.id]: e.target.value,
+                                                        },
+                                                    })
+                                                }
+                                                placeholder={field.placeholder}
+                                                required={field.required}
+                                            />
+                                        )}
+                                    </div>
+                                ))}
                             </CardContent>
                         </Card>
 

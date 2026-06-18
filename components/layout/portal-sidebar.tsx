@@ -135,7 +135,9 @@ export function PortalSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     <div className="h-8 w-8 rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs font-bold">{customerName.charAt(0)}</div>
                     <div className="flex-1 overflow-hidden">
                         <p className="text-xs font-semibold truncate">{customerName}</p>
-                        <p className="text-[10px] text-slate-500 truncate">Customer portal</p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {terminology?.customer ?? 'Customer'} portal
+                        </p>
                     </div>
                 </div>
             </div>

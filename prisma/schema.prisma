@@ -33,74 +33,73 @@ model Session {
 }
 
 model User {
-  id                String                  @id @default(cuid())
-  name              String?
-  email             String                  @unique
-  emailVerified     DateTime?
-  image             String?
-  role              UserRole                @default(SALES)
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  customerId        String?
-  accounts          Account[]
-  auditLogs         AuditLog[]
-  calendarEvents    CalendarEvent[]
-  assignedDeals     Deal[]                  @relation("DealAssignee")
-  deals             Deal[]                  @relation("DealCreator")
-  emailCampaigns    EmailCampaign[]
-  emailDrafts       EmailDraft[]
-  emailLogs         EmailLog[]
-  sequences         EmailSequence[]
-  emailTemplates    EmailTemplate[]
-  files             File[]
-  invoices          Invoice[]
-  assignedLeads     Lead[]                  @relation("LeadAssignee")
-  leads             Lead[]                  @relation("LeadCreator")
-  leadActivities    LeadActivity[]
-  quotations        Quotation[]
-  serviceReports    ServiceReport[]         @relation("ServiceReports")
-  sessions          Session[]
-  subscription      Subscription?
-  assignedTickets   SupportTicket[]         @relation("AssignedTickets")
-  assignedTasks     Task[]                  @relation("TaskAssignee")
-  tasks             Task[]                  @relation("TaskCreator")
-  ticketActivities  TicketActivity[]        @relation("TicketActivities")
-  transfersFrom     TicketTransferHistory[] @relation("TransfersFrom")
-  transfersTo       TicketTransferHistory[] @relation("TransfersTo")
-  usage             UsageTracking?
-  customer          Customer?               @relation("CustomerStaff", fields: [customerId], references: [id])
-  profile           UserProfile?
-  userRoles         UserRoleAssignment[]
-  workflows         Workflow[]
-  notifications     Notification[]
-  cashEntries       CashOnHandEntry[]       @relation("CashEntryCreator")
-  cashAssignments   CashOnHandEntry[]       @relation("CashTechnician")
-  travelExpenses    TravelExpense[]         @relation("TechnicianExpenses")
-  approvedExpenses  TravelExpense[]         @relation("ExpenseApprover")
-  submittedExpenses TravelExpense[]         @relation("ExpenseCreator")
+  id                  String                  @id @default(cuid())
+  name                String?
+  email               String                  @unique
+  emailVerified       DateTime?
+  image               String?
+  role                UserRole                @default(SALES)
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  customerId          String?
+  accounts            Account[]
+  auditLogs           AuditLog[]
+  calendarEvents      CalendarEvent[]
+  assignedDeals       Deal[]                  @relation("DealAssignee")
+  deals               Deal[]                  @relation("DealCreator")
+  emailCampaigns      EmailCampaign[]
+  emailDrafts         EmailDraft[]
+  emailLogs           EmailLog[]
+  sequences           EmailSequence[]
+  emailTemplates      EmailTemplate[]
+  files               File[]
+  invoices            Invoice[]
+  assignedLeads       Lead[]                  @relation("LeadAssignee")
+  leads               Lead[]                  @relation("LeadCreator")
+  leadActivities      LeadActivity[]
+  quotations          Quotation[]
+  serviceReports      ServiceReport[]         @relation("ServiceReports")
+  sessions            Session[]
+  subscription        Subscription?
+  assignedTickets     SupportTicket[]         @relation("AssignedTickets")
+  assignedTasks       Task[]                  @relation("TaskAssignee")
+  tasks               Task[]                  @relation("TaskCreator")
+  ticketActivities    TicketActivity[]        @relation("TicketActivities")
+  transfersFrom       TicketTransferHistory[] @relation("TransfersFrom")
+  transfersTo         TicketTransferHistory[] @relation("TransfersTo")
+  usage               UsageTracking?
+  customer            Customer?               @relation("CustomerStaff", fields: [customerId], references: [id])
+  profile             UserProfile?
+  userRoles           UserRoleAssignment[]
+  workflows           Workflow[]
+  notifications       Notification[]
+  cashEntries         CashOnHandEntry[]       @relation("CashEntryCreator")
+  cashAssignments     CashOnHandEntry[]       @relation("CashTechnician")
+  travelExpenses      TravelExpense[]         @relation("TechnicianExpenses")
+  approvedExpenses    TravelExpense[]         @relation("ExpenseApprover")
+  submittedExpenses   TravelExpense[]         @relation("ExpenseCreator")
   supportGroupMembers SupportGroupMember[]
-  locationLogs      TechnicianLocationLog[] @relation("TechnicianLocations")
-  whatsappConfig    WhatsAppProviderConfig?
-  whatsappMessages  WhatsAppMessage[]
-  featureModules    FeatureModuleSetting[]
+  locationLogs        TechnicianLocationLog[] @relation("TechnicianLocations")
+  whatsappConfig      WhatsAppProviderConfig?
+  whatsappMessages    WhatsAppMessage[]
+  featureModules      FeatureModuleSetting[]
 
   // ── Company Management Integration ──
-  password          String?
-  userStatus        UserStatus          @default(ACTIVE)
-  companyId         String?
-  primaryCompanyId  String?
-  managedCompanyId  String?
-  lastSeenAt        DateTime?
-  company           Company?            @relation("UserCompany", fields: [companyId], references: [id])
-  primaryCompany    Company?            @relation("UserPrimaryCompany", fields: [primaryCompanyId], references: [id])
-  managedCompany    Company?            @relation("CompanyManager", fields: [managedCompanyId], references: [id])
-  employeeProfile   Employee?           @relation("UserEmployee")
-  managedEmployees  Employee[]          @relation("EmployeeToManager")
-  userCompanies     UserCompany[]
-  companyRoles      UserCompanyRole[]
-  userSessions      UserSession[]
-  userSettings      UserSettings?
-  employeeSalaries  EmployeeSalary[]
+  password         String?
+  userStatus       UserStatus        @default(ACTIVE)
+  companyId        String?
+  primaryCompanyId String?
+  managedCompanyId String?
+  lastSeenAt       DateTime?
+  company          Company?          @relation("UserCompany", fields: [companyId], references: [id])
+  primaryCompany   Company?          @relation("UserPrimaryCompany", fields: [primaryCompanyId], references: [id])
+  managedCompany   Company?          @relation("CompanyManager", fields: [managedCompanyId], references: [id])
+  employeeProfile  Employee?         @relation("UserEmployee")
+  userCompanies    UserCompany[]
+  companyRoles     UserCompanyRole[]
+  userSessions     UserSession[]
+  userSettings     UserSettings?
+  employeeSalaries EmployeeSalary[]
 
   @@index([companyId])
   @@index([primaryCompanyId])
@@ -170,50 +169,50 @@ model VerificationToken {
 }
 
 model Lead {
-  id                  String               @id @default(cuid())
-  companyName         String
-  website             String?
-  email               String?
-  phone               String?
-  address             String?
-  city                String?
-  state               String?
-  country             String?
-  zipCode             String?
-  latitude            Float?
-  longitude           Float?
-  industry            String?
-  employeeCount       Int?
-  revenue             String?
-  contactName         String?
-  name                String?
-  jobTitle            String?
-  linkedinUrl         String?
-  twitterUrl          String?
-  facebookUrl         String?
-  instagramUrl        String?
-  rating              Float?
-  reviewCount         Int?
-  description         String?
-  source              String
-  sourceUrl           String?
-  priority            Priority             @default(MEDIUM)
-  sourceType          CompanyLeadSource    @default(WEBSITE)
-  userId              String
-  assignedToId        String?
-  employeeId          String?
-  companyId           String?
-  status              LeadStatus           @default(NEW)
-  isVerified          Boolean              @default(false)
-  isEnriched          Boolean              @default(false)
-  tags                String[]             @default([])
-  notes               String?
-  lastContactedAt     DateTime?
-  convertedAt         DateTime?
-  convertedClientId   String?              @unique
-  createdAt           DateTime             @default(now())
-  updatedAt           DateTime             @updatedAt
-  
+  id                String            @id @default(cuid())
+  companyName       String
+  website           String?
+  email             String?
+  phone             String?
+  address           String?
+  city              String?
+  state             String?
+  country           String?
+  zipCode           String?
+  latitude          Float?
+  longitude         Float?
+  industry          String?
+  employeeCount     Int?
+  revenue           String?
+  contactName       String?
+  name              String?
+  jobTitle          String?
+  linkedinUrl       String?
+  twitterUrl        String?
+  facebookUrl       String?
+  instagramUrl      String?
+  rating            Float?
+  reviewCount       Int?
+  description       String?
+  source            String
+  sourceUrl         String?
+  priority          Priority          @default(MEDIUM)
+  sourceType        CompanyLeadSource @default(WEBSITE)
+  userId            String
+  assignedToId      String?
+  employeeId        String?
+  companyId         String?
+  status            LeadStatus        @default(NEW)
+  isVerified        Boolean           @default(false)
+  isEnriched        Boolean           @default(false)
+  tags              String[]          @default([])
+  notes             String?
+  lastContactedAt   DateTime?
+  convertedAt       DateTime?
+  convertedClientId String?           @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
   calendarEvents      CalendarEvent[]
   contacts            Contact[]
   deals               Deal[]
@@ -336,7 +335,7 @@ model LeadActivity {
   dueDate      DateTime?
   completed    Boolean      @default(false)
   createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt @default(now())
+  updatedAt    DateTime     @default(now()) @updatedAt
   lead         Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id])
   employee     Employee?    @relation("EmployeeLeadActivities", fields: [employeeId], references: [id])
@@ -971,25 +970,25 @@ model Product {
   installations EquipmentInstallation[]
 
   // ── Inventory & Stock Management (from Company Manager) ──
-  sku           String?                 @unique
-  price         Float?
-  quantity      Int                     @default(0)
-  companyId     String?
-  imageUrl      String?
-  barcode       String?                 @unique
-  maxQuantity   Int?
-  minQuantity   Int                     @default(0)
-  qrCode        String?
-  reorderPoint  Int                     @default(0)
-  supplierId    String?
-  company       Company?                @relation(fields: [companyId], references: [id])
-  supplier      Supplier?               @relation(fields: [supplierId], references: [id])
-  batchItems    BatchItem[]
+  sku              String?           @unique
+  price            Float?
+  quantity         Int               @default(0)
+  companyId        String?
+  imageUrl         String?
+  barcode          String?           @unique
+  maxQuantity      Int?
+  minQuantity      Int               @default(0)
+  qrCode           String?
+  reorderPoint     Int               @default(0)
+  supplierId       String?
+  company          Company?          @relation(fields: [companyId], references: [id])
+  supplier         Supplier?         @relation(fields: [supplierId], references: [id])
+  batchItems       BatchItem[]
   inventoryRecords InventoryRecord[]
-  purchaseOrders   PurchaseOrder[]      @relation("POProducts")
-  salesOrders      SalesOrder[]         @relation("SOProducts")
+  purchaseOrders   PurchaseOrder[]   @relation("POProducts")
+  salesOrders      SalesOrder[]      @relation("SOProducts")
   stockTransfers   StockTransfer[]
-  locations        Location[]           @relation("ProductLocations")
+  locations        Location[]        @relation("ProductLocations")
 
   @@index([name])
   @@index([category])
@@ -1032,6 +1031,9 @@ model SupportTicket {
   channel              TicketChannel           @default(PORTAL)
   ticketType           String?
   tags                 String[]                @default([])
+  metadata             Json                    @default("{}")
+  responseDueAt        DateTime?
+  resolutionDueAt      DateTime?
   assignedTechnicianId String?
   csatRating           Int?
   csatComment          String?
@@ -1146,19 +1148,19 @@ model SupportCannedResponse {
 }
 
 model KnowledgeArticle {
-  id            String   @id @default(cuid())
-  title         String
-  slug          String   @unique
-  content       String   @db.Text
-  category      String?
-  tags          String[] @default([])
-  published     Boolean  @default(false)
-  viewCount     Int      @default(0)
-  helpfulCount  Int      @default(0)
-  companyId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  content      String   @db.Text
+  category     String?
+  tags         String[] @default([])
+  published    Boolean  @default(false)
+  viewCount    Int      @default(0)
+  helpfulCount Int      @default(0)
+  companyId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  company      Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([category])
@@ -1781,49 +1783,49 @@ model Notification {
 // ── Core: Company ──────────────────────────────────────────────────────────
 
 model Company {
-  id          String        @id @default(cuid())
-  name        String        @unique
-  slug        String        @unique
-  website     String?       @unique
-  logo        String?
-  email       String?
-  phone       String?
-  status      CompanyStatus @default(PENDING)
-  settings    Json?         @default("{}")
-  adminId     String?       @unique
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id        String        @id @default(cuid())
+  name      String        @unique
+  slug      String        @unique
+  website   String?       @unique
+  logo      String?
+  email     String?
+  phone     String?
+  status    CompanyStatus @default(PENDING)
+  settings  Json?         @default("{}")
+  adminId   String?       @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   // Relations
-  admin         Employee?       @relation("CompanyAdmin", fields: [adminId], references: [id])
-  employees     Employee[]      @relation("CompanyEmployees")
-  users         User[]          @relation("UserCompany")
-  primaryUsers  User[]          @relation("UserPrimaryCompany")
-  managers      User[]          @relation("CompanyManager")
-  userCompanies UserCompany[]
+  admin            Employee?         @relation("CompanyAdmin", fields: [adminId], references: [id])
+  employees        Employee[]        @relation("CompanyEmployees")
+  users            User[]            @relation("UserCompany")
+  primaryUsers     User[]            @relation("UserPrimaryCompany")
+  managers         User[]            @relation("CompanyManager")
+  userCompanies    UserCompany[]
   userCompanyRoles UserCompanyRole[]
 
-  announcements  Announcement[]
-  assets         Asset[]
-  budgets        Budget[]
-  clients        Client[]
-  expenses       Expense[]
-  locations      Location[]
-  projects       Project[]
-  suppliers      Supplier[]
-  products       Product[]
-  purchaseOrders PurchaseOrder[]
-  salesOrders    SalesOrder[]
-  stockTransfers StockTransfer[]
-  leads          Lead[]        @relation("CompanyLeads")
-  companyTasks   CompanyTask[]
-  inventoryRecords InventoryRecord[]
-  supportCustomers Customer[]
-  supportGroups    SupportGroup[]
+  announcements     Announcement[]
+  assets            Asset[]
+  budgets           Budget[]
+  clients           Client[]
+  expenses          Expense[]
+  locations         Location[]
+  projects          Project[]
+  suppliers         Supplier[]
+  products          Product[]
+  purchaseOrders    PurchaseOrder[]
+  salesOrders       SalesOrder[]
+  stockTransfers    StockTransfer[]
+  leads             Lead[]                  @relation("CompanyLeads")
+  companyTasks      CompanyTask[]
+  inventoryRecords  InventoryRecord[]
+  supportCustomers  Customer[]
+  supportGroups     SupportGroup[]
   knowledgeArticles KnowledgeArticle[]
-  cannedResponses  SupportCannedResponse[]
-  slaPolicies      SlaPolicy[]
-  liveChatSessions LiveChatSession[]
+  cannedResponses   SupportCannedResponse[]
+  slaPolicies       SlaPolicy[]
+  liveChatSessions  LiveChatSession[]
 
   @@index([slug])
   @@index([status])
@@ -1834,7 +1836,7 @@ model Company {
 model Employee {
   id             String         @id @default(cuid())
   userId         String?        @unique
-  employeeId     String         @unique  // Human-readable ID e.g. "EMP-001"
+  employeeId     String         @unique // Human-readable ID e.g. "EMP-001"
   name           String
   email          String         @unique
   phone          String
@@ -1853,24 +1855,23 @@ model Employee {
   updatedAt      DateTime       @updatedAt
 
   // Relations
-  user             User?              @relation("UserEmployee", fields: [userId], references: [id])
-  userManager      User?              @relation("EmployeeToManager", fields: [userId], references: [id], map: "Employee_manager_fkey")
-  company          Company            @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Cascade)
-  adminOf          Company?           @relation("CompanyAdmin")
-  manager          Employee?          @relation("EmployeeHierarchy", fields: [managerId], references: [id])
-  subordinates     Employee[]         @relation("EmployeeHierarchy")
+  user             User?                @relation("UserEmployee", fields: [userId], references: [id])
+  company          Company              @relation("CompanyEmployees", fields: [companyId], references: [id], onDelete: Cascade)
+  adminOf          Company?             @relation("CompanyAdmin")
+  manager          Employee?            @relation("EmployeeHierarchy", fields: [managerId], references: [id])
+  subordinates     Employee[]           @relation("EmployeeHierarchy")
   attendance       Attendance[]
   leaveRequests    LeaveRequest[]
-  leaveActions     LeaveRequest[]     @relation("LeaveRequestActions")
+  leaveActions     LeaveRequest[]       @relation("LeaveRequestActions")
   payslips         Payslip[]
   salary           EmployeeSalary[]
-  sentMessages     EmployeeMessage[]  @relation("SentMessages")
-  receivedMessages EmployeeMessage[]  @relation("ReceivedMessages")
-  assignedTasks    CompanyTask[]      @relation("TaskAssignee")
-  createdTasks     CompanyTask[]      @relation("TaskCreator")
+  sentMessages     EmployeeMessage[]    @relation("SentMessages")
+  receivedMessages EmployeeMessage[]    @relation("ReceivedMessages")
+  assignedTasks    CompanyTask[]        @relation("TaskAssignee")
+  createdTasks     CompanyTask[]        @relation("TaskCreator")
   taskComments     CompanyTaskComment[]
-  assignedLeads    Lead[]             @relation("EmployeeAssignedLeads")
-  leadActivities   LeadActivity[]     @relation("EmployeeLeadActivities")
+  assignedLeads    Lead[]               @relation("EmployeeAssignedLeads")
+  leadActivities   LeadActivity[]       @relation("EmployeeLeadActivities")
   leadDocuments    LeadDocument[]
   companyRoles     UserCompanyRole[]
 
@@ -1959,18 +1960,18 @@ model EmployeeSalary {
 // ── Communication: Employee Messaging ─────────────────────────────────────
 
 model EmployeeMessage {
-  id         String               @id @default(cuid())
-  content    String               @db.Text
+  id         String                @id @default(cuid())
+  content    String                @db.Text
   senderId   String
   receiverId String
   status     EmployeeMessageStatus @default(SENT)
   type       EmployeeMessageType   @default(TEXT)
   readAt     DateTime?
-  createdAt  DateTime             @default(now())
-  updatedAt  DateTime             @updatedAt
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
 
-  sender     Employee @relation("SentMessages", fields: [senderId], references: [id])
-  receiver   Employee @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  sender   Employee @relation("SentMessages", fields: [senderId], references: [id])
+  receiver Employee @relation("ReceivedMessages", fields: [receiverId], references: [id])
 
   @@index([senderId])
   @@index([receiverId])
@@ -2053,17 +2054,17 @@ model Project {
 // ── B2B: Client Management ────────────────────────────────────────────────
 
 model Client {
-  id        String        @id @default(cuid())
-  name      String
-  contact   String
-  email     String        @unique
-  phone     String
-  address   Json
-  companyId String
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  company   Company       @relation(fields: [companyId], references: [id])
-  convertedLeads Lead[] @relation("ClientConvertedLead")
+  id             String   @id @default(cuid())
+  name           String
+  contact        String
+  email          String   @unique
+  phone          String
+  address        Json
+  companyId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  company        Company  @relation(fields: [companyId], references: [id])
+  convertedLeads Lead[]   @relation("ClientConvertedLead")
 
   @@index([companyId])
   @@index([email])
@@ -2089,14 +2090,14 @@ model LeadDocument {
 // ── Internal Task Management (Employee-Based with Sub-Tasks) ─────────────
 
 model CompanyTask {
-  id           String              @id @default(cuid())
-  title        String
-  description  String?
-  dueDate      DateTime?
-  status       CompanyTaskStatus   @default(TODO)
-  priority     CompanyTaskPriority @default(LOW)
-  category     CompanyTaskCategory @default(GENERAL)
-  progress     Int                 @default(0)
+  id          String              @id @default(cuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      CompanyTaskStatus   @default(TODO)
+  priority    CompanyTaskPriority @default(LOW)
+  category    CompanyTaskCategory @default(GENERAL)
+  progress    Int                 @default(0)
 
   parentTaskId String?
   parentTask   CompanyTask?  @relation("SubTasks", fields: [parentTaskId], references: [id])
@@ -2106,18 +2107,18 @@ model CompanyTask {
   assignedToId String
   companyId    String
 
-  startedAt    DateTime?
-  completedAt  DateTime?
-  attachments  Json?
-  tags         String[]
-  metadata     Json?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+  attachments Json?
+  tags        String[]
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  comments  CompanyTaskComment[]
-  creator   Employee @relation("TaskCreator", fields: [createdById], references: [id])
-  assignee  Employee @relation("TaskAssignee", fields: [assignedToId], references: [id])
-  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  comments CompanyTaskComment[]
+  creator  Employee             @relation("TaskCreator", fields: [createdById], references: [id])
+  assignee Employee             @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  company  Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([assignedToId])
   @@index([createdById])
@@ -2146,20 +2147,20 @@ model CompanyTaskComment {
 // ── Inventory & Procurement ───────────────────────────────────────────────
 
 model Location {
-  id            String          @id @default(cuid())
-  name          String
-  type          String
-  address       String
-  code          String          @unique
-  companyId     String
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  company       Company         @relation(fields: [companyId], references: [id])
-  batchItems    BatchItem[]
+  id               String            @id @default(cuid())
+  name             String
+  type             String
+  address          String
+  code             String            @unique
+  companyId        String
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  company          Company           @relation(fields: [companyId], references: [id])
+  batchItems       BatchItem[]
   inventoryRecords InventoryRecord[]
-  products      Product[]       @relation("ProductLocations")
-  transfersFrom StockTransfer[] @relation("TransferSource")
-  transfersTo   StockTransfer[] @relation("TransferTarget")
+  products         Product[]         @relation("ProductLocations")
+  transfersFrom    StockTransfer[]   @relation("TransferSource")
+  transfersTo      StockTransfer[]   @relation("TransferTarget")
 
   @@index([companyId])
 }

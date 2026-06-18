@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
-import { handleApiError } from '@/lib/api-error-handler';
+import {
+  resolveCompanyContextFromRequest,
+  TenantError,
+} from '@/lib/auth/company-membership';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -12,7 +15,16 @@ export async function GET() {
     }
     await ensureFeatureEnabled(session.user.id, 'SUPPORT_GROUPS');
 
+    let companyId: string | undefined;
+    try {
+      const ctx = await resolveCompanyContextFromRequest(session, req);
+      companyId = ctx.companyId;
+    } catch (e) {
+      if (!(e instanceof TenantError) || e.status !== 400) throw e;
+    }
+
     const groups = await prisma.supportGroup.findMany({
+      where: companyId ? { companyId } : undefined,
       include: {
         members: {
           include: {
@@ -40,6 +52,7 @@ export async function POST(req: NextRequest) {
     }
     await ensureFeatureEnabled(session.user.id, 'SUPPORT_GROUPS');
 
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
     const body = await req.json();
     if (!body.name?.trim()) {
       return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
@@ -50,7 +63,7 @@ export async function POST(req: NextRequest) {
         name: body.name.trim(),
         description: body.description,
         email: body.email,
-        companyId: body.companyId ?? null,
+        companyId: body.companyId ?? companyId,
         isDefault: body.isDefault ?? false,
         members: body.memberIds?.length
           ? {
@@ -63,6 +76,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(group, { status: 201 });
   } catch (error) {
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('[api/support/groups POST]', error);
     return NextResponse.json({ error: 'Failed to create group' }, { status: 500 });
   }

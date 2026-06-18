@@ -74,6 +74,34 @@ export default function CustomerDetailPage() {
         phone: '',
     });
 
+    const [isInviting, setIsInviting] = useState(false);
+    const [inviteResult, setInviteResult] = useState<{
+        temporaryPassword?: string;
+        signInUrl?: string;
+    } | null>(null);
+
+    const handleInviteToPortal = async () => {
+        setIsInviting(true);
+        try {
+            const response = await fetch(`/api/customers/${id}/invite`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: customer.email }),
+            });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error || 'Invite failed');
+            setInviteResult({
+                temporaryPassword: body.temporaryPassword,
+                signInUrl: body.signInUrl,
+            });
+            toast.success(body.alreadyInvited ? 'Portal user already exists' : 'Portal invite created');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to invite customer');
+        } finally {
+            setIsInviting(false);
+        }
+    };
+
     const handleAddContact = async () => {
         if (!newContact.name) {
             toast.error('Contact name is required');
@@ -158,6 +186,10 @@ export default function CustomerDetailPage() {
                     </p>
                 </div>
                 <div className="flex items-center space-x-2">
+                    <Button variant="outline" onClick={handleInviteToPortal} disabled={isInviting}>
+                        <User className="mr-2 h-4 w-4" />
+                        {isInviting ? 'Inviting…' : 'Invite to portal'}
+                    </Button>
                     <Button variant="outline" onClick={handleExportHistory}>
                         <Download className="mr-2 h-4 w-4" />
                         Export History
@@ -170,6 +202,29 @@ export default function CustomerDetailPage() {
                     </Button>
                 </div>
             </div>
+
+            {inviteResult?.temporaryPassword ? (
+                <Card className="border-emerald-200 bg-emerald-50/50">
+                    <CardHeader>
+                        <CardTitle className="text-base">Portal credentials</CardTitle>
+                        <CardDescription>
+                            Share these with {customer.contactPerson}. They should change their password after first sign-in.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                        <p>
+                            <span className="font-medium">Sign-in URL:</span>{' '}
+                            <a href={inviteResult.signInUrl} className="text-primary underline">
+                                {inviteResult.signInUrl}
+                            </a>
+                        </p>
+                        <p>
+                            <span className="font-medium">Temporary password:</span>{' '}
+                            <code className="rounded bg-white px-2 py-0.5">{inviteResult.temporaryPassword}</code>
+                        </p>
+                    </CardContent>
+                </Card>
+            ) : null}
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Sidebar Info */}

@@ -1,29 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Session } from 'next-auth';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ensureFeatureEnabled, isFeatureEnabledForCompany } from '@/lib/feature-modules';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 
+async function resolveKnowledgeCompanyId(session: Session | null) {
+  if (!session?.user) return null;
+  if (session.user.role === 'CUSTOMER' && session.user.customerId) {
+    const customer = await prisma.customer.findUnique({
+      where: { id: session.user.customerId },
+      select: { companyId: true },
+    });
+    return customer?.companyId ?? null;
+  }
+  if (session.user.companyId) return session.user.companyId;
+  if (session.user.primaryCompanyId) return session.user.primaryCompanyId;
+  return null;
+}
+
 /** Public knowledge base articles for customer portal */
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
+    const companyId = await resolveKnowledgeCompanyId(session);
+
     if (session?.user?.role && session.user.role !== 'CUSTOMER') {
       await ensureFeatureEnabled(session.user.id, 'SUPPORT_KNOWLEDGE');
-    } else if (session?.user?.customerId) {
-      const customer = await prisma.customer.findUnique({
-        where: { id: session.user.customerId },
-        select: { companyId: true },
-      });
-      if (customer?.companyId) {
-        const enabled = await isFeatureEnabledForCompany(
-          customer.companyId,
-          'SUPPORT_KNOWLEDGE'
-        );
-        if (!enabled) {
-          return NextResponse.json({ articles: [], categories: [] });
-        }
+    } else if (session?.user?.customerId && companyId) {
+      const enabled = await isFeatureEnabledForCompany(companyId, 'SUPPORT_KNOWLEDGE');
+      if (!enabled) {
+        return NextResponse.json({ articles: [], categories: [] });
       }
     }
 
@@ -31,10 +39,15 @@ export async function GET(req: NextRequest) {
     const q = searchParams.get('q')?.trim();
     const category = searchParams.get('category')?.trim();
     const slug = searchParams.get('slug')?.trim();
+    const ticketType = searchParams.get('ticketType')?.trim();
+
+    const companyFilter = companyId
+      ? { OR: [{ companyId }, { companyId: null }] }
+      : { companyId: null };
 
     if (slug) {
       const article = await prisma.knowledgeArticle.findFirst({
-        where: { slug, published: true },
+        where: { slug, published: true, ...companyFilter },
         select: {
           id: true,
           title: true,
@@ -57,9 +70,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(article);
     }
 
+    const tagFilter = ticketType
+      ? { tags: { hasSome: [ticketType, `type:${ticketType}`] } }
+      : {};
+
     const articles = await prisma.knowledgeArticle.findMany({
       where: {
         published: true,
+        ...companyFilter,
+        ...tagFilter,
         ...(category ? { category } : {}),
         ...(q
           ? {
@@ -84,7 +103,7 @@ export async function GET(req: NextRequest) {
 
     const categories = await prisma.knowledgeArticle.groupBy({
       by: ['category'],
-      where: { published: true, category: { not: null } },
+      where: { published: true, category: { not: null }, ...companyFilter },
       _count: true,
     });
 
