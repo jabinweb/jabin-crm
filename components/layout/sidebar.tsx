@@ -41,10 +41,11 @@ import {
   MessageSquare,
   Inbox,
   Clock,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
@@ -71,8 +72,8 @@ const mainNav: NavigationItem[] = [
 const crmNav: NavigationItem[] = [
   { name: 'Customer Dash', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customerAnalytics' },
   { name: 'Customers', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
-  { name: 'Inventory', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-  { name: 'Assets', href: '/dashboard/equipment/new', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
+  { name: 'Product catalog', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+  { name: 'Assets & stock', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
 ];
 
 const salesNav: NavigationItem[] = [
@@ -91,6 +92,8 @@ const salesNav: NavigationItem[] = [
 const supportNav: NavigationItem[] = [
   { name: 'Support desk', href: '/dashboard/support', icon: LifeBuoy, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS' },
   { name: 'Omnichannel inbox', href: '/dashboard/support/inbox', icon: Inbox, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SUPPORT_INBOX' },
+  { name: 'Support analytics', href: '/dashboard/support/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'], module: 'TICKETS' },
+  { name: 'Automation rules', href: '/dashboard/support/automation', icon: Zap, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'], module: 'TICKETS' },
   { name: 'SLA policies', href: '/dashboard/support/sla-policies', icon: Clock, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'], module: 'SUPPORT_SLA' },
   { name: 'Ticket queue', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS' },
   { name: 'Knowledge base', href: '/dashboard/support/knowledge', icon: BookOpen, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'], module: 'SUPPORT_KNOWLEDGE' },
@@ -149,7 +152,10 @@ interface SidebarProps {
 export function Sidebar({ onNavigate }: SidebarProps) {
   const { data: session } = useSession();
   const userRole = (session?.user as any)?.role || 'SALES';
-  const companySlug = (session?.user as { companySlug?: string } | undefined)?.companySlug?.trim();
+  const params = useParams<{ company?: string }>();
+  const companySlug =
+    (typeof params?.company === 'string' ? params.company : undefined) ??
+    (session?.user as { companySlug?: string } | undefined)?.companySlug?.trim();
 
   const pathname = usePathname();
   const searchParams = useSearchParams();

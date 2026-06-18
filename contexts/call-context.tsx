@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
-import { createCallData, type CallData } from '@/types/company-manager/call'
+import { createCallData, type CallData } from '@/types/call'
 import { audioService } from '@/lib/audio-service'
 import { webRTCService } from '@/lib/webrtc-service'
 import { callHandler } from '@/lib/call-handler'

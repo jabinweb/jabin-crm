@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { DataTable } from '@/components/table/data-table'
-import { columns } from '../columns'
+import { columns } from '@/components/employee/employee-leads-columns'
 import { Card } from '@/components/ui/card'
 
 export default function FollowUpLeadsPage() {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { AuditLogger } from '@/lib/audit';
+import { handleApiError } from '@/lib/api-error-handler';
 
 export interface AuthenticatedUser {
     id: string;
@@ -326,8 +327,6 @@ export function withAuthorization(
             // Execute the handler
             return await handler(req, { user, checker }, routeContext);
         } catch (error) {
-            console.error('Authorization error:', error);
-
             await auditLogger.log({
                 action: 'auth:error',
                 resource: 'API',
@@ -336,10 +335,7 @@ export function withAuthorization(
                 metadata: { path: req.nextUrl.pathname }
             });
 
-            return NextResponse.json(
-                { error: 'Internal server error' },
-                { status: 500 }
-            );
+            return handleApiError(error, { context: 'authorization' });
         }
     };
 }

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -23,8 +24,18 @@ export default async function AdminLayout({
   const isSuperAdmin = role === 'SUPER_ADMIN' || role === 'admin';
 
   if (!session?.user || !isSuperAdmin) {
-    redirect('/dashboard');
+    redirect(
+      resolvePostLoginPath({
+        role: session?.user?.role,
+        companySlug: (session?.user as { companySlug?: string })?.companySlug,
+      })
+    );
   }
+
+  const exitHref = resolvePostLoginPath({
+    role: session.user.role,
+    companySlug: (session.user as { companySlug?: string }).companySlug,
+  });
 
   const navItems = [
     { href: '/admin', label: 'Overview', icon: LayoutDashboard },
@@ -76,7 +87,7 @@ export default async function AdminLayout({
         {/* Footer */}
         <div className="px-4 py-4 border-t border-foreground/5">
           <Link
-            href="/dashboard"
+            href={exitHref}
             className="flex items-center px-3 py-2 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-all"
           >
             <ChevronLeft className="w-3.5 h-3.5 mr-2" />

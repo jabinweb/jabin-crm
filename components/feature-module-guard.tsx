@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { Loader2, Lock } from 'lucide-react';
+import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Button } from '@/components/ui/button';
 import type { FeatureModuleKey } from '@/lib/feature-module-keys';
 
@@ -65,7 +65,7 @@ export function FeatureModuleGuard({
           This feature is not included in your current subscription plan. Upgrade to unlock it for your team.
         </p>
         <Button asChild>
-          <Link href="/dashboard/settings/subscription">View plans</Link>
+          <DashboardLink href="/dashboard/settings/subscription">View plans</DashboardLink>
         </Button>
       </div>
     );

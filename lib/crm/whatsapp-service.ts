@@ -272,7 +272,7 @@ export class WhatsAppService {
     }
 
     if (!userId) return null;
-    return prisma.whatsAppMessage.create({
+    const created = await prisma.whatsAppMessage.create({
       data: {
         userId,
         channel: 'SERVICE',
@@ -284,6 +284,18 @@ export class WhatsAppService {
         externalMessageId: messageSid || null,
       },
     });
+
+    if (body.trim()) {
+      const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
+      ensureWhatsAppTicket({
+        userId,
+        fromPhone: from,
+        message: body,
+        messageLogId: created.id,
+      }).catch((err) => console.error('[whatsapp-ticket]', err));
+    }
+
+    return created;
   }
 
   async handleMetaWebhook(payload: any, userId?: string) {
@@ -320,18 +332,29 @@ export class WhatsAppService {
     if (!userId) return null;
     for (const msg of messages) {
       if (msg?.type !== 'text') continue;
-      await prisma.whatsAppMessage.create({
+      const created = await prisma.whatsAppMessage.create({
         data: {
           userId,
           channel: 'SERVICE',
           direction: 'INBOUND',
           toPhone: msg.from || '',
+          fromPhone: msg.from || '',
           message: msg?.text?.body || '',
           status: 'SENT',
           externalMessageId: msg.id || null,
           metadata: msg,
         },
       });
+      const body = msg?.text?.body || '';
+      if (body.trim()) {
+        const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
+        ensureWhatsAppTicket({
+          userId,
+          fromPhone: msg.from || '',
+          message: body,
+          messageLogId: created.id,
+        }).catch((err) => console.error('[whatsapp-ticket]', err));
+      }
     }
 
     return { ok: true };

@@ -31,7 +31,7 @@ import Link from "next/link";
 import { EditEmployeeDialog } from './edit-employee-dialog'
 import { toast } from "@/hooks/use-toast"
 import { SalaryForm } from '@/components/employee/payroll/salary-form'
-import { EmployeeData, EmploymentType, EmployeeStatus } from '@/types/company-manager/employee'
+import { EmployeeData, EmploymentType, EmployeeStatus } from '@/types/employee'
 
 interface Metadata {
   employmentTypes: string[];

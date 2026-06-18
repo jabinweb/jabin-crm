@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";

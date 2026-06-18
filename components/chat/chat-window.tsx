@@ -7,7 +7,7 @@ import { ChatMessage } from './chat-message'
 import ChatBottombar from './chat-bottombar'
 import { CallDialog } from './call-dialog'
 import { useEffect } from 'react'
-import type { EmployeeMessage } from '@/types/company-manager/messages'
+import type { EmployeeMessage } from '@/types/messages'
 
 export function ChatWindow() {
   const { 

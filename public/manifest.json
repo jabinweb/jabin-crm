@@ -2,7 +2,7 @@
   "name": "LeadGen CRM",
   "short_name": "LeadGen",
   "description": "Professional CRM and Lead Generation Platform",
-  "start_url": "/dashboard",
+  "start_url": "/workspace",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#000000",
@@ -18,24 +18,14 @@
   "categories": ["business", "productivity"],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "url": "/dashboard",
-      "description": "View dashboard"
+      "name": "Workspace",
+      "url": "/workspace",
+      "description": "Open your workspace"
     },
     {
-      "name": "Leads",
-      "url": "/dashboard/leads",
-      "description": "Manage leads"
-    },
-    {
-      "name": "Emails",
-      "url": "/dashboard/emails",
-      "description": "Check emails"
-    },
-    {
-      "name": "Calendar",
-      "url": "/dashboard/calendar",
-      "description": "View calendar"
+      "name": "Sign in",
+      "url": "/auth/signin",
+      "description": "Sign in to your account"
     }
   ]
 }

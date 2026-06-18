@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useSettings } from "@/contexts/settings-context"
-import type { CompanySettings, SettingsUpdatePayload } from '@/types/company-manager/settings'
+import type { CompanySettings, SettingsUpdatePayload } from '@/types/settings'
 
 type ThemeMode = 'light' | 'dark' | 'system';
 

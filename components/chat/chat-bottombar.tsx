@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { ChatInput } from './chat-input'
 import { Paperclip, Mic, CornerDownLeft, MicOff } from 'lucide-react'
 import { EmojiPicker } from './emoji-picker'
-import type { SpeechRecognition } from '@/types/company-manager/speech-recognition'
+import type { SpeechRecognition } from '@/types/speech-recognition'
 
 interface ChatBottombarProps {
   onSend: (content: string) => void

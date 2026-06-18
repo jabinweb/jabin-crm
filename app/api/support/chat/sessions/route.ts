@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getOrCreateChatSession, listOpenChatSessions } from '@/lib/crm/live-chat-service';

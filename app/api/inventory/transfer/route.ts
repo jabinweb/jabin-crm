@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma'
 import type { PrismaClient } from '@prisma/client'
 import { asNextRequest } from '@/lib/api/as-next-request'

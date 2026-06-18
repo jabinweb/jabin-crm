@@ -9,6 +9,7 @@ import { Check, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { PricingCountrySelector } from '@/components/pricing/pricing-country-selector';
 import { loadRazorpayCheckout } from '@/lib/payments/load-razorpay';
 
@@ -67,7 +68,12 @@ export default function PricingPage() {
         }
         
         toast.success('Free plan activated!');
-        router.push('/dashboard');
+        router.push(
+          resolvePostLoginPath({
+            role: session.user.role,
+            companySlug: (session.user as { companySlug?: string }).companySlug,
+          })
+        );
       } catch (error: any) {
         toast.error(error.message || 'Failed to activate plan');
       } finally {
@@ -139,7 +145,16 @@ export default function PricingPage() {
                 id: 'payment-verify',
                 duration: 3000,
               });
-              setTimeout(() => router.push('/dashboard'), 1500);
+              setTimeout(
+                () =>
+                  router.push(
+                    resolvePostLoginPath({
+                      role: session.user.role,
+                      companySlug: (session.user as { companySlug?: string }).companySlug,
+                    })
+                  ),
+                1500
+              );
             } else {
               const errorData = await verifyResponse.json().catch(() => ({}));
               toast.error(errorData.error || 'Payment verification failed', {

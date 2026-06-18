@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
-import type { MessageAPIPayload } from '@/types/company-manager/messages'
+import type { MessageAPIPayload } from '@/types/messages'
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected'
 

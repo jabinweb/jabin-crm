@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -20,7 +21,17 @@ export async function GET(req: NextRequest) {
       const ctx = await resolveCompanyContextFromRequest(session, req);
       companyId = ctx.companyId;
     } catch (e) {
-      if (!(e instanceof TenantError) || e.status !== 400) throw e;
+      if (e instanceof TenantError) {
+        if (session.user.role !== 'SUPER_ADMIN') {
+          return NextResponse.json({ error: e.message }, { status: e.status });
+        }
+      } else {
+        throw e;
+      }
+    }
+
+    if (!companyId && session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Company context required' }, { status: 400 });
     }
 
     const groups = await prisma.supportGroup.findMany({
@@ -63,7 +74,7 @@ export async function POST(req: NextRequest) {
         name: body.name.trim(),
         description: body.description,
         email: body.email,
-        companyId: body.companyId ?? companyId,
+        companyId: companyId,
         isDefault: body.isDefault ?? false,
         members: body.memberIds?.length
           ? {
@@ -76,9 +87,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(group, { status: 201 });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[api/support/groups POST]', error);
     return NextResponse.json({ error: 'Failed to create group' }, { status: 500 });
   }

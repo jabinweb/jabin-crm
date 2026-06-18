@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useSettings } from '@/contexts/settings-context';
-import type { SettingsUpdatePayload } from '@/types/company-manager/settings';
+import type { SettingsUpdatePayload } from '@/types/settings';
 import {
   BUSINESS_VERTICAL_OPTIONS,
   WORKSPACE_TEMPLATES,

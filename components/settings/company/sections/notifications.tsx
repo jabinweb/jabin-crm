@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { useSettings } from "@/contexts/settings-context"
-import type { CompanySettings, SettingsUpdatePayload } from '@/types/company-manager/settings'
+import type { CompanySettings, SettingsUpdatePayload } from '@/types/settings'
 
 interface NotificationsSectionProps {
   onChange?: (changes: SettingsUpdatePayload) => void;

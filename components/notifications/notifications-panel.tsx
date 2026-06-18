@@ -8,7 +8,7 @@ import { Bell, Calendar, Clock, Wallet, ClipboardList, FileText, Award } from 'l
 import { cn } from '@/lib/utils'
 import { useNotifications } from '@/hooks/use-notifications'
 import { NotificationHandler } from './notification-handler'
-import type { Notification, NotificationType } from '@/types/company-manager/notifications'
+import type { Notification, NotificationType } from '@/types/notifications'
 import { useState } from 'react'
 
 interface NotificationsPanelProps {

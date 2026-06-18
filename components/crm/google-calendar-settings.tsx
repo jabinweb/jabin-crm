@@ -7,9 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Calendar, CheckCircle, XCircle, RefreshCw, Download, Upload } from 'lucide-react';
 import { signIn } from 'next-auth/react';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 export function GoogleCalendarSettings() {
   const { toast } = useToast();
+  const { path } = useWorkspacePaths();
   const [status, setStatus] = useState<{
     connected: boolean;
     hasTokens: boolean;
@@ -36,7 +38,7 @@ export function GoogleCalendarSettings() {
   const handleConnect = async () => {
     try {
       await signIn('google', {
-        callbackUrl: '/dashboard/settings/calendar',
+        callbackUrl: path('/dashboard/settings/calendar'),
       });
     } catch (error) {
       toast({

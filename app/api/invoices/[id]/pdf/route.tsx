@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { invoiceService } from '@/lib/invoice-service';
+import { invoiceService } from '@/lib/crm/invoice-service';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';

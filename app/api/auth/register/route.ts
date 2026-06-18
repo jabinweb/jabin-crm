@@ -138,7 +138,8 @@ export async function POST(req: Request) {
       message: 'Registration successful. Please wait for admin approval.',
       data: {
         userId: result.user.id,
-        companyId: result.company.id
+        companyId: result.company.id,
+        companySlug: result.company.slug,
       }
     })
   } catch (error) {

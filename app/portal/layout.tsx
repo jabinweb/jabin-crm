@@ -1,5 +1,7 @@
 'use client';
 
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
+
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
@@ -135,6 +137,13 @@ function UserMenu() {
 
     const initials = session?.user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? 'U';
 
+    const dashboardHref = session?.user
+        ? resolvePostLoginPath({
+            role: session.user.role,
+            companySlug: (session.user as { companySlug?: string }).companySlug,
+          })
+        : '/workspace';
+
     return (
         <div className="relative" ref={ref}>
             <button
@@ -158,7 +167,7 @@ function UserMenu() {
                     <Link href="/portal/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                         <Settings className="h-4 w-4 text-slate-400" /> Settings
                     </Link>
-                    <Link href="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                    <Link href={dashboardHref} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                         <LayoutDashboard className="h-4 w-4 text-slate-400" /> Admin Dashboard
                     </Link>
                     <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
@@ -210,7 +219,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         // Non-portal roles should go to their workspace dashboard
         if (session.user.role !== 'CUSTOMER' && session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
             const slug = (session.user as any).companySlug?.trim();
-            router.push(slug ? `/${slug}/dashboard` : '/dashboard');
+            router.push(
+              resolvePostLoginPath({
+                role: session.user.role,
+                companySlug: (session.user as { companySlug?: string }).companySlug,
+              })
+            );
         }
     }, [session, status, router]);
 

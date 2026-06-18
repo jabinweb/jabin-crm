@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { EmployeeMessageStatus, EmployeeMessageType } from '@prisma/client';
 import { auth } from '@/auth';
-import type { MessageAPIPayload } from '@/types/company-manager/messages';
+import type { MessageAPIPayload } from '@/types/messages';
 
 export async function GET(req: NextRequest) {
   try {

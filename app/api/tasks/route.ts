@@ -1,64 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { taskService } from '@/lib/tasks/task-service';
+import { withSessionRoute, jsonOk } from '@/lib/api/with-route';
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+export const GET = withSessionRoute(async (req, { userId }) => {
+  const { searchParams } = new URL(req.url);
+  const status = searchParams.get('status') ?? undefined;
+  const priority = searchParams.get('priority') ?? undefined;
+  const type = searchParams.get('type') ?? undefined;
+  const overdue = searchParams.get('overdue') === 'true';
 
-    const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') as any;
-    const priority = searchParams.get('priority') as any;
-    const type = searchParams.get('type') as any;
-    const overdue = searchParams.get('overdue') === 'true';
+  const tasks = await taskService.getUserTasks(userId, {
+    status,
+    priority,
+    type,
+    overdue,
+  });
 
-    const tasks = await taskService.getUserTasks(session.user.id, {
-      status,
-      priority,
-      type,
-      overdue,
-    });
+  return jsonOk(tasks);
+});
 
-    return NextResponse.json(tasks);
-  } catch (error: any) {
-    console.error('Error fetching tasks:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+export const POST = withSessionRoute(async (req, { userId }) => {
+  const body = await req.json();
+  const { title, description, type, priority, dueDate, leadId, dealId } = body;
+
+  if (!title || !type) {
+    return NextResponse.json({ error: 'Title and type are required' }, { status: 400 });
   }
-}
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const task = await taskService.createTask(userId, {
+    title,
+    description,
+    type,
+    priority: priority || 'MEDIUM',
+    dueDate: dueDate ? new Date(dueDate) : undefined,
+    leadId,
+    dealId,
+  });
 
-    const body = await req.json();
-    const { title, description, type, priority, dueDate, leadId, dealId } = body;
-
-    if (!title || !type) {
-      return NextResponse.json(
-        { error: 'Title and type are required' },
-        { status: 400 }
-      );
-    }
-
-    const task = await taskService.createTask(session.user.id, {
-      title,
-      description,
-      type,
-      priority: priority || 'MEDIUM',
-      dueDate: dueDate ? new Date(dueDate) : undefined,
-      leadId,
-      dealId,
-    });
-
-    return NextResponse.json(task, { status: 201 });
-  } catch (error: any) {
-    console.error('Error creating task:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+  return jsonOk(task, { status: 201 });
+});

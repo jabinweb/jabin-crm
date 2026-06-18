@@ -3,6 +3,7 @@
 import { LeadForm } from "@/components/leads/lead-form"
 import { useSession } from "next-auth/react"
 import { useParams, useRouter } from "next/navigation"
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
 import { workspaceSlugHeaders } from "@/lib/api/workspace-slug"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
@@ -11,6 +12,7 @@ import type { LeadFormValues } from "@/lib/validations/lead"
 export default function NewLeadPage() {
   const router = useRouter()
   const params = useParams<{ company: string }>()
+  const { path, slug } = useWorkspacePaths()
   const { toast } = useToast()
   const { data: session } = useSession()
   const [isLoading, setIsLoading] = useState(false)
@@ -31,7 +33,7 @@ export default function NewLeadPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...workspaceSlugHeaders(params.company),
+          ...workspaceSlugHeaders(slug ?? params.company),
         },
         body: JSON.stringify({
           ...data,
@@ -46,7 +48,7 @@ export default function NewLeadPage() {
         description: "Lead created successfully"
       })
 
-      router.push(`/${params.company}/dashboard/leads`)
+      router.push(path("/dashboard/leads"))
       router.refresh()
     } catch (error) {
       toast({

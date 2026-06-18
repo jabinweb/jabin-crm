@@ -1,4 +1,4 @@
-import { LeadActivity } from '@/types/company-manager/lead'
+import { LeadActivity } from '@/types/lead'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'

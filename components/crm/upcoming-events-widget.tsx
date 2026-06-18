@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Clock, MapPin, ExternalLink } from 'lucide-react';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import Link from 'next/link';
+import { DashboardLink } from '@/components/navigation/dashboard-link';
 
 interface UpcomingEvent {
   id: string;
@@ -90,12 +91,12 @@ export function UpcomingEventsWidget() {
             <Calendar className="h-5 w-5" />
             Upcoming Events
           </CardTitle>
-          <Link href="/dashboard/calendar">
+          <DashboardLink href="/dashboard/calendar">
             <Button variant="ghost" size="sm">
               View All
               <ExternalLink className="h-4 w-4 ml-2" />
             </Button>
-          </Link>
+          </DashboardLink>
         </div>
         <CardDescription>Your next meetings and events</CardDescription>
       </CardHeader>
@@ -104,11 +105,11 @@ export function UpcomingEventsWidget() {
           <div className="text-center py-8 text-gray-500">
             <Calendar className="h-12 w-12 mx-auto mb-3 text-gray-300" />
             <p>No upcoming events</p>
-            <Link href="/dashboard/calendar">
+            <DashboardLink href="/dashboard/calendar">
               <Button variant="link" size="sm" className="mt-2">
                 Schedule a meeting
               </Button>
-            </Link>
+            </DashboardLink>
           </div>
         ) : (
           <div className="space-y-4">

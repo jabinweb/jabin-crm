@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
-import type { Notification } from "@/types/company-manager/notifications"
+import type { Notification } from "@/types/notifications"
 import { useRouter } from 'next/navigation';
 
 interface NotificationHandlerProps {

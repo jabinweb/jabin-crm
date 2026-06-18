@@ -1,10 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { requireAuth } from '@/lib/auth-middleware';
-import { validateRequest } from '@/lib/validation';
-import { handleApiError } from '@/lib/api-error-handler';
+import { validateRequest } from '@/lib/validations/server';
 import { whatsAppService } from '@/lib/crm/whatsapp-service';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
+import { withSessionRoute, jsonOk } from '@/lib/api/with-route';
 
 const sendWhatsAppSchema = z.object({
   toPhone: z.string().min(6),
@@ -15,19 +13,14 @@ const sendWhatsAppSchema = z.object({
   ticketId: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await requireAuth(req);
-    await ensureFeatureEnabled(session.user.id, 'WHATSAPP');
-    const body = await validateRequest(req, sendWhatsAppSchema);
+export const POST = withSessionRoute(async (req, { userId }) => {
+  await ensureFeatureEnabled(userId, 'WHATSAPP');
+  const body = await validateRequest(req, sendWhatsAppSchema);
 
-    const message = await whatsAppService.sendMessage({
-      userId: session.user.id,
-      ...body,
-    });
+  const message = await whatsAppService.sendMessage({
+    userId,
+    ...body,
+  });
 
-    return NextResponse.json(message, { status: 201 });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return jsonOk(message, { status: 201 });
+});

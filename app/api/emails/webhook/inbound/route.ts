@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { trackEmailReply, findEmailLogForReply } from '@/lib/email-logger';
+import { trackEmailReply, findEmailLogForReply } from '@/lib/email/email-logger';
 import { prisma } from '@/lib/prisma';
 import { handleSupportInboundEmail } from '@/lib/crm/support-email-handler';
 

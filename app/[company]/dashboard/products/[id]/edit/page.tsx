@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/hooks/use-toast"
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { ArrowLeft } from "lucide-react"
 
 const formSchema = z.object({
@@ -36,6 +37,7 @@ type ProductFormValues = z.infer<typeof formSchema>
 export default function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const routeParams = useParams<{ company: string }>()
+  const { path, slug } = useWorkspacePaths()
 
   const resolvedParams = use(params)
   const productId = resolvedParams.id
@@ -60,7 +62,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       try {
         const response = await fetch(`/api/products/${productId}`, {
           credentials: 'include',
-          headers: workspaceSlugHeaders(routeParams.company),
+          headers: workspaceSlugHeaders(slug ?? routeParams.company),
         })
 
         if (!response.ok) {
@@ -83,7 +85,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           title: "Error",
           description: "Failed to fetch product"
         })
-        router.push(`/${routeParams.company}/dashboard/products`)
+        router.push(path('/dashboard/products'))
       } finally {
         setIsLoading(false)
       }
@@ -92,7 +94,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     if (productId) {
       fetchProduct()
     }
-  }, [productId, form, router, routeParams.company])
+  }, [productId, form, router, path, slug, routeParams.company])
 
   async function onSubmit(data: ProductFormValues) {
     try {
@@ -100,7 +102,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          ...workspaceSlugHeaders(routeParams.company),
+          ...workspaceSlugHeaders(slug ?? routeParams.company),
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -118,7 +120,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         title: "Success",
         description: "Product updated successfully"
       })
-      router.push(`/${routeParams.company}/dashboard/products/${productId}`)
+      router.push(path(`/dashboard/products/${productId}`))
     } catch (error) {
       toast({
         variant: "destructive",
@@ -138,7 +140,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.push(`/${routeParams.company}/dashboard/products/${productId}`)}
+            onClick={() => router.push(path(`/dashboard/products/${productId}`))}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Product
@@ -276,7 +278,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push(`/${routeParams.company}/dashboard/products/${productId}`)}
+              onClick={() => router.push(path(`/dashboard/products/${productId}`))}
             >
               Cancel
             </Button>

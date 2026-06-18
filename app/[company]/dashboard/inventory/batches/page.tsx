@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Search, Plus } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
-import type { BatchItem } from "@/types/company-manager/inventory"
+import type { BatchItem } from "@/types/inventory"
 
 export default function BatchesPage() {
   const params = useParams<{ company: string }>()

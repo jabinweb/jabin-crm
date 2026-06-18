@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useRouter } from "next/navigation"
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
 import { useToast } from "@/hooks/use-toast"
 import { leadFormSchema } from "@/lib/validations/lead"
 
@@ -37,6 +38,7 @@ interface LeadFormProps {
 
 export function LeadForm({ initialData, onSubmit, isLoading }: LeadFormProps) {
   const router = useRouter()
+  const { path } = useWorkspacePaths()
   const { toast } = useToast()
 
   const form = useForm<FormData>({
@@ -60,7 +62,7 @@ export function LeadForm({ initialData, onSubmit, isLoading }: LeadFormProps) {
         title: "Success",
         description: initialData ? "Lead updated successfully" : "Lead created successfully",
       })
-      router.push("/dashboard/leads")
+      router.push(path("/dashboard/leads"))
     } catch (error) {
       toast({
         title: "Error",

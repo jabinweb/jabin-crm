@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
 
-/**
- * /{company}/dashboard/clients → consolidated into /dashboard/customers
- * Kept as a redirect so bookmarks and old links don't 404.
- */
-export default function ClientsRedirectPage() {
-  redirect('/dashboard/customers');
+type Props = { params: Promise<{ company: string }> };
+
+/** /{company}/dashboard/clients → /{company}/dashboard/customers */
+export default async function ClientsRedirectPage({ params }: Props) {
+  const { company } = await params;
+  redirect(`/${company}/dashboard/customers`);
 }

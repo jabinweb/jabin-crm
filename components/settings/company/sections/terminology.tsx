@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useSettings } from '@/contexts/settings-context';
-import type { SettingsUpdatePayload } from '@/types/company-manager/settings';
+import type { SettingsUpdatePayload } from '@/types/settings';
 import { parseWorkspaceSettings, resolveWorkspaceConfig } from '@/lib/workspace-config';
 import type { WorkspaceTerminology } from '@/lib/workspace-templates';
 import { useMemo } from 'react';

@@ -6,7 +6,7 @@ import { startGoogleSignIn } from "@/lib/auth/google-sign-in-client";
 
 export default function GoogleSignIn() {
   const handleClick = async () => {
-    await startGoogleSignIn("/dashboard");
+    await startGoogleSignIn("/workspace");
   };
 
   return (

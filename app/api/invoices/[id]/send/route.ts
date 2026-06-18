@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
-import { invoiceService } from '@/lib/invoice-service';
+import { invoiceService } from '@/lib/crm/invoice-service';
 
 export async function POST(
   req: NextRequest,

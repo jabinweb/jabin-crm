@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma';
 import {
   resolveCompanyContextFromRequest,
@@ -46,9 +47,7 @@ export async function GET(
 
     return NextResponse.json(lead);
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     if (isApiException(error)) return handleApiError(error);
     console.error('Error fetching lead:', error);
     return NextResponse.json(
@@ -83,9 +82,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     if (isApiException(error)) return handleApiError(error);
     console.error('Error deleting lead:', error);
     return NextResponse.json({ error: 'Failed to delete lead' }, { status: 500 });

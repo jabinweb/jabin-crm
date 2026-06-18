@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert"
 import { Button } from '@/components/ui/button'
 import { CalendarDays, AlertCircle } from 'lucide-react'
-import type { DashboardStats } from '@/types/company-manager/dashboard'
+import type { DashboardStats } from '@/types/dashboard'
 
 export default function EmployeeDashboard() {
   const [startDate, setStartDate] = useState<Date>(new Date())

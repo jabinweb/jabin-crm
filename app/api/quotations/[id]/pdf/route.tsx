@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { quotationService } from '@/lib/quotation-service';
+import { quotationService } from '@/lib/crm/quotation-service';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';

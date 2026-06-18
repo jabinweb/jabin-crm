@@ -67,7 +67,7 @@ export default function UserAvatar() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() => signOut({ callbackUrl: "/auth/login" })}
+          onClick={() => signOut({ callbackUrl: "/auth/signin" })}
         >
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>

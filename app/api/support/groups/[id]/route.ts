@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -58,9 +59,7 @@ export async function PATCH(
 
     return NextResponse.json(group);
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[api/support/groups PATCH]', error);
     return NextResponse.json({ error: 'Failed to update group' }, { status: 500 });
   }
@@ -91,9 +90,7 @@ export async function DELETE(
     await prisma.supportGroup.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[api/support/groups DELETE]', error);
     return NextResponse.json({ error: 'Failed to delete group' }, { status: 500 });
   }

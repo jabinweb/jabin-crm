@@ -83,7 +83,7 @@ export default function EmployeeRegisterPage() {
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
     if (session.user.role === "SUPER_ADMIN") {
-      router.replace("/dashboard");
+      router.replace("/admin");
       return;
     }
     const slug = session.user.companySlug?.trim();

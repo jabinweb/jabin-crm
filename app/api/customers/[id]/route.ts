@@ -1,72 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { NextResponse } from 'next/server';
 import { customerService } from '@/lib/crm/customer-service';
+import { assertCustomerTenantAccess } from '@/lib/tenant/scope-staff-query';
+import { prisma } from '@/lib/prisma';
+import { withStaffRoute, jsonOk } from '@/lib/api/with-route';
 
-export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const { id } = await params;
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+export const GET = withStaffRoute(async (request, ctx, routeContext) => {
+  const { id } = await routeContext!.params;
 
-        const customer = await customerService.getCustomerById(id);
+  const access = await assertCustomerTenantAccess(ctx.session, request, id);
+  if (!access) {
+    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+  }
 
-        if (!customer) {
-            return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-        }
+  const customer = await customerService.getCustomerById(id);
+  if (!customer) {
+    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+  }
 
-        return NextResponse.json(customer);
-    } catch (error) {
-        console.error('Error fetching customer:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+  return jsonOk(customer);
+});
 
-export async function PATCH(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const { id } = await params;
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+export const PATCH = withStaffRoute(async (request, ctx, routeContext) => {
+  const { id } = await routeContext!.params;
 
-        const data = await request.json();
+  const access = await assertCustomerTenantAccess(ctx.session, request, id);
+  if (!access) {
+    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+  }
 
-        const customer = await customerService.updateCustomer(id, data);
+  const data = await request.json();
+  const customer = await customerService.updateCustomer(id, data);
+  return jsonOk(customer);
+});
 
-        return NextResponse.json(customer);
-    } catch (error) {
-        console.error('Error updating customer:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+export const DELETE = withStaffRoute(async (request, ctx, routeContext) => {
+  const { id } = await routeContext!.params;
 
-export async function DELETE(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        const { id } = await params;
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+  const access = await assertCustomerTenantAccess(ctx.session, request, id);
+  if (!access) {
+    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+  }
 
-        // Using prisma directly here since customerService doesn't have delete yet
-        // and it's a simple operation.
-        const { prisma } = await import('@/lib/prisma');
-        await prisma.customer.delete({ where: { id } });
-
-        return NextResponse.json({ message: 'Customer deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting customer:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+  await prisma.customer.delete({ where: { id } });
+  return jsonOk({ message: 'Customer deleted successfully' });
+});

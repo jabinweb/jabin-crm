@@ -5,6 +5,7 @@ import { ticketAIService } from '@/lib/ai/ticket-ai-service';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardTicketAccess } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 
 export async function POST(
     request: NextRequest,
@@ -14,6 +15,9 @@ export async function POST(
         const { id } = await params;
         const session = await auth();
         await guardTicketAccess(session?.user);
+
+        const guard = await requireTicketRouteAccess(session, request, id);
+        if (!guard.ok) return guard.response;
 
         const ticket = await ticketService.getTicketDetails(id);
         if (!ticket) {

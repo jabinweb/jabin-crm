@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -8,6 +9,7 @@ import {
   TenantError,
 } from '@/lib/auth/company-membership';
 import { normalizeAuthEmail } from '@/lib/auth/normalize-email';
+import { sendPortalInviteEmail } from '@/lib/email/portal-invite';
 
 export async function POST(
   req: NextRequest,
@@ -19,18 +21,29 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const role = session.user.role;
+    if (!role || !['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER', 'SALES'].includes(role)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { companyId } = await resolveCompanyContextFromRequest(session, req);
     const { id: customerId } = await params;
 
-    const customer = await prisma.customer.findFirst({
-      where: { id: customerId, companyId },
-      select: {
-        id: true,
-        email: true,
-        contactPerson: true,
-        organizationName: true,
-      },
-    });
+    const [customer, company] = await Promise.all([
+      prisma.customer.findFirst({
+        where: { id: customerId, companyId },
+        select: {
+          id: true,
+          email: true,
+          contactPerson: true,
+          organizationName: true,
+        },
+      }),
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true },
+      }),
+    ]);
 
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
@@ -59,6 +72,7 @@ export async function POST(
           message: 'Portal user already exists',
           userId: existingUser.id,
           alreadyInvited: true,
+          emailSent: false,
         });
       }
       return NextResponse.json(
@@ -94,17 +108,36 @@ export async function POST(
     const baseUrl =
       process.env.NEXTAUTH_URL ??
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    const signInUrl = `${baseUrl}/auth/signin`;
+
+    let emailSent = false;
+    try {
+      await sendPortalInviteEmail({
+        to: email,
+        customerName: customer.contactPerson || customer.organizationName,
+        organizationName: customer.organizationName,
+        companyName: company?.name ?? 'Your company',
+        signInUrl,
+        temporaryPassword: tempPassword,
+      });
+      emailSent = true;
+    } catch (mailErr) {
+      console.error('[invite] email failed:', mailErr);
+    }
+
+    const isDev = process.env.NODE_ENV === 'development';
 
     return NextResponse.json({
-      message: 'Portal invite created',
+      message: emailSent
+        ? 'Portal invite sent by email'
+        : 'Portal user created — email could not be sent; share credentials manually',
       user,
-      signInUrl: `${baseUrl}/auth/signin`,
-      temporaryPassword: tempPassword,
+      signInUrl,
+      emailSent,
+      ...(isDev || !emailSent ? { temporaryPassword: tempPassword } : {}),
     }, { status: 201 });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[api/customers/invite]', error);
     return NextResponse.json({ error: 'Failed to invite customer' }, { status: 500 });
   }

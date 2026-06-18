@@ -13,6 +13,8 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 interface InvoiceItem {
   name: string;
@@ -53,6 +55,7 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: InvoiceFormProps) {
   const router = useRouter();
+  const { path } = useWorkspacePaths();
   const [isInitialized, setIsInitialized] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [formData, setFormData] = useState<InvoiceFormData>({
@@ -148,7 +151,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     },
     onSuccess: () => {
       toast.success('Invoice created successfully');
-      router.push('/dashboard/invoices');
+      router.push(path('/dashboard/invoices'));
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -170,7 +173,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     },
     onSuccess: () => {
       toast.success('Invoice updated successfully');
-      router.push('/dashboard/invoices');
+      router.push(path('/dashboard/invoices'));
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -190,7 +193,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     },
     onSuccess: () => {
       toast.success('Invoice sent successfully');
-      router.push('/dashboard/invoices');
+      router.push(path('/dashboard/invoices'));
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -349,12 +352,12 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
             {mode === 'edit' ? 'Update invoice details' : 'Generate a new invoice for your customer'}
           </p>
         </div>
-        <Link href="/dashboard/invoices">
+        <DashboardLink href="/dashboard/invoices">
           <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Invoices
           </Button>
-        </Link>
+        </DashboardLink>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

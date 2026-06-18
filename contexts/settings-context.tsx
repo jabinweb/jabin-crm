@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
-import type { CompanySettings, SettingsUpdateAction } from '@/types/company-manager/settings'
+import type { CompanySettings, SettingsUpdateAction } from '@/types/settings'
 
 interface SettingsContextType {
   company: {

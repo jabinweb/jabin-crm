@@ -1,5 +1,21 @@
 import { EmployeeMessageStatus, UserStatus } from '@prisma/client';
-import type { SSEMessage, SSEEventTypes } from './sse';
+
+export type SSEEventTypes =
+  | 'chat_message'
+  | 'user_status'
+  | 'notification'
+  | 'typing'
+  | 'call_request'
+  | 'call_accepted'
+  | 'call_rejected'
+  | 'call_ended';
+
+export interface SSEMessage {
+  type: SSEEventTypes;
+  payload: unknown;
+  receiverId?: string;
+  timestamp?: string;
+}
 
 export type EmployeeMessageType = 'TEXT' | 'IMAGE' | 'FILE' | 'new_message' | 'typing';
 export type ClientMessageStatus = EmployeeMessageStatus | 'SENDING' | 'FAILED' | 'DELIVERED' | 'READ' | 'RECEIVED' | 'PENDING';

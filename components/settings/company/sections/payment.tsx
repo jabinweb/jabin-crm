@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useSettings } from "@/contexts/settings-context"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
-import type { SettingsUpdatePayload } from '@/types/company-manager/settings'
+import type { SettingsUpdatePayload } from '@/types/settings'
 
 interface RazorpaySettings {
   enabled: boolean;

@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { listSlaPolicies, upsertSlaPolicy } from '@/lib/crm/sla-policies';
@@ -28,9 +29,7 @@ export async function GET(request: NextRequest) {
     const policies = await listSlaPolicies(companyId);
     return NextResponse.json({ policies });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     const handled = handleApiError(error);
     if (handled.status !== 500) return handled;
     console.error('[api/support/sla-policies GET]', error);
@@ -71,9 +70,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(policy);
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[api/support/sla-policies POST]', error);
     return NextResponse.json({ error: 'Failed to save SLA policy' }, { status: 500 });
   }

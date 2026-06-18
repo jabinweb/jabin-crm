@@ -4,7 +4,7 @@ import { handleApiError } from '@/lib/api-error-handler';
 import { withModuleAccess, afterEmailSent } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { sendEmail, createEmailHTML } from '@/lib/email/nodemailer';
-import { createEmailLog, updateEmailLogStatus } from '@/lib/email-logger';
+import { createEmailLog, updateEmailLogStatus } from '@/lib/email/email-logger';
 import { getUserSmtpConfig } from '@/lib/smtp-config';
 
 export async function POST(request: NextRequest) {

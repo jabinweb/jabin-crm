@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { InventoryManagement } from "@/components/inventory/inventory-management"
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
 interface Product {
   id: string
@@ -38,6 +39,7 @@ interface Product {
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
   const routeParams = useRouteParams<{ company: string }>()
+  const { path, slug } = useWorkspacePaths()
 
   const resolvedParams = use(params)
   const productId = resolvedParams.id
@@ -64,11 +66,11 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         title: "Error",
         description: "Failed to fetch product"
       })
-      router.push(`/${routeParams.company}/dashboard/products`)
+      router.push(path('/dashboard/products'))
     } finally {
       setIsLoading(false)
     }
-  }, [productId, router, routeParams.company])
+  }, [productId, router, path])
   
   useEffect(() => {
     if (productId) {
@@ -82,7 +84,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       const response = await fetch(`/api/products/${productId}`, {
         method: 'DELETE',
         credentials: 'include',
-        headers: workspaceSlugHeaders(routeParams.company),
+        headers: workspaceSlugHeaders(slug ?? routeParams.company),
       })
 
       if (!response.ok) {
@@ -93,7 +95,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         title: "Success",
         description: "Product deleted successfully"
       })
-      router.push(`/${routeParams.company}/dashboard/products`)
+      router.push(path('/dashboard/products'))
     } catch (error) {
       toast({
         variant: "destructive",
@@ -117,7 +119,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => router.push(`/${routeParams.company}/dashboard/products`)}
+            onClick={() => router.push(path('/dashboard/products'))}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Products
@@ -129,7 +131,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => router.push(`/${routeParams.company}/dashboard/products/${product.id}/edit`)}
+            onClick={() => router.push(path(`/dashboard/products/${product.id}/edit`))}
           >
             <Pencil className="h-4 w-4 mr-2" />
             Edit

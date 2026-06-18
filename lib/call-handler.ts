@@ -1,4 +1,4 @@
-import type { CallData } from '@/types/company-manager/call'
+import type { CallData } from '@/types/call'
 
 class CallHandler {
   private static instance: CallHandler;

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useSettings } from "@/contexts/settings-context"
-import { type CompanySettings, type SettingsUpdatePayload } from '@/types/company-manager/settings'
+import { type CompanySettings, type SettingsUpdatePayload } from '@/types/settings'
 
 interface SecuritySectionProps {
   onChange?: (changes: SettingsUpdatePayload) => void;

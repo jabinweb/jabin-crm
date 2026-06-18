@@ -3,11 +3,12 @@ import "@/types/auth"
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
+import { DashboardLink } from '@/components/navigation/dashboard-link'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { Button } from '@/components/ui/button'
 import { UserPlus, Upload } from 'lucide-react'
 import { toast } from "@/hooks/use-toast"
-import { columns, type Employee } from "./columns"
+import { columns, type Employee } from "@/components/employees/employees-columns"
 import { DataTable } from "@/components/table/data-table"
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 
@@ -19,7 +20,8 @@ interface Metadata {
 
 export default function EmployeesPage() {
   const params = useParams<{ company: string }>()
-  const companySlug = params.company
+  const { slug } = useWorkspacePaths()
+  const companySlug = slug ?? params.company
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [filterOptions, setFilterOptions] = useState<Metadata | null>(null)
@@ -126,10 +128,10 @@ export default function EmployeesPage() {
             Import
           </Button>
           <Button asChild>
-            <Link href={`/${companySlug}/dashboard/employees/new`} className="inline-flex items-center">
+            <DashboardLink href="/dashboard/employees/new" className="inline-flex items-center">
               <UserPlus className="h-4 w-4 mr-2" />
               Add Employee
-            </Link>
+            </DashboardLink>
           </Button>
         </div>
       </div>

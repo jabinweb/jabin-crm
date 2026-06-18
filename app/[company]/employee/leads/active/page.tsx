@@ -2,7 +2,7 @@
 
 import { useLeads } from '@/hooks/use-leads'
 import { DataTable } from '@/components/table/data-table'
-import { columns } from '../columns'
+import { columns } from '@/components/employee/employee-leads-columns'
 import { LeadStatus } from '@prisma/client'
 import { TableSkeleton } from '@/components/table/table-skeleton'
 

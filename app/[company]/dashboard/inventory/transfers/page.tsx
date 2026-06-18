@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
-import { StockTransfer, Location } from "@/types/company-manager/inventory"
+import { StockTransfer, Location } from "@/types/inventory"
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner"
 
 export default function StockTransferPage() {

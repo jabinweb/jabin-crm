@@ -9,6 +9,7 @@ import { UsageBanner } from '@/components/subscription/usage-banner';
 import { EmailReplyChecker } from '@/components/email/email-reply-checker';
 import { PWAInstallPrompt } from '@/components/pwa/install-prompt';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
+import { OnboardingRedirect } from '@/components/onboarding/onboarding-redirect';
 import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -26,8 +27,12 @@ export function DashboardLayoutClient({
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/signin');
+      return;
     }
-  }, [status, router]);
+    if (session?.user?.role === 'CUSTOMER') {
+      router.replace('/portal');
+    }
+  }, [status, session, router]);
 
   if (status === 'loading') {
     return (
@@ -43,6 +48,7 @@ export function DashboardLayoutClient({
 
   return (
     <div className="min-h-screen">
+      <OnboardingRedirect />
       <ServiceWorkerRegistration />
       <PWAInstallPrompt />
       <Navbar />

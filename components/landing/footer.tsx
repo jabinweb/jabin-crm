@@ -8,7 +8,7 @@ export function LandingFooter() {
     { name: 'Features', href: '/#features' },
     { name: 'Pricing', href: '/pricing' },
     { name: 'Sign in', href: '/auth/signin' },
-    { name: 'Dashboard', href: '/dashboard' },
+    { name: 'Workspace', href: '/workspace' },
     { name: 'Portal', href: '/portal' },
   ];
 

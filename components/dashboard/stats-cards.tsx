@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Building, AlertTriangle, Activity, Database, Copy } from 'lucide-react';
-import Link from 'next/link';
+import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -85,9 +85,9 @@ export function StatsCards({ stats }: StatsCardsProps) {
               Found in {stats.duplicateGroupsCount} groups
             </p>
             <Button asChild size="sm" variant="outline" className="text-[10px] h-7 border-red-200 hover:bg-red-100 hover:text-red-700 font-bold uppercase tracking-tighter">
-              <Link href="/dashboard/duplicates">
+              <DashboardLink href="/dashboard/duplicates">
                 Resolve Now
-              </Link>
+              </DashboardLink>
             </Button>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import type { EmployeeMessage } from '@/types/company-manager/messages';
+import type { EmployeeMessage } from '@/types/messages';
 import { generateId } from '@/lib/utils';
 
 interface MessagesState {

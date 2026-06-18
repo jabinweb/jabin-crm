@@ -13,6 +13,7 @@ type TicketWithActivities = {
   updatedAt: Date;
   assignedTechnicianId: string | null;
   customerId: string;
+  customer?: { companyId: string | null };
   activities: Array<{
     eventType: string;
     createdAt: Date;
@@ -27,6 +28,7 @@ export type TicketSlaStatus = {
   priority: TicketPriority;
   status: TicketStatus;
   state: SlaState;
+  companyId: string | null;
   responseDueAt: Date;
   resolutionDueAt: Date;
   firstResponseAt: Date | null;
@@ -40,16 +42,20 @@ export type TicketSlaStatus = {
 };
 
 const ACTIVE_STATUSES: TicketStatus[] = ['OPEN', 'ASSIGNED', 'IN_PROGRESS'];
-const ESCALATION_ROLES = ['SUPER_ADMIN', 'ADMIN', 'SUPPORT_MANAGER'] as const;
+const ESCALATION_ROLES = ['ADMIN', 'SUPPORT_MANAGER'] as const;
 
 async function resolveSlaConfig(
   ticket: TicketWithActivities
 ): Promise<SlaConfig> {
-  const customer = await prisma.customer.findUnique({
-    where: { id: ticket.customerId },
-    select: { companyId: true },
-  });
-  return getSlaConfigForPriority(ticket.priority, customer?.companyId);
+  const companyId =
+    ticket.customer?.companyId ??
+    (
+      await prisma.customer.findUnique({
+        where: { id: ticket.customerId },
+        select: { companyId: true },
+      })
+    )?.companyId;
+  return getSlaConfigForPriority(ticket.priority, companyId);
 }
 
 function addHours(date: Date, hours: number): Date {
@@ -123,6 +129,16 @@ async function toSlaStatus(ticket: TicketWithActivities): Promise<TicketSlaStatu
     }
   }
 
+  const companyId =
+    ticket.customer?.companyId ??
+    (
+      await prisma.customer.findUnique({
+        where: { id: ticket.customerId },
+        select: { companyId: true },
+      })
+    )?.companyId ??
+    null;
+
   return {
     ticketId: ticket.id,
     subject: ticket.subject,
@@ -130,6 +146,7 @@ async function toSlaStatus(ticket: TicketWithActivities): Promise<TicketSlaStatu
     priority: ticket.priority,
     status: ticket.status,
     state,
+    companyId,
     responseDueAt,
     resolutionDueAt,
     firstResponseAt,
@@ -143,28 +160,46 @@ async function toSlaStatus(ticket: TicketWithActivities): Promise<TicketSlaStatu
   };
 }
 
+async function companyStaffUserIds(companyId: string): Promise<string[]> {
+  const users = await prisma.user.findMany({
+    where: {
+      role: { in: [...ESCALATION_ROLES, 'SUPER_ADMIN'] },
+      OR: [
+        { companyId },
+        { primaryCompanyId: companyId },
+        { userCompanies: { some: { companyId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return users.map((u) => u.id);
+}
+
 export class SlaService {
+  private ticketSelect = {
+    id: true,
+    subject: true,
+    status: true,
+    priority: true,
+    createdAt: true,
+    updatedAt: true,
+    assignedTechnicianId: true,
+    customerId: true,
+    customer: { select: { companyId: true } },
+    activities: {
+      select: {
+        eventType: true,
+        createdAt: true,
+        description: true,
+      },
+      orderBy: { createdAt: 'asc' as const },
+    },
+  };
+
   private async getTicketBase(ticketId: string): Promise<TicketWithActivities | null> {
     return prisma.supportTicket.findUnique({
       where: { id: ticketId },
-      select: {
-        id: true,
-        subject: true,
-        status: true,
-        priority: true,
-        createdAt: true,
-        updatedAt: true,
-        assignedTechnicianId: true,
-        customerId: true,
-        activities: {
-          select: {
-            eventType: true,
-            createdAt: true,
-            description: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+      select: this.ticketSelect,
     });
   }
 
@@ -182,45 +217,56 @@ export class SlaService {
       },
       take: limit,
       orderBy: { createdAt: 'asc' },
-      select: {
-        id: true,
-        subject: true,
-        status: true,
-        priority: true,
-        createdAt: true,
-        updatedAt: true,
-        assignedTechnicianId: true,
-        customerId: true,
-        activities: {
-          select: {
-            eventType: true,
-            createdAt: true,
-            description: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+      select: this.ticketSelect,
     });
 
-    return Promise.all(
-      tickets.map((ticket) => toSlaStatus(ticket))
-    ).then((statuses) =>
+    return Promise.all(tickets.map((ticket) => toSlaStatus(ticket))).then((statuses) =>
       statuses.filter((status) => status.responseBreached || status.resolutionBreached)
     );
   }
 
-  async runEscalationSweep() {
-    const breachedTickets = await this.getBreachedActiveTickets(500);
-    const recipients = await prisma.user.findMany({
-      where: { role: { in: [...ESCALATION_ROLES] } },
-      select: { id: true },
+  async getAtRiskActiveTickets(limit = 200): Promise<TicketSlaStatus[]> {
+    const tickets = await prisma.supportTicket.findMany({
+      where: {
+        status: { in: ACTIVE_STATUSES },
+        mergedIntoId: null,
+      },
+      take: limit,
+      orderBy: { createdAt: 'asc' },
+      select: this.ticketSelect,
     });
-    const recipientIds = recipients.map((user) => user.id);
+
+    return Promise.all(tickets.map((ticket) => toSlaStatus(ticket))).then((statuses) =>
+      statuses.filter((status) => status.state === 'AT_RISK')
+    );
+  }
+
+  async runEscalationSweep() {
+    const [breachedTickets, atRiskTickets] = await Promise.all([
+      this.getBreachedActiveTickets(500),
+      this.getAtRiskActiveTickets(500),
+    ]);
 
     const now = new Date();
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
     let escalatedCount = 0;
+    let automationCount = 0;
     let skippedRecentlyEscalated = 0;
+
+    const { runSupportAutomations } = await import('@/lib/support/automation-engine');
+
+    for (const item of atRiskTickets) {
+      if (!item.companyId) continue;
+      await runSupportAutomations({
+        ticketId: item.ticketId,
+        companyId: item.companyId,
+        trigger: 'SLA_AT_RISK',
+        priority: item.priority,
+        status: item.status,
+        subject: item.subject,
+      }).catch(() => undefined);
+      automationCount += 1;
+    }
 
     for (const item of breachedTickets) {
       const recentEscalation = await prisma.ticketActivity.findFirst({
@@ -253,14 +299,19 @@ export class SlaService {
         },
       });
 
-      const notificationRecipients = new Set<string>(recipientIds);
+      const recipientIds = new Set<string>();
+      if (item.companyId) {
+        for (const id of await companyStaffUserIds(item.companyId)) {
+          recipientIds.add(id);
+        }
+      }
       if (item.assignedTechnicianId) {
-        notificationRecipients.add(item.assignedTechnicianId);
+        recipientIds.add(item.assignedTechnicianId);
       }
 
-      if (notificationRecipients.size > 0) {
+      if (recipientIds.size > 0) {
         await prisma.notification.createMany({
-          data: Array.from(notificationRecipients).map((userId) => ({
+          data: Array.from(recipientIds).map((userId) => ({
             userId,
             type: 'TICKET_UPDATED',
             title: `SLA Escalation: ${item.subject}`,
@@ -274,13 +325,27 @@ export class SlaService {
         });
       }
 
+      if (item.companyId) {
+        await runSupportAutomations({
+          ticketId: item.ticketId,
+          companyId: item.companyId,
+          trigger: 'SLA_BREACHED',
+          priority: item.priority,
+          status: item.status,
+          subject: item.subject,
+        }).catch(() => undefined);
+        automationCount += 1;
+      }
+
       escalatedCount += 1;
     }
 
     return {
       scanned: breachedTickets.length,
       escalatedCount,
+      automationCount,
       skippedRecentlyEscalated,
+      atRiskCount: atRiskTickets.length,
     };
   }
 }

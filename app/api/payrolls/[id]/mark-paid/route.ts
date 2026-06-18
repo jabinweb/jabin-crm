@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -56,9 +57,7 @@ export async function POST(
 
     return NextResponse.json({ success: true, payslip: updated });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[payrolls/mark-paid]', error);
     return NextResponse.json({ error: 'Failed to mark payslip paid' }, { status: 500 });
   }

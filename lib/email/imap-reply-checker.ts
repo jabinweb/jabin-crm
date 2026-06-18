@@ -26,7 +26,7 @@ async function loadImapDependencies() {
   }
 }
 
-import { findEmailLogForReply, trackEmailReply } from '@/lib/email-logger';
+import { findEmailLogForReply, trackEmailReply } from '@/lib/email/email-logger';
 import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import { logInfo, logError, logWarning } from '@/lib/logger';

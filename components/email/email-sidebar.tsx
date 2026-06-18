@@ -18,6 +18,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Switch } from "@/components/ui/switch"
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
 
 interface EmailSidebarProps extends React.ComponentProps<typeof Sidebar> {
   drafts: any[]
@@ -26,35 +27,39 @@ interface EmailSidebarProps extends React.ComponentProps<typeof Sidebar> {
 export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const { path } = useWorkspacePaths()
   const { setOpen } = useSidebar()
   const [showUnread, setShowUnread] = React.useState(false)
 
-  const navMain = [
-    {
-      title: "All Drafts",
-      url: "/dashboard/emails/drafts",
-      icon: Inbox,
-      isActive: pathname === "/dashboard/emails/drafts",
-    },
-    {
-      title: "Sent",
-      url: "/dashboard/emails/sent",
-      icon: Send,
-      isActive: pathname === "/dashboard/emails/sent",
-    },
-    {
-      title: "Campaigns",
-      url: "/dashboard/campaigns",
-      icon: Mail,
-      isActive: pathname === "/dashboard/campaigns",
-    },
-    {
-      title: "Trash",
-      url: "/dashboard/emails/trash",
-      icon: Trash2,
-      isActive: pathname === "/dashboard/emails/trash",
-    },
-  ]
+  const navMain = React.useMemo(
+    () => [
+      {
+        title: "All Drafts",
+        url: path("/dashboard/emails/drafts"),
+        icon: Inbox,
+        isActive: pathname === path("/dashboard/emails/drafts"),
+      },
+      {
+        title: "Sent",
+        url: path("/dashboard/emails/sent"),
+        icon: Send,
+        isActive: pathname === path("/dashboard/emails/sent"),
+      },
+      {
+        title: "Campaigns",
+        url: path("/dashboard/campaigns"),
+        icon: Mail,
+        isActive: pathname === path("/dashboard/campaigns"),
+      },
+      {
+        title: "Trash",
+        url: path("/dashboard/emails/trash"),
+        icon: Trash2,
+        isActive: pathname === path("/dashboard/emails/trash"),
+      },
+    ],
+    [path, pathname]
+  )
 
   const [filteredDrafts, setFilteredDrafts] = React.useState(drafts)
   const [activeItem, setActiveItem] = React.useState(navMain[0])
@@ -62,6 +67,11 @@ export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
   React.useEffect(() => {
     setFilteredDrafts(drafts)
   }, [drafts])
+
+  React.useEffect(() => {
+    const match = navMain.find((item) => item.isActive)
+    if (match) setActiveItem(match)
+  }, [navMain])
 
   const handleSearch = (value: string) => {
     if (!value) {
@@ -184,4 +194,3 @@ export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
     </Sidebar>
   )
 }
-

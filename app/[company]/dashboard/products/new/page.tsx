@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 import { workspaceSlugHeaders } from "@/lib/api/workspace-slug";
 
 const formSchema = z.object({
@@ -33,6 +34,7 @@ export default function NewProductPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const params = useParams<{ company: string }>();
+  const { path, slug } = useWorkspacePaths();
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -54,7 +56,7 @@ export default function NewProductPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...workspaceSlugHeaders(params.company),
+          ...workspaceSlugHeaders(slug ?? params.company),
         },
         body: JSON.stringify(values),
       });
@@ -67,7 +69,7 @@ export default function NewProductPage() {
         title: "Success",
         description: "Product created successfully!",
       });
-      router.push(`/${params.company}/dashboard/products`);
+      router.push(path("/dashboard/products"));
     } catch (error) {
       toast({
         title: "Error",

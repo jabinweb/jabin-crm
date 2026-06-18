@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import { Phone, PhoneOff, Video, VideoOff, PhoneCall, PhoneIncoming } from 'lucide-react'
-import type { CallData } from '@/types/company-manager/call'
+import type { CallData } from '@/types/call'
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { audioService } from '@/lib/audio-service'
 import React from 'react'

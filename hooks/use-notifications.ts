@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Notification } from '@/types/company-manager/notifications'
+import type { Notification } from '@/types/notifications'
 import { toast } from '@/hooks/use-toast'
 import { getDismissedNotifications, addDismissedNotification, isDismissed } from '@/lib/dismissed-notifications'
 

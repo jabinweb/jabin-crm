@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -25,6 +26,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Activity, LogOut, Settings, User, Crown, CreditCard, Search, Building2, Mail, Phone, ClipboardList } from 'lucide-react';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -34,6 +37,13 @@ export function Navbar() {
     typeof params?.company === 'string'
       ? params.company
       : session?.user?.companySlug ?? undefined;
+  const { path } = useWorkspacePaths();
+  const homeHref = session?.user
+    ? resolvePostLoginPath({
+        role: session.user.role,
+        companySlug: (session.user as { companySlug?: string }).companySlug,
+      })
+    : '/workspace';
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -84,24 +94,20 @@ export function Navbar() {
 
   const handleSelectLead = (leadId: string) => {
     setOpen(false);
-    if (workspaceSlug) {
-      router.push(`/${workspaceSlug}/dashboard/leads/${leadId}`);
-    } else {
-      router.push(`/dashboard/leads/${leadId}`);
-    }
+    router.push(path(`/dashboard/leads/${leadId}`));
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
       <div className="flex h-14 items-center px-3 sm:px-4 lg:px-8">
         <div className="mr-2 sm:mr-4 flex md:hidden">
-          <Link className="flex items-center space-x-2" href="/dashboard">
+          <Link className="flex items-center space-x-2" href={homeHref}>
             <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
           </Link>
         </div>
 
         <div className="mr-4 hidden md:flex">
-          <Link className="mr-6 flex items-center space-x-2" href="/dashboard">
+          <Link className="mr-6 flex items-center space-x-2" href={homeHref}>
             <Building2 className="h-5 w-5 text-foreground" />
             <span className="hidden font-black lg:inline-block tracking-tighter">JABIN</span>
           </Link>
@@ -160,10 +166,10 @@ export function Navbar() {
                 </>
               )}
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings/subscription">
+                <DashboardLink href="/dashboard/settings/subscription">
                   <CreditCard className="mr-2 h-4 w-4" />
                   <span>Subscription</span>
-                </Link>
+                </DashboardLink>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/pricing">
@@ -172,10 +178,10 @@ export function Navbar() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">
+                <DashboardLink href="/dashboard/settings">
                   <User className="mr-2 h-4 w-4" />
                   <span>Profile</span>
-                </Link>
+                </DashboardLink>
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <Settings className="mr-2 h-4 w-4" />

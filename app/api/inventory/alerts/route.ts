@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -76,9 +77,7 @@ export async function GET(request: Request) {
       data: { lowStock, expiringSoon },
     });
   } catch (error) {
-    if (error instanceof TenantError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
+    return handleRouteError(error);
     console.error('[api/inventory/alerts GET]', error);
     return NextResponse.json({ error: 'Failed to fetch alerts' }, { status: 500 });
   }

@@ -3,17 +3,27 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 const REDIRECT_SECONDS = 5;
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
   const status = searchParams.get('status');
   const reason = searchParams.get('reason');
   const [countdown, setCountdown] = useState(REDIRECT_SECONDS);
+
+  const dashboardHref = session?.user
+    ? resolvePostLoginPath({
+        role: session.user.role,
+        companySlug: (session.user as { companySlug?: string }).companySlug,
+      })
+    : '/workspace';
 
   const isOk = status === 'ok';
 
@@ -25,14 +35,14 @@ export default function PaymentSuccessPage() {
     }, 1000);
 
     const redirectTimer = window.setTimeout(() => {
-      router.replace('/dashboard');
+      router.replace(dashboardHref);
     }, REDIRECT_SECONDS * 1000);
 
     return () => {
       window.clearInterval(tickTimer);
       window.clearTimeout(redirectTimer);
     };
-  }, [isOk, router]);
+  }, [isOk, router, dashboardHref]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 bg-background">
@@ -47,7 +57,7 @@ export default function PaymentSuccessPage() {
               </p>
             </div>
             <Button asChild className="w-full">
-              <Link href="/dashboard">Go to dashboard</Link>
+              <Link href={dashboardHref}>Go to dashboard</Link>
             </Button>
           </>
         )}
@@ -64,7 +74,7 @@ export default function PaymentSuccessPage() {
                 <Link href="/pricing">Back to pricing</Link>
               </Button>
               <Button asChild>
-                <Link href="/dashboard">Dashboard</Link>
+                <Link href={dashboardHref}>Dashboard</Link>
               </Button>
             </div>
           </>
@@ -75,7 +85,7 @@ export default function PaymentSuccessPage() {
             <Loader2 className="h-10 w-10 animate-spin text-muted-foreground mx-auto" />
             <p className="text-sm text-muted-foreground">Processing payment status…</p>
             <Button asChild variant="outline">
-              <Link href="/dashboard">Dashboard</Link>
+              <Link href={dashboardHref}>Dashboard</Link>
             </Button>
           </>
         )}

@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma'
 import { EmployeeRole, EmployeeStatus, UserStatus } from '@prisma/client'
 import {

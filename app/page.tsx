@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LandingPage } from '@/components/landing/landing-page';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -13,16 +14,16 @@ export default function HomePage() {
     if (status === 'loading' || !session) return;
 
     const role = session.user.role;
-    const companySlug = (session.user as { companySlug?: string }).companySlug?.trim();
 
     if (role === 'CUSTOMER') {
       router.push('/portal');
-    } else if (role === 'SUPER_ADMIN') {
-      router.push('/admin');
-    } else if (companySlug) {
-      router.push(`/${companySlug}/dashboard`);
     } else {
-      router.push('/dashboard');
+      router.push(
+        resolvePostLoginPath({
+          role,
+          companySlug: (session.user as { companySlug?: string }).companySlug,
+        })
+      );
     }
   }, [session, status, router]);
 

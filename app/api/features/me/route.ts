@@ -1,35 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
-import { handleApiError } from '@/lib/api-error-handler';
+import { NextResponse } from 'next/server';
 import { getFeatureModuleMap, getPlanModulesForUser } from '@/lib/feature-modules';
 import { prisma } from '@/lib/prisma';
 import { resolveBillingUserId } from '@/lib/plan-modules';
+import { withSessionRoute, jsonOk } from '@/lib/api/with-route';
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await requireAuth(req);
-    const [modules, planModules, billingUserId] = await Promise.all([
-      getFeatureModuleMap(session.user.id),
-      getPlanModulesForUser(session.user.id),
-      resolveBillingUserId(session.user.id),
-    ]);
+export const GET = withSessionRoute(async (_req, { userId }) => {
+  const [modules, planModules, billingUserId] = await Promise.all([
+    getFeatureModuleMap(userId),
+    getPlanModulesForUser(userId),
+    resolveBillingUserId(userId),
+  ]);
 
-    const subscription = await prisma.subscription.findUnique({
-      where: { userId: billingUserId },
-      include: { plan: { select: { name: true, displayName: true } } },
-    });
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId: billingUserId },
+    include: { plan: { select: { name: true, displayName: true } } },
+  });
 
-    return NextResponse.json({
-      modules,
-      planModules,
-      subscription: subscription
-        ? {
-            status: subscription.status,
-            plan: subscription.plan,
-          }
-        : null,
-    });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+  return jsonOk({
+    modules,
+    planModules,
+    subscription: subscription
+      ? {
+          status: subscription.status,
+          plan: subscription.plan,
+        }
+      : null,
+  });
+});

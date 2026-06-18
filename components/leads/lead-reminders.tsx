@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Bell, Calendar } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import type { LeadActivity } from '@/types/company-manager/lead'
+import type { LeadActivity } from '@/types/lead'
 
 interface ReminderProps {
   activities: LeadActivity[]

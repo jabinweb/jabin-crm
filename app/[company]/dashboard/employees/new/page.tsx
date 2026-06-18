@@ -1,4 +1,3 @@
-// app/dashboard/employees/new/page.tsx
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
@@ -16,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { toast } from "@/hooks/use-toast";
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 import { workspaceSlugHeaders } from "@/lib/api/workspace-slug";
 import AddressForm from "@/components/ui/address"; // Import AddressForm component
 
@@ -42,6 +42,7 @@ type EmployeeFormData = z.infer<typeof employeeFormSchema>;
 export default function NewEmployeePage() {
   const router = useRouter();
   const params = useParams<{ company: string }>();
+  const { path, slug } = useWorkspacePaths();
 
   // Initialize the form
   const form = useForm({
@@ -70,7 +71,7 @@ export default function NewEmployeePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...workspaceSlugHeaders(params.company),
+          ...workspaceSlugHeaders(slug ?? params.company),
         },
         body: JSON.stringify({
           ...data,
@@ -85,7 +86,7 @@ export default function NewEmployeePage() {
           title: "Success",
           description: "Employee added successfully!",
         });
-        router.push(`/${params.company}/dashboard/employees`);
+        router.push(path("/dashboard/employees"));
       } else {
         // Handle API errors
         toast({

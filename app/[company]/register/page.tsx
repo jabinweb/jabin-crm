@@ -64,7 +64,7 @@ export default function RegisterPage() {
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user) return;
     if (session.user.role === 'SUPER_ADMIN') {
-      router.replace('/dashboard');
+      router.replace('/admin');
       return;
     }
     const slug = session.user.companySlug?.trim();
@@ -110,11 +110,14 @@ export default function RegisterPage() {
         title: "Registration successful",
         description: "Please wait for admin approval",
       });
-      
+
+      const registeredSlug = result.data?.companySlug as string | undefined;
       router.push(
-        companySlug
-          ? `/auth/signin?callbackUrl=${encodeURIComponent(`/${companySlug}/dashboard`)}`
-          : '/auth/signin'
+        registeredSlug
+          ? `/auth/signin?callbackUrl=${encodeURIComponent(`/${registeredSlug}/onboarding`)}`
+          : companySlug
+            ? `/auth/signin?callbackUrl=${encodeURIComponent(`/${companySlug}/onboarding`)}`
+            : '/auth/signin'
       );
     } catch (error) {
       console.error('Registration error:', error);

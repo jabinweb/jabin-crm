@@ -19,7 +19,7 @@ export default function SignOutButton({
     <Button
       variant={variant}
       size={size}
-      onClick={() => signOut({ callbackUrl: "/auth/login" })}
+      onClick={() => signOut({ callbackUrl: "/auth/signin" })}
       className={className}
     >
       <LogOut className="mr-2 h-4 w-4" />

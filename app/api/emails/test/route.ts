@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sendEmail } from '@/lib/email/nodemailer';
-import { createEmailLog } from '@/lib/email-logger';
+import { createEmailLog } from '@/lib/email/email-logger';
 import { getUserSmtpConfig } from '@/lib/smtp-config';
 
 export async function POST(request: NextRequest) {
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       });
 
       // Update log status
-      const { updateEmailLogStatus } = await import('@/lib/email-logger');
+      const { updateEmailLogStatus } = await import('@/lib/email/email-logger');
       await updateEmailLogStatus(log.id, 'SENT');
 
       return NextResponse.json({
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (emailError: any) {
       // Update log with error
-      const { updateEmailLogStatus } = await import('@/lib/email-logger');
+      const { updateEmailLogStatus } = await import('@/lib/email/email-logger');
       await updateEmailLogStatus(log.id, 'FAILED', emailError.message);
 
       throw emailError;

@@ -1,267 +1,55 @@
-'use client'
+'use client';
 
-import { useParams } from 'next/navigation'
-import { useLead } from '@/hooks/use-lead'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LeadTimeline } from '@/components/leads/lead-timeline'
-import { LeadActions } from '@/components/leads/lead-actions'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, Calendar, Globe, Mail, Phone } from 'lucide-react'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import Link from 'next/link'
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Skeleton } from '@/components/ui/skeleton'
-import { LeadDocuments } from '@/components/leads/lead-documents'
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { useLeadDetailPage } from '@/hooks/use-lead-detail-page';
+import { LeadDetailHeader } from '@/components/leads/detail/lead-detail-header';
+import { LeadDetailSidebar } from '@/components/leads/detail/lead-detail-sidebar';
+import { LeadDetailActivity } from '@/components/leads/detail/lead-detail-activity';
+import { LeadDetailActions } from '@/components/leads/detail/lead-detail-actions';
+import { LeadDetailDialogs } from '@/components/leads/detail/lead-detail-dialogs';
 
-export default function LeadDetailsPage() {
-  const params = useParams()
-  const { data: lead, isLoading } = useLead(params.id as string)
+export default function LeadDetailPage() {
+  const detail = useLeadDetailPage();
 
-  if (isLoading) {
+  if (detail.isLoading) {
     return (
-      <div className="container py-6">
-        <div className="flex items-center gap-4 mb-6">
-          <Skeleton className="h-8 w-24" />
-          <div>
-            <Skeleton className="h-8 w-48 mb-2" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2">
-            <Skeleton className="h-[600px] w-full" />
-          </div>
-          <div>
-            <Skeleton className="h-[300px] w-full" />
-          </div>
+      <div className="flex-1 space-y-4">
+        <div className="flex justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
-    )
+    );
   }
 
-  if (!lead) {
+  if (!detail.lead) {
     return (
-      <div className="container py-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">Lead Not Found</h2>
-          <p className="text-muted-foreground mb-4">
-            The lead you&apos;re looking for doesn&apos;t exist or you don&apos;t have access to it.
-          </p>
-          <Button asChild variant="outline">
-            <Link href="..">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="flex-1 space-y-4">
+        <div className="text-center py-8">
+          <p className="text-red-500">Lead not found</p>
+          <Button asChild className="mt-4">
+            <DashboardLink href="/dashboard/leads">
+              <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Leads
-            </Link>
+            </DashboardLink>
           </Button>
         </div>
       </div>
-    )
+    );
   }
-
-  const leadDetails = lead as typeof lead & {
-    activities?: unknown[]
-    documents?: unknown[]
-    requirements?: string | null
-    nextFollowUp?: string | Date | null
-    assignedTo?: { name: string; avatar?: string | null; email?: string | null } | null
-  }
-
-  const contactMethods = [
-    { icon: Mail, value: lead.email, href: `mailto:${lead.email}` },
-    { icon: Phone, value: lead.phone, href: `tel:${lead.phone}` },
-    { icon: Globe, value: lead.website, href: lead.website },
-    { 
-      icon: Calendar, 
-      value: lead.lastContactedAt ? `Last Contact: ${formatDate(lead.lastContactedAt)}` : 'No contact yet',
-      href: null 
-    }
-  ]
 
   return (
-    <div className="container py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="..">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Leads
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold">{lead.companyName || lead.name || 'Lead'}</h1>
-            <p className="text-sm text-muted-foreground">Created {formatDate(lead.createdAt)}</p>
-          </div>
+    <div className="flex-1 space-y-6 pb-8">
+      <LeadDetailHeader {...detail} />
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <LeadDetailActions {...detail} />
+          <LeadDetailActivity {...detail} />
         </div>
-        <LeadActions lead={lead} />
+        <LeadDetailSidebar {...detail} />
       </div>
-
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2">
-          <Tabs defaultValue="overview">
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="activities">
-                Activities
-                {!!leadDetails.activities?.length && (
-                  <Badge variant="secondary" className="ml-2">
-                    {leadDetails.activities.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="documents">
-                Documents
-                {!!leadDetails.documents?.length && (
-                  <Badge variant="secondary" className="ml-2">
-                    {leadDetails.documents.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="overview" className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {contactMethods.map(({ icon: Icon, value, href }, i) => (
-                  <Card key={i}>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        {href ? (
-                          <a 
-                            href={href} 
-                            className="text-blue-600 hover:underline"
-                            target={href.startsWith('http') ? '_blank' : undefined}
-                            rel={href.startsWith('http') ? 'noopener noreferrer' : undefined}
-                          >
-                            {value || 'N/A'}
-                          </a>
-                        ) : (
-                          <span>{value || 'N/A'}</span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Lead Details</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Value</label>
-                      <p className="text-2xl font-semibold">
-                        {lead.value ? formatCurrency(lead.value) : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium">Source</label>
-                      <p>{lead.source}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Description</label>
-                    <p className="mt-1 whitespace-pre-wrap">{lead.description || 'No description provided'}</p>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium">Requirements</label>
-                    <p className="mt-1 whitespace-pre-wrap">{leadDetails.requirements || 'No requirements specified'}</p>
-                  </div>
-
-                  {lead.notes && (
-                    <div>
-                      <label className="text-sm font-medium">Notes</label>
-                      <p className="mt-1 whitespace-pre-wrap">{lead.notes}</p>
-                    </div>
-                  )}
-
-                  {lead.tags && lead.tags.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium">Tags</label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {lead.tags.map((tag, i) => (
-                          <Badge key={i} variant="secondary">{tag}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="activities">
-              <LeadTimeline activities={(leadDetails.activities ?? []) as any} />
-            </TabsContent>
-
-            <TabsContent value="documents">
-              <LeadDocuments documents={(leadDetails.documents ?? []) as any} leadId={lead.id} />
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Status Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div>
-                <label className="text-sm font-medium">Status</label>
-                <Badge className="mt-2 block w-full text-center py-1" variant={
-                  lead.status === 'WON' ? 'default' :
-                  lead.status === 'LOST' ? 'destructive' :
-                  'secondary'
-                }>
-                  {lead.status.replace('_', ' ')}
-                </Badge>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">CompanyTaskPriority</label>
-                <Badge className="mt-2 block w-full text-center py-1" variant={
-                  lead.priority === 'URGENT' ? 'destructive' :
-                  lead.priority === 'HIGH' ? 'destructive' :
-                  lead.priority === 'MEDIUM' ? 'default' :
-                  'secondary'
-                }>
-                  {lead.priority}
-                </Badge>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium block mb-2">Assigned To</label>
-                <div className="flex items-center gap-2 p-4 rounded-lg border">
-                  <Avatar>
-                    <AvatarImage src={leadDetails.assignedTo?.avatar || ''} />
-                    <AvatarFallback>{leadDetails.assignedTo?.name?.charAt(0) || '?'}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{leadDetails.assignedTo?.name || 'Unassigned'}</p>
-                    {leadDetails.assignedTo?.email && (
-                      <p className="text-sm text-muted-foreground">{leadDetails.assignedTo.email}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {leadDetails.nextFollowUp && (
-                <div>
-                  <label className="text-sm font-medium">Next Follow-up</label>
-                  <p className="mt-1 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {formatDate(leadDetails.nextFollowUp)}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <LeadDetailDialogs {...detail} />
     </div>
-  )
+  );
 }

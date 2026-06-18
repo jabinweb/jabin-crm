@@ -91,6 +91,10 @@ export function buildInitialCompanySettings(businessVertical: BusinessVertical =
       statusFlow: template.leadStatusFlow,
       customFields: [],
     },
+    onboarding: {
+      completed: false,
+      currentStep: 'welcome',
+    },
   };
 }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StockAdjustmentDialog } from "@/components/inventory/stock-adjustment-dialog"
 import { TransactionHistoryDialog } from "@/components/inventory/transaction-history-dialog"
 import { toast } from '@/hooks/use-toast'
-import type { Product } from '@/types/company-manager/inventory'
+import type { Product } from '@/types/inventory'
 
 interface StockLevel extends Pick<Product, 'id' | 'name' | 'sku' | 'quantity' | 'price' | 'minQuantity' | 'maxQuantity'> {
   _count: {
@@ -45,6 +46,7 @@ interface InventoryData {
 export default function InventoryPage() {
   const router = useRouter()
   const params = useParams<{ company: string }>()
+  const { path } = useWorkspacePaths()
   const [inventoryData, setInventoryData] = useState<InventoryData>({
     data: {
       products: [],
@@ -237,7 +239,7 @@ export default function InventoryPage() {
                     <TableRow 
                       key={product.id}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => router.push(`/${params.company}/dashboard/inventory/products/${product.id}`)}
+                      onClick={() => router.push(path(`/dashboard/products/${product.id}`))}
                     >
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.sku}</TableCell>

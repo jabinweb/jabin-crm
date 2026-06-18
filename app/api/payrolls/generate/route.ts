@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { EmployeeStatus } from '@prisma/client'
 import { randomUUID } from 'crypto'
 import {

@@ -29,8 +29,8 @@ function SignInForm() {
   const [error, setError] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const searchParams = useSearchParams();
-  const rawCallback = searchParams.get('callbackUrl') || '/dashboard';
-  const callbackUrl = rawCallback.startsWith('/monitoring') ? '/dashboard' : rawCallback;
+  const rawCallback = searchParams.get('callbackUrl') || '/workspace';
+  const callbackUrl = rawCallback.startsWith('/monitoring') ? '/workspace' : rawCallback;
   const authError = searchParams.get('error');
   const authErrorMessage = authError ? AUTH_ERROR_MESSAGES[authError] ?? 'Sign-in failed. Please try again.' : '';
 

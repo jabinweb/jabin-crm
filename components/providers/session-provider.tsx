@@ -17,7 +17,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkSession = async () => {
       // Skip session check for public routes
-      const publicRoutes = ['/', '/auth/login', '/auth/register', '/register']
+      const publicRoutes = ['/', '/auth/signin', '/auth/register', '/register', '/workspace']
       const currentPath = window.location.pathname
       
       if (publicRoutes.includes(currentPath) || currentPath.startsWith('/auth/') || currentPath.startsWith('/.well-known/')) {
@@ -34,11 +34,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         })
 
         if (!data.user) {
-          router.push('/auth/login')
+          router.push('/auth/signin')
         }
       } catch (error) {
         console.error('[SessionProvider] Session check error:', error)
-        router.push('/auth/login')
+        router.push('/auth/signin')
       }
     }
 

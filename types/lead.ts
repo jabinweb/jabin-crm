@@ -97,6 +97,83 @@ export interface LeadTableItem {
   }
 }
 
+// Lead detail page types
+export interface LeadScoreData {
+  totalScore: number
+  engagementScore: number
+  dataQualityScore: number
+  fitScore: number
+  lastCalculatedAt: Date
+}
+
+export interface LeadDetail extends Lead {
+  industry?: string | null
+  employeeCount?: number | null
+  address?: string | null
+  jobTitle?: string | null
+  linkedinUrl?: string | null
+  sourceUrl?: string | null
+  revenue?: string | null
+  score?: LeadScoreData | null
+  leadScore?: { score: number } | null
+}
+
+export interface LeadActivityItem {
+  id: string
+  activityType: ActivityType
+  description: string
+  metadata?: { oldStatus?: string; newStatus?: string } | null
+  createdAt: Date
+}
+
+export interface LeadEmailSnapshot {
+  id: string
+  subject?: string | null
+  replyCount?: number
+  sentAt?: Date | string | null
+  latestReply?: { body?: string } | null
+}
+
+export interface AiQualification {
+  score: number
+  quality: string
+  conversionProbability: number
+  reasoning: string
+  nextSteps: string[]
+}
+
+export interface AiTaskSuggestion {
+  title: string
+  type: string
+  priority: string
+  dueInDays: number
+  reasoning: string
+  description?: string
+}
+
+export interface AiTaskSuggestionsResponse {
+  insights: string
+  suggestions: AiTaskSuggestion[]
+}
+
+export interface LeadDetailTaskData {
+  title: string
+  type: string
+  priority: string
+  dueDate: string
+}
+
+export interface LeadDetailDealData {
+  title: string
+  value: string
+  stage: string
+  probability: string
+}
+
+export function getLeadDisplayScore(lead: LeadDetail): number | undefined {
+  return lead.leadScore?.score ?? lead.score?.totalScore
+}
+
 // Form data type
 export interface LeadFormData {
   companyName: string

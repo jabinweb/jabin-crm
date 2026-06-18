@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import type { Session } from 'next-auth';
 import { auth } from '@/auth';
@@ -5,8 +6,16 @@ import { prisma } from '@/lib/prisma';
 import { ensureFeatureEnabled, isFeatureEnabledForCompany } from '@/lib/feature-modules';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
+import {
+  resolveCompanyContextFromRequest,
+  TenantError,
+} from '@/lib/auth/company-membership';
 
-async function resolveKnowledgeCompanyId(session: Session | null) {
+/** Resolve tenant for knowledge base reads (staff use URL workspace when present). */
+async function resolveKnowledgeCompanyId(
+  session: Session | null,
+  req: NextRequest
+): Promise<string | null> {
   if (!session?.user) return null;
   if (session.user.role === 'CUSTOMER' && session.user.customerId) {
     const customer = await prisma.customer.findUnique({
@@ -15,16 +24,22 @@ async function resolveKnowledgeCompanyId(session: Session | null) {
     });
     return customer?.companyId ?? null;
   }
-  if (session.user.companyId) return session.user.companyId;
-  if (session.user.primaryCompanyId) return session.user.primaryCompanyId;
-  return null;
+  try {
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
+    return companyId;
+  } catch (e) {
+    if (e instanceof TenantError && e.status === 400) {
+      return session.user.primaryCompanyId ?? session.user.companyId ?? null;
+    }
+    throw e;
+  }
 }
 
 /** Public knowledge base articles for customer portal */
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
-    const companyId = await resolveKnowledgeCompanyId(session);
+    const companyId = await resolveKnowledgeCompanyId(session, req);
 
     if (session?.user?.role && session.user.role !== 'CUSTOMER') {
       await ensureFeatureEnabled(session.user.id, 'SUPPORT_KNOWLEDGE');
@@ -125,6 +140,7 @@ export async function POST(req: NextRequest) {
     }
     await ensureFeatureEnabled(session.user.id, 'SUPPORT_KNOWLEDGE');
 
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
     const body = await req.json();
     const slug =
       body.slug ||
@@ -141,12 +157,13 @@ export async function POST(req: NextRequest) {
         category: body.category,
         tags: body.tags ?? [],
         published: body.published ?? false,
-        companyId: body.companyId ?? null,
+        companyId: body.companyId ?? companyId,
       },
     });
 
     return NextResponse.json(article, { status: 201 });
   } catch (error) {
+    return handleRouteError(error);
     console.error('[api/support/knowledge POST]', error);
     return NextResponse.json({ error: 'Failed to create article' }, { status: 500 });
   }
@@ -161,9 +178,18 @@ export async function PATCH(req: NextRequest) {
     }
     await ensureFeatureEnabled(session.user.id, 'SUPPORT_KNOWLEDGE');
 
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
     const body = await req.json();
     if (!body.id) {
       return NextResponse.json({ error: 'Article id required' }, { status: 400 });
+    }
+
+    const existing = await prisma.knowledgeArticle.findFirst({
+      where: { id: body.id, companyId },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
     }
 
     const article = await prisma.knowledgeArticle.update({
@@ -179,6 +205,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(article);
   } catch (error) {
+    return handleRouteError(error);
     console.error('[api/support/knowledge PATCH]', error);
     return NextResponse.json({ error: 'Failed to update article' }, { status: 500 });
   }

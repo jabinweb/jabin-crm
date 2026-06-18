@@ -4,6 +4,11 @@ import { getToken } from 'next-auth/jwt';
 import { rateLimit } from './lib/rate-limit';
 import { logError } from './lib/logger';
 import { stripAuthSessionCookiesFromRequest } from '@/lib/auth/session-cookies';
+import {
+  resolveLegacyDashboardToTenant,
+  shouldRedirectLegacyDashboard,
+} from '@/lib/tenant-dashboard-routes';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 const PUBLIC_PREFIXES = [
   '/auth',
@@ -83,7 +88,7 @@ export async function proxy(req: NextRequest) {
       typeof user?.employeeId === 'string' ? user.employeeId.trim() : '';
 
     if (role === 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
+      return NextResponse.redirect(new URL('/admin', req.nextUrl));
     }
     if (/^\/[^/]+\/employee\/register\/?$/i.test(pathname) && companySlug && employeeId) {
       return NextResponse.redirect(new URL(`/${companySlug}/employee/dashboard`, req.nextUrl));
@@ -106,16 +111,36 @@ export async function proxy(req: NextRequest) {
     const companySlug =
       typeof user?.companySlug === 'string' ? user.companySlug.trim() : '';
 
-    if (companySlug && pathname === '/dashboard' && role !== 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL(`/${companySlug}/dashboard`, req.nextUrl));
+    if (role === 'CUSTOMER' && shouldRedirectLegacyDashboard(pathname)) {
+      return NextResponse.redirect(new URL('/portal', req.nextUrl));
     }
+
+    if (companySlug && shouldRedirectLegacyDashboard(pathname)) {
+      const target = resolveLegacyDashboardToTenant(pathname, companySlug);
+      if (target !== pathname) {
+        return NextResponse.redirect(new URL(target, req.nextUrl));
+      }
+    }
+
+    if (shouldRedirectLegacyDashboard(pathname)) {
+      const fallback = resolvePostLoginPath({
+        role,
+        companySlug,
+      });
+      if (fallback !== pathname) {
+        return NextResponse.redirect(new URL(fallback, req.nextUrl));
+      }
+    }
+
     if (pathname.startsWith('/admin') && role !== 'SUPER_ADMIN') {
-      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
+      const fallback = resolvePostLoginPath({ role, companySlug });
+      return NextResponse.redirect(new URL(fallback, req.nextUrl));
     }
     const canUsePortal =
       role === 'CUSTOMER' || role === 'ADMIN' || role === 'SUPER_ADMIN';
     if (pathname.startsWith('/portal') && !canUsePortal) {
-      return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
+      const fallback = resolvePostLoginPath({ role, companySlug });
+      return NextResponse.redirect(new URL(fallback, req.nextUrl));
     }
   }
 
@@ -166,3 +191,9 @@ export async function proxy(req: NextRequest) {
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|icons/|static/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+  ],
+};

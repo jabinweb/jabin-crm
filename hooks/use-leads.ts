@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { LeadResponse, LeadStatus, Priority } from '@/types/company-manager/lead'
+import type { LeadResponse, LeadStatus, Priority } from '@/types/lead'
 
 interface UseLeadsParams {
   status?: LeadStatus[]

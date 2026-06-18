@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
-import { invoiceService } from '@/lib/invoice-service';
-import { validateRequest } from '@/lib/validation';
+import { invoiceService } from '@/lib/crm/invoice-service';
+import { validateRequest } from '@/lib/validations/server';
 import { z } from 'zod';
 
 const paymentSchema = z.object({

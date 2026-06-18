@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
-import type { EmployeeMessage } from '@/types/company-manager/messages'
+import type { EmployeeMessage } from '@/types/messages'
 import { format } from 'date-fns'
 import { Check, CheckCheck, Clock } from 'lucide-react'
 

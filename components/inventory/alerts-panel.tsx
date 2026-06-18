@@ -7,7 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { AlertCircle, PackageOpen, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import type { InventoryAlert } from '@/types/company-manager/inventory'
+import type { InventoryAlert } from '@/types/inventory'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 
 export function AlertsPanel() {

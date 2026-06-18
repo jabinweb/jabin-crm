@@ -6,7 +6,7 @@ import {
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { Lead, LeadStatus } from '@/types/company-manager/lead'
+import { Lead, LeadStatus } from '@/types/lead'
 import { 
   MoreHorizontal, 
   PhoneCall, 
@@ -19,6 +19,7 @@ import {
   Clock
 } from 'lucide-react'
 import { useRouter, useParams } from 'next/navigation'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { useToast } from '@/hooks/use-toast'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 
@@ -29,13 +30,12 @@ interface LeadActionsProps {
 export function LeadActions({ lead }: LeadActionsProps) {
   const router = useRouter()
   const params = useParams<{ company?: string }>()
+  const { path } = useWorkspacePaths()
   const { toast } = useToast()
   const tenantHeaders =
     typeof params?.company === 'string' ? workspaceSlugHeaders(params.company) : {}
 
-  const leadDetailPath = params.company
-    ? `/${params.company}/dashboard/leads/${lead.id}`
-    : `/dashboard/leads/${lead.id}`
+  const leadDetailPath = path(`/dashboard/leads/${lead.id}`)
 
   const handleStatusChange = async (status: LeadStatus) => {
     try {
@@ -81,9 +81,9 @@ export function LeadActions({ lead }: LeadActionsProps) {
 
       const customerId = data.customerId ?? data.customer?.id
       if (customerId) {
-        router.push(`/dashboard/customers/${customerId}`)
+        router.push(path(`/dashboard/customers/${customerId}`))
       } else {
-        router.push('/dashboard/customers')
+        router.push(path('/dashboard/customers'))
       }
     } catch (error) {
       toast({

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { ticketService } from '@/lib/crm/ticket-service';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
-import { handleApiError } from '@/lib/api-error-handler';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 
 export async function POST(
   request: NextRequest,
@@ -10,12 +10,12 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    await ensureFeatureEnabled(session.user.id, 'TICKET_ADVANCED');
-
     const { id } = await params;
+    const guard = await requireTicketRouteAccess(session, request, id);
+    if (!guard.ok) return guard.response;
+
+    await ensureFeatureEnabled(guard.session.user.id, 'TICKET_ADVANCED');
+
     const { subject, description } = await request.json();
 
     if (!subject?.trim() || !description?.trim()) {
@@ -25,7 +25,7 @@ export async function POST(
     const newTicket = await ticketService.splitTicket(
       id,
       { subject: subject.trim(), description: description.trim() },
-      session.user.id
+      guard.session.user.id
     );
 
     return NextResponse.json(newTicket, { status: 201 });

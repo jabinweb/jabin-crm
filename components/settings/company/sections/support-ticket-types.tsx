@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useSettings } from '@/contexts/settings-context';
-import type { SettingsUpdatePayload } from '@/types/company-manager/settings';
+import type { SettingsUpdatePayload } from '@/types/settings';
 import { parseWorkspaceSettings, resolveWorkspaceConfig } from '@/lib/workspace-config';
 import {
   getDefaultTicketTypesForVertical,

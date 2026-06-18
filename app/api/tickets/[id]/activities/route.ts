@@ -4,6 +4,7 @@ import { ticketService } from '@/lib/crm/ticket-service';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardTicketAccess } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 
 export async function POST(
     request: NextRequest,
@@ -14,9 +15,12 @@ export async function POST(
         const session = await auth();
         await guardTicketAccess(session?.user);
 
+        const guard = await requireTicketRouteAccess(session, request, id);
+        if (!guard.ok) return guard.response;
+
         const { comment, isInternal } = await request.json();
-        const userId = session!.user.id;
-        const isStaff = session!.user.role !== 'CUSTOMER';
+        const userId = guard.session.user.id;
+        const isStaff = guard.session.user.role !== 'CUSTOMER';
 
         if (!comment) {
             return NextResponse.json({ error: 'Comment text is required' }, { status: 400 });

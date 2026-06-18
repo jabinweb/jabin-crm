@@ -79,7 +79,7 @@ const prisma = new Proxy({} as AppPrismaClient, {
 }) as AppPrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
-  // Don't eagerly initialize Prisma in dev; middleware imports can run before env is ready.
+  // Don't eagerly initialize Prisma in dev; proxy imports can run before env is ready.
 }
 
 export { prisma };

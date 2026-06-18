@@ -1,16 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
-import { handleApiError } from '@/lib/api-error-handler';
 import { cashService } from '@/lib/crm/cash-service';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
+import { withSessionRoute, jsonOk } from '@/lib/api/with-route';
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await requireAuth(req);
-    await ensureFeatureEnabled(session.user.id, 'SERVICE_CASH');
-    const balances = await cashService.getTechnicianBalances(session.user.id);
-    return NextResponse.json({ balances });
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+export const GET = withSessionRoute(async (_req, { userId }) => {
+  await ensureFeatureEnabled(userId, 'SERVICE_CASH');
+  const balances = await cashService.getTechnicianBalances(userId);
+  return jsonOk({ balances });
+});

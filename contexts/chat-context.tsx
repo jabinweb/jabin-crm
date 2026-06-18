@@ -4,10 +4,10 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef, us
 import { useMessageStore } from '@/lib/stores/message-store'
 import { CallProvider, useCall } from './call-context'
 import { useSSE } from '@/hooks/use-sse'
-import type { EmployeeMessage, MessageAPIPayload } from '@/types/company-manager/messages'
-import type { CallData } from '@/types/company-manager/call'
+import type { EmployeeMessage, MessageAPIPayload } from '@/types/messages'
+import type { CallData } from '@/types/call'
 import { generateId } from '@/lib/utils';
-import type { ChatUser } from '@/types/company-manager/chat'
+import type { ChatUser } from '@/types/chat'
 
 interface ChatContextType {
   messages: EmployeeMessage[]

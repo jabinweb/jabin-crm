@@ -1,3 +1,4 @@
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { ticketService } from '@/lib/crm/ticket-service';
@@ -14,6 +15,14 @@ import {
   resolveCompanyTicketConfig,
   resolveGroupIdForTicketType,
 } from '@/lib/support/resolve-company-ticket-config';
+import {
+  resolveCompanyContextFromRequest,
+  TenantError,
+} from '@/lib/auth/company-membership';
+import {
+  customerBelongsToCompanyFilter,
+  resolveStaffCompanyScope,
+} from '@/lib/tenant/scope-staff-query';
 
 export async function GET(request: NextRequest) {
     try {
@@ -29,6 +38,7 @@ export async function GET(request: NextRequest) {
         const customerId = searchParams.get('customerId') || undefined;
         const technicianId = searchParams.get('technicianId') || undefined;
         const includeMerged = searchParams.get('includeMerged') === 'true';
+        const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10), 500);
 
         if (session.user.role !== 'CUSTOMER') {
             if (channel) {
@@ -42,6 +52,15 @@ export async function GET(request: NextRequest) {
         if (session.user.role === 'CUSTOMER') {
             where.customerId = session.user.customerId;
         } else {
+            const companyId = await resolveStaffCompanyScope(session, request, {
+              allowGlobalForSuperAdmin: true,
+            });
+            if (companyId) {
+              Object.assign(where, customerBelongsToCompanyFilter(companyId));
+            } else if (session.user.role !== 'SUPER_ADMIN') {
+              return NextResponse.json({ error: 'Company context required' }, { status: 400 });
+            }
+
             if (!includeMerged) where.mergedIntoId = null;
             if (status) where.status = status;
             if (priority) where.priority = priority;
@@ -53,18 +72,16 @@ export async function GET(request: NextRequest) {
         const tickets = await prisma.supportTicket.findMany({
             where,
             include: {
-                customer: { select: { organizationName: true } },
+                customer: { select: { organizationName: true, companyId: true } },
                 assignedTechnician: { select: { name: true } },
             },
             orderBy: { createdAt: 'desc' },
+            take: limit,
         });
 
         return NextResponse.json(tickets);
     } catch (error) {
-        const handled = handleApiError(error);
-        if (handled.status !== 500) return handled;
-        console.error('Error fetching tickets:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return handleRouteError(error);
     }
 }
 
@@ -110,11 +127,28 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ error: message }, { status: 400 });
             }
         } else {
+            let staffCompanyId: string | null = null;
+            try {
+              const ctx = await resolveCompanyContextFromRequest(session, request);
+              staffCompanyId = ctx.companyId;
+            } catch (e) {
+              if (!(e instanceof TenantError)) throw e;
+            }
+
+            const customer = await prisma.customer.findUnique({
+              where: { id: data.customerId },
+              select: { companyId: true },
+            });
+
+            if (
+              staffCompanyId &&
+              customer?.companyId &&
+              customer.companyId !== staffCompanyId
+            ) {
+              return NextResponse.json({ error: 'Customer not in your workspace' }, { status: 403 });
+            }
+
             if (data.ticketType) {
-                const customer = await prisma.customer.findUnique({
-                    where: { id: data.customerId },
-                    select: { companyId: true },
-                });
                 const { ticketTypes } = await resolveCompanyTicketConfig(customer?.companyId);
                 const typeDef = findTicketTypeDefinition(ticketTypes, String(data.ticketType));
                 if (typeDef) {

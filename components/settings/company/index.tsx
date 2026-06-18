@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { DashboardLink } from '@/components/navigation/dashboard-link'
 import { useParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,7 +18,7 @@ import { TerminologySection } from "./sections/terminology"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { SettingsLayout } from "../settings-layout"
 import { useSettings } from "@/contexts/settings-context"
-import type { CompanySettings, SettingsUpdatePayload } from '@/types/company-manager/settings'
+import type { CompanySettings, SettingsUpdatePayload } from '@/types/settings'
 
 export function CompanySettings() {
   return (
@@ -88,9 +89,9 @@ function CompanySettingsContent() {
         Workspace company details are stored on your{' '}
         <span className="font-medium text-foreground">Company</span> record. For personal CRM options (email
         integrations, AI API keys, legacy invoicing fields on your user profile), use{' '}
-        <Link href="/dashboard/settings/advanced" className="text-primary underline-offset-4 hover:underline">
+        <DashboardLink href="/dashboard/settings/advanced" className="text-primary underline-offset-4 hover:underline">
           personal CRM settings
-        </Link>
+        </DashboardLink>
         .
       </p>
       <Tabs defaultValue="basic" className="space-y-4">

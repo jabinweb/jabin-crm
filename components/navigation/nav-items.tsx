@@ -1,7 +1,7 @@
 import { 
   Home, User, Calendar, Users, Building2, Settings, 
   LayoutDashboard, Package, Box, ArrowLeftRight, ClipboardList,
-  Package2, ShoppingCart, Truck, BarChart, Building, Clock,
+  Package2, ShoppingCart, BarChart, Building, Clock,
   Wallet, Bell, MessageSquare
 } from 'lucide-react'
 
@@ -123,12 +123,6 @@ export const NAV_ITEMS: NavItems = {
     icon: <ShoppingCart className="mr-2 h-4 w-4" />,
   },
   {
-    href: "/dashboard/suppliers",
-    title: "Suppliers",
-    icon: <Truck className="mr-2 h-4 w-4" />,
-    requiredRole: ['ADMIN', 'MANAGER'],
-  },
-  {
     href: "/dashboard/reports",
     title: "Reports",
     icon: <BarChart className="mr-2 h-4 w-4" />,
@@ -171,8 +165,8 @@ export const NAV_ITEMS: NavItems = {
       icon: <Building2 className="mr-2 h-4 w-4" />
     },
     {
-      href: '/admin/reports',
-      title: 'Reports',
+      href: '/admin/activity',
+      title: 'Activity',
       icon: <BarChart className="mr-2 h-4 w-4" />
     },
     {

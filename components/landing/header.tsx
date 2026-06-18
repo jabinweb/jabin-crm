@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { getClientBrandConfig } from '@/lib/branding';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 const navigation = [
   { name: 'Features', href: '#features' },
@@ -18,6 +19,12 @@ export function LandingHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const brand = getClientBrandConfig();
+  const dashboardHref = session?.user
+    ? resolvePostLoginPath({
+        role: session.user.role,
+        companySlug: (session.user as { companySlug?: string }).companySlug,
+      })
+    : '/workspace';
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 8);
@@ -55,7 +62,7 @@ export function LandingHeader() {
           <div className="hidden md:flex items-center gap-2">
             {session ? (
               <Button asChild size="sm" variant="default" className="h-8 px-4 text-xs">
-                <Link href="/dashboard">Dashboard</Link>
+                <Link href={dashboardHref}>Dashboard</Link>
               </Button>
             ) : (
               <>
@@ -94,7 +101,7 @@ export function LandingHeader() {
             <div className="pt-3 mt-2 border-t border-neutral-200 space-y-2">
               {session ? (
                 <Button asChild className="w-full h-9 text-xs" size="sm">
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href={dashboardHref}>Dashboard</Link>
                 </Button>
               ) : (
                 <>

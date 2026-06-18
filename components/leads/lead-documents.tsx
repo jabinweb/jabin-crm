@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileIcon, DownloadIcon, TrashIcon, UploadIcon } from "lucide-react"
 import { formatDate } from "@/lib/utils"
-import type { LeadDocument } from "@/types/company-manager/lead"
+import type { LeadDocument } from "@/types/lead"
 
 interface LeadDocumentsProps {
   documents: LeadDocument[]

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, Target, Users, CheckCircle2, Clock } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DashboardStats } from "@/types/company-manager/dashboard"
+import type { DashboardStats } from "@/types/dashboard"
 
 interface KeyMetricsProps {
   data?: DashboardStats

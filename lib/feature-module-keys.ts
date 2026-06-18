@@ -6,7 +6,7 @@
  * of plan tier. Only add keys for customer-facing / revenue modules.
  *
  * Public email webhooks and tracking pixels (/api/emails/reply, /api/emails/track/*,
- * /api/emails/webhook/inbound) are also outside this matrix — no session or plan check.
+ * legacy aliases /api/track/* and /api/email/track/*) are outside this matrix.
  */
 export const ALL_FEATURE_MODULES = [
   'LEADS',

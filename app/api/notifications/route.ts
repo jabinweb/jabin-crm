@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { EmployeeMessageStatus, LeaveStatus } from '@prisma/client'
 import { auth } from '@/auth'
+import { handleRouteError } from '@/lib/api/tenant-response';
 import "@/types/auth";
 import {
   resolveCompanyContextFromRequest,

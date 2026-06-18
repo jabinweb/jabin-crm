@@ -14,8 +14,6 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-// import { ActionButtons } from '@/components/company-manager/ActionButtons';
-// import { EditCompanyDialog } from '@/components/company-manager/companies/edit-company-dialog';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 

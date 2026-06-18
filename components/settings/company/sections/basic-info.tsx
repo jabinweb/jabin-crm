@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { ImageUpload } from "@/components/ui/image-upload"
 import { useSettings } from "@/contexts/settings-context"
-import type { SettingsUpdatePayload } from '@/types/company-manager/settings'
+import type { SettingsUpdatePayload } from '@/types/settings'
 
 interface BasicInfoSectionProps {
   onChange?: (changes: SettingsUpdatePayload) => void;

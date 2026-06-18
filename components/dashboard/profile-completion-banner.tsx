@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Building, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useState } from 'react';
 
 interface ProfileCompletionBannerProps {
@@ -12,6 +13,7 @@ interface ProfileCompletionBannerProps {
 
 export function ProfileCompletionBanner({ isComplete }: ProfileCompletionBannerProps) {
   const router = useRouter();
+  const { path } = useWorkspacePaths();
   const [isDismissed, setIsDismissed] = useState(false);
 
   if (isComplete || isDismissed) {
@@ -32,7 +34,7 @@ export function ProfileCompletionBanner({ isComplete }: ProfileCompletionBannerP
           <div className="flex items-center space-x-2 ml-4">
             <Button 
               size="sm" 
-              onClick={() => router.push('/dashboard/settings')}
+              onClick={() => router.push(path('/dashboard/settings'))}
               className="text-[10px] font-bold uppercase tracking-tighter h-8"
             >
               Complete Now

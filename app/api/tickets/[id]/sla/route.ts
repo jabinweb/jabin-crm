@@ -1,33 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/auth-middleware';
+import { auth } from '@/auth';
 import { ApiErrors, handleApiError } from '@/lib/api-error-handler';
-import { prisma } from '@/lib/prisma';
 import { slaService } from '@/lib/crm/sla-service';
 import { guardTicketAccess } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireAuth(req);
-    await guardTicketAccess(session.user);
+    const session = await auth();
+    await guardTicketAccess(session?.user);
 
     const { id } = await params;
-
-    const ticket = await prisma.supportTicket.findUnique({
-      where: { id },
-      select: { id: true, customerId: true },
-    });
-
-    if (!ticket) {
-      throw ApiErrors.notFound('Ticket');
-    }
-
-    if (session.user.role === 'CUSTOMER' && session.user.customerId !== ticket.customerId) {
-      throw ApiErrors.forbidden();
-    }
+    const guard = await requireTicketRouteAccess(session, req, id);
+    if (!guard.ok) return guard.response;
 
     const sla = await slaService.getTicketSlaStatus(id);
     if (!sla) {
