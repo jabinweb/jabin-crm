@@ -63,7 +63,11 @@ export async function proxy(req: NextRequest) {
 
   // --- Auth gate ---
 
-  const token = await getToken({ req, secret: process.env.AUTH_SECRET });
+  const token = await getToken({
+    req,
+    secret: process.env.AUTH_SECRET,
+    secureCookie: process.env.NODE_ENV === 'production',
+  });
   const isLoggedIn = !!token;
   const user = token as Record<string, unknown>;
   const role = user?.role as string | undefined;
