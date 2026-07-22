@@ -1,5 +1,4 @@
 import { prisma } from '@/lib/prisma'
-import { v4 as uuidv4 } from 'uuid'
 
 export class PayrollService {
   static async calculateSalary(employeeId: string, month: number, year: number) {
@@ -69,11 +68,9 @@ export class PayrollService {
 
   static async generatePayslip(employeeId: string, month: number, year: number) {
     const calculation = await this.calculateSalary(employeeId, month, year)
-    const now = new Date()
 
     return prisma.payslip.create({
       data: {
-        id: uuidv4(), // Add unique ID
         employeeId,
         month,
         year,
@@ -87,10 +84,8 @@ export class PayrollService {
           calculation.components.transport +
           calculation.components.medical,
         netSalary: calculation.total,
-        createdAt: now,
-        updatedAt: now,
-        isPaid: false // Add default value for isPaid
-      }
+        isPaid: false,
+      },
     })
   }
 
