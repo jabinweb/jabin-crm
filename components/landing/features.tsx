@@ -1,63 +1,119 @@
+'use client';
+
+import { getClientBrandConfig } from '@/lib/branding';
+
+const highlights = [
+  {
+    title: 'Command Home',
+    description:
+      'Open tickets, SLA risk, contract renewals, and recent work — what needs attention today.',
+  },
+  {
+    title: 'Tickets & SLA',
+    description:
+      'Priority queues with response and resolution timers so breaches are visible before they happen.',
+  },
+  {
+    title: 'Field & equipment',
+    description:
+      'Installations, QR service links, GPS tools, and service reports for technicians on site.',
+  },
+  {
+    title: 'AMC / CMC',
+    description:
+      'Track maintenance contracts and surface renewals on Home before coverage lapses.',
+  },
+];
+
 const modules = [
   {
-    title: 'CRM & revenue',
-    description: 'Manage the full sales cycle from first touch to closed deal.',
-    items: ['Leads & pipeline', 'Deals & quotations', 'Invoices', 'Email campaigns', 'Sequences', 'WhatsApp'],
+    title: 'Sales & outreach',
+    items: ['Leads & deals', 'Quotations & invoices', 'Email sequences', 'Campaigns', 'WhatsApp'],
   },
   {
-    title: 'HRMS',
-    description: 'Internal people operations included on every plan — no add-on required.',
-    items: ['Attendance', 'Leave requests', 'Payslips', 'Payroll admin', 'Employee app', 'Company workspace'],
+    title: 'Service operations',
+    items: ['Tickets', 'SLA policies', 'Omnichannel inbox', 'Knowledge base', 'Client portal'],
   },
   {
-    title: 'Customer support',
-    description: 'Resolve customer issues across channels with a branded self-service portal.',
-    items: ['Ticket desk', 'SLA policies', 'Live chat', 'Knowledge base', 'Omnichannel inbox', 'Customer portal'],
+    title: 'People & field',
+    items: ['Attendance', 'Leave & payroll', 'Technician app', 'GPS tracking', 'Expenses'],
   },
 ];
 
 export function Features() {
-  return (
-    <section id="features" className="border-t border-neutral-200 bg-neutral-50/50">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
-        <div className="max-w-xl mb-14">
-          <p className="text-xs font-medium tracking-widest uppercase text-neutral-400 mb-3">
-            Platform
-          </p>
-          <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-neutral-950">
-            Everything your company runs on
-          </h2>
-          <p className="mt-3 text-sm text-neutral-500 leading-relaxed">
-            CRM and support unlock by subscription tier. HRMS ships with every approved workspace.
-          </p>
-        </div>
+  const brand = getClientBrandConfig();
 
-        <div className="space-y-4">
-          {modules.map((mod) => (
-            <div
-              key={mod.title}
-              className="rounded-xl border border-neutral-200 bg-white p-6 md:p-8"
-            >
-              <div className="grid md:grid-cols-[240px_1fr] gap-6 md:gap-10">
-                <div>
-                  <h3 className="text-base font-medium text-neutral-950">{mod.title}</h3>
-                  <p className="mt-2 text-sm text-neutral-500 leading-relaxed">{mod.description}</p>
-                </div>
-                <div className="flex flex-wrap gap-2 content-start">
-                  {mod.items.map((item) => (
-                    <span
-                      key={item}
-                      className="inline-flex items-center rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs text-neutral-600"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
+  return (
+    <>
+      <section id="platform" className="border-t border-[var(--lp-line)] bg-[var(--lp-bg)]">
+        <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+          <div className="max-w-2xl mb-12">
+            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
+              Platform overview
+            </p>
+            <h2 className="font-[family-name:var(--font-landing-display)] text-3xl md:text-4xl font-semibold tracking-tight text-[var(--lp-ink)]">
+              Full operations — without the complexity tax
+            </h2>
+            <p className="mt-4 text-[var(--lp-muted)] leading-relaxed">
+              {brand.appName} covers the same jobs as heavier platforms: queues, renewals,
+              field, sales, and portal. The difference is shorter paths and clearer screens.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            {highlights.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-[var(--lp-line)] bg-white p-6 hover:border-teal-200/80 transition-colors"
+              >
+                <h3 className="font-[family-name:var(--font-landing-display)] text-lg font-semibold text-[var(--lp-ink)]">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm text-[var(--lp-muted)] leading-relaxed">
+                  {item.description}
+                </p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section id="modules" className="border-t border-[var(--lp-line)] bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+          <div className="max-w-xl mb-12">
+            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
+              Core modules
+            </p>
+            <h2 className="font-[family-name:var(--font-landing-display)] text-3xl md:text-4xl font-semibold tracking-tight text-[var(--lp-ink)]">
+              Replace disconnected tools with one stack
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-4">
+            {modules.map((mod) => (
+              <div
+                key={mod.title}
+                className="rounded-2xl border border-[var(--lp-line)] bg-[var(--lp-bg)] p-6"
+              >
+                <h3 className="font-[family-name:var(--font-landing-display)] text-base font-semibold text-[var(--lp-ink)]">
+                  {mod.title}
+                </h3>
+                <ul className="mt-4 space-y-2">
+                  {mod.items.map((item) => (
+                    <li
+                      key={item}
+                      className="text-sm text-[var(--lp-muted)] flex items-center gap-2"
+                    >
+                      <span className="h-1 w-1 rounded-full bg-[var(--lp-accent)] shrink-0" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

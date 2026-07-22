@@ -10,15 +10,16 @@ import {
   Clock,
   DollarSign,
   Bell,
-  Settings,
-  User
+  User,
+  MessageSquare,
 } from 'lucide-react'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
 const routes = [
   {
     label: 'Dashboard',
     icon: LayoutDashboard,
-    href: '/employee',
+    href: '/employee/dashboard',
   },
   {
     label: 'Profile',
@@ -41,43 +42,51 @@ const routes = [
     href: '/employee/leave',
   },
   {
-    label: 'Payroll',
+    label: 'Payslips',
     icon: DollarSign,
-    href: '/employee/payroll',
+    href: '/employee/payslips',
   },
   {
-    label: 'Notifications',
+    label: 'Messages',
+    icon: MessageSquare,
+    href: '/employee/messages',
+  },
+  {
+    label: 'Announcements',
     icon: Bell,
-    href: '/employee/notifications',
-  }
+    href: '/employee/announcements',
+  },
 ]
 
 export function EmployeeSidebar() {
   const pathname = usePathname()
+  const { employeePath } = useWorkspacePaths()
 
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-white border-r">
       <div className="px-3 py-2">
-        <h2 className="mb-2 px-4 text-lg font-semibold">
-          Employee Portal
-        </h2>
+        <h2 className="mb-2 px-4 text-lg font-semibold">Employee Portal</h2>
         <div className="space-y-1">
-          {routes.map((route) => (
-            <Link
-              key={route.href}
-              href={route.href}
-              className={cn(
-                "flex items-center gap-3 rounded-none px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100",
-                pathname === route.href ? "bg-gray-100 text-gray-900" : ""
-              )}
-            >
-              <route.icon className="h-4 w-4" />
-              {route.label}
-            </Link>
-          ))}
+          {routes.map((route) => {
+            const href = employeePath(route.href)
+            return (
+              <Link
+                key={route.href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-3 rounded-none px-3 py-2 text-gray-500 transition-all hover:text-gray-900 hover:bg-gray-100',
+                  pathname === href || pathname?.startsWith(href + '/')
+                    ? 'bg-gray-100 text-gray-900'
+                    : ''
+                )}
+              >
+                <route.icon className="h-4 w-4" />
+                {route.label}
+              </Link>
+            )
+          })}
         </div>
       </div>
     </div>
   )
 }
-

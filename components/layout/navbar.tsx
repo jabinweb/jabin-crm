@@ -28,10 +28,14 @@ import { Activity, LogOut, Settings, User, Crown, CreditCard, Search, Building2,
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
+import { getClientBrandConfig } from '@/lib/branding';
+import { PunchButton } from '@/components/dashboard/punch-button';
+import { NotificationsPanel } from '@/components/notifications/notifications-panel';
 
 export function Navbar() {
   const { data: session } = useSession();
   const router = useRouter();
+  const brand = getClientBrandConfig();
   const params = useParams<{ company?: string }>();
   const workspaceSlug =
     typeof params?.company === 'string'
@@ -98,18 +102,20 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background">
+    <header className="z-50 w-full border-b bg-background shrink-0">
       <div className="flex h-14 items-center px-3 sm:px-4 lg:px-8">
         <div className="mr-2 sm:mr-4 flex md:hidden">
           <Link className="flex items-center space-x-2" href={homeHref}>
-            <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
+            <Building2 className="h-5 w-5 text-foreground" />
           </Link>
         </div>
 
         <div className="mr-4 hidden md:flex">
           <Link className="mr-6 flex items-center space-x-2" href={homeHref}>
             <Building2 className="h-5 w-5 text-foreground" />
-            <span className="hidden font-black lg:inline-block tracking-tighter">JABIN</span>
+            <span className="hidden font-semibold lg:inline-block tracking-tight">
+              {brand.appName}
+            </span>
           </Link>
         </div>
 
@@ -117,20 +123,28 @@ export function Navbar() {
           <div className="w-full flex-1 md:w-auto md:flex-none">
             <Button
               variant="outline"
-              className="relative h-8 w-full justify-start px-3 py-2 text-xs sm:w-64 md:w-auto lg:w-64 border-muted hover:bg-muted/50 transition-colors"
+              className="relative h-9 w-full justify-start px-3 text-sm font-normal text-muted-foreground sm:w-64 md:w-auto lg:w-72"
               onClick={() => setOpen(true)}
             >
-              <Search className="h-3 w-3 sm:mr-2" />
-              <span className="hidden sm:inline-flex flex-1 text-left opacity-60">Search query...</span>
-              <kbd className="pointer-events-none hidden lg:inline-flex h-4 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[9px] font-medium ml-auto">
-                K
+              <Search className="h-4 w-4 sm:mr-2 shrink-0" />
+              <span className="hidden sm:inline-flex flex-1 text-left truncate">
+                Search employees, leads, customers…
+              </span>
+              <kbd className="pointer-events-none hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-auto">
+                ⌘K
               </kbd>
             </Button>
           </div>
 
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <PunchButton />
+            {session?.user?.role && (
+              <NotificationsPanel userRole={session.user.role} />
+            )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-none">
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={session?.user?.image || ''} alt={session?.user?.name || ''} />
                   <AvatarFallback className="text-xs">
@@ -148,45 +162,71 @@ export function Navbar() {
                   <p className="text-xs leading-none text-muted-foreground truncate">
                     {session?.user?.email}
                   </p>
-                  <Badge variant="secondary" className="w-fit mt-1 text-xs">
-                    {session?.user?.role}
+                  <Badge variant="secondary" className="w-fit mt-1 capitalize">
+                    {session?.user?.role?.replaceAll('_', ' ').toLowerCase()}
                   </Badge>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {session?.user?.role === 'admin' && (
+              {(session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN') && (
                 <>
                   <DropdownMenuItem asChild>
-                    <Link href="/admin">
-                      <Crown className="mr-2 h-4 w-4 text-red-600" />
-                      <span className="text-red-600 font-semibold">Admin Panel</span>
+                    <Link href={session.user.role === 'SUPER_ADMIN' ? '/admin' : path('/dashboard')}>
+                      <Crown className="mr-2 h-4 w-4" />
+                      <span>
+                        {session.user.role === 'SUPER_ADMIN' ? 'Platform admin' : 'Workspace home'}
+                      </span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </>
               )}
-              <DropdownMenuItem asChild>
-                <DashboardLink href="/dashboard/settings/subscription">
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  <span>Subscription</span>
-                </DashboardLink>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/pricing">
-                  <Crown className="mr-2 h-4 w-4" />
-                  <span>Upgrade Plan</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <DashboardLink href="/dashboard/settings">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DashboardLink>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownMenuItem>
+              {(session?.user?.role === 'ADMIN' ||
+                session?.user?.role === 'SUPER_ADMIN') && (
+                <>
+                  <DropdownMenuItem asChild>
+                    <DashboardLink href="/dashboard/settings/subscription">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      <span>Subscription</span>
+                    </DashboardLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/pricing">
+                      <Crown className="mr-2 h-4 w-4" />
+                      <span>Upgrade plan</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <DashboardLink href="/dashboard/settings">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DashboardLink>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <DashboardLink href="/dashboard/settings">
+                      <Settings className="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DashboardLink>
+                  </DropdownMenuItem>
+                </>
+              )}
+              {!!session?.user?.employeeId &&
+                session?.user?.role !== 'ADMIN' &&
+                session?.user?.role !== 'SUPER_ADMIN' && (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={
+                        workspaceSlug
+                          ? `/${workspaceSlug}/employee/profile`
+                          : path('/dashboard')
+                      }
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      <span>My profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />
@@ -194,6 +234,7 @@ export function Navbar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       </div>
 

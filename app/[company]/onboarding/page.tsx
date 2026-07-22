@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,15 +19,23 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
-import { Loader2, CheckCircle2, Rocket, ArrowRight, ArrowLeft } from 'lucide-react';
+import {
+  canManageCompanyOnboarding,
+  normalizeOnboardingStep,
+  type OnboardingStepId,
+} from '@/lib/onboarding/company-onboarding';
+import { Loader2, CheckCircle2, Rocket, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
-import type { OnboardingStepId } from '@/lib/onboarding/company-onboarding';
+import Link from 'next/link';
 
 export default function OnboardingPage() {
   const params = useParams<{ company: string }>();
   const slug = params.company;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: session, status: sessionStatus } = useSession();
+  const role = session?.user?.role;
+  const isManager = canManageCompanyOnboarding(role);
 
   const { data, isLoading } = useQuery({
     queryKey: ['onboarding', slug],
@@ -35,12 +44,35 @@ export default function OnboardingPage() {
       if (!res.ok) throw new Error('Failed to load onboarding');
       return res.json();
     },
-    enabled: !!slug,
+    enabled: !!slug && sessionStatus === 'authenticated',
   });
 
   const [welcome, setWelcome] = useState({ companyName: '', businessVertical: 'general' });
-  const [channels, setChannels] = useState({ email: '', phone: '', chat: true, whatsApp: false });
-  const [customer, setCustomer] = useState({ organizationName: '', contactPerson: '', email: '' });
+  const [channels, setChannels] = useState({
+    email: '',
+    phone: '',
+    chat: true,
+    whatsApp: false,
+  });
+  const [prefilled, setPrefilled] = useState(false);
+
+  useEffect(() => {
+    if (!data || prefilled) return;
+    setWelcome({
+      companyName: data.company?.name || '',
+      businessVertical: data.workspace?.businessVertical || 'general',
+    });
+    const ch = data.support?.channels;
+    if (ch) {
+      setChannels({
+        email: ch.email || '',
+        phone: ch.phone || '',
+        chat: ch.chat !== false,
+        whatsApp: !!ch.whatsApp,
+      });
+    }
+    setPrefilled(true);
+  }, [data, prefilled]);
 
   const mutation = useMutation({
     mutationFn: async (body: Record<string, unknown>) => {
@@ -49,13 +81,16 @@ export default function OnboardingPage() {
         headers: { 'Content-Type': 'application/json', ...workspaceSlugHeaders(slug) },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error('Failed to save');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to save');
+      }
       return res.json();
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', slug] }),
   });
 
-  if (isLoading || !data) {
+  if (sessionStatus === 'loading' || isLoading || !data) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -68,43 +103,79 @@ export default function OnboardingPage() {
     return null;
   }
 
-  const step = (data.onboarding?.currentStep ?? 'welcome') as OnboardingStepId;
-  const stepIndex = data.steps.findIndex((s: { id: string }) => s.id === step);
-  const progress = Math.round(((stepIndex + 1) / data.steps.length) * 100);
+  if (!isManager) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <Card className="max-w-md w-full shadow-none">
+          <CardHeader>
+            <CardTitle>Workspace setup in progress</CardTitle>
+            <CardDescription>
+              An admin needs to finish setting up this workspace. You can keep using your
+              dashboard in the meantime.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <Link href={`/${slug}/dashboard`}>Go to Home</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const advance = async (action: 'complete' | 'skip', payload?: Record<string, unknown>) => {
+  const step = normalizeOnboardingStep(data.onboarding?.currentStep) as OnboardingStepId;
+  const steps = data.steps as Array<{ id: string; title: string; description: string }>;
+  const stepIndex = Math.max(
+    0,
+    steps.findIndex((s) => s.id === step)
+  );
+  const progress = Math.round(((stepIndex + 1) / steps.length) * 100);
+
+  const finishAndGo = async () => {
+    await mutation.mutateAsync({ action: 'finish' });
+    queryClient.invalidateQueries({ queryKey: ['onboarding-check', slug] });
+    toast.success('Your workspace is ready');
+    router.push(`/${slug}/dashboard`);
+  };
+
+  const saveStep = async (action: 'complete' | 'skip', payload?: Record<string, unknown>) => {
     try {
       await mutation.mutateAsync({ step, action, data: payload });
-      if (step === 'complete' || (action === 'complete' && step === 'customer')) {
-        await mutation.mutateAsync({ action: 'finish' });
-        toast.success('Your workspace is ready!');
-        router.push(`/${slug}/dashboard`);
-      }
-    } catch {
-      toast.error('Could not save progress');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save progress');
+      throw e;
     }
   };
 
+  const verticalLabel =
+    BUSINESS_VERTICAL_OPTIONS.find((o) => o.id === welcome.businessVertical)?.label ??
+    welcome.businessVertical;
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 py-12 px-4">
-      <div className="mx-auto max-w-2xl space-y-8">
+    <div className="min-h-screen bg-gradient-to-b from-stone-100 via-stone-50 to-white dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 py-12 px-4">
+      <div className="mx-auto max-w-xl space-y-8">
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center gap-2 text-primary">
-            <Rocket className="h-5 w-5" />
-            <span className="text-sm font-semibold uppercase tracking-wider">Workspace setup</span>
-          </div>
-          <h1 className="text-3xl font-bold">Set up {data.company?.name ?? 'your business'}</h1>
-          <p className="text-muted-foreground">
-            A few steps to configure CRM, support desk, and customer portal for your team.
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Workspace setup
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+            {data.company?.name ?? 'Your business'}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Two quick steps — you can change everything later in Settings.
           </p>
         </div>
 
-        <Progress value={progress} className="h-2" />
+        <Progress value={progress} className="h-1.5" />
+        <p className="text-center text-xs text-muted-foreground">
+          Step {stepIndex + 1} of {steps.length}
+        </p>
 
-        <Card>
+        <Card className="shadow-none border-foreground/10">
           <CardHeader>
-            <CardTitle>{data.steps[stepIndex]?.title ?? 'Setup'}</CardTitle>
-            <CardDescription>{data.steps[stepIndex]?.description}</CardDescription>
+            <CardTitle className="text-lg">{steps[stepIndex]?.title ?? 'Setup'}</CardTitle>
+            <CardDescription>{steps[stepIndex]?.description}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {step === 'welcome' && (
@@ -112,22 +183,28 @@ export default function OnboardingPage() {
                 <div className="space-y-2">
                   <Label>Company name</Label>
                   <Input
-                    value={welcome.companyName || data.company?.name || ''}
-                    onChange={(e) => setWelcome((w) => ({ ...w, companyName: e.target.value }))}
+                    value={welcome.companyName}
+                    onChange={(e) =>
+                      setWelcome((w) => ({ ...w, companyName: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Business type</Label>
                   <Select
                     value={welcome.businessVertical}
-                    onValueChange={(v) => setWelcome((w) => ({ ...w, businessVertical: v }))}
+                    onValueChange={(v) =>
+                      setWelcome((w) => ({ ...w, businessVertical: v }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       {BUSINESS_VERTICAL_OPTIONS.map((o) => (
-                        <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -143,120 +220,129 @@ export default function OnboardingPage() {
                     type="email"
                     placeholder="support@yourcompany.com"
                     value={channels.email}
-                    onChange={(e) => setChannels((c) => ({ ...c, email: e.target.value }))}
+                    onChange={(e) =>
+                      setChannels((c) => ({ ...c, email: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Support phone</Label>
                   <Input
-                    placeholder="+1 555 0100"
+                    placeholder="+91 98765 43210"
                     value={channels.phone}
-                    onChange={(e) => setChannels((c) => ({ ...c, phone: e.target.value }))}
+                    onChange={(e) =>
+                      setChannels((c) => ({ ...c, phone: e.target.value }))
+                    }
                   />
                 </div>
                 <div className="flex items-center justify-between rounded-md border p-3">
-                  <Label>Enable live chat</Label>
-                  <Switch checked={channels.chat} onCheckedChange={(v) => setChannels((c) => ({ ...c, chat: v }))} />
+                  <Label>Live chat</Label>
+                  <Switch
+                    checked={channels.chat}
+                    onCheckedChange={(v) => setChannels((c) => ({ ...c, chat: v }))}
+                  />
                 </div>
                 <div className="flex items-center justify-between rounded-md border p-3">
-                  <Label>Enable WhatsApp</Label>
-                  <Switch checked={channels.whatsApp} onCheckedChange={(v) => setChannels((c) => ({ ...c, whatsApp: v }))} />
-                </div>
-              </>
-            )}
-
-            {step === 'team' && (
-              <p className="text-sm text-muted-foreground">
-                Invite team members from{' '}
-                <strong>Settings → Employees</strong> after setup. Support groups and agents can be
-                configured under <strong>Support desk → Agent groups</strong>.
-              </p>
-            )}
-
-            {step === 'customer' && (
-              <>
-                <p className="text-sm text-muted-foreground">Optional — add your first customer account for the portal.</p>
-                <div className="space-y-2">
-                  <Label>Organization</Label>
-                  <Input
-                    value={customer.organizationName}
-                    onChange={(e) => setCustomer((c) => ({ ...c, organizationName: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact person</Label>
-                  <Input
-                    value={customer.contactPerson}
-                    onChange={(e) => setCustomer((c) => ({ ...c, contactPerson: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={customer.email}
-                    onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
+                  <Label>WhatsApp</Label>
+                  <Switch
+                    checked={channels.whatsApp}
+                    onCheckedChange={(v) =>
+                      setChannels((c) => ({ ...c, whatsApp: v }))
+                    }
                   />
                 </div>
               </>
             )}
 
             {step === 'complete' && (
-              <div className="text-center py-6 space-y-4">
-                <CheckCircle2 className="h-12 w-12 text-emerald-600 mx-auto" />
-                <p className="text-lg font-medium">You&apos;re all set!</p>
-                <p className="text-sm text-muted-foreground">
-                  CRM, support desk, and portal are configured. Head to your command center to start working.
-                </p>
+              <div className="py-4 space-y-4">
+                <div className="flex justify-center">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+                </div>
+                <ul className="text-sm space-y-2 text-muted-foreground">
+                  <li>
+                    <span className="text-foreground font-medium">Company:</span>{' '}
+                    {welcome.companyName || data.company?.name}
+                  </li>
+                  <li>
+                    <span className="text-foreground font-medium">Type:</span>{' '}
+                    {verticalLabel}
+                  </li>
+                  <li>
+                    <span className="text-foreground font-medium">Channels:</span>{' '}
+                    {[
+                      channels.email && 'Email',
+                      channels.phone && 'Phone',
+                      channels.chat && 'Chat',
+                      channels.whatsApp && 'WhatsApp',
+                    ]
+                      .filter(Boolean)
+                      .join(', ') || 'None set'}
+                  </li>
+                </ul>
               </div>
             )}
 
-            <div className="flex justify-between pt-4 border-t">
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2 pt-4 border-t">
               <Button
                 variant="ghost"
-                disabled={stepIndex === 0 || mutation.isPending}
-                onClick={() => router.push(`/${slug}/dashboard`)}
+                disabled={mutation.isPending}
+                onClick={async () => {
+                  try {
+                    await finishAndGo();
+                  } catch {
+                    toast.error('Could not finish setup');
+                  }
+                }}
               >
-                <ArrowLeft className="mr-2 h-4 w-4" />
                 Skip setup
               </Button>
-              <div className="flex gap-2">
-                {step !== 'complete' && step !== 'welcome' && (
-                  <Button variant="outline" disabled={mutation.isPending} onClick={() => advance('skip')}>
+              <div className="flex gap-2 justify-end">
+                {step === 'support' && (
+                  <Button
+                    variant="outline"
+                    disabled={mutation.isPending}
+                    onClick={async () => {
+                      try {
+                        await saveStep('skip');
+                      } catch {
+                        /* toasted */
+                      }
+                    }}
+                  >
                     Skip step
                   </Button>
                 )}
                 <Button
                   disabled={mutation.isPending}
                   onClick={async () => {
-                    if (step === 'complete') {
-                      await mutation.mutateAsync({ action: 'finish' });
-                      router.push(`/${slug}/dashboard`);
-                      return;
-                    }
-                    if (step === 'welcome') {
-                      await advance('complete', welcome);
-                    } else if (step === 'support') {
-                      await advance('complete', { channels });
-                    } else if (step === 'team') {
-                      await advance('skip');
-                    } else if (step === 'customer') {
-                      if (customer.organizationName && customer.contactPerson) {
-                        await advance('complete', customer);
-                      } else {
-                        await advance('skip');
+                    try {
+                      if (step === 'complete') {
+                        await finishAndGo();
+                        return;
                       }
-                      await mutation.mutateAsync({ action: 'finish' });
-                      router.push(`/${slug}/dashboard`);
+                      if (step === 'welcome') {
+                        await saveStep('complete', welcome);
+                        return;
+                      }
+                      if (step === 'support') {
+                        await saveStep('complete', { channels });
+                      }
+                    } catch {
+                      /* toasted */
                     }
                   }}
                 >
                   {mutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : step === 'complete' || step === 'customer' ? (
-                    <>Launch workspace <Rocket className="ml-2 h-4 w-4" /></>
+                  ) : step === 'complete' ? (
+                    <>
+                      Go to Home <Rocket className="ml-2 h-4 w-4" />
+                    </>
                   ) : (
-                    <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
+                    <>
+                      Continue <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
                   )}
                 </Button>
               </div>
@@ -266,7 +352,7 @@ export default function OnboardingPage() {
 
         {data.company?.status === 'PENDING' && (
           <p className="text-center text-xs text-muted-foreground">
-            Your company is pending platform approval. You can still configure your workspace.
+            Your company is pending platform approval. You can still configure the workspace.
           </p>
         )}
       </div>

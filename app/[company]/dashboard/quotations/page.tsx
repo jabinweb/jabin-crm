@@ -103,7 +103,7 @@ export default function QuotationsPage() {
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Quotations</h1>

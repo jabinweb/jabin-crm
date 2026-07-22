@@ -253,11 +253,11 @@ export default function EmailTemplatesPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto">Loading templates...</div>;
+    return <div className="space-y-6">Loading templates...</div>;
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Email Templates</h1>

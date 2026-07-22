@@ -32,6 +32,7 @@ import {
 interface Plan {
   id: string;
   name: string;
+  displayName?: string;
   description: string;
   price: number;
   interval: string;
@@ -39,6 +40,8 @@ interface Plan {
   maxEmails: number;
   maxCampaigns: number;
   features: string[];
+  formattedPrice?: string;
+  displayCurrency?: string;
 }
 
 interface Subscription {
@@ -116,15 +119,22 @@ export default function SubscriptionSettingsPage() {
     },
   });
 
-  // Fetch available plans
+  // Fetch available plans (PPP-localized — same as /pricing checkout)
   const { data: plans } = useQuery<Plan[]>({
-    queryKey: ['plans'],
+    queryKey: ['pricing-plans'],
     queryFn: async () => {
-      const res = await fetch('/api/subscription/plans');
+      const res = await fetch('/api/pricing/plans');
       if (!res.ok) throw new Error('Failed to fetch plans');
-      return res.json();
+      const data = await res.json();
+      return data.plans ?? [];
     },
   });
+
+  const formatPlanPrice = (plan: { formattedPrice?: string; price: number; interval: string }) => {
+    if (plan.price === 0) return 'Free';
+    if (plan.formattedPrice) return plan.formattedPrice;
+    return `₹${(plan.price / 100).toLocaleString('en-IN')}`;
+  };
 
   // Cancel subscription mutation
   const cancelMutation = useMutation({
@@ -195,7 +205,7 @@ export default function SubscriptionSettingsPage() {
 
   if (!subscription || !subscription.plan) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="space-y-6">
         <Alert>
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
@@ -210,7 +220,7 @@ export default function SubscriptionSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Subscription Settings</h1>
         <p className="text-muted-foreground mt-2">Manage your plan and billing</p>
@@ -230,11 +240,20 @@ export default function SubscriptionSettingsPage() {
         <CardContent className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <h3 className="text-2xl font-bold">{subscription.plan.name}</h3>
+              <h3 className="text-2xl font-bold capitalize">
+                {subscription.plan.displayName || subscription.plan.name}
+              </h3>
               <p className="text-muted-foreground mt-1">{subscription.plan.description}</p>
               <div className="mt-4">
-                <span className="text-3xl font-bold">₹{subscription.plan.price / 100}</span>
+                <span className="text-3xl font-bold">
+                  {subscription.plan.price === 0
+                    ? 'Free'
+                    : `₹${(subscription.plan.price / 100).toLocaleString('en-IN')}`}
+                </span>
                 <span className="text-muted-foreground">/{subscription.plan.interval}</span>
+                <p className="text-xs text-muted-foreground mt-1">
+                  List price · checkout may show a regional rate
+                </p>
               </div>
             </div>
             
@@ -265,7 +284,10 @@ export default function SubscriptionSettingsPage() {
           <div>
             <h4 className="font-semibold mb-3">Plan Features</h4>
             <div className="grid gap-2 md:grid-cols-2">
-              {subscription.plan.features.map((feature, index) => (
+              {(Array.isArray(subscription.plan.features)
+                ? subscription.plan.features
+                : []
+              ).map((feature, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   <span className="text-sm">{feature}</span>
@@ -447,12 +469,18 @@ export default function SubscriptionSettingsPage() {
                   <Card key={plan.id} className={isCurrentPlan ? 'border-primary' : ''}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{plan.name}</CardTitle>
+                        <CardTitle className="text-lg capitalize">
+                          {plan.displayName || plan.name}
+                        </CardTitle>
                         {isCurrentPlan && <Badge>Current</Badge>}
                       </div>
                       <CardDescription className="text-2xl font-bold">
-                        ₹{plan.price / 100}
-                        <span className="text-sm font-normal text-muted-foreground">/{plan.interval}</span>
+                        {formatPlanPrice(plan)}
+                        {plan.price > 0 && (
+                          <span className="text-sm font-normal text-muted-foreground">
+                            /{plan.interval}
+                          </span>
+                        )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>

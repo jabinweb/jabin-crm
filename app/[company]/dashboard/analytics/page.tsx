@@ -7,7 +7,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { TrendingUp, Mail, MousePointer, Reply, AlertCircle, DollarSign, Target, Award } from 'lucide-react';
+import { TrendingUp, Mail, MousePointer, Reply, AlertCircle, DollarSign, Target, Award, Loader2 } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
 
 interface PipelineData {
@@ -87,15 +87,15 @@ export default function AnalyticsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading analytics...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading analytics…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Analytics Dashboard</h1>
         <p className="text-gray-500">Track your sales performance and email engagement</p>

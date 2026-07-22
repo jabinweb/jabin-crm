@@ -134,7 +134,7 @@ export default function WhatsAppHubPage() {
 
   if (!featureEnabled) {
     return (
-      <div className="container mx-auto">
+      <div className="space-y-6">
         <Card>
           <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -190,17 +190,17 @@ export default function WhatsAppHubPage() {
   };
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="border-b pb-6 mb-8">
-        <h1 className="text-xl font-black uppercase tracking-[0.2em]">WhatsApp Terminal</h1>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase mt-2 tracking-widest opacity-60">
-          Secure Communication Gateway • Node ID-882
+        <h1 className="text-2xl font-semibold tracking-tight">WhatsApp</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Send and review WhatsApp messages for this workspace.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Provider Configuration</CardTitle>
+          <CardTitle className="text-base font-semibold">Provider configuration</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
@@ -280,7 +280,7 @@ export default function WhatsAppHubPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Message Dispatcher</CardTitle>
+          <CardTitle className="text-base font-semibold">Send message</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-3">
@@ -334,7 +334,7 @@ export default function WhatsAppHubPage() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Conversation Archive</CardTitle>
+              <CardTitle className="text-base font-semibold">Conversations</CardTitle>
             </div>
             <Select
               value={channelFilter}

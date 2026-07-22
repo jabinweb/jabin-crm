@@ -4,18 +4,26 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import {
   resolveCompanyContextFromRequest,
-  TenantError,
 } from '@/lib/auth/company-membership';
 import {
   parseOnboardingState,
   mergeOnboardingPatch,
   ONBOARDING_STEPS,
+  nextStepId,
+  normalizeOnboardingStep,
+  canManageCompanyOnboarding,
   type OnboardingStepId,
 } from '@/lib/onboarding/company-onboarding';
 import { parseWorkspaceSettings } from '@/lib/workspace-config';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
 import { isBusinessVertical, BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
-import { customerService } from '@/lib/crm/customer-service';
+
+function settingsRecord(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return { ...(raw as Record<string, unknown>) };
+  }
+  return {};
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -34,14 +42,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const stored =
-      company.settings && typeof company.settings === 'object' && !Array.isArray(company.settings)
-        ? (company.settings as Record<string, unknown>)
-        : {};
-
+    const stored = settingsRecord(company.settings);
     const onboarding = parseOnboardingState(stored.onboarding);
     const workspace = parseWorkspaceSettings(stored.workspace);
     const support = parseSupportSettings(stored.support);
+    const role = session.user.role ?? '';
 
     return NextResponse.json({
       company: { name: company.name, status: company.status },
@@ -50,11 +55,12 @@ export async function GET(req: NextRequest) {
       support,
       steps: ONBOARDING_STEPS,
       templates: BUSINESS_VERTICAL_OPTIONS,
+      canManage: canManageCompanyOnboarding(role),
+      role,
     });
   } catch (error) {
-    return handleRouteError(error);
     console.error('[api/onboarding GET]', error);
-    return NextResponse.json({ error: 'Failed to load onboarding' }, { status: 500 });
+    return handleRouteError(error);
   }
 }
 
@@ -63,6 +69,14 @@ export async function PATCH(req: NextRequest) {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const role = session.user.role ?? '';
+    if (!canManageCompanyOnboarding(role)) {
+      return NextResponse.json(
+        { error: 'Only workspace admins can change onboarding' },
+        { status: 403 }
+      );
     }
 
     const { companyId } = await resolveCompanyContextFromRequest(session, req);
@@ -76,28 +90,35 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const stored =
-      company.settings && typeof company.settings === 'object' && !Array.isArray(company.settings)
-        ? ({ ...(company.settings as Record<string, unknown>) })
-        : {};
-
+    const stored = settingsRecord(company.settings);
     const onboarding = parseOnboardingState(stored.onboarding);
-    const step = body.step as OnboardingStepId | undefined;
-    const action = body.action as 'complete' | 'skip' | 'finish' | undefined;
+    const step = body.step
+      ? normalizeOnboardingStep(String(body.step))
+      : undefined;
+    const action = body.action as
+      | 'complete'
+      | 'skip'
+      | 'finish'
+      | 'dismissChecklist'
+      | undefined;
 
-    if (action === 'finish') {
+    if (action === 'dismissChecklist') {
+      stored.onboarding = mergeOnboardingPatch(onboarding, {
+        checklistDismissedAt: new Date().toISOString(),
+      });
+    } else if (action === 'finish') {
       stored.onboarding = mergeOnboardingPatch(onboarding, {
         completed: true,
         completedAt: new Date().toISOString(),
         currentStep: 'complete',
       });
     } else if (step && action === 'complete') {
-      const patch: Record<string, unknown> = { ...stored };
-
       if (step === 'welcome' && body.data) {
         const vertical = body.data.businessVertical;
-        patch.workspace = {
-          ...(typeof stored.workspace === 'object' ? stored.workspace : {}),
+        stored.workspace = {
+          ...(typeof stored.workspace === 'object' && stored.workspace
+            ? (stored.workspace as Record<string, unknown>)
+            : {}),
           businessVertical: isBusinessVertical(vertical) ? vertical : 'general',
         };
         if (body.data.companyName) {
@@ -109,35 +130,26 @@ export async function PATCH(req: NextRequest) {
       }
 
       if (step === 'support' && body.data?.channels) {
-        patch.support = {
-          ...(typeof stored.support === 'object' ? stored.support : {}),
+        stored.support = {
+          ...(typeof stored.support === 'object' && stored.support
+            ? (stored.support as Record<string, unknown>)
+            : {}),
           channels: body.data.channels,
         };
       }
 
-      if (step === 'customer' && body.data) {
-        const { organizationName, contactPerson, email } = body.data;
-        if (organizationName && contactPerson) {
-          await customerService.createCustomer({
-            organizationName: String(organizationName),
-            contactPerson: String(contactPerson),
-            email: email ? String(email) : undefined,
-            companyId,
-          });
-        }
-      }
-
-      const nextStep = ONBOARDING_STEPS[ONBOARDING_STEPS.findIndex((s) => s.id === step) + 1]?.id ?? 'complete';
-      patch.onboarding = mergeOnboardingPatch(onboarding, { currentStep: nextStep });
-      Object.assign(stored, patch);
+      const next = nextStepId(step as OnboardingStepId) ?? 'complete';
+      stored.onboarding = mergeOnboardingPatch(onboarding, { currentStep: next });
     } else if (step && action === 'skip') {
       const skipped = new Set(onboarding.skippedSteps ?? []);
-      skipped.add(step);
-      const nextStep = ONBOARDING_STEPS[ONBOARDING_STEPS.findIndex((s) => s.id === step) + 1]?.id ?? 'complete';
+      skipped.add(step as OnboardingStepId);
+      const next = nextStepId(step as OnboardingStepId) ?? 'complete';
       stored.onboarding = mergeOnboardingPatch(onboarding, {
-        currentStep: nextStep,
+        currentStep: next,
         skippedSteps: Array.from(skipped),
       });
+    } else {
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
     await prisma.company.update({
@@ -150,8 +162,7 @@ export async function PATCH(req: NextRequest) {
       onboarding: parseOnboardingState(stored.onboarding),
     });
   } catch (error) {
-    return handleRouteError(error);
     console.error('[api/onboarding PATCH]', error);
-    return NextResponse.json({ error: 'Failed to update onboarding' }, { status: 500 });
+    return handleRouteError(error);
   }
 }

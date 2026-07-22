@@ -1,10 +1,11 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import {
   assertSessionCompanyAccess,
   isCompanyLayoutAllowed,
 } from '@/lib/auth/company-membership'
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path'
 import { AdminLayoutClient } from './admin-layout-client'
 
 export default async function AdminLayout({
@@ -24,6 +25,16 @@ export default async function AdminLayout({
     notFound()
   }
   await assertSessionCompanyAccess(session, company, 'admin')
+
+  const role = session?.user?.role
+  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+    redirect(
+      resolvePostLoginPath({
+        role,
+        companySlug: slug,
+      })
+    )
+  }
 
   return <AdminLayoutClient>{children}</AdminLayoutClient>
 }

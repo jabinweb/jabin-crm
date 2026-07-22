@@ -18,6 +18,7 @@ import {
     ChevronRight,
     TrendingUp,
     Activity,
+    Loader2,
     User,
     Wrench
 } from 'lucide-react';
@@ -42,7 +43,7 @@ export default function TechnicianDashboard() {
     if (statsLoading) {
         return (
             <div className="flex justify-center py-20">
-                <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-primary"></div>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
         );
     }

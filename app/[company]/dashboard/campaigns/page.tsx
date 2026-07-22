@@ -84,7 +84,7 @@ export default function CampaignsPage() {
   };
 
   return (
-    <div className="container mx-auto space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Email Campaigns</h2>
         <DashboardLink href="/dashboard/campaigns/new">

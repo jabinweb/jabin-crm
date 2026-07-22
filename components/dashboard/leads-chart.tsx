@@ -16,20 +16,22 @@ export function LeadsChart() {
   });
 
   return (
-    <Card className="lg:col-span-4">
+    <Card>
       <CardHeader>
-        <CardTitle className="text-[10px] uppercase tracking-[0.2em] font-black text-muted-foreground/60">Performance</CardTitle>
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold tracking-tight">Leads Generation</h3>
-        </div>
+        <CardDescription>Pipeline</CardDescription>
+        <CardTitle className="text-lg">Lead activity</CardTitle>
       </CardHeader>
       <CardContent className="pl-2">
         {isLoading ? (
-          <div className="flex items-center justify-center h-[250px] md:h-[350px]">
-            <Loader2 className="h-8 w-8 animate-spin" />
+          <div className="flex items-center justify-center h-[250px] md:h-[280px]">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : !data?.length ? (
+          <div className="flex items-center justify-center h-[250px] md:h-[280px] text-sm text-muted-foreground">
+            No lead activity yet this period.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={350}>
+          <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
@@ -37,7 +39,7 @@ export function LeadsChart() {
                   <stop offset="95%" stopColor="currentColor" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
               <XAxis
                 dataKey="name"
                 stroke="#888888"

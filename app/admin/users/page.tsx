@@ -116,14 +116,14 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">User Management</h2>
-          <p className="text-gray-600 mt-1">
-            Manage all users and their permissions
+          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage accounts and roles across the platform
           </p>
         </div>
-        <Button onClick={fetchUsers} variant="outline">
+        <Button onClick={fetchUsers} variant="outline" size="sm">
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
@@ -131,7 +131,7 @@ export default function UsersPage() {
 
       <div className="flex gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search users by name or email..."
             value={searchQuery}

@@ -46,11 +46,11 @@ const FRONTIER = new Set([
 ]);
 
 const TIER_CONFIG: Record<PppTier, Omit<PppTierInfo, 'tier'>> = {
-  base: { multiplier: 1, label: 'Local pricing' },
-  international: { multiplier: 1.2, label: 'International pricing' },
-  emerging: { multiplier: 0.85, label: 'Regional pricing' },
-  developing: { multiplier: 0.6, label: 'PPP pricing' },
-  frontier: { multiplier: 0.4, label: 'PPP pricing' },
+  base: { multiplier: 1, label: 'Best local rate' },
+  international: { multiplier: 1.2, label: 'Standard rate' },
+  emerging: { multiplier: 0.85, label: 'Regional rate' },
+  developing: { multiplier: 0.6, label: 'Value rate' },
+  frontier: { multiplier: 0.4, label: 'Value rate' },
 };
 
 export function getPppTier(countryCode: string): PppTierInfo {

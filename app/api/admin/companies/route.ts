@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { UserRole, CompanyStatus, Prisma } from '@prisma/client';
+import { buildInitialCompanySettings } from '@/lib/workspace-config';
+import { completedOnboardingState } from '@/lib/onboarding/company-onboarding';
 
 type CompanyListRow = Prisma.CompanyGetPayload<{
   include: {
@@ -142,12 +144,18 @@ export async function POST(req: NextRequest) {
         ? body.slug.trim().toLowerCase()
         : `${slugFromName(name)}-${randomUUID().slice(0, 8)}`;
 
+    const settings = {
+      ...buildInitialCompanySettings('general'),
+      onboarding: completedOnboardingState(),
+    };
+
     const company = await prisma.company.create({
       data: {
         name,
         website,
         status: (status as CompanyStatus) ?? CompanyStatus.PENDING,
         slug,
+        settings,
       },
     });
 

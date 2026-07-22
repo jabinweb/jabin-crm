@@ -1,10 +1,11 @@
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, DM_Sans, Outfit } from 'next/font/google';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -12,11 +13,24 @@ const inter = Inter({
   display: 'swap',
 });
 
-const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'CRM';
+const landingSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-landing-sans',
+  display: 'swap',
+});
+
+const landingDisplay = Outfit({
+  subsets: ['latin'],
+  variable: '--font-landing-display',
+  display: 'swap',
+});
+
+const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'Opslane';
 
 export const metadata: Metadata = {
-  title: `${appName} — CRM, HRMS & Customer Support`,
-  description: 'Unified CRM, HRMS, and customer support platform for modern companies.',
+  title: `${appName} — Simple service ops for every role`,
+  description:
+    'Sales, tickets, field service, AMC renewals, and a client portal in one workspace. Clear enough for anyone — live in minutes.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -40,16 +54,19 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content={appName} />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className={inter.className}>
+      <body
+        className={`${inter.className} ${landingSans.variable} ${landingDisplay.variable}`}
+      >
         <ErrorBoundary>
           <AuthProvider>
             <QueryProvider>
+              <ServiceWorkerRegistration />
               {children}
               <Toaster />
             </QueryProvider>

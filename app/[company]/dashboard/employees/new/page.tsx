@@ -107,7 +107,7 @@ export default function NewEmployeePage() {
   
 
   return (
-    <div className="p-8">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold mb-6">Add New Employee</h1>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">

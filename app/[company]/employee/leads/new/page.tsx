@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
 import type { LeadFormValues } from "@/lib/validations/lead"
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
 
 export default function NewEmployeeLeadPage() {
   const router = useRouter()
   const { toast } = useToast()
   const { data: session } = useSession()
+  const { employeePath } = useWorkspacePaths()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (data: LeadFormValues) => {
@@ -41,9 +43,9 @@ export default function NewEmployeeLeadPage() {
         description: "Lead created successfully"
       })
 
-      router.push('/employee/leads')
+      router.push(employeePath('/employee/leads'))
       router.refresh()
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to create lead",
@@ -55,7 +57,7 @@ export default function NewEmployeeLeadPage() {
   }
 
   return (
-    <div className="container max-w-4xl py-8">
+    <div className="max-w-4xl py-8 px-4 sm:px-6">
       <LeadForm onSubmit={handleSubmit} isLoading={isLoading} />
     </div>
   )

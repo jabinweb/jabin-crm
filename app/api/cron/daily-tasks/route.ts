@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
       queue: { processed: 0, errors: 0 },
       scores: { calculated: 0, errors: 0 },
       sla: { scanned: 0, escalated: 0, skippedRecentlyEscalated: 0, errors: 0 },
+      contracts: { expired: 0, errors: 0 },
     };
 
     // Task 1: Process Email Sequences
@@ -203,6 +204,21 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Error processing SLA escalation sweep:', error);
       results.sla.errors += 1;
+    }
+
+    // Task 5: Expire overdue AMC/CMC contracts
+    try {
+      const expired = await prisma.serviceContract.updateMany({
+        where: {
+          status: 'ACTIVE',
+          endDate: { lt: new Date() },
+        },
+        data: { status: 'EXPIRED' },
+      });
+      results.contracts.expired = expired.count;
+    } catch (error) {
+      console.error('Error expiring service contracts:', error);
+      results.contracts.errors += 1;
     }
 
     return NextResponse.json({

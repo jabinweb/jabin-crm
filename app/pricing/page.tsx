@@ -19,7 +19,7 @@ export default function PricingPage() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
-  const { data: pricingData, isLoading } = useQuery({
+  const { data: pricingData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['pricing-plans'],
     queryFn: async () => {
       const response = await fetch('/api/pricing/plans');
@@ -28,7 +28,7 @@ export default function PricingPage() {
     },
   });
 
-  const plans = pricingData?.plans;
+  const plans = pricingData?.plans ?? [];
   const location = pricingData?.location;
   const firstPlan = plans?.[0];
   const pppLabel = firstPlan?.pppLabel as string | undefined;
@@ -218,6 +218,19 @@ export default function PricingPage() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : 'Could not load plans'}
+        </p>
+        <Button variant="outline" onClick={() => refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Payment Verification Overlay */}
@@ -248,10 +261,12 @@ export default function PricingPage() {
       <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
         <div className="text-center mb-12 md:mb-16">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-3">
-            Choose your plan
+            Lowest pricing. Most features. Real support.
           </h1>
-          <p className="text-base text-muted-foreground max-w-lg mx-auto mb-8 leading-relaxed">
-            Start free and upgrade as you grow. Prices adjust for your region.
+          <p className="text-base text-muted-foreground max-w-xl mx-auto mb-4 leading-relaxed">
+            Competitive plans with the full service-ops pack — CRM, field tools, AMC, and HRMS —
+            plus dedicated support. Team-wide seats, no per-user fee. Start free and upgrade when
+            you need more.
           </p>
           {location?.countryCode && (
             <div className="flex flex-col items-center gap-3">
@@ -269,9 +284,15 @@ export default function PricingPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 2xl:grid-cols-4 2xl:max-w-[1280px] 2xl:mx-auto">
-          {plans?.map((plan: any) => {
+          {plans.length === 0 ? (
+            <p className="col-span-full text-center text-sm text-muted-foreground py-12">
+              No active plans yet. Ask a platform admin to publish plans.
+            </p>
+          ) : (
+            plans.map((plan: any) => {
             const isCurrentPlan = currentSubscription?.planId === plan.id;
             const isFeatured = plan.name === 'professional';
+            const featureList = Array.isArray(plan.features) ? plan.features : [];
 
             return (
               <Card
@@ -318,7 +339,7 @@ export default function PricingPage() {
 
                 <CardContent className="flex-1 p-6 md:p-8 pt-6">
                   <ul className="space-y-3.5">
-                    {plan.features.map((feature: string, index: number) => (
+                    {featureList.map((feature: string, index: number) => (
                       <li key={index} className="flex items-start gap-3">
                         <Check className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
                         <span className="text-sm text-muted-foreground leading-relaxed">{feature}</span>
@@ -352,7 +373,8 @@ export default function PricingPage() {
                 </CardFooter>
               </Card>
             );
-          })}
+          })
+          )}
         </div>
 
         {!session && (
@@ -365,7 +387,10 @@ export default function PricingPage() {
         )}
 
         <div className="mt-20 pt-10 border-t text-center">
-          <p className="text-sm text-muted-foreground mb-6">All paid plans include a 14-day money-back guarantee</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Shown in your local currency where possible. Checkout settles securely in INR via
+            Razorpay. All paid plans include a 14-day money-back guarantee and dedicated support.
+          </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-10 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <Check className="h-4 w-4" />

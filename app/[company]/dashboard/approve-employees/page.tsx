@@ -78,11 +78,11 @@ export default function ApproveEmployeesPage() {
   }
 
   if (isLoading) {
-    return <div className="p-6">Loading pending registrations…</div>
+    return <div className="space-y-6">Loading pending registrations…</div>
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold mb-2">Approve employees</h1>
       <p className="text-sm text-muted-foreground mb-6">
         Review registration requests for your workspace.

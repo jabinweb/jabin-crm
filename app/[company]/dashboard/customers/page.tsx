@@ -33,11 +33,14 @@ import {
     Search,
     ChevronRight,
     MoreVertical,
-    Activity
+    Activity,
+    Loader2,
+    Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { EmptyState } from '@/components/ui/empty-state';
 
 export default function CustomersPage() {
     const queryClient = useQueryClient();
@@ -105,7 +108,7 @@ export default function CustomersPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 md:space-y-6">
+        <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Clients & organizations</h2>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -208,11 +211,23 @@ export default function CustomersPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
+                    ) : !data?.customers?.length ? (
+                        <EmptyState
+                            icon={Users}
+                            title={search ? 'No matching clients' : 'No clients yet'}
+                            description={
+                                search
+                                    ? 'Try a different search term.'
+                                    : 'Add your first client to start logging tickets and equipment.'
+                            }
+                            actionLabel={search ? undefined : 'Add client'}
+                            actionHref={search ? undefined : path('/dashboard/customers/new')}
+                        />
                     ) : (
-                        <div className="rounded-none border">
+                        <div className="rounded-md border">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -223,14 +238,7 @@ export default function CustomersPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data?.customers?.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                No customers found.
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : (
-                                        data?.customers?.map((customer: any) => (
+                                    {data.customers.map((customer: any) => (
                                             <TableRow key={customer.id}>
                                                 <TableCell className="font-medium">
                                                     <div className="flex items-center space-x-2">
@@ -259,8 +267,7 @@ export default function CustomersPage() {
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
+                                        ))}
                                 </TableBody>
                             </Table>
                         </div>

@@ -39,6 +39,14 @@ export async function GET(req: NextRequest) {
       return new Response('Unauthorized', { status: 401 })
     }
 
+    const role = (session.user as { role?: string }).role
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const { companyId } = await resolveCompanyContextFromRequest(session, req)
 
     const company = await prisma.company.findUnique({
@@ -92,6 +100,14 @@ export async function PATCH(req: NextRequest) {
     const session = await auth()
     if (!session?.user) {
       return new Response('Unauthorized', { status: 401 })
+    }
+
+    const role = (session.user as { role?: string }).role
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const { companyId } = await resolveCompanyContextFromRequest(session, req)

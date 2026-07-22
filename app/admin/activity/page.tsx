@@ -69,9 +69,9 @@ export default async function ActivityPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">Activity Log</h2>
-        <p className="text-gray-600 mt-1">
-          View all system activities and user actions
+        <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Recent lead activity across workspaces
         </p>
       </div>
 

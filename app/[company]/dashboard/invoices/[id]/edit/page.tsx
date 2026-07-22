@@ -27,7 +27,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
 
   if (!invoice) {
     return (
-      <div className="container mx-auto py-8">
+      <div className="space-y-6">
         <p className="text-center text-muted-foreground">Invoice not found</p>
       </div>
     );

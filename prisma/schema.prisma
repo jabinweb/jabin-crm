@@ -6,6 +6,15 @@ datasource db {
   provider = "postgresql"
 }
 
+/** Singleton platform knobs (id = "default"). Env is fallback when unset. */
+model PlatformSetting {
+  id          String   @id @default("default")
+  /** path | subdomain */
+  tenancyMode String   @default("path")
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -909,11 +918,14 @@ model Customer {
   accountType            String?
   companyId              String?
   notes                  String?
+  /// Public one-click / QR service-request token (no login required)
+  serviceRequestToken    String?                 @unique
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
   activities             CustomerActivity[]
   contacts               CustomerContact[]
   equipmentInstallations EquipmentInstallation[]
+  serviceContracts       ServiceContract[]
   invoices               Invoice[]
   quotations             Quotation[]
   supportTickets         SupportTicket[]
@@ -999,24 +1011,73 @@ model Product {
 }
 
 model EquipmentInstallation {
-  id               String             @id @default(cuid())
-  productId        String
-  customerId       String
-  serialNumber     String?
-  installationDate DateTime           @default(now())
-  warrantyExpiry   DateTime?
-  status           InstallationStatus @default(ACTIVE)
-  notes            String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  customer         Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  product          Product            @relation(fields: [productId], references: [id])
-  tickets          SupportTicket[]
+  id                  String             @id @default(cuid())
+  productId           String
+  customerId          String
+  serialNumber        String?
+  installationDate    DateTime           @default(now())
+  warrantyExpiry      DateTime?
+  status              InstallationStatus @default(ACTIVE)
+  notes               String?
+  /// Equipment-scoped QR / one-click service-request token
+  serviceRequestToken String?            @unique
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  customer            Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product             Product            @relation(fields: [productId], references: [id])
+  tickets             SupportTicket[]
+  serviceContracts    ServiceContract[]
 
   @@index([productId])
   @@index([customerId])
   @@index([serialNumber])
   @@index([status])
+}
+
+/// Annual / Comprehensive Maintenance Contracts (AMC / CMC) for service customers.
+model ServiceContract {
+  id                  String                @id @default(cuid())
+  companyId           String
+  customerId          String
+  equipmentId         String?
+  type                ServiceContractType   @default(AMC)
+  status              ServiceContractStatus @default(ACTIVE)
+  contractNumber      String?
+  title               String
+  startDate           DateTime
+  endDate             DateTime
+  /// Days before endDate to surface renewal alerts (default 45)
+  reminderDays        Int                   @default(45)
+  annualValue         Float?
+  currency            String                @default("INR")
+  /// CMC typically includes parts; AMC is labour/visits only
+  includesParts       Boolean               @default(false)
+  visitLimit          Int?
+  notes               String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer            Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  equipment           EquipmentInstallation? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([customerId])
+  @@index([equipmentId])
+  @@index([endDate])
+  @@index([status])
+  @@index([type])
+}
+
+enum ServiceContractType {
+  AMC
+  CMC
+}
+
+enum ServiceContractStatus {
+  DRAFT
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }
 
 model SupportTicket {
@@ -1826,6 +1887,7 @@ model Company {
   cannedResponses   SupportCannedResponse[]
   slaPolicies       SlaPolicy[]
   liveChatSessions  LiveChatSession[]
+  serviceContracts  ServiceContract[]
 
   @@index([slug])
   @@index([status])

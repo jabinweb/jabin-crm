@@ -107,7 +107,7 @@ export default function EmailSettingsPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="max-w-4xl space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Email Configuration</h1>
         <p className="text-muted-foreground mt-2">

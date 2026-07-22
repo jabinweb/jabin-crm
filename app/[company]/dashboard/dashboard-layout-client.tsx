@@ -8,7 +8,6 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { UsageBanner } from '@/components/subscription/usage-banner';
 import { EmailReplyChecker } from '@/components/email/email-reply-checker';
 import { PWAInstallPrompt } from '@/components/pwa/install-prompt';
-import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 import { OnboardingRedirect } from '@/components/onboarding/onboarding-redirect';
 import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -47,15 +46,16 @@ export function DashboardLayoutClient({
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
       <OnboardingRedirect />
-      <ServiceWorkerRegistration />
       <PWAInstallPrompt />
-      <Navbar />
-      <EmailReplyChecker />
+      <div className="shrink-0">
+        <Navbar />
+        <EmailReplyChecker />
+      </div>
 
       {/* Mobile Header */}
-      <div className="lg:hidden sticky top-14 z-40 bg-background border-b px-4 py-3 flex items-center gap-3">
+      <div className="lg:hidden shrink-0 z-40 bg-background border-b px-4 py-3 flex items-center gap-3">
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetTrigger asChild>
             <Button variant="outline" size="icon">
@@ -66,19 +66,21 @@ export function DashboardLayoutClient({
             <Sidebar onNavigate={() => setSidebarOpen(false)} />
           </SheetContent>
         </Sheet>
-        <h1 className="text-xs font-black uppercase tracking-[0.2em]">Dashboard</h1>
+        <h1 className="text-sm font-medium text-foreground">Menu</h1>
       </div>
 
-      <div className="flex min-h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-3.5rem)]">
-        {/* Desktop Sidebar */}
-        <aside className="hidden lg:block sticky top-0 h-full overflow-y-auto border-r bg-background">
+      <div className="flex flex-1 min-h-0">
+        {/* Desktop Sidebar — own scroll only when nav is taller than viewport */}
+        <aside className="hidden lg:flex shrink-0 h-full min-h-0 overflow-hidden bg-background">
           <Sidebar />
         </aside>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 w-full">
-          <UsageBanner />
-          {children}
+        {/* Main content — the only primary page scrollbar */}
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain bg-muted/20">
+          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <UsageBanner />
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -110,12 +110,12 @@ export default function CashOnHandPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto">Loading cash dashboard...</div>;
+    return <div className="space-y-6">Loading cash dashboard...</div>;
   }
 
   if (!featureEnabled) {
     return (
-      <div className="container mx-auto">
+      <div className="space-y-6">
         <Card>
           <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -127,7 +127,7 @@ export default function CashOnHandPage() {
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Cash On Hand</h1>
         <p className="text-sm text-muted-foreground">Track technician advances, spends, and settlements.</p>

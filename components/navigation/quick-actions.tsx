@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from 'react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,25 +8,26 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button"
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
 import {
   Plus,
   Users,
   MessageCircle,
-  Megaphone,
   CalendarPlus,
   ClipboardList,
   Mail,
-} from "lucide-react"
-import { useRouter } from "next/navigation"
+  UserPlus,
+} from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { TaskForm } from "@/components/tasks/task-form"
+} from '@/components/ui/dialog'
+import { TaskForm } from '@/components/tasks/task-form'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
 interface Employee {
   id: string
@@ -36,6 +37,7 @@ interface Employee {
 
 export function QuickActions() {
   const router = useRouter()
+  const { path, slug } = useWorkspacePaths()
   const [showTaskDialog, setShowTaskDialog] = useState(false)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(false)
@@ -55,11 +57,15 @@ export function QuickActions() {
       }
     }
 
-    // Only fetch when dialog is opened
     if (showTaskDialog) {
       fetchEmployees()
     }
   }, [showTaskDialog])
+
+  const go = (dashboardPath: string) => {
+    if (!slug) return
+    router.push(path(dashboardPath))
+  }
 
   return (
     <>
@@ -72,40 +78,40 @@ export function QuickActions() {
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Quick Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem onClick={() => setShowTaskDialog(true)}>
             <ClipboardList className="mr-2 h-4 w-4" />
-            Create CompanyTask
+            Create task
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => router.push('/admin/employees/new')}>
+          <DropdownMenuItem onClick={() => go('/dashboard/employees/new')}>
             <Users className="mr-2 h-4 w-4" />
-            Add Employee
+            Add employee
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => go('/dashboard/leads/new')}>
+            <UserPlus className="mr-2 h-4 w-4" />
+            Add lead
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuLabel>Communication</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => router.push('/admin/messages/new')}>
+          <DropdownMenuItem onClick={() => go('/dashboard/messages')}>
             <MessageCircle className="mr-2 h-4 w-4" />
-            EmployeeMessage Employee
+            Messages
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => router.push('/admin/announcements/new')}>
-            <Megaphone className="mr-2 h-4 w-4" />
-            Create Announcement
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => router.push('/admin/mail/compose')}>
+          <DropdownMenuItem onClick={() => go('/dashboard/emails')}>
             <Mail className="mr-2 h-4 w-4" />
-            Send Email
+            Email
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => router.push('/admin/events/new')}>
+
+          <DropdownMenuItem onClick={() => go('/dashboard/calendar')}>
             <CalendarPlus className="mr-2 h-4 w-4" />
-            Schedule Event
+            Calendar
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -113,14 +119,14 @@ export function QuickActions() {
       <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create New CompanyTask</DialogTitle>
+            <DialogTitle>Create task</DialogTitle>
           </DialogHeader>
           {loading ? (
             <div className="flex items-center justify-center p-4">
               Loading employees...
             </div>
           ) : (
-            <TaskForm 
+            <TaskForm
               employees={employees}
               onSuccess={() => {
                 setShowTaskDialog(false)

@@ -122,7 +122,7 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
                     className={cn(
-                      "p-4 rounded-none",
+                      "p-4 rounded-md border bg-card",
                       // Only show pointer cursor for actionable notifications
                       notification.type === 'NEW_MESSAGE' ||
                       (notification.type === 'LEAVE_REQUEST' &&

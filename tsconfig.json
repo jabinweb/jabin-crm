@@ -39,6 +39,8 @@
   "exclude": [
     "node_modules",
     ".next/dev/types/**",
-    "lib/__tests__/**"
+    "lib/__tests__/**",
+    "prisma/seed.ts",
+    "scripts/**"
   ]
 }

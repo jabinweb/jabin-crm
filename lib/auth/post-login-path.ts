@@ -11,7 +11,12 @@ export function resolvePostLoginPath(user: PostLoginUser): string {
   const slug = typeof user.companySlug === 'string' ? user.companySlug.trim() : '';
 
   if (role === 'CUSTOMER') return '/portal';
-  if (role === 'SUPER_ADMIN' && !slug) return '/admin';
+  // Platform owners always land on the SaaS console (can open any company from there).
+  if (role === 'SUPER_ADMIN') return '/admin';
+  // Field staff land on their work queue, not the admin CRM home.
+  if (role === 'TECHNICIAN' && slug) {
+    return companyPath(slug, '/dashboard/technician');
+  }
   if (slug) return tenantDashboardHome(slug);
   return '/workspace';
 }

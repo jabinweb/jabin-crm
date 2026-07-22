@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X, Loader2 } from 'lucide-react';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -308,15 +308,15 @@ export default function CalendarPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading calendar...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading calendar…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Calendar</h1>

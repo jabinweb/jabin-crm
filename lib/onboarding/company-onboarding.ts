@@ -2,19 +2,35 @@ import type { BusinessVertical } from '@/lib/workspace-templates';
 
 export const ONBOARDING_STEPS = [
   { id: 'welcome', title: 'Welcome', description: 'Confirm your business profile' },
-  { id: 'support', title: 'Support desk', description: 'Configure channels and categories' },
-  { id: 'team', title: 'Your team', description: 'Invite agents or skip for now' },
-  { id: 'customer', title: 'First customer', description: 'Add a portal customer' },
-  { id: 'complete', title: 'Go live', description: 'Review and launch' },
+  { id: 'support', title: 'Support desk', description: 'Optional channels — change anytime in Settings' },
+  { id: 'complete', title: 'Go live', description: 'Review and launch your workspace' },
 ] as const;
 
 export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number]['id'];
+
+/** Legacy step ids from older wizards — map forward so mid-flight users are not stuck. */
+const LEGACY_STEP_MAP: Record<string, OnboardingStepId> = {
+  team: 'complete',
+  customer: 'complete',
+};
 
 export interface CompanyOnboardingState {
   completed?: boolean;
   completedAt?: string;
   currentStep?: OnboardingStepId;
   skippedSteps?: OnboardingStepId[];
+  checklistDismissedAt?: string;
+}
+
+export function canManageCompanyOnboarding(role: string | null | undefined): boolean {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN';
+}
+
+export function normalizeOnboardingStep(step: string | undefined | null): OnboardingStepId {
+  if (!step) return 'welcome';
+  if (LEGACY_STEP_MAP[step]) return LEGACY_STEP_MAP[step];
+  if (ONBOARDING_STEPS.some((s) => s.id === step)) return step as OnboardingStepId;
+  return 'welcome';
 }
 
 export function parseOnboardingState(raw: unknown): CompanyOnboardingState {
@@ -23,10 +39,14 @@ export function parseOnboardingState(raw: unknown): CompanyOnboardingState {
   return {
     completed: obj.completed === true,
     completedAt: typeof obj.completedAt === 'string' ? obj.completedAt : undefined,
-    currentStep: typeof obj.currentStep === 'string' ? (obj.currentStep as OnboardingStepId) : 'welcome',
+    currentStep: normalizeOnboardingStep(
+      typeof obj.currentStep === 'string' ? obj.currentStep : 'welcome'
+    ),
     skippedSteps: Array.isArray(obj.skippedSteps)
       ? (obj.skippedSteps.filter((s) => typeof s === 'string') as OnboardingStepId[])
       : [],
+    checklistDismissedAt:
+      typeof obj.checklistDismissedAt === 'string' ? obj.checklistDismissedAt : undefined,
   };
 }
 
@@ -49,6 +69,15 @@ export function mergeOnboardingPatch(
   return { ...existing, ...patch };
 }
 
+/** Settings seed for SaaS-provisioned companies (no forced wizard). */
+export function completedOnboardingState(): CompanyOnboardingState {
+  return {
+    completed: true,
+    completedAt: new Date().toISOString(),
+    currentStep: 'complete',
+  };
+}
+
 export interface OnboardingWelcomePayload {
   businessVertical?: BusinessVertical;
   companyName?: string;
@@ -61,10 +90,4 @@ export interface OnboardingSupportPayload {
     chat?: boolean;
     whatsApp?: boolean;
   };
-}
-
-export interface OnboardingCustomerPayload {
-  organizationName?: string;
-  contactPerson?: string;
-  email?: string;
 }

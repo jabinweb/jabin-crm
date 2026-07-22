@@ -29,7 +29,7 @@ export default function StockAdjustmentPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-6">
           {/* Stock Adjustment content */}

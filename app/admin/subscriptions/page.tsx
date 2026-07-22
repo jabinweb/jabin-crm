@@ -86,14 +86,14 @@ export default async function SubscriptionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">Subscriptions</h2>
-        <p className="text-gray-600 mt-1">
-          Monitor all user subscriptions and their status
+        <h1 className="text-2xl font-semibold tracking-tight">Subscriptions</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Monitor workspace subscriptions and billing status
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">

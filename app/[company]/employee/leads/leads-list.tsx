@@ -9,6 +9,7 @@ import { DataTable } from '@/components/table/data-table'
 import { LeadStatus, CompanyTaskPriority } from '@prisma/client'
 import { useRouter } from 'next/navigation'
 import { useLeads } from '@/hooks/use-leads'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
 type FilterState = {
   [key: string]: string[]
@@ -16,6 +17,7 @@ type FilterState = {
 
 export function LeadsList() {
   const router = useRouter()
+  const { employeePath } = useWorkspacePaths()
   const { data: session } = useSession()
   const [filters, setFilters] = useState<FilterState>({
     status: [],
@@ -54,7 +56,7 @@ export function LeadsList() {
             Manage and track your assigned leads
           </p>
         </div>
-        <Button onClick={() => router.push('/employee/leads/new')}>
+        <Button onClick={() => router.push(employeePath('/employee/leads/new'))}>
           <Plus className="h-4 w-4 mr-2" />
           Add Lead
         </Button>

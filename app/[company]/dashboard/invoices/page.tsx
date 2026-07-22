@@ -148,7 +148,7 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Invoices</h1>

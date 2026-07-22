@@ -76,7 +76,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: createPrismaAuthAdapter(prisma),
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user, account }) {
+        async jwt({ token, user, account, trigger }) {
       if (account && user) {
         token.id = user.id
         token.role = (user as { role?: string }).role || UserRole.SALES
@@ -89,6 +89,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await attachWorkspaceToToken(token as Record<string, unknown>, user.id)
         }
         return token
+      }
+
+      // Keep role / workspace in sync when session is updated or refreshed.
+      if (trigger === 'update' && token.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: String(token.id) },
+            select: { role: true },
+          })
+          if (dbUser?.role) token.role = dbUser.role
+          await attachWorkspaceToToken(token as Record<string, unknown>, String(token.id))
+        } catch (error) {
+          console.error('[auth] Failed to refresh user token:', error)
+        }
       }
 
       if (typeof token.expiresAt === 'number' && Date.now() < token.expiresAt * 1000) {

@@ -106,15 +106,15 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }
 
   if (isLoading) {
-    return <div className="p-6">Loading...</div>
+    return <div className="space-y-6">Loading...</div>
   }
 
   if (!product) {
-    return <div className="p-6">Product not found</div>
+    return <div className="space-y-6">Product not found</div>
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button

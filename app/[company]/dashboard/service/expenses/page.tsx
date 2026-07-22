@@ -134,12 +134,12 @@ export default function ServiceExpensesPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto">Loading expenses...</div>;
+    return <div className="space-y-6">Loading expenses...</div>;
   }
 
   if (!featureEnabled) {
     return (
-      <div className="container mx-auto">
+      <div className="space-y-6">
         <Card>
           <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -151,7 +151,7 @@ export default function ServiceExpensesPage() {
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Travel & Expense</h1>
         <p className="text-sm text-muted-foreground">Capture site travel costs and reimbursements.</p>

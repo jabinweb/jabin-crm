@@ -131,11 +131,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   }
 
   if (isLoading) {
-    return <div className="p-6">Loading...</div>
+    return <div className="space-y-6">Loading...</div>
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-4xl space-y-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button

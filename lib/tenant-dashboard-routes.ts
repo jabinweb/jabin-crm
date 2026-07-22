@@ -33,6 +33,7 @@ export const TENANT_DASHBOARD_PREFIXES = [
   '/dashboard/leave-requests',
   '/dashboard/support',
   '/dashboard/tickets',
+  '/dashboard/contracts',
   '/dashboard/deals',
   '/dashboard/quotations',
   '/dashboard/invoices',

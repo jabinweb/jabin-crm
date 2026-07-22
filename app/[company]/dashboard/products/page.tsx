@@ -37,7 +37,8 @@ import {
     Search,
     Filter,
     ShieldCheck,
-    FileText
+    FileText,
+    Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
@@ -121,7 +122,7 @@ export default function ProductsPage() {
     );
 
     return (
-        <div className="flex-1 space-y-4 md:space-y-6">
+        <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Product Catalog</h2>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -238,7 +239,7 @@ export default function ProductsPage() {
                 <CardContent>
                     {isLoading ? (
                         <div className="flex justify-center py-8">
-                            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
+                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                     ) : (
                         <div className="rounded-none border">

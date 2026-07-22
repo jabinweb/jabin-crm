@@ -35,6 +35,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { NotificationsPanel } from '@/components/notifications/notifications-panel'
 import Link from 'next/link'
 import { QuickActions } from './quick-actions'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
 interface TopBarProps {
   showSearch?: boolean
@@ -73,18 +74,33 @@ export function TopBar({
 }: TopBarProps) {
   const router = useRouter()
   const { data: session } = useSession();
+  const { path, employeePath, slug } = useWorkspacePaths()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   const defaultProfileOptions = [
     {
       label: 'Profile',
       icon: <User className="mr-2 h-4 w-4" />,
-      onClick: () => router.push(`/${userRole?.toLowerCase()}/profile`)
+      onClick: () => {
+        if (!slug) return
+        if (userRole === 'EMPLOYEE') {
+          router.push(employeePath('/employee/profile'))
+        } else {
+          router.push(path('/dashboard/settings'))
+        }
+      },
     },
     {
       label: 'Settings',
       icon: <Settings className="mr-2 h-4 w-4" />,
-      onClick: () => router.push(`/${userRole?.toLowerCase()}/settings`)
+      onClick: () => {
+        if (!slug) return
+        if (userRole === 'EMPLOYEE') {
+          router.push(employeePath('/employee/profile'))
+        } else {
+          router.push(path('/dashboard/settings'))
+        }
+      },
     },
     {
       label: 'Log out',

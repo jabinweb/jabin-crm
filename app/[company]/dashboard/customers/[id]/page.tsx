@@ -42,6 +42,7 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { ServiceLinkCard } from '@/components/service-request/service-link-card';
 import {
     Table,
     TableBody,
@@ -228,6 +229,13 @@ export default function CustomerDetailPage() {
                 </Card>
             ) : null}
 
+            <ServiceLinkCard
+                scope="customer"
+                id={String(id)}
+                title="QR / one-click service request"
+                description="Share with this hospital or clinic so they can raise tickets without WhatsApp or a portal login."
+            />
+
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Sidebar Info */}
                 <div className="lg:col-span-1 space-y-6">
@@ -381,6 +389,7 @@ export default function CustomerDetailPage() {
                                                 <TableHead>Install Date</TableHead>
                                                 <TableHead>Warranty</TableHead>
                                                 <TableHead>Status</TableHead>
+                                                <TableHead className="text-right">QR</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -389,9 +398,32 @@ export default function CustomerDetailPage() {
                                                     <TableCell className="font-medium">{eq.product?.name || 'Unknown'}</TableCell>
                                                     <TableCell className="font-mono text-xs">{eq.serialNumber}</TableCell>
                                                     <TableCell>{new Date(eq.installationDate).toLocaleDateString()}</TableCell>
-                                                    <TableCell>{new Date(eq.warrantyExpiry).toLocaleDateString()}</TableCell>
+                                                    <TableCell>{eq.warrantyExpiry ? new Date(eq.warrantyExpiry).toLocaleDateString() : '—'}</TableCell>
                                                     <TableCell>
                                                         <Badge variant={eq.status === 'ACTIVE' ? 'default' : 'secondary'}>{eq.status}</Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Dialog>
+                                                            <DialogTrigger asChild>
+                                                                <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                                                                    QR link
+                                                                </Button>
+                                                            </DialogTrigger>
+                                                            <DialogContent className="max-w-lg">
+                                                                <DialogHeader>
+                                                                    <DialogTitle>Equipment service QR</DialogTitle>
+                                                                    <DialogDescription>
+                                                                        Stick this QR on the machine so staff can raise a ticket for this unit only.
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+                                                                <ServiceLinkCard
+                                                                    scope="equipment"
+                                                                    id={eq.id}
+                                                                    title={eq.product?.name || 'Equipment'}
+                                                                    description={eq.serialNumber ? `S/N ${eq.serialNumber}` : 'Equipment-scoped request link'}
+                                                                />
+                                                            </DialogContent>
+                                                        </Dialog>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}

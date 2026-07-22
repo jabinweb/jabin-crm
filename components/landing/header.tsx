@@ -9,7 +9,8 @@ import { getClientBrandConfig } from '@/lib/branding';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 const navigation = [
-  { name: 'Features', href: '#features' },
+  { name: 'Product', href: '#product' },
+  { name: 'Platform', href: '#platform' },
   { name: 'Pricing', href: '#pricing' },
   { name: 'FAQ', href: '#faq' },
 ];
@@ -34,15 +35,17 @@ export function LandingHeader() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-200 ${
-        isScrolled ? 'bg-white/80 backdrop-blur-md border-b border-neutral-200' : 'bg-transparent'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        isScrolled
+          ? 'bg-white/85 backdrop-blur-md border-b border-[var(--lp-line)]'
+          : 'bg-transparent'
       }`}
     >
       <div className="mx-auto max-w-6xl px-6">
-        <div className="flex h-14 items-center justify-between">
+        <div className="flex h-16 items-center justify-between">
           <Link
             href="/"
-            className="text-sm font-semibold tracking-tight text-neutral-950 hover:text-neutral-600 transition-colors"
+            className="font-[family-name:var(--font-landing-display)] text-lg font-semibold tracking-tight text-[var(--lp-ink)]"
           >
             {brand.appName}
           </Link>
@@ -52,7 +55,7 @@ export function LandingHeader() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="text-sm text-neutral-500 hover:text-neutral-950 transition-colors"
+                className="text-sm text-[var(--lp-muted)] hover:text-[var(--lp-ink)] transition-colors"
               >
                 {item.name}
               </Link>
@@ -61,16 +64,25 @@ export function LandingHeader() {
 
           <div className="hidden md:flex items-center gap-2">
             {session ? (
-              <Button asChild size="sm" variant="default" className="h-8 px-4 text-xs">
-                <Link href={dashboardHref}>Dashboard</Link>
+              <Button asChild size="sm" className="h-9 px-4 bg-[var(--lp-ink)] hover:bg-slate-800">
+                <Link href={dashboardHref}>Open workspace</Link>
               </Button>
             ) : (
               <>
-                <Button asChild size="sm" variant="ghost" className="h-8 px-3 text-xs text-neutral-600">
+                <Button
+                  asChild
+                  size="sm"
+                  variant="ghost"
+                  className="h-9 px-3 text-[var(--lp-muted)]"
+                >
                   <Link href="/auth/signin">Sign in</Link>
                 </Button>
-                <Button asChild size="sm" className="h-8 px-4 text-xs bg-neutral-950 hover:bg-neutral-800">
-                  <Link href="/auth/signin?callbackUrl=/pricing">Get started</Link>
+                <Button
+                  asChild
+                  size="sm"
+                  className="h-9 px-4 bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)] text-white"
+                >
+                  <Link href="/start">Start free</Link>
                 </Button>
               </>
             )}
@@ -78,7 +90,7 @@ export function LandingHeader() {
 
           <button
             type="button"
-            className="md:hidden p-2 -mr-2 text-neutral-600"
+            className="md:hidden p-2 -mr-2 text-[var(--lp-muted)]"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menu"
           >
@@ -87,29 +99,33 @@ export function LandingHeader() {
         </div>
 
         {isMenuOpen && (
-          <div className="md:hidden border-t border-neutral-200 pb-4 pt-2">
+          <div className="md:hidden border-t border-[var(--lp-line)] pb-4 pt-2 bg-white/95">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="block py-2.5 text-sm text-neutral-600"
+                className="block py-2.5 text-sm text-[var(--lp-muted)]"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.name}
               </Link>
             ))}
-            <div className="pt-3 mt-2 border-t border-neutral-200 space-y-2">
+            <div className="pt-3 mt-2 border-t border-[var(--lp-line)] space-y-2">
               {session ? (
-                <Button asChild className="w-full h-9 text-xs" size="sm">
-                  <Link href={dashboardHref}>Dashboard</Link>
+                <Button asChild className="w-full h-9 bg-[var(--lp-ink)]" size="sm">
+                  <Link href={dashboardHref}>Open workspace</Link>
                 </Button>
               ) : (
                 <>
-                  <Button variant="outline" asChild className="w-full h-9 text-xs" size="sm">
+                  <Button variant="outline" asChild className="w-full h-9" size="sm">
                     <Link href="/auth/signin">Sign in</Link>
                   </Button>
-                  <Button asChild className="w-full h-9 text-xs bg-neutral-950 hover:bg-neutral-800" size="sm">
-                    <Link href="/auth/signin?callbackUrl=/pricing">Get started</Link>
+                  <Button
+                    asChild
+                    className="w-full h-9 bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)]"
+                    size="sm"
+                  >
+                    <Link href="/start">Start free</Link>
                   </Button>
                 </>
               )}

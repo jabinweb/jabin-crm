@@ -93,14 +93,14 @@ export default async function EmailLogsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">Email Logs</h2>
-        <p className="text-gray-600 mt-1">
-          Monitor all email activity across the platform
+        <h1 className="text-2xl font-semibold tracking-tight">Email logs</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Delivery activity across the platform
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">

@@ -10,19 +10,24 @@ const faqs = [
       'Every approved company workspace gets HRMS: employee attendance, leave requests, payslips, and admin payroll tools. CRM and customer-support modules depend on your subscription tier.',
   },
   {
-    question: 'How do CRM and support modules work?',
+    question: 'How fast can we go live?',
     answer:
-      'Plans define which modules are enabled — leads, deals, tickets, live chat, and more. Usage limits apply to leads, emails sent, and campaigns on the billing account.',
+      'Self-serve: create a workspace, finish a short admin setup (or skip it), then use the Home checklist to add a client, ticket, and teammate. Most teams are productive the same day.',
   },
   {
-    question: 'Can employees use the app without a CRM plan?',
+    question: 'Do we get SLA and AMC tools?',
     answer:
-      'Yes. Employees sign in to your company slug for attendance, leave, and payslips. Leads in the employee app require the Leads module on your plan.',
+      'Yes. Tickets show response and resolution timers. AMC/CMC contracts surface renewals on Home so coverage does not lapse quietly.',
   },
   {
     question: 'Do customers get a portal?',
     answer:
-      'Yes. Customers can open tickets, browse the knowledge base when enabled, and use live chat when your plan includes it.',
+      'Yes. Customers can open tickets, browse the knowledge base when enabled, and use live chat when your plan includes it. QR service links let sites raise requests without logging in.',
+  },
+  {
+    question: 'Why choose this pricing?',
+    answer:
+      'You get competitive rates, the most complete feature pack for service ops (CRM, tickets, field, AMC, HRMS), and dedicated support — without paying for seats you do not need. Prices show in your local currency where available; checkout settles securely via Razorpay.',
   },
   {
     question: 'Can I change plans later?',
@@ -36,36 +41,36 @@ export function FAQ() {
   const brand = getClientBrandConfig();
 
   return (
-    <section id="faq" className="border-t border-neutral-200 bg-neutral-50/50">
+    <section id="faq" className="border-t border-[var(--lp-line)] bg-white">
       <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-10">
-            <p className="text-xs font-medium tracking-widest uppercase text-neutral-400 mb-3">
+            <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
               FAQ
             </p>
-            <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-neutral-950">
-              Questions about {brand.appName}
+            <h2 className="font-[family-name:var(--font-landing-display)] text-3xl md:text-4xl font-semibold tracking-tight text-[var(--lp-ink)]">
+              Common questions about {brand.appName}
             </h2>
           </div>
 
-          <div className="rounded-xl border border-neutral-200 bg-white divide-y divide-neutral-100 overflow-hidden">
+          <div className="rounded-2xl border border-[var(--lp-line)] bg-[var(--lp-bg)] divide-y divide-[var(--lp-line)] overflow-hidden">
             {faqs.map((faq, index) => {
               const isOpen = openIndex === index;
               return (
                 <div key={faq.question}>
                   <button
                     type="button"
-                    className="w-full px-6 py-4 flex items-start justify-between gap-4 text-left hover:bg-neutral-50/80 transition-colors"
+                    className="w-full px-6 py-4 flex items-start justify-between gap-4 text-left hover:bg-white/60 transition-colors"
                     onClick={() => setOpenIndex(isOpen ? null : index)}
                   >
-                    <span className="text-sm font-medium text-neutral-900">{faq.question}</span>
-                    <span className="text-neutral-300 text-sm tabular-nums flex-shrink-0 mt-0.5">
+                    <span className="text-sm font-medium text-[var(--lp-ink)]">{faq.question}</span>
+                    <span className="text-[var(--lp-muted)] text-sm tabular-nums flex-shrink-0 mt-0.5">
                       {isOpen ? '−' : '+'}
                     </span>
                   </button>
                   {isOpen && (
                     <div className="px-6 pb-4 -mt-1">
-                      <p className="text-sm text-neutral-500 leading-relaxed">{faq.answer}</p>
+                      <p className="text-sm text-[var(--lp-muted)] leading-relaxed">{faq.answer}</p>
                     </div>
                   )}
                 </div>

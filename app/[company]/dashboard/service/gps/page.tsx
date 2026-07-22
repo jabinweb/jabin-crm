@@ -97,12 +97,12 @@ export default function ServiceGpsPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto">Loading GPS tracking...</div>;
+    return <div className="space-y-6">Loading GPS tracking...</div>;
   }
 
   if (!featureEnabled) {
     return (
-      <div className="container mx-auto">
+      <div className="space-y-6">
         <Card>
           <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
@@ -114,7 +114,7 @@ export default function ServiceGpsPage() {
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">GPS Tracking</h1>
         <p className="text-sm text-muted-foreground">Track field movement and capture technician check-ins.</p>

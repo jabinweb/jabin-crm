@@ -212,11 +212,11 @@ export default function PlansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Plan Management</h2>
-          <p className="text-gray-600 mt-1">
-            Create and manage subscription plans
+          <h1 className="text-2xl font-semibold tracking-tight">Plans</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Subscription plans and module entitlements
           </p>
         </div>
         <div className="flex gap-2">
@@ -334,7 +334,7 @@ export default function PlansPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, price: e.target.value })
                     }
-                    placeholder="999"
+                    placeholder="14999"
                     required
                   />
                 </div>

@@ -8,9 +8,19 @@ import { TopBar } from '@/components/navigation/top-bar'
 import { NAV_ITEMS, type NavItem } from '@/components/navigation/nav-items'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path'
+import { Loader2 } from 'lucide-react'
 
 function filterNavByModules(items: NavItem[], moduleMap: Record<string, boolean>) {
   return items.filter((item) => !item.module || moduleMap[item.module] === true)
+}
+
+function canAccessEmployeePortal(session: {
+  user?: { role?: string; employeeId?: string | null }
+} | null) {
+  if (!session?.user) return false
+  if (session.user.role === 'EMPLOYEE') return true
+  // Linked staff (sales/tech/admin with an employee record) can use self-service HR pages.
+  return Boolean(session.user.employeeId)
 }
 
 export function EmployeeLayoutClient({
@@ -20,7 +30,7 @@ export function EmployeeLayoutClient({
 }) {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { employeePath } = useWorkspacePaths()
+  const { employeePath, slug } = useWorkspacePaths()
   const [moduleMap, setModuleMap] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -38,15 +48,17 @@ export function EmployeeLayoutClient({
       return
     }
 
-    if (session.user?.role !== 'EMPLOYEE') {
+    if (!canAccessEmployeePortal(session)) {
       router.push(
         resolvePostLoginPath({
-          role: session.user.role,
-          companySlug: (session.user as { companySlug?: string }).companySlug,
+          role: session.user?.role,
+          companySlug:
+            slug ||
+            (session.user as { companySlug?: string })?.companySlug,
         })
       )
     }
-  }, [session, status, router, employeePath])
+  }, [session, status, router, employeePath, slug])
 
   const employeeNav = filterNavByModules(NAV_ITEMS.EMPLOYEE, moduleMap)
 
@@ -60,21 +72,35 @@ export function EmployeeLayoutClient({
     [employeeNav, employeePath]
   )
 
+  const allowed = canAccessEmployeePortal(session)
+
+  if (status === 'loading' || (session && !allowed)) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
   return (
-    <div className="flex h-screen">
-      {session?.user?.role === 'EMPLOYEE' && (
-        <DashboardSidebar navItems={employeeNav} variant="employee" />
+    <div className="flex h-screen overflow-hidden bg-background">
+      {allowed && (
+        <aside className="hidden lg:flex shrink-0 h-full overflow-y-auto border-r">
+          <DashboardSidebar navItems={employeeNav} variant="employee" />
+        </aside>
       )}
-      <div className="flex-1 flex flex-col">
-        {session?.user?.role === 'EMPLOYEE' && (
-          <TopBar
-            userRole="EMPLOYEE"
-            title="Employee Dashboard"
-            showMessages={true}
-            navigationItems={topBarItems}
-          />
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        {allowed && (
+          <div className="shrink-0">
+            <TopBar
+              userRole="EMPLOYEE"
+              title="Employee"
+              showMessages={true}
+              navigationItems={topBarItems}
+            />
+          </div>
         )}
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 min-h-0 overflow-y-auto">{children}</main>
       </div>
     </div>
   )

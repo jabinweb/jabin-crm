@@ -11,7 +11,7 @@ export default function LeadsPage() {
   const leads = useLeadsPage();
 
   return (
-    <div className="container mx-auto space-y-4">
+    <div className="space-y-4">
       <LeadsToolbar {...leads} />
       <Card>
         <CardHeader>

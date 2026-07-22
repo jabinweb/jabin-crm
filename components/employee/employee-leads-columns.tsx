@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { LeadStatus, CompanyTaskPriority } from "@prisma/client"
+import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
 
 export interface LeadTableItem {
   id: string
@@ -25,28 +26,29 @@ export interface LeadTableItem {
   }
 }
 
+function LeadTitleCell({ lead }: { lead: LeadTableItem }) {
+  const { path } = useWorkspacePaths()
+  // No employee lead-detail route yet — open workspace CRM lead.
+  return (
+    <div className="flex items-center gap-2">
+      <Link
+        href={path(`/dashboard/leads/${lead.id}`)}
+        className="font-medium hover:underline text-blue-600"
+      >
+        {lead.title}
+      </Link>
+      {lead._count.activities > 0 && (
+        <Badge variant="secondary">{lead._count.activities}</Badge>
+      )}
+    </div>
+  )
+}
+
 export const columns: ColumnDef<LeadTableItem>[] = [
   {
     accessorKey: "title",
     header: "Lead",
-    cell: ({ row }) => {
-      const lead = row.original
-      return (
-        <div className="flex items-center gap-2">
-          <Link 
-            href={`/employee/leads/${lead.id}`}
-            className="font-medium hover:underline text-blue-600"
-          >
-            {lead.title}
-          </Link>
-          {lead._count.activities > 0 && (
-            <Badge variant="secondary">
-              {lead._count.activities}
-            </Badge>
-          )}
-        </div>
-      )
-    },
+    cell: ({ row }) => <LeadTitleCell lead={row.original} />,
   },
   {
     id: "contact",

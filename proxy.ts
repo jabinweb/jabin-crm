@@ -9,6 +9,7 @@ import {
   shouldRedirectLegacyDashboard,
 } from '@/lib/tenant-dashboard-routes';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
+import { getEnvTenancyMode, RESERVED_SUBDOMAINS } from '@/lib/tenancy/mode';
 
 const PUBLIC_PREFIXES = [
   '/auth',
@@ -17,9 +18,24 @@ const PUBLIC_PREFIXES = [
   '/api/webhooks',
   '/api/uploadthing',
   '/api/payment/callback',
+  '/api/pricing',
+  '/api/platform',
+  '/service-request',
+  '/api/service-request',
+  '/start',
 ];
 
-const PUBLIC_EXACT = new Set(['/', '/pricing', '/favicon.ico', '/manifest.json', '/sw.js', '/offline.html']);
+const PUBLIC_EXACT = new Set([
+  '/',
+  '/pricing',
+  '/start',
+  '/privacy',
+  '/terms',
+  '/favicon.ico',
+  '/manifest.json',
+  '/sw.js',
+  '/offline.html',
+]);
 
 function isPublicPath(pathname: string) {
   if (PUBLIC_EXACT.has(pathname)) return true;
@@ -40,6 +56,37 @@ function isStaticAsset(pathname: string) {
   );
 }
 
+/** When subdomain mode + host like acme.example.com → rewrite to /acme/... */
+function resolveSubdomainRewrite(req: NextRequest): NextResponse | null {
+  if (getEnvTenancyMode() !== 'subdomain') return null;
+
+  const host = (req.headers.get('host') || '').split(':')[0].toLowerCase();
+  if (!host || host === 'localhost' || host.endsWith('.localhost')) return null;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || '';
+  let apex = '';
+  try {
+    apex = new URL(appUrl).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return null;
+  }
+  if (!apex || host === apex || host === `www.${apex}`) return null;
+  if (!host.endsWith(`.${apex}`)) return null;
+
+  const sub = host.slice(0, -(apex.length + 1));
+  if (!sub || sub.includes('.') || RESERVED_SUBDOMAINS.has(sub)) return null;
+
+  const { pathname } = req.nextUrl;
+  if (pathname === `/${sub}` || pathname.startsWith(`/${sub}/`)) {
+    return null;
+  }
+
+  const url = req.nextUrl.clone();
+  url.pathname =
+    pathname === '/' ? `/${sub}/dashboard` : `/${sub}${pathname.startsWith('/') ? pathname : `/${pathname}`}`;
+  return NextResponse.rewrite(url);
+}
+
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -58,6 +105,9 @@ export async function proxy(req: NextRequest) {
   if (isStaticAsset(pathname)) {
     return NextResponse.next();
   }
+
+  const subdomainRewrite = resolveSubdomainRewrite(req);
+  if (subdomainRewrite) return subdomainRewrite;
 
   // Google OAuth callback: ignore any stale session cookie.
   if (req.method === 'GET' && pathname.startsWith('/api/auth/callback/google')) {

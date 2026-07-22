@@ -13,7 +13,7 @@ export function useNotifications(userRole: string) {
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`/api/notifications?role=${userRole}`, {
+      const response = await fetch(`/api/notifications`, {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -50,7 +50,7 @@ export function useNotifications(userRole: string) {
     } finally {
       setLoading(false)
     }
-  }, [userRole])
+  }, []) // role comes from session server-side; no client role param
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
@@ -75,7 +75,27 @@ export function useNotifications(userRole: string) {
 
   useEffect(() => {
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 30000)
+    const interval = setInterval(() => {
+      // Quiet background refresh — don't flip loading / toast spam.
+      void fetch(`/api/notifications`, {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      })
+        .then(async (response) => {
+          if (response.status === 401) {
+            setNotifications([])
+            return
+          }
+          if (!response.ok) return
+          const data = await response.json()
+          const filtered = (Array.isArray(data) ? data : []).filter(
+            (notification: Notification) => !isDismissed(notification.id)
+          )
+          setNotifications(filtered)
+        })
+        .catch(() => {
+          /* ignore poll errors */
+        })
+    }, 30000)
     return () => clearInterval(interval)
   }, [fetchNotifications])
 

@@ -135,7 +135,7 @@ export default function NewTicketPage() {
     };
 
     return (
-        <div className="flex-1 space-y-6 max-w-4xl mx-auto py-6">
+        <div className="max-w-4xl space-y-6">
             <div className="flex items-center space-x-4">
                 <Button variant="ghost" size="sm" onClick={() => router.back()}>
                     <ChevronLeft className="h-4 w-4 mr-2" />

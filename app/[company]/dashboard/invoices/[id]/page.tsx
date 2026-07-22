@@ -136,12 +136,12 @@ export default function InvoiceDetailPage() {
   };
 
   if (loading) {
-    return <div className="container mx-auto py-6">Loading...</div>;
+    return <div className="space-y-6">Loading...</div>;
   }
 
   if (!invoice) {
     return (
-      <div className="container mx-auto py-6">
+      <div className="space-y-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold">Invoice not found</h2>
           <DashboardLink href="/dashboard/invoices">
@@ -153,7 +153,7 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <DashboardLink href="/dashboard/invoices">

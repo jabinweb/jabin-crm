@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Users, TrendingUp, Target, CheckCircle, DollarSign } from 'lucide-react';
+import { Users, TrendingUp, Target, CheckCircle, DollarSign, Loader2 } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
 
 interface TeamMember {
@@ -61,15 +61,15 @@ export default function TeamPerformancePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-none h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading team performance...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground text-sm">Loading team performance…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Team Performance</h1>
         <p className="text-gray-500">Track your team's sales and task performance</p>

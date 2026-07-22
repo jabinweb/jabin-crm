@@ -62,7 +62,7 @@ export default function NewLeadPage() {
   }
 
   return (
-    <div className="container mx-auto p-8">
+    <div className="space-y-6">
       <LeadForm onSubmit={handleSubmit} isLoading={isLoading} />
     </div>
   )

@@ -1,14 +1,14 @@
 'use client'
 
-import { EmployeeStatus } from "@prisma/client"
-import { ColumnDef, Row } from "@tanstack/react-table"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import Link from "next/link"
-import { ActionButtons } from "@/components/ui/action-buttons"
-import { useParams, useRouter } from "next/navigation"
-import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
-import { toast } from "@/hooks/use-toast"
+import { EmployeeStatus } from '@prisma/client'
+import { ColumnDef, Row } from '@tanstack/react-table'
+import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import Link from 'next/link'
+import { ActionButtons } from '@/components/ui/action-buttons'
+import { useRouter } from 'next/navigation'
+import { toast } from '@/hooks/use-toast'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
 export type Employee = {
   id: string
@@ -21,37 +21,39 @@ export type Employee = {
   avatar?: string | null
 }
 
+function EmployeeNameCell({ employee }: { employee: Employee }) {
+  const { path } = useWorkspacePaths()
+  return (
+    <div className="flex items-center gap-3">
+      <Avatar className="h-8 w-8">
+        {employee.avatar ? (
+          <AvatarImage src={employee.avatar} alt={employee.name} />
+        ) : (
+          <AvatarImage src={`https://avatar.vercel.sh/${employee.name}`} />
+        )}
+        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
+      </Avatar>
+      <Link
+        href={path(`/dashboard/employees/${employee.id}`)}
+        className="font-medium hover:underline text-blue-600"
+      >
+        {employee.name}
+      </Link>
+    </div>
+  )
+}
+
 export const columns: ColumnDef<Employee>[] = [
   {
-    accessorKey: "name",
-    header: "Name",
+    accessorKey: 'name',
+    header: 'Name',
     enableColumnFilter: true,
     enableSorting: true,
-    cell: ({ row }) => {
-      const employee = row.original
-      return (
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            {employee.avatar ? (
-              <AvatarImage src={employee.avatar} alt={employee.name} />
-            ) : (
-              <AvatarImage src={`https://avatar.vercel.sh/${employee.name}`} />
-            )}
-            <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <Link 
-            href={`${employee.id}`}
-            className="font-medium hover:underline text-blue-600"
-          >
-            {employee.name}
-          </Link>
-        </div>
-      )
-    },
+    cell: ({ row }) => <EmployeeNameCell employee={row.original} />,
   },
   {
-    accessorKey: "department",
-    header: "Department",
+    accessorKey: 'department',
+    header: 'Department',
     enableColumnFilter: true,
     enableSorting: true,
     filterFn: (row, id, filterValues: string[]) => {
@@ -60,12 +62,12 @@ export const columns: ColumnDef<Employee>[] = [
     },
   },
   {
-    id: "contact",
-    header: "Contact",
+    id: 'contact',
+    header: 'Contact',
     cell: ({ row }) => {
       const employee = row.original
       if (!employee) return null
-      
+
       return (
         <div className="flex flex-col">
           <span>{employee.phone}</span>
@@ -75,8 +77,8 @@ export const columns: ColumnDef<Employee>[] = [
     },
   },
   {
-    accessorKey: "status",
-    header: "Status",
+    accessorKey: 'status',
+    header: 'Status',
     enableColumnFilter: true,
     enableSorting: true,
     filterFn: (row, id, filterValues: string[]) => {
@@ -94,89 +96,79 @@ export const columns: ColumnDef<Employee>[] = [
         ACTIVE: 'bg-green-100 text-green-800',
         ON_LEAVE: 'bg-yellow-100 text-yellow-800',
         PENDING: 'bg-blue-100 text-blue-800',
-        REJECTED: 'bg-red-100 text-red-800', 
+        REJECTED: 'bg-red-100 text-red-800',
         SUSPENDED: 'bg-red-100 text-red-800',
         TERMINATED: 'bg-gray-100 text-gray-800',
         SABBATICAL: 'bg-purple-100 text-purple-800',
         MEDICAL_LEAVE: 'bg-orange-100 text-orange-800',
-        MATERNITY_LEAVE: 'bg-pink-100 text-pink-800'
+        MATERNITY_LEAVE: 'bg-pink-100 text-pink-800',
       }
 
       return (
-        <Badge 
-          className={statusColors[status] ?? 'bg-gray-100 text-gray-800'}
-        >
+        <Badge className={statusColors[status] ?? 'bg-gray-100 text-gray-800'}>
           {status.split('_').join(' ')}
         </Badge>
       )
     },
   },
   {
-    accessorKey: "dateJoined",
-    header: "Hire Date",
+    accessorKey: 'dateJoined',
+    header: 'Hire Date',
     cell: ({ row }) => {
       const date = row.original.dateJoined
       if (!date) return null
-      
+
       return new Date(date).toLocaleDateString()
     },
   },
   {
     id: 'actions',
     cell: ({ row }) => {
-      const employee = row.original;
-      return employee ? <RowActions row={row} /> : null;
-    }
-  }
-];
+      const employee = row.original
+      return employee ? <RowActions row={row} /> : null
+    },
+  },
+]
 
 function RowActions({ row }: { row: Row<Employee> }) {
-  const router = useRouter();
-  const params = useParams<{ company?: string }>()
-  const employee = row.original;
-  const tenantHeaders =
-    typeof params?.company === 'string' ? workspaceSlugHeaders(params.company) : {}
+  const router = useRouter()
+  const { path, workspaceFetch } = useWorkspacePaths()
+  const employee = row.original
 
   const handleDelete = async () => {
-    if (!employee?.id) {
-      console.error('No employee ID found');
-      return;
-    }
+    if (!employee?.id) return
 
     try {
-      const response = await fetch(`/api/employees/${employee.id}`, {
+      const response = await workspaceFetch(`/api/employees/${employee.id}`, {
         method: 'DELETE',
-        headers: { ...tenantHeaders },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete employee');
-      }
-      
-      toast({
-        title: "Success",
-        description: "Employee deleted successfully",
-      });
-      
-      router.refresh();
-    } catch (error) {
-      console.error('Delete employee error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete employee",
-      });
-    }
-  };
+      })
 
-  if (!employee) {
-    return null;
+      if (!response.ok) {
+        throw new Error('Failed to delete employee')
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Employee deleted successfully',
+      })
+
+      window.location.assign(path('/dashboard/employees'))
+    } catch (error) {
+      console.error('Delete employee error:', error)
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to delete employee',
+      })
+    }
   }
+
+  if (!employee) return null
 
   return (
     <ActionButtons
-      onEdit={() => router.push(`./${employee.id}/edit`)}
+      onEdit={() => router.push(path(`/dashboard/employees/${employee.id}`))}
       onDelete={handleDelete}
     />
-  );
+  )
 }
