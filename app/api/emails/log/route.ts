@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
@@ -14,6 +15,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
 
+    const folder = searchParams.get('folder') || 'sent';
+
     const skip = (page - 1) * limit;
 
     // Build where clause
@@ -27,6 +30,18 @@ export async function GET(request: NextRequest) {
       }),
       ...(status && status !== 'all' && { status }),
     };
+
+    if (folder === 'trash') {
+      where.metadata = { path: ['trashed'], equals: true };
+    } else if (folder === 'starred') {
+      where.metadata = { path: ['starred'], equals: true };
+    } else if (folder === 'inbox') {
+      where.repliedAt = { not: null };
+      where.NOT = { metadata: { path: ['trashed'], equals: true } };
+    } else {
+      // sent (default): hide trashed
+      where.NOT = { metadata: { path: ['trashed'], equals: true } };
+    }
 
     // Fetch logs with pagination
     const [logs, total] = await Promise.all([
@@ -132,6 +147,8 @@ export async function GET(request: NextRequest) {
         replyCount,
         newReplyCount,
         latestReply,
+        isStarred: !!(log.metadata as any)?.starred,
+        isTrashed: !!(log.metadata as any)?.trashed,
       };
     });
 

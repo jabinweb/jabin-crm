@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Receipt } from 'lucide-react';
+import { Loader2, Receipt, PiggyBank, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
@@ -26,12 +26,24 @@ type Expense = {
   date: string;
 };
 
+type Budget = {
+  id: string;
+  year: number;
+  amount: number;
+};
+
+type Asset = {
+  id: string;
+  name: string;
+};
+
 export default function ExpensesPage() {
   const { slug, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
+  const currentYear = new Date().getFullYear();
 
   const { data: expenses = [], isLoading } = useQuery({
     queryKey: ['expenses', slug],
@@ -42,6 +54,39 @@ export default function ExpensesPage() {
     },
     enabled: !!slug,
   });
+
+  const { data: budgets = [] } = useQuery({
+    queryKey: ['budgets', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/budgets');
+      if (!res.ok) throw new Error('Failed to load budgets');
+      return (await res.json()) as Budget[];
+    },
+    enabled: !!slug,
+  });
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ['assets', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/assets');
+      if (!res.ok) throw new Error('Failed to load assets');
+      return (await res.json()) as Asset[];
+    },
+    enabled: !!slug,
+  });
+
+  const expenseTotal = useMemo(
+    () => expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
+    [expenses]
+  );
+
+  const budgetYearTotal = useMemo(
+    () =>
+      budgets
+        .filter((b) => b.year === currentYear)
+        .reduce((sum, b) => sum + (Number(b.amount) || 0), 0),
+    [budgets, currentYear]
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -75,6 +120,47 @@ export default function ExpensesPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
         <p className="text-sm text-muted-foreground">Company operating expenses.</p>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Expenses total
+            </CardTitle>
+            <Receipt className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {expenseTotal.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">{expenses.length} recorded</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Budget {currentYear}
+            </CardTitle>
+            <PiggyBank className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {budgetYearTotal.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">Sum of budgets for this year</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Assets</CardTitle>
+            <Building2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">{assets.length}</div>
+            <p className="text-xs text-muted-foreground">Tracked assets</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>

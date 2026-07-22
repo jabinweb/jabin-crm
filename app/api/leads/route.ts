@@ -153,7 +153,11 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    await afterLeadCreated(session.user.id);
+    await afterLeadCreated(session.user.id, {
+      leadId: lead.id,
+      companyId,
+      summary: `Lead created: ${lead.companyName}`,
+    });
 
     return jsonOk({ data: lead });
   } catch (error) {

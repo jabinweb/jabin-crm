@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { EmployeeMessageStatus, LeaveStatus } from '@prisma/client'
 import { auth } from '@/auth'
 import {
   resolveCompanyContextFromRequest,
   TenantError,
 } from '@/lib/auth/company-membership'
+import { LeaveStatus, EmployeeMessageStatus } from '@prisma/client'
+import { notificationService } from '@/lib/crm/notification-service'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +16,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Always trust session role — never the client query string.
     const role = String(session.user.role || '')
     const isWorkspaceAdmin =
       role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'SUPPORT_MANAGER'
@@ -34,6 +34,22 @@ export async function GET(request: NextRequest) {
 
     const notifications: NotificationItem[] = []
 
+    // Persistent DB notifications (CRM / tickets / workflows)
+    const dbNotes = await notificationService.getForUser(session.user.id, 40)
+    for (const n of dbNotes) {
+      notifications.push({
+        id: n.id,
+        title: n.title,
+        message: n.body,
+        type: n.type,
+        targetRole: [role || 'USER'],
+        metadata: (n.metadata as Record<string, unknown>) || {},
+        createdAt: n.createdAt.toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        read: n.read,
+      })
+    }
+
     const employeeId =
       typeof session.user.employeeId === 'string' && session.user.employeeId.trim()
         ? session.user.employeeId.trim()
@@ -48,11 +64,10 @@ export async function GET(request: NextRequest) {
           },
         },
         include: {
-          creator: {
-            select: { name: true },
-          },
+          creator: { select: { name: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: 15,
       })
 
       notifications.push(
@@ -80,115 +95,36 @@ export async function GET(request: NextRequest) {
       const recentMessages = await prisma.employeeMessage.findMany({
         where: {
           receiverId: employeeId,
-          status: EmployeeMessageStatus.SENT,
-          createdAt: {
-            gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
-          },
+          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
         },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-            },
-          },
-        },
+        include: { sender: { select: { name: true } } },
         orderBy: { createdAt: 'desc' },
+        take: 10,
       })
 
       notifications.push(
-        ...recentMessages.map((message) => ({
-          id: `message-${message.id}`,
+        ...recentMessages.map((msg) => ({
+          id: `message-${msg.id}`,
           title: 'New message',
-          message: `${message.sender.name}: ${message.content.substring(0, 50)}${
-            message.content.length > 50 ? '...' : ''
-          }`,
-          type: 'NEW_MESSAGE',
-          targetRole: ['ADMIN', 'MANAGER', 'EMPLOYEE'],
-          metadata: {
-            senderId: message.senderId,
-            senderName: message.sender.name,
-            messageId: message.id,
-            preview: message.content.substring(0, 50),
-          },
-          createdAt: message.createdAt.toISOString(),
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          read: false,
+          message: `${msg.sender.name}: ${msg.content.slice(0, 120)}`,
+          type: 'MESSAGE',
+          targetRole: ['EMPLOYEE'],
+          metadata: { messageId: msg.id },
+          createdAt: msg.createdAt.toISOString(),
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          read: msg.status === EmployeeMessageStatus.READ,
         }))
       )
-    }
 
-    if (isWorkspaceAdmin) {
-      let leaveCompanyId: string | undefined
-      try {
-        leaveCompanyId = (await resolveCompanyContextFromRequest(session, request))
-          .companyId
-      } catch (e) {
-        if (!(e instanceof TenantError)) throw e
-      }
-
-      if (leaveCompanyId) {
-        const pendingLeaveRequests = await prisma.leaveRequest.findMany({
-          where: {
-            status: LeaveStatus.PENDING,
-            employee: { companyId: leaveCompanyId },
-          },
-          include: {
-            employee: {
-              select: {
-                name: true,
-                id: true,
-                department: true,
-              },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        })
-
-        notifications.push(
-          ...pendingLeaveRequests.map((leaveRequest) => ({
-            id: `leave-${leaveRequest.id}`,
-            title: 'Leave request pending',
-            message: `${leaveRequest.employee.name} (${leaveRequest.employee.department}) has requested ${leaveRequest.type} leave from ${leaveRequest.startDate.toLocaleDateString()} to ${leaveRequest.endDate.toLocaleDateString()}\n\nReason: ${leaveRequest.reason}`,
-            type: 'LEAVE_REQUEST',
-            targetRole: ['ADMIN', 'MANAGER'],
-            metadata: {
-              requestId: leaveRequest.id,
-              employeeId: leaveRequest.employee.id,
-              employeeName: leaveRequest.employee.name,
-              department: leaveRequest.employee.department,
-              startDate: leaveRequest.startDate,
-              endDate: leaveRequest.endDate,
-              type: leaveRequest.type,
-              reason: leaveRequest.reason,
-              status: leaveRequest.status,
-            },
-            createdAt: leaveRequest.createdAt.toISOString(),
-            expiresAt: leaveRequest.endDate.toISOString(),
-            read: false,
-          }))
-        )
-      }
-    }
-
-    if (employeeId) {
       const recentLeaveRequests = await prisma.leaveRequest.findMany({
         where: {
           employeeId,
-          status: {
-            in: [LeaveStatus.APPROVED, LeaveStatus.REJECTED],
-          },
-          actionAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-          },
+          status: { in: [LeaveStatus.APPROVED, LeaveStatus.REJECTED] },
+          actionAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
         },
-        include: {
-          actor: {
-            select: { name: true },
-          },
-        },
+        include: { actor: { select: { name: true } } },
         orderBy: { actionAt: 'desc' },
+        take: 10,
       })
 
       notifications.push(
@@ -218,11 +154,35 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    if (isWorkspaceAdmin) {
+      try {
+        const { companyId } = await resolveCompanyContextFromRequest(session, request)
+        const pendingLeave = await prisma.leaveRequest.count({
+          where: { employee: { companyId }, status: LeaveStatus.PENDING },
+        })
+        if (pendingLeave > 0) {
+          notifications.push({
+            id: `admin-leave-pending-${companyId}`,
+            title: 'Pending leave requests',
+            message: `${pendingLeave} leave request(s) awaiting approval`,
+            type: 'LEAVE_PENDING',
+            targetRole: ['ADMIN'],
+            metadata: { count: pendingLeave },
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            read: false,
+          })
+        }
+      } catch (e) {
+        if (!(e instanceof TenantError)) throw e
+      }
+    }
+
     notifications.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
 
-    return NextResponse.json(notifications)
+    return NextResponse.json(notifications.slice(0, 50))
   } catch (error) {
     console.error(
       'Notifications generation error:',
@@ -250,29 +210,20 @@ export async function POST(request: NextRequest) {
     const action = body?.action as string | undefined
     const notificationId = typeof body?.notificationId === 'string' ? body.notificationId : null
 
-    // Synthetic staff feed uses local dismiss/read; accept markAsRead for API compatibility.
     if (action === 'markAsRead' || action === 'markAllAsRead' || action === 'dismiss') {
+      if (action === 'markAllAsRead') {
+        await notificationService.markAllRead(session.user.id)
+        return NextResponse.json({ success: true })
+      }
       if (
         notificationId &&
         !notificationId.startsWith('task-') &&
         !notificationId.startsWith('leave-') &&
         !notificationId.startsWith('message-') &&
+        !notificationId.startsWith('admin-') &&
         !notificationId.startsWith('leave-status-')
       ) {
-        await prisma.notification
-          .updateMany({
-            where: {
-              id: notificationId,
-              OR: [
-                ...(session.user.customerId
-                  ? [{ customerId: session.user.customerId }]
-                  : []),
-                { userId: session.user.id },
-              ],
-            },
-            data: { read: true },
-          })
-          .catch(() => null)
+        await notificationService.markRead(notificationId).catch(() => null)
       }
       return NextResponse.json({ success: true })
     }

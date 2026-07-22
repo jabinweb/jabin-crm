@@ -55,7 +55,7 @@ export default function WorkflowsPage() {
           description: description || null,
           trigger,
           conditions: {},
-          actions: [{ type: 'notify', message: 'Workflow triggered' }],
+          actions: [{ type: 'notify', title: 'Workflow fired', message: `Trigger: ${trigger}` }],
         }),
       });
       if (!res.ok) {

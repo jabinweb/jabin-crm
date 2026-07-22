@@ -157,9 +157,11 @@ const emailNav: NavigationItem[] = [
     module: 'EMAIL_OUTREACH',
     roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
     children: [
-      { name: 'Inbox', href: '/dashboard/emails', icon: Mail, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Inbox', href: '/dashboard/emails?folder=inbox', icon: Mail, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Sent', href: '/dashboard/emails?folder=sent', icon: Send, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Starred', href: '/dashboard/emails?folder=starred', icon: Star, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Trash', href: '/dashboard/emails?folder=trash', icon: Trash2, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Sequences', href: '/dashboard/sequences', icon: Activity, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Templates', href: '/dashboard/email-templates', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },

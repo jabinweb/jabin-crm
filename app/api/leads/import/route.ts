@@ -190,7 +190,7 @@ export async function POST(req: NextRequest) {
 
         createdLeadIds.push(lead.id);
         imported += 1;
-        await afterLeadCreated(session.user.id);
+        await afterLeadCreated(session.user.id, { leadId: lead.id });
         if (row.email) {
           duplicateEmails.add(row.email);
         }

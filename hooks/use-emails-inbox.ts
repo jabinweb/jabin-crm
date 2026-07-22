@@ -21,7 +21,7 @@ export function useEmailsInbox() {
   const queryClient = useQueryClient();
   const folderParam = searchParams.get('folder') as EmailFolder | null;
 
-  const [selectedFolder, setSelectedFolder] = useState<EmailFolder>(folderParam || 'sent');
+  const [selectedFolder, setSelectedFolder] = useState<EmailFolder>(folderParam || 'inbox');
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailReplies, setEmailReplies] = useState<Reply[]>([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -107,26 +107,18 @@ export function useEmailsInbox() {
   }, [selectedFolder, autoCheckEnabled, queryClient]);
 
   const { data: sentEmails, isLoading: loadingSent } = useQuery({
-    queryKey: ['sent-emails'],
+    queryKey: ['sent-emails', selectedFolder],
     queryFn: async () => {
-      const response = await fetch('/api/emails/log?limit=100');
-      if (!response.ok) throw new Error('Failed to fetch sent emails');
+      const folder =
+        selectedFolder === 'drafts' ? 'sent' : selectedFolder === 'inbox' || selectedFolder === 'starred' || selectedFolder === 'trash' || selectedFolder === 'sent'
+          ? selectedFolder
+          : 'sent';
+      const response = await fetch(`/api/emails/log?limit=100&folder=${folder}`);
+      if (!response.ok) throw new Error('Failed to fetch emails');
       const data = await response.json();
-      console.log('[Email List] Fetched emails:', data.logs?.length, 'emails');
-      const withReplies = data.logs?.filter((e: Email) => e.replyCount && e.replyCount > 0) || [];
-      if (withReplies.length > 0) {
-        console.log(
-          '[Email List] Emails with replies:',
-          withReplies.map((e: Email) => ({
-            subject: e.subject,
-            replyCount: e.replyCount,
-            newReplyCount: e.newReplyCount,
-            hasLatestReply: !!e.latestReply,
-          }))
-        );
-      }
       return data.logs || [];
     },
+    enabled: selectedFolder !== 'drafts',
   });
 
   const { data: draftsData, isLoading: loadingDrafts } = useQuery({
@@ -139,17 +131,20 @@ export function useEmailsInbox() {
     },
   });
 
+  const inboxCount = (sentEmails || []).filter((e: Email) => e.repliedAt || (e.replyCount && e.replyCount > 0)).length;
+  const starredCount = (sentEmails || []).filter((e: Email) => e.isStarred).length;
+  const trashCount = selectedFolder === 'trash' ? sentEmails?.length || 0 : 0;
+
   const folders = [
-    { id: 'sent' as EmailFolder, name: 'Sent', icon: Send, count: sentEmails?.length || 0 },
+    { id: 'inbox' as EmailFolder, name: 'Inbox', icon: Mail, count: selectedFolder === 'inbox' ? sentEmails?.length || 0 : inboxCount },
+    { id: 'sent' as EmailFolder, name: 'Sent', icon: Send, count: selectedFolder === 'sent' ? sentEmails?.length || 0 : 0 },
     { id: 'drafts' as EmailFolder, name: 'Drafts', icon: FileText, count: draftsData?.length || 0 },
-    { id: 'starred' as EmailFolder, name: 'Starred', icon: Star, count: 0 },
-    { id: 'trash' as EmailFolder, name: 'Trash', icon: Trash2, count: 0 },
+    { id: 'starred' as EmailFolder, name: 'Starred', icon: Star, count: selectedFolder === 'starred' ? sentEmails?.length || 0 : starredCount },
+    { id: 'trash' as EmailFolder, name: 'Trash', icon: Trash2, count: trashCount },
   ];
 
   const getCurrentEmails = (): Email[] => {
     switch (selectedFolder) {
-      case 'sent':
-        return sentEmails || [];
       case 'drafts':
         return (
           draftsData?.map((d: { recipientEmail: string; body?: string } & Email) => ({
@@ -158,8 +153,11 @@ export function useEmailsInbox() {
             snippet: d.body?.substring(0, 100),
           })) || []
         );
+      case 'inbox':
+      case 'sent':
       case 'starred':
       case 'trash':
+        return sentEmails || [];
       default:
         return [];
     }
@@ -208,42 +206,60 @@ export function useEmailsInbox() {
     if (!selectedEmail) return;
 
     const isDraft = selectedFolder === 'drafts';
+    const inTrash = selectedFolder === 'trash';
     const confirmMsg = isDraft
       ? 'Are you sure you want to delete this draft?'
-      : 'Are you sure you want to delete this email?';
+      : inTrash
+        ? 'Permanently delete this email?'
+        : 'Move this email to trash?';
 
     if (!confirm(confirmMsg)) {
       return;
     }
 
-    const toastId = toast.loading(isDraft ? 'Deleting draft...' : 'Deleting email...');
+    const toastId = toast.loading(isDraft ? 'Deleting draft...' : inTrash ? 'Deleting...' : 'Moving to trash...');
 
     try {
-      const endpoint = isDraft
-        ? `/api/emails/drafts/${selectedEmail.id}`
-        : '/api/emails/delete';
-
-      const response = await fetch(endpoint, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: isDraft ? undefined : JSON.stringify({ emailId: selectedEmail.id }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `Failed to delete ${isDraft ? 'draft' : 'email'}`);
+      if (isDraft) {
+        const response = await fetch(`/api/emails/drafts/${selectedEmail.id}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed');
+        await queryClient.invalidateQueries({ queryKey: ['email-drafts'] });
+      } else {
+        const response = await fetch('/api/emails/flags', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            emailId: selectedEmail.id,
+            action: inTrash ? 'delete_forever' : 'trash',
+          }),
+        });
+        if (!response.ok) throw new Error('Failed');
+        await queryClient.invalidateQueries({ queryKey: ['sent-emails'] });
       }
-
-      toast.success(`${isDraft ? 'Draft' : 'Email'} deleted successfully`, { id: toastId });
-
       setSelectedEmail(null);
-      await queryClient.invalidateQueries({
-        queryKey: isDraft ? ['email-drafts'] : ['sent-emails'],
+      toast.success(inTrash ? 'Deleted' : isDraft ? 'Draft deleted' : 'Moved to trash', { id: toastId });
+    } catch {
+      toast.error('Could not delete', { id: toastId });
+    }
+  };
+
+  const handleToggleStar = async () => {
+    if (!selectedEmail || selectedFolder === 'drafts') return;
+    const starred = !!selectedEmail.isStarred;
+    try {
+      const response = await fetch('/api/emails/flags', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailId: selectedEmail.id,
+          action: starred ? 'unstar' : 'star',
+        }),
       });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : `Failed to delete ${isDraft ? 'draft' : 'email'}`;
-      console.error(`Error deleting ${isDraft ? 'draft' : 'email'}:`, error);
-      toast.error(message, { id: toastId });
+      if (!response.ok) throw new Error('Failed');
+      setSelectedEmail({ ...selectedEmail, isStarred: !starred });
+      await queryClient.invalidateQueries({ queryKey: ['sent-emails'] });
+    } catch {
+      toast.error('Could not update star');
     }
   };
 
@@ -480,6 +496,7 @@ export function useEmailsInbox() {
     handleReply,
     handleForward,
     handleDelete,
+    handleToggleStar,
     handleSendDraft,
     handleEditDraft,
     handleRefresh,

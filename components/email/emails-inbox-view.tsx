@@ -62,6 +62,7 @@ export function EmailsInboxView({
   handleReply,
   handleForward,
   handleDelete,
+  handleToggleStar,
   handleSendDraft,
   handleEditDraft,
   handleRefresh,
@@ -252,6 +253,7 @@ export function EmailsInboxView({
           onReply={handleReply}
           onForward={handleForward}
           onDelete={handleDelete}
+          onToggleStar={handleToggleStar}
           onSendDraft={handleSendDraft}
           onEditDraft={handleEditDraft}
           onAnalyzeSentiment={handleAnalyzeSentiment}

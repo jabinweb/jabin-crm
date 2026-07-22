@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { ArchiveX, File, Inbox, Send, Trash2, Mail } from "lucide-react"
-import { usePathname, useRouter } from "next/navigation"
+import { File, Inbox, Send, Star, Trash2, Mail } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { Label } from "@/components/ui/label"
 import {
@@ -26,10 +26,12 @@ interface EmailSidebarProps extends React.ComponentProps<typeof Sidebar> {
 
 export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const { path } = useWorkspacePaths()
   const { setOpen } = useSidebar()
   const [showUnread, setShowUnread] = React.useState(false)
+  const folder = searchParams.get("folder")
 
   const navMain = React.useMemo(
     () => [
@@ -43,7 +45,19 @@ export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
         title: "Sent",
         url: path("/dashboard/emails/sent"),
         icon: Send,
-        isActive: pathname === path("/dashboard/emails/sent"),
+        isActive: pathname === path("/dashboard/emails/sent") || folder === "sent",
+      },
+      {
+        title: "Starred",
+        url: path("/dashboard/emails?folder=starred"),
+        icon: Star,
+        isActive: folder === "starred",
+      },
+      {
+        title: "Trash",
+        url: path("/dashboard/emails?folder=trash"),
+        icon: Trash2,
+        isActive: folder === "trash",
       },
       {
         title: "Campaigns",
@@ -51,14 +65,8 @@ export function EmailSidebar({ drafts, ...props }: EmailSidebarProps) {
         icon: Mail,
         isActive: pathname === path("/dashboard/campaigns"),
       },
-      {
-        title: "Trash",
-        url: path("/dashboard/emails/trash"),
-        icon: Trash2,
-        isActive: pathname === path("/dashboard/emails/trash"),
-      },
     ],
-    [path, pathname]
+    [path, pathname, folder]
   )
 
   const [filteredDrafts, setFilteredDrafts] = React.useState(drafts)

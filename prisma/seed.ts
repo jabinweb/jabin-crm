@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { ensureFreePlan, ensureFreeTrialSubscription } from '../lib/subscription/ensure-free-trial';
 import { PLAN_CATALOG, PLAN_LIST_PRICES_PAISE } from '../lib/pricing/catalog';
 import { DEFAULT_PLAN_MODULES } from '../lib/plan-modules';
+import { ensureRbacCatalog, syncUserRoleAssignment } from '../lib/auth/rbac-catalog';
 
 const DEMO_SLUG = 'jabin-international-private-limited';
 const DEMO_PASSWORD = 'Demo@12345';
@@ -155,6 +156,34 @@ async function main() {
     update: {},
   });
 
+  const supportUser = await prisma.user.upsert({
+    where: { email: 'support@jabininternational.example' },
+    create: {
+      email: 'support@jabininternational.example',
+      name: 'Neha Kapoor',
+      password: passwordHash,
+      role: 'SUPPORT_MANAGER',
+      userStatus: 'ACTIVE',
+      companyId: company.id,
+      primaryCompanyId: company.id,
+    },
+    update: {
+      password: passwordHash,
+      role: 'SUPPORT_MANAGER',
+      userStatus: 'ACTIVE',
+      companyId: company.id,
+      primaryCompanyId: company.id,
+    },
+  });
+
+  await prisma.userCompany.upsert({
+    where: {
+      userId_companyId: { userId: supportUser.id, companyId: company.id },
+    },
+    create: { userId: supportUser.id, companyId: company.id },
+    update: {},
+  });
+
   const adminEmployee = await prisma.employee.upsert({
     where: { email: 'admin@jabininternational.example' },
     create: {
@@ -301,6 +330,32 @@ async function main() {
           data: { ...c, companyId: company.id },
         }))
     );
+  }
+
+  const portalCustomer = customers[0];
+  if (portalCustomer) {
+    const portalUser = await prisma.user.upsert({
+      where: { email: 'portal@fortisdiag.example' },
+      create: {
+        email: 'portal@fortisdiag.example',
+        name: portalCustomer.contactPerson,
+        password: passwordHash,
+        role: 'CUSTOMER',
+        userStatus: 'ACTIVE',
+        companyId: company.id,
+        primaryCompanyId: company.id,
+        customerId: portalCustomer.id,
+      },
+      update: {
+        password: passwordHash,
+        role: 'CUSTOMER',
+        userStatus: 'ACTIVE',
+        companyId: company.id,
+        primaryCompanyId: company.id,
+        customerId: portalCustomer.id,
+      },
+    });
+    console.log(`  Portal: portal@fortisdiag.example → customer ${portalCustomer.organizationName} (${portalUser.id})`);
   }
 
   const leadSpecs = [
@@ -511,10 +566,22 @@ async function main() {
 
   console.log('\nDemo workspace ready');
   console.log(`  URL:   /${DEMO_SLUG}/dashboard`);
-  console.log('  Admin: admin@jabininternational.example');
-  console.log('  Sales: sales@jabininternational.example');
-  console.log('  Tech:  tech@jabininternational.example');
-  console.log(`  Pass:  ${DEMO_PASSWORD}`);
+  console.log('  Admin:   admin@jabininternational.example');
+  console.log('  Sales:   sales@jabininternational.example');
+  console.log('  Tech:    tech@jabininternational.example');
+  console.log('  Support: support@jabininternational.example');
+  console.log('  Portal:  portal@fortisdiag.example');
+  console.log(`  Pass:    ${DEMO_PASSWORD}`);
+
+  try {
+    await ensureRbacCatalog();
+    for (const u of [adminUser, salesUser, techUser, supportUser]) {
+      await syncUserRoleAssignment(u.id, u.role);
+    }
+    console.log('  RBAC roles/permissions synced');
+  } catch (e) {
+    console.warn('  RBAC seed skipped:', e);
+  }
 
   try {
     await ensureFreeTrialSubscription(adminUser.id);

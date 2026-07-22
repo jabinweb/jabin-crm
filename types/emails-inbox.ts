@@ -1,4 +1,4 @@
-export type EmailFolder = 'sent' | 'drafts' | 'starred' | 'trash';
+export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'starred' | 'trash';
 
 export interface Email {
   id: string;

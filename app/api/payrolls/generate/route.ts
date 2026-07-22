@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { auth } from '@/auth'
-import { handleRouteError } from '@/lib/api/tenant-response';
 import { EmployeeStatus } from '@prisma/client'
-import { randomUUID } from 'crypto'
 import {
   resolveCompanyContextFromRequest,
   TenantError,
 } from '@/lib/auth/company-membership'
+import { PayrollService } from '@/lib/services/payroll-service'
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { companyId, month, year } = body
+    const { companyId, month, year, employeeId } = body
 
     if (!companyId || !month || !year) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -34,85 +33,61 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Get all active employees with their latest salary config
+    if (typeof employeeId === 'string' && employeeId) {
+      const emp = await prisma.employee.findFirst({
+        where: { id: employeeId, companyId, status: EmployeeStatus.ACTIVE },
+        select: { id: true },
+      })
+      if (!emp) {
+        return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+      }
+      const payslip = await PayrollService.generatePayslip(employeeId, month, year)
+      return NextResponse.json({
+        success: true,
+        message: 'Generated 1 payslip',
+        data: [payslip],
+      })
+    }
+
     const employees = await prisma.employee.findMany({
       where: {
         companyId,
         status: EmployeeStatus.ACTIVE,
-        isApproved: true
+        isApproved: true,
       },
-      include: {
-        salary: {
-          orderBy: { effectiveFrom: 'desc' },
-          take: 1
-        }
-      }
+      select: { id: true },
     })
 
-    // Generate payslips in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      const payslips = await Promise.all(
-        employees.map(async (employee) => {
-          const salaryConfig = employee.salary[0]
-          if (!salaryConfig) return null
-
-          // Check if payslip already exists
-          const existingPayslip = await tx.payslip.findFirst({
-            where: {
-              employeeId: employee.id,
-              month,
-              year
-            }
-          })
-
-          if (existingPayslip) return null
-
-          // Calculate salary components
-          const basicSalary = salaryConfig.basicSalary
-          const additions = salaryConfig.houseRent + 
-                          salaryConfig.transport + 
-                          salaryConfig.medicalAllowance
-          const deductions = salaryConfig.taxDeduction + 
-                           salaryConfig.otherDeductions
-          const netSalary = basicSalary + additions - deductions
-
-          // Create payslip
-          return tx.payslip.create({
-            data: {
-              id: randomUUID(),
-              employeeId: employee.id,
-              month,
-              year,
-              basicSalary,
-              additions,
-              deductions,
-              netSalary,
-              isPaid: false,
-              createdAt: new Date(),
-              updatedAt: new Date() // Added required field
-            }
-          })
+    type PayslipRow = Awaited<ReturnType<typeof PayrollService.generatePayslip>>
+    const payslips: PayslipRow[] = []
+    for (const employee of employees) {
+      try {
+        const existing = await prisma.payslip.findFirst({
+          where: { employeeId: employee.id, month, year },
         })
-      )
-
-      return payslips.filter(Boolean)
-    })
+        if (existing) continue
+        payslips.push(await PayrollService.generatePayslip(employee.id, month, year))
+      } catch (err) {
+        console.warn(`[payroll] skip ${employee.id}:`, err instanceof Error ? err.message : err)
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Generated ${result.length} payslips`,
-      data: result
+      message: `Generated ${payslips.length} payslips`,
+      data: payslips,
     })
-
   } catch (error) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: error.status })
     }
     console.error('Bulk payroll generation error:', error)
-    return NextResponse.json({ 
-      error: 'Failed to generate payslips',
-      details: error instanceof Error ? error.message : undefined
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to generate payslips',
+        details: error instanceof Error ? error.message : undefined,
+      },
+      { status: 500 }
+    )
   }
 }
-

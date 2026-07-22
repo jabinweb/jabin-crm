@@ -2115,7 +2115,7 @@ model Project {
   @@index([startDate, endDate])
 }
 
-// ── B2B: Client Management ────────────────────────────────────────────────
+// ── B2B: Client Management (legacy — product uses Customer; keep for data compat) ─
 
 model Client {
   id             String   @id @default(cuid())
@@ -2297,6 +2297,11 @@ model PurchaseOrder {
   status      POStatus  @default(DRAFT)
   totalAmount Float
   companyId   String
+  /// [{ productId, name?, quantity, unitPrice }]
+  lineItems   Json?
+  notes       String?
+  approvedAt  DateTime?
+  receivedAt  DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   company     Company   @relation(fields: [companyId], references: [id])
@@ -2313,6 +2318,9 @@ model SalesOrder {
   status      SOStatus  @default(PENDING)
   totalAmount Float
   companyId   String
+  /// [{ productId, name?, quantity, unitPrice }]
+  lineItems   Json?
+  notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   company     Company   @relation(fields: [companyId], references: [id])

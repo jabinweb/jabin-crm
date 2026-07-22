@@ -34,8 +34,19 @@ export async function withModuleAccess(
   return session;
 }
 
-export async function afterLeadCreated(userId: string) {
+export async function afterLeadCreated(
+  userId: string,
+  opts?: { leadId?: string; companyId?: string | null; summary?: string }
+) {
   await recordLeadCreated(userId);
+  const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+  void dispatchWorkflowEvent('lead.created', {
+    userId,
+    leadId: opts?.leadId,
+    companyId: opts?.companyId,
+    title: 'New lead',
+    summary: opts?.summary || 'A lead was created',
+  });
 }
 
 export async function afterEmailSent(userId: string, count = 1) {

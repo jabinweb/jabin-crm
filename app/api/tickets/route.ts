@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { ticketService } from '@/lib/crm/ticket-service';
 import { ticketNotifications } from '@/lib/email/ticket-notifications';
+import { notificationService } from '@/lib/crm/notification-service';
 import { prisma } from '@/lib/prisma';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { handleApiError } from '@/lib/api-error-handler';
@@ -183,6 +184,27 @@ export async function POST(request: NextRequest) {
                 subject: ticket.subject,
                 organizationName: ticket.customer.organizationName
             }).catch(err => console.error('Technician notification failed:', err));
+        }
+
+        const actorId = session?.user?.id || ticket.assignedTechnicianId;
+        if (actorId) {
+            const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+            void dispatchWorkflowEvent('ticket.created', {
+                userId: actorId,
+                ticketId: ticket.id,
+                companyId: ticket.customer.companyId,
+                title: 'New ticket',
+                summary: ticket.subject,
+            });
+            if (ticket.assignedTechnicianId) {
+                await notificationService.create({
+                    type: 'TICKET_ASSIGNED',
+                    title: 'Ticket assigned',
+                    body: ticket.subject,
+                    userId: ticket.assignedTechnicianId,
+                    metadata: { ticketId: ticket.id },
+                }).catch(() => null);
+            }
         }
 
         return NextResponse.json(ticket, { status: 201 });

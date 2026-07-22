@@ -76,8 +76,37 @@ export function useNotifications(userRole: string) {
 
   useEffect(() => {
     fetchNotifications()
+
+    let es: EventSource | null = null
+    try {
+      es = new EventSource('/api/notifications/stream')
+      es.onmessage = (evt) => {
+        try {
+          const payload = JSON.parse(evt.data)
+          if (payload?.type === 'notifications') {
+            // Refresh full feed when DB unread changes
+            void fetch(`/api/notifications`, {
+              headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+            })
+              .then(async (response) => {
+                if (!response.ok) return
+                const data = await response.json()
+                const filtered = (Array.isArray(data) ? data : []).filter(
+                  (notification: Notification) => !isDismissed(notification.id)
+                )
+                setNotifications(filtered)
+              })
+              .catch(() => null)
+          }
+        } catch {
+          /* ignore parse */
+        }
+      }
+    } catch {
+      es = null
+    }
+
     const interval = setInterval(() => {
-      // Quiet background refresh — don't flip loading / toast spam.
       void fetch(`/api/notifications`, {
         headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       })
@@ -96,8 +125,12 @@ export function useNotifications(userRole: string) {
         .catch(() => {
           /* ignore poll errors */
         })
-    }, 30000)
-    return () => clearInterval(interval)
+    }, 45000)
+
+    return () => {
+      clearInterval(interval)
+      es?.close()
+    }
   }, [fetchNotifications])
 
   return {

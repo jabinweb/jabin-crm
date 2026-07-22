@@ -13,6 +13,7 @@ import {
   Reply as ReplyIcon,
   Send,
   Sparkles,
+  Star,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -35,6 +36,7 @@ interface EmailDetailPanelProps {
   onReply: () => void;
   onForward: () => void;
   onDelete: () => void;
+  onToggleStar?: () => void;
   onSendDraft: () => void;
   onEditDraft: () => void;
   onAnalyzeSentiment: (replyId: string, replyBody: string, originalBody?: string) => void;
@@ -50,6 +52,7 @@ export function EmailDetailPanel({
   onReply,
   onForward,
   onDelete,
+  onToggleStar,
   onSendDraft,
   onEditDraft,
   onAnalyzeSentiment,
@@ -118,6 +121,22 @@ export function EmailDetailPanel({
               </>
             ) : (
               <>
+                {onToggleStar && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onToggleStar}
+                    aria-label={selectedEmail.isStarred ? 'Unstar' : 'Star'}
+                  >
+                    <Star
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        selectedEmail.isStarred && 'fill-amber-400 text-amber-500'
+                      )}
+                    />
+                    {selectedEmail.isStarred ? 'Starred' : 'Star'}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={onReply}>
                   <ReplyIcon className="mr-2 h-4 w-4" />
                   Reply
@@ -133,7 +152,7 @@ export function EmailDetailPanel({
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  {selectedFolder === 'trash' ? 'Delete forever' : 'Trash'}
                 </Button>
               </>
             )}
