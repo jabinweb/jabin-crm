@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "FeatureModule" ADD VALUE 'INVENTORY';
+ALTER TYPE "FeatureModule" ADD VALUE 'EQUIPMENT';

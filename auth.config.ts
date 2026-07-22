@@ -66,10 +66,15 @@ export const authConfig = {
             role: true,
             password: true,
             customerId: true,
+            userStatus: true,
           },
         })
 
         if (!user?.password) return null
+
+        if (user.userStatus === 'PENDING' || user.userStatus === 'REJECTED' || user.userStatus === 'INACTIVE') {
+          return null
+        }
 
         const valid = await bcrypt.compare(String(credentials.password), user.password)
         if (!valid) return null
@@ -154,6 +159,19 @@ export const authConfig = {
 
         if (!existingUser) {
           console.log('[auth] Blocked sign-in: email not registered', normalizedEmail)
+          return false
+        }
+
+        const statusRow = await prisma.user.findUnique({
+          where: { id: existingUser.id },
+          select: { userStatus: true },
+        })
+        if (
+          statusRow?.userStatus === 'PENDING' ||
+          statusRow?.userStatus === 'REJECTED' ||
+          statusRow?.userStatus === 'INACTIVE'
+        ) {
+          console.log('[auth] Blocked sign-in: userStatus', statusRow.userStatus, normalizedEmail)
           return false
         }
 

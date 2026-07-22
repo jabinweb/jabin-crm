@@ -238,3 +238,48 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const action = body?.action as string | undefined
+    const notificationId = typeof body?.notificationId === 'string' ? body.notificationId : null
+
+    // Synthetic staff feed uses local dismiss/read; accept markAsRead for API compatibility.
+    if (action === 'markAsRead' || action === 'markAllAsRead' || action === 'dismiss') {
+      if (
+        notificationId &&
+        !notificationId.startsWith('task-') &&
+        !notificationId.startsWith('leave-') &&
+        !notificationId.startsWith('message-') &&
+        !notificationId.startsWith('leave-status-')
+      ) {
+        await prisma.notification
+          .updateMany({
+            where: {
+              id: notificationId,
+              OR: [
+                ...(session.user.customerId
+                  ? [{ customerId: session.user.customerId }]
+                  : []),
+                { userId: session.user.id },
+              ],
+            },
+            data: { read: true },
+          })
+          .catch(() => null)
+      }
+      return NextResponse.json({ success: true })
+    }
+
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (error) {
+    console.error('[api/notifications POST]', error)
+    return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 })
+  }
+}

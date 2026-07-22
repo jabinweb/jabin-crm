@@ -63,6 +63,31 @@ export class ServiceReportService {
     }
 
     /**
+     * List service reports for a tenant company (via ticket → customer).
+     */
+    async listReportsForCompany(companyId: string) {
+        return prisma.serviceReport.findMany({
+            where: { ticket: { customer: { companyId } } },
+            include: {
+                technician: {
+                    select: { id: true, name: true, email: true },
+                },
+                ticket: {
+                    select: {
+                        id: true,
+                        subject: true,
+                        status: true,
+                        customer: {
+                            select: { id: true, organizationName: true },
+                        },
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    /**
      * Get reports for a specific ticket
      */
     async getReportsByTicket(ticketId: string) {

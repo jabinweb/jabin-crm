@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serviceReportService } from '@/lib/crm/service-report-service';
-import { ticketNotifications } from '@/lib/email/ticket-notifications';
 import { handleApiError } from '@/lib/api-error-handler';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { isApiException } from '@/lib/api/subscription-guards';
+
+export const GET = withTenantRoute(async (_req, { companyId }) => {
+    await withModuleAccess('SERVICE_REPORTS');
+    const reports = await serviceReportService.listReportsForCompany(companyId);
+    return jsonOk({ reports });
+});
 
 export async function POST(request: NextRequest) {
     try {

@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp } from "lucide-react"
+import Link from 'next/link'
+import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp, ArrowLeftRight, ClipboardList, Box } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StockAdjustmentDialog } from "@/components/inventory/stock-adjustment-dialog"
 import { TransactionHistoryDialog } from "@/components/inventory/transaction-history-dialog"
@@ -181,9 +182,9 @@ export default function InventoryPage() {
         </Card>
       </div>
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
         <h1 className="text-2xl font-bold">Inventory Management</h1>
-        <div className="flex gap-4 items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           <div className="relative">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -193,16 +194,32 @@ export default function InventoryPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="flex gap-4">
-            <Button onClick={() => setShowAdjustmentDialog(true)}>
-              <Plus className="h-4 w-4 mr-2" />
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/inventory/batches')}>
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Batches
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/inventory/transfers')}>
+              <ArrowLeftRight className="h-4 w-4 mr-2" />
+              Transfers
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/inventory/stock-adjustment')}>
+              <Box className="h-4 w-4 mr-2" />
               Stock Adjustment
-            </Button>
-            <Button variant="outline" onClick={() => setShowHistoryDialog(true)}>
-              <History className="h-4 w-4 mr-2" />
-              Transaction History
-            </Button>
-          </div>
+            </Link>
+          </Button>
+          <Button onClick={() => setShowAdjustmentDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Quick Adjust
+          </Button>
+          <Button variant="outline" onClick={() => setShowHistoryDialog(true)}>
+            <History className="h-4 w-4 mr-2" />
+            Transaction History
+          </Button>
         </div>
       </div>
 

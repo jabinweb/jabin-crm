@@ -171,7 +171,12 @@ export default function ContractsPage() {
                   return (
                     <TableRow key={c.id}>
                       <TableCell>
-                        <div className="font-medium">{c.title}</div>
+                        <Link
+                          href={path(`/dashboard/contracts/${c.id}`)}
+                          className="font-medium hover:underline"
+                        >
+                          {c.title}
+                        </Link>
                         <div className="text-xs text-muted-foreground">
                           {c.contractNumber || c.id.slice(0, 8)}
                           {c.equipment?.product?.name

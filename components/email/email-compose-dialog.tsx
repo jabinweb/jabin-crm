@@ -140,7 +140,7 @@ export function EmailComposeDialog({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyName: 'Your Company', // TODO: Get from user profile
+          companyName: leadData?.companyName || 'Your Company',
           productService: formData.body.substring(0, 200),
           tone: 'professional',
           count: 5,
@@ -173,7 +173,7 @@ export function EmailComposeDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           content: formData.body,
-          companyName: 'Your Company', // TODO: Get from user profile
+          companyName: leadData?.companyName || 'Your Company',
           goal: 'Generate leads',
         }),
       });

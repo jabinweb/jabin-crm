@@ -174,7 +174,7 @@ export function TopBar({
           )}
 
           {/* Quick Actions - only show for admin/manager */}
-          {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+          {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN' || userRole === 'SUPPORT_MANAGER') && (
             <QuickActions />
           )}
 
@@ -183,8 +183,10 @@ export function TopBar({
 
           {/* Messages */}
           {showMessages && (
-            <Button variant="ghost" size="icon">
-              <MessageSquare className="h-5 w-5" />
+            <Button variant="ghost" size="icon" asChild>
+              <Link href={path('/dashboard/messages')} aria-label="Messages">
+                <MessageSquare className="h-5 w-5" />
+              </Link>
             </Button>
           )}
 

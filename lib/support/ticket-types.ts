@@ -226,6 +226,140 @@ const VERTICAL_TYPES: Partial<Record<BusinessVertical, PortalTicketTypeDefinitio
       fields: [],
     },
   ],
+  web_agency: [
+    {
+      id: 'brief',
+      label: 'New brief',
+      description: 'Kick off a website, app, SEO, or campaign engagement.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Projects',
+      fields: [
+        { id: 'projectName', label: 'Project / site name', type: 'text', required: true },
+        {
+          id: 'serviceType',
+          label: 'Service',
+          type: 'select',
+          options: [
+            { value: 'website', label: 'Website' },
+            { value: 'webapp', label: 'Web app' },
+            { value: 'seo', label: 'SEO / content' },
+            { value: 'branding', label: 'Branding / design' },
+            { value: 'retainer', label: 'Monthly retainer' },
+            { value: 'other', label: 'Other' },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'change_request',
+      label: 'Change request',
+      description: 'Scope or content changes on an active project.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Projects',
+      fields: [
+        { id: 'url', label: 'Page / URL', type: 'text', placeholder: 'https://…' },
+      ],
+    },
+    {
+      id: 'bug',
+      label: 'Bug / broken page',
+      description: 'Something on a live site or app is not working.',
+      defaultPriority: 'HIGH',
+      groupName: 'Technical Support',
+      fields: [
+        { id: 'url', label: 'Affected URL', type: 'text' },
+        { id: 'browser', label: 'Browser / device', type: 'text' },
+      ],
+    },
+    {
+      id: 'hosting',
+      label: 'Hosting / domain',
+      description: 'DNS, SSL, downtime, or hosting access.',
+      defaultPriority: 'HIGH',
+      groupName: 'Technical Support',
+      fields: [],
+    },
+  ],
+  healthcare: [
+    {
+      id: 'equipment',
+      label: 'Device / equipment issue',
+      description: 'Clinical or facility equipment not working.',
+      defaultPriority: 'HIGH',
+      groupName: 'Service Engineering',
+      showEquipment: true,
+      fields: [],
+    },
+    {
+      id: 'pm',
+      label: 'Preventive maintenance',
+      description: 'Schedule or confirm PM visits.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Service Engineering',
+      showEquipment: true,
+      fields: [],
+    },
+  ],
+  saas: [
+    {
+      id: 'product_bug',
+      label: 'Product bug',
+      description: 'Something in the product is broken or unexpected.',
+      defaultPriority: 'HIGH',
+      groupName: 'Technical Support',
+      fields: [
+        { id: 'affectedArea', label: 'Feature area', type: 'text' },
+      ],
+    },
+    {
+      id: 'account',
+      label: 'Account / billing',
+      description: 'Seats, invoices, or plan changes.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Billing',
+      fields: [],
+    },
+  ],
+  construction: [
+    {
+      id: 'job',
+      label: 'Job / site request',
+      description: 'New work order or site visit.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Field Ops',
+      fields: [
+        { id: 'siteAddress', label: 'Site address', type: 'text', required: true },
+      ],
+    },
+    {
+      id: 'materials',
+      label: 'Materials / tools',
+      description: 'Request materials or equipment for a job.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Field Ops',
+      fields: [],
+    },
+  ],
+  education: [
+    {
+      id: 'enrollment',
+      label: 'Enrollment / program',
+      description: 'Questions about programs, schedules, or materials.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'General Support',
+      fields: [],
+    },
+  ],
+  hospitality: [
+    {
+      id: 'venue',
+      label: 'Venue / guest service',
+      description: 'On-site service or guest experience issues.',
+      defaultPriority: 'HIGH',
+      groupName: 'Operations',
+      fields: [],
+    },
+  ],
   professional_services: [
     {
       id: 'engagement',

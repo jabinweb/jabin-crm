@@ -14,7 +14,8 @@ import {
 import { buildInitialCompanySettings } from '@/lib/workspace-config'
 import { isBusinessVertical, type BusinessVertical } from '@/lib/workspace-templates'
 import { seedCompanySupportDesk } from '@/lib/support/seed-company-support'
-import { completedOnboardingState } from '@/lib/onboarding/company-onboarding'
+import { initialOnboardingState } from '@/lib/onboarding/company-onboarding'
+import { ensureFreeTrialSubscription } from '@/lib/subscription/ensure-free-trial'
 
 const RESERVED = new Set([
   'api',
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     const vertical = data.businessVertical as BusinessVertical
     const settings = {
       ...buildInitialCompanySettings(vertical),
-      onboarding: completedOnboardingState(),
+      onboarding: initialOnboardingState(),
       start: {
         country: data.country?.toUpperCase() || null,
         teamSize: data.teamSize || null,
@@ -195,6 +196,12 @@ export async function POST(req: NextRequest) {
     seedCompanySupportDesk(result.company.id, result.vertical).catch((err) =>
       console.error('[start] support desk seed failed:', err)
     )
+
+    try {
+      await ensureFreeTrialSubscription(result.user.id)
+    } catch (err) {
+      console.error('[start] free trial subscription failed:', err)
+    }
 
     return NextResponse.json({
       success: true,

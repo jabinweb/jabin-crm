@@ -112,7 +112,11 @@ export function LeadActions({ lead }: LeadActionsProps) {
           </a>
         </Button>
       )}
-      <Button size="sm" variant="outline" disabled title="Calendar integration coming soon">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => router.push(path('/dashboard/calendar'))}
+      >
         <Calendar className="h-4 w-4 mr-2" />
         Schedule
       </Button>

@@ -78,6 +78,14 @@ export function completedOnboardingState(): CompanyOnboardingState {
   };
 }
 
+/** Fresh workspace — admin should complete the short welcome wizard. */
+export function initialOnboardingState(): CompanyOnboardingState {
+  return {
+    completed: false,
+    currentStep: 'welcome',
+  };
+}
+
 export interface OnboardingWelcomePayload {
   businessVertical?: BusinessVertical;
   companyName?: string;

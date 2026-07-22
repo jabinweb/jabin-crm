@@ -85,12 +85,16 @@ export function parsePlanModules(
 export function isSubscriptionActive(subscription: {
   status: string;
   currentPeriodEnd: Date;
+  trialEndsAt?: Date | null;
 }): boolean {
   if (!['ACTIVE', 'TRIALING', 'PAST_DUE'].includes(subscription.status)) {
     return false;
   }
   if (subscription.status === 'TRIALING') {
-    return true;
+    if (subscription.trialEndsAt) {
+      return new Date() <= new Date(subscription.trialEndsAt);
+    }
+    return new Date() <= new Date(subscription.currentPeriodEnd);
   }
   return new Date() <= new Date(subscription.currentPeriodEnd);
 }

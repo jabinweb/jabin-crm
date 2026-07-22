@@ -51,11 +51,8 @@ interface FileRecord {
 function hasPermission(user: any, resource: string, action: string): boolean {
     if (!user) return false;
 
-    // Super admin and admin have all permissions
-    if (user.role === 'super_admin' || user.role === 'admin') return true;
-
-    // Moderators can read files
-    if (user.role === 'moderator' && action === 'read') return true;
+    const role = String(user.role || '');
+    if (role === 'SUPER_ADMIN' || role === 'ADMIN') return true;
 
     return false;
 }

@@ -1,9 +1,46 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
+import { ensureFreePlan, ensureFreeTrialSubscription } from '../lib/subscription/ensure-free-trial';
+import { PLAN_CATALOG, PLAN_LIST_PRICES_PAISE } from '../lib/pricing/catalog';
+import { DEFAULT_PLAN_MODULES } from '../lib/plan-modules';
 
 const DEMO_SLUG = 'jabin-international-private-limited';
 const DEMO_PASSWORD = 'Demo@12345';
+
+async function syncPlans() {
+  for (const key of Object.keys(PLAN_CATALOG) as Array<keyof typeof PLAN_CATALOG>) {
+    const catalog = PLAN_CATALOG[key];
+    const price = PLAN_LIST_PRICES_PAISE[key] ?? catalog.pricePaise;
+    const modules = DEFAULT_PLAN_MODULES[key] ?? {};
+    await prisma.plan.upsert({
+      where: { name: catalog.name },
+      create: {
+        name: catalog.name,
+        displayName: catalog.displayName,
+        description: catalog.description,
+        price,
+        currency: 'INR',
+        interval: catalog.interval,
+        maxLeads: catalog.maxLeads,
+        maxEmails: catalog.maxEmails,
+        maxCampaigns: catalog.maxCampaigns,
+        features: [...catalog.features],
+        modules,
+        isActive: true,
+      },
+      update: {
+        displayName: catalog.displayName,
+        description: catalog.description,
+        price,
+        features: [...catalog.features],
+        modules,
+        isActive: true,
+      },
+    });
+  }
+  await ensureFreePlan();
+}
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -11,6 +48,8 @@ async function main() {
   }
 
   console.log('Seeding demo workspace…');
+  await syncPlans();
+  console.log('Plans synced');
 
   const company = await prisma.company.upsert({
     where: { slug: DEMO_SLUG },
@@ -476,6 +515,13 @@ async function main() {
   console.log('  Sales: sales@jabininternational.example');
   console.log('  Tech:  tech@jabininternational.example');
   console.log(`  Pass:  ${DEMO_PASSWORD}`);
+
+  try {
+    await ensureFreeTrialSubscription(adminUser.id);
+    console.log('  Admin free trial subscription attached');
+  } catch (e) {
+    console.warn('  Could not attach trial subscription:', e);
+  }
 }
 
 main()

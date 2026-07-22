@@ -42,6 +42,11 @@ import {
   Inbox,
   Clock,
   Zap,
+  Truck,
+  ShoppingCart,
+  PiggyBank,
+  FolderKanban,
+  Landmark,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -77,21 +82,22 @@ const crmNav: NavigationItem[] = [
 ];
 
 const salesNav: NavigationItem[] = [
-  { name: 'Leads', href: '/dashboard/leads', icon: Activity, module: 'LEADS' },
-  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard, module: 'DEALS' },
-  { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck, module: 'QUOTATIONS' },
-  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES' },
-  { name: 'Calendar', href: '/dashboard/calendar', icon: CalendarIcon },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList },
+  { name: 'Leads', href: '/dashboard/leads', icon: Activity, module: 'LEADS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard, module: 'DEALS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck, module: 'QUOTATIONS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Calendar', href: '/dashboard/calendar', icon: CalendarIcon, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   {
     name: 'More sales',
     href: '/dashboard/analytics',
     icon: BarChart3,
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
     children: [
-      { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },
-      { name: 'Team', href: '/dashboard/team', icon: Users },
-      { name: 'Duplicates', href: '/dashboard/duplicates', icon: Copy },
-      { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP' },
+      { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Team', href: '/dashboard/team', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Duplicates', href: '/dashboard/duplicates', icon: Copy, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
     ],
   },
 ];
@@ -137,6 +143,9 @@ const saasNav: NavigationItem[] = [
   { name: 'Companies', href: '/admin/companies', icon: Building2, roles: ['SUPER_ADMIN'] },
   { name: 'User Management', href: '/admin/users', icon: Users, roles: ['SUPER_ADMIN'] },
   { name: 'Subscriptions', href: '/admin/subscriptions', icon: BillingIcon, roles: ['SUPER_ADMIN'] },
+  { name: 'Plans', href: '/admin/plans', icon: CreditCard, roles: ['SUPER_ADMIN'] },
+  { name: 'Email logs', href: '/admin/emails', icon: Mail, roles: ['SUPER_ADMIN'] },
+  { name: 'Activity', href: '/admin/activity', icon: Activity, roles: ['SUPER_ADMIN'] },
   { name: 'Platform Settings', href: '/admin/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
 ];
 
@@ -146,19 +155,32 @@ const emailNav: NavigationItem[] = [
     href: '/dashboard/emails',
     icon: Mail,
     module: 'EMAIL_OUTREACH',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
     children: [
-      { name: 'Inbox', href: '/dashboard/emails', icon: Mail },
-      { name: 'Sent', href: '/dashboard/emails?folder=sent', icon: Send },
-      { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText },
-      { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen },
-      { name: 'Sequences', href: '/dashboard/sequences', icon: Activity },
-      { name: 'Templates', href: '/dashboard/email-templates', icon: FileText },
+      { name: 'Inbox', href: '/dashboard/emails', icon: Mail, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Sent', href: '/dashboard/emails?folder=sent', icon: Send, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Sequences', href: '/dashboard/sequences', icon: Activity, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Templates', href: '/dashboard/email-templates', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
     ]
   }
 ];
 
+const opsNav: NavigationItem[] = [
+  { name: 'Suppliers', href: '/dashboard/suppliers', icon: Truck, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY' },
+  { name: 'Purchase orders', href: '/dashboard/purchase-orders', icon: ClipboardList, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY' },
+  { name: 'Sales orders', href: '/dashboard/sales-orders', icon: ShoppingCart, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY' },
+  { name: 'Assets', href: '/dashboard/assets', icon: Landmark, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { name: 'Budgets', href: '/dashboard/budgets', icon: PiggyBank, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { name: 'Workflows', href: '/dashboard/workflows', icon: Zap, roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },
+];
+
 const settingsNav: NavigationItem[] = [
   { name: 'Reporting', href: '/dashboard/reports', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
   { name: 'Documentation', href: '/dashboard/docs', icon: BookOpen },
   {
     name: 'Settings',
@@ -214,35 +236,36 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       { name: 'Approve staff', href: '/dashboard/approve-employees', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Payroll', href: '/dashboard/payroll', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Leave requests', href: '/dashboard/leave-requests', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Announcements', href: '/dashboard/announcements', icon: MessageSquare, roles: ['ADMIN', 'SUPER_ADMIN'] },
     ];
   }, [companySlug, userRole]);
 
   const myHrNav = useMemo((): NavigationItem[] => {
-    if (!companySlug || userRole !== 'TECHNICIAN') return [];
+    if (!companySlug || !['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'].includes(userRole)) return [];
     return [
       {
         name: 'Attendance',
         href: getCompanyUrl('/employee/attendance', companySlug),
         icon: Clock,
-        roles: ['TECHNICIAN'],
+        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
       },
       {
         name: 'Leave',
         href: getCompanyUrl('/employee/leave', companySlug),
         icon: CalendarIcon,
-        roles: ['TECHNICIAN'],
+        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
       },
       {
         name: 'Payslips',
         href: getCompanyUrl('/employee/payslips', companySlug),
         icon: Wallet,
-        roles: ['TECHNICIAN'],
+        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
       },
       {
         name: 'My profile',
         href: getCompanyUrl('/employee/profile', companySlug),
         icon: User,
-        roles: ['TECHNICIAN'],
+        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
       },
     ];
   }, [companySlug, userRole]);
@@ -441,6 +464,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         {renderNavGroup(crmNav, "Clients & catalog")}
         {userRole !== 'TECHNICIAN' && renderNavGroup(salesNav, "Sales")}
         {renderNavGroup(supportNav, "Service")}
+        {['ADMIN', 'SUPER_ADMIN'].includes(userRole) && renderNavGroup(opsNav, "Ops")}
         {userRole !== 'TECHNICIAN' && userRole !== 'CUSTOMER' && renderNavGroup(emailNav, "Outreach")}
         {renderNavGroup(settingsNav, "Settings")}
       </div>

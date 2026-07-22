@@ -54,19 +54,20 @@ export function useNotifications(userRole: string) {
 
   const markAsRead = useCallback(async (notificationId: string) => {
     try {
+      addDismissedNotification(notificationId)
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId))
       await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'markAsRead',
-          notificationId
-        })
+          notificationId,
+        }),
       })
-      await fetchNotifications()
     } catch (error) {
       console.error('Mark as read error:', error)
     }
-  }, [fetchNotifications])
+  }, [])
 
   const dismissNotification = useCallback((notificationId: string) => {
     addDismissedNotification(notificationId)

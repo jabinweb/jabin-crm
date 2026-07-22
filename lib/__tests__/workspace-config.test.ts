@@ -32,9 +32,13 @@ describe('workspace-config', () => {
     expect(config.features.equipment).toBe(false);
   });
 
-  it('seeds lead pipeline from template on company create', () => {
-    const settings = buildInitialCompanySettings('ecommerce');
-    expect(settings.workspace.businessVertical).toBe('ecommerce');
-    expect(settings.leads.statusFlow).toContain('ORDER');
+  it('applies web agency template for digital firms', () => {
+    const config = resolveWorkspaceConfig({
+      businessVertical: 'web_agency',
+    });
+    expect(config.terminology.customers).toBe('Clients');
+    expect(config.terminology.ticket).toBe('Client request');
+    expect(config.features.products).toBe(true);
+    expect(config.features.fieldService).toBe(false);
   });
 });

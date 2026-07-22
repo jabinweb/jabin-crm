@@ -50,3 +50,43 @@ export async function GET(request: Request) {
     )
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const session = await auth()
+    if (!session?.user?.employeeId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const role = String(session.user.role || "")
+    if (!["ADMIN", "SUPER_ADMIN"].includes(role)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const companyId = companyIdFromSessionUser(session.user)
+    if (!companyId) {
+      return NextResponse.json({ error: "No company context" }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const title = typeof body.title === "string" ? body.title.trim() : ""
+    const content = typeof body.content === "string" ? body.content.trim() : ""
+    if (!title || !content) {
+      return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
+    }
+
+    const announcement = await prisma.announcement.create({
+      data: {
+        title,
+        content,
+        priority: typeof body.priority === "number" ? body.priority : 0,
+        companyId,
+      },
+    })
+
+    return NextResponse.json(announcement, { status: 201 })
+  } catch (error) {
+    console.error("Error creating announcement:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}

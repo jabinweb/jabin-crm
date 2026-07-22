@@ -9,6 +9,7 @@ import { LeadDetailSidebar } from '@/components/leads/detail/lead-detail-sidebar
 import { LeadDetailActivity } from '@/components/leads/detail/lead-detail-activity';
 import { LeadDetailActions } from '@/components/leads/detail/lead-detail-actions';
 import { LeadDetailDialogs } from '@/components/leads/detail/lead-detail-dialogs';
+import { LeadDocuments } from '@/components/leads/lead-documents';
 
 export default function LeadDetailPage() {
   const detail = useLeadDetailPage();
@@ -46,6 +47,7 @@ export default function LeadDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <LeadDetailActions {...detail} />
           <LeadDetailActivity {...detail} />
+          <LeadDocuments leadId={detail.lead.id} />
         </div>
         <LeadDetailSidebar {...detail} />
       </div>
