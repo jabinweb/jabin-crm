@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import {
-  parseWorkspaceSettings,
   resolveWorkspaceConfig,
+  workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
 import {
   parseSupportSettings,
@@ -29,7 +29,7 @@ export async function resolveCompanyTicketConfig(companyId: string | null | unde
       ? (company.settings as Record<string, unknown>)
       : {};
 
-  const workspaceSettings = parseWorkspaceSettings(stored.workspace);
+  const workspaceSettings = workspaceSettingsFromCompanySettings(stored);
   const supportSettings = parseSupportSettings(stored.support);
   const config = resolveWorkspaceConfig(workspaceSettings);
   const ticketTypes = resolvePortalTicketTypes(config, supportSettings);

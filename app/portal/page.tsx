@@ -57,10 +57,14 @@ export default function CustomerPortalPage() {
         terminology?.portalSubtitle ??
         'Manage support, account activity, and self-service for your organization.';
 
+    const showPortalBilling = features?.customerPortal === true;
     const quickLinks = [
         showEquipment
             ? { href: '/portal/equipment', label: `View ${equipmentLabel.toLowerCase()}` }
             : null,
+        showPortalBilling ? { href: '/portal/quotations', label: 'Quotations' } : null,
+        showPortalBilling ? { href: '/portal/invoices', label: 'Invoices' } : null,
+        showPortalBilling ? { href: '/portal/documents', label: 'Documents' } : null,
         { href: '/portal/support', label: 'Help center' },
         showServiceHistory ? { href: '/portal/service-history', label: 'Service history' } : null,
         { href: '/portal/settings', label: 'Account settings' },

@@ -6,6 +6,7 @@ export interface CreateInvoiceInput {
   userId: string;
   leadId?: string;
   dealId?: string;
+  customerId?: string;
   quotationId?: string;
   title: string;
   description?: string;
@@ -142,12 +143,28 @@ export class InvoiceService {
         }
       }
 
+      const { resolveBillingCustomerId } = await import('@/lib/api/portal-billing-scope');
+      const { resolveDocumentCurrency } = await import('@/lib/currency/resolve-document');
+      const customerId = await resolveBillingCustomerId({
+        customerId: input.customerId,
+        customerEmail: input.customerEmail,
+        userId: input.userId,
+      });
+
+      const currency = await resolveDocumentCurrency({
+        explicit: input.currency,
+        customerId,
+        customerEmail: input.customerEmail,
+        userId: input.userId,
+      });
+
       const invoice = await prisma.invoice.create({
         data: {
           invoiceNumber,
           userId: input.userId,
           leadId,
           dealId: input.dealId,
+          customerId: customerId || null,
           quotationId: input.quotationId,
           title: input.title,
           description: input.description,
@@ -155,7 +172,7 @@ export class InvoiceService {
           customerEmail: input.customerEmail,
           customerPhone: input.customerPhone,
           customerAddress: input.customerAddress,
-          currency: input.currency || 'USD',
+          currency,
           subtotal,
           taxRate: input.taxRate || 0,
           taxAmount,
@@ -286,18 +303,32 @@ export class InvoiceService {
         newStatus = 'PARTIAL';
       }
 
+      const paymentNote = [
+        paymentInput.paymentMethod ? `Method: ${paymentInput.paymentMethod}` : null,
+        paymentInput.paymentDetails ? paymentInput.paymentDetails : null,
+        `Amount: ${paymentInput.amount}`,
+        new Date().toISOString(),
+      ]
+        .filter(Boolean)
+        .join(' · ');
+
       const updatedInvoice = await prisma.invoice.update({
         where: { id: invoiceId },
         data: {
           amountPaid: newAmountPaid,
-          amountDue: newAmountDue,
+          amountDue: Math.max(0, newAmountDue),
           status: newStatus,
           paidAt: newStatus === 'PAID' ? new Date() : undefined,
           paymentMethod: paymentInput.paymentMethod || invoice.paymentMethod,
-          paymentDetails: paymentInput.paymentDetails,
-          payments: paymentInput.razorpayPaymentId ? {
-            connect: { razorpayPaymentId: paymentInput.razorpayPaymentId },
-          } : undefined,
+          // Keep bank/payment instructions JSON intact; append audit to notes
+          notes: invoice.notes
+            ? `${invoice.notes}\n[Payment] ${paymentNote}`
+            : `[Payment] ${paymentNote}`,
+          payments: paymentInput.razorpayPaymentId
+            ? {
+                connect: { razorpayPaymentId: paymentInput.razorpayPaymentId },
+              }
+            : undefined,
         },
         include: {
           items: true,
@@ -518,6 +549,9 @@ export class InvoiceService {
    */
   async listInvoices(filters: {
     userId?: string;
+    companyId?: string;
+    customerId?: string;
+    customerEmail?: string;
     leadId?: string;
     dealId?: string;
     status?: InvoiceStatus;
@@ -531,7 +565,26 @@ export class InvoiceService {
       const skip = (page - 1) * limit;
 
       const where: any = {};
-      if (filters.userId) where.userId = filters.userId;
+      if (filters.customerId || filters.customerEmail) {
+        const or: object[] = [];
+        if (filters.customerId) or.push({ customerId: filters.customerId });
+        if (filters.customerEmail) {
+          or.push({
+            customerEmail: { equals: filters.customerEmail, mode: 'insensitive' },
+          });
+        }
+        where.OR = or;
+      } else if (filters.companyId) {
+        Object.assign(where, {
+          OR: [
+            { lead: { companyId: filters.companyId } },
+            { user: { primaryCompanyId: filters.companyId } },
+            { user: { userCompanies: { some: { companyId: filters.companyId } } } },
+          ],
+        });
+      } else if (filters.userId) {
+        where.userId = filters.userId;
+      }
       if (filters.leadId) where.leadId = filters.leadId;
       if (filters.dealId) where.dealId = filters.dealId;
       if (filters.status) where.status = filters.status;
@@ -588,7 +641,7 @@ export class InvoiceService {
    */
   async getInvoiceStats(userId: string) {
     try {
-      const [total, paid, overdue, pending, totalRevenue, paidRevenue, overdueAmount, userProfile] =
+      const [total, paid, overdue, pending, totalRevenue, paidRevenue, overdueAmount] =
         await Promise.all([
           prisma.invoice.count({ where: { userId } }),
           prisma.invoice.count({ where: { userId, status: 'PAID' } }),
@@ -608,11 +661,10 @@ export class InvoiceService {
             where: { userId, status: 'OVERDUE' },
             _sum: { amountDue: true },
           }),
-          prisma.userProfile.findUnique({
-            where: { userId },
-            select: { preferredCurrency: true },
-          }),
         ]);
+
+      const { resolveDocumentCurrency } = await import('@/lib/currency/resolve-document');
+      const currency = await resolveDocumentCurrency({ userId });
 
       return {
         total,
@@ -622,7 +674,7 @@ export class InvoiceService {
         totalRevenue: totalRevenue._sum.total || 0,
         paidRevenue: paidRevenue._sum.total || 0,
         overdueAmount: overdueAmount._sum.amountDue || 0,
-        currency: userProfile?.preferredCurrency || 'USD',
+        currency,
       };
     } catch (error) {
       logger.error({ error, userId }, 'Failed to get invoice stats');

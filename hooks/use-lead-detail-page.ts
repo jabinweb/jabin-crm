@@ -26,7 +26,7 @@ const EMPTY_TASK_DATA: LeadDetailTaskData = {
 const EMPTY_DEAL_DATA: LeadDetailDealData = {
   title: '',
   value: '',
-  stage: 'DISCOVERY',
+  stage: 'PROSPECTING',
   probability: '50',
 };
 

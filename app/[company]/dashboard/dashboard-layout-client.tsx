@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ShellSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
+import { OpsAgentPanel } from '@/components/agent/ops-agent-panel';
 import '@/types/auth';
 
 function isFlushDashboardPath(pathname: string | null): boolean {
@@ -103,6 +104,7 @@ export function DashboardLayoutClient({
           )}
         </main>
       </div>
+      <OpsAgentPanel />
     </div>
   );
 }

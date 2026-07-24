@@ -87,6 +87,21 @@ export default function ProjectsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await workspaceFetch(`/api/projects/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete');
+      }
+    },
+    onSuccess: () => {
+      toast.success('Project deleted');
+      queryClient.invalidateQueries({ queryKey: ['projects', slug] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -178,6 +193,7 @@ export default function ProjectsPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Start</TableHead>
                   <TableHead>End</TableHead>
+                  <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -187,6 +203,17 @@ export default function ProjectsPage() {
                     <TableCell>{p.status}</TableCell>
                     <TableCell>{new Date(p.startDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(p.endDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Delete this project?')) deleteMutation.mutate(p.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

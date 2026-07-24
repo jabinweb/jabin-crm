@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useSettings } from "@/contexts/settings-context"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { CurrencySelect } from '@/components/ui/currency-select'
+import { PRODUCT_DEFAULT_CURRENCY } from '@/lib/currency'
 import type { SettingsUpdatePayload } from '@/types/settings'
 
 interface RazorpaySettings {
@@ -43,7 +45,6 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
     }
   })
 
-  // Sync with server settings
   useEffect(() => {
     if (settings?.integrations?.razorpay) {
       setLocalSettings(prev => ({
@@ -55,10 +56,22 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
     }
   }, [settings?.integrations?.razorpay])
 
-  const handleRazorpayUpdate = (field: string, value: any) => {
+  const defaultCurrency =
+    settings?.billing?.defaultCurrency || PRODUCT_DEFAULT_CURRENCY
+
+  const handleDefaultCurrencyChange = (value: string) => {
+    onChange?.({
+      settings: {
+        billing: {
+          defaultCurrency: value || PRODUCT_DEFAULT_CURRENCY,
+        },
+      },
+    })
+  }
+
+  const handleRazorpayUpdate = (field: string, value: unknown) => {
     const currentMode = localSettings.integrations.razorpay.mode
 
-    // Handle credential updates differently
     if (['keyId', 'keySecret', 'webhookSecret'].includes(field)) {
       const updatedRazorpay = {
         ...localSettings.integrations.razorpay,
@@ -70,7 +83,7 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
           }
         }
       }
-      
+
       setLocalSettings(prev => ({
         ...prev,
         integrations: { razorpay: updatedRazorpay }
@@ -84,7 +97,6 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
       return
     }
 
-    // Handle other updates (enabled, mode)
     const updatedRazorpay = {
       ...localSettings.integrations.razorpay,
       [field]: value
@@ -106,12 +118,35 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
+          <CardTitle>Company currency</CardTitle>
+          <CardDescription>
+            Default for new deals, quotes, invoices, and contracts. Individual clients can override
+            with their own billing currency.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <CurrencySelect
+            id="company-default-currency"
+            label="Default currency"
+            value={defaultCurrency}
+            onValueChange={handleDefaultCurrencyChange}
+            description="Changing this does not rewrite existing documents."
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Razorpay Integration</CardTitle>
+          <CardDescription>
+            Company payment credentials used for payroll (and future customer checkout). Platform
+            subscription billing still uses Opslane Razorpay keys.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <Label>Enable Razorpay</Label>
-            <Switch 
+            <Switch
               checked={localSettings.integrations.razorpay.enabled}
               onCheckedChange={(checked) => handleRazorpayUpdate('enabled', checked)}
             />
@@ -121,7 +156,7 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
             <>
               <div className="grid gap-2">
                 <Label>Mode</Label>
-                <Select 
+                <Select
                   value={localSettings.integrations.razorpay.mode}
                   onValueChange={(value: 'test' | 'live') => handleRazorpayUpdate('mode', value)}
                 >
@@ -138,7 +173,7 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
               <div className="space-y-4">
                 <div className="grid gap-2">
                   <Label>Key ID ({localSettings.integrations.razorpay.mode})</Label>
-                  <Input 
+                  <Input
                     type="password"
                     value={localSettings.integrations.razorpay.credentials[localSettings.integrations.razorpay.mode].keyId}
                     onChange={(e) => handleRazorpayUpdate('keyId', e.target.value)}
@@ -146,7 +181,7 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
                 </div>
                 <div className="grid gap-2">
                   <Label>Key Secret ({localSettings.integrations.razorpay.mode})</Label>
-                  <Input 
+                  <Input
                     type="password"
                     value={localSettings.integrations.razorpay.credentials[localSettings.integrations.razorpay.mode].keySecret}
                     onChange={(e) => handleRazorpayUpdate('keySecret', e.target.value)}
@@ -154,7 +189,7 @@ export function PaymentSection({ onChange }: PaymentSectionProps) {
                 </div>
                 <div className="grid gap-2">
                   <Label>Webhook Secret ({localSettings.integrations.razorpay.mode})</Label>
-                  <Input 
+                  <Input
                     type="password"
                     value={localSettings.integrations.razorpay.credentials[localSettings.integrations.razorpay.mode].webhookSecret}
                     onChange={(e) => handleRazorpayUpdate('webhookSecret', e.target.value)}

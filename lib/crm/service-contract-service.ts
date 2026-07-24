@@ -100,6 +100,13 @@ export async function createServiceContract(input: CreateServiceContractInput) {
   const includesParts =
     input.includesParts ?? input.type === 'CMC';
 
+  const { resolveDocumentCurrency } = await import('@/lib/currency/resolve-document');
+  const currency = await resolveDocumentCurrency({
+    explicit: input.currency,
+    customerId: input.customerId,
+    companyId: input.companyId,
+  });
+
   return prisma.serviceContract.create({
     data: {
       companyId: input.companyId,
@@ -113,7 +120,7 @@ export async function createServiceContract(input: CreateServiceContractInput) {
       endDate: input.endDate,
       reminderDays: input.reminderDays ?? 45,
       annualValue: input.annualValue ?? null,
-      currency: input.currency ?? 'INR',
+      currency,
       includesParts,
       visitLimit: input.visitLimit ?? null,
       notes: input.notes?.trim() || null,

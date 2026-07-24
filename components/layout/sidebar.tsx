@@ -78,14 +78,14 @@ const mainNav: NavigationItem[] = [
 
 const crmNav: NavigationItem[] = [
   { name: 'Clients', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
-  { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+  { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY' },
   { name: 'Equipment', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
   { name: 'Client insights', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customerAnalytics' },
 ];
 
 const salesNav: NavigationItem[] = [
-  { name: 'Leads', href: '/dashboard/leads', icon: Activity, module: 'LEADS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard, module: 'DEALS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Leads', href: '/dashboard/leads', icon: Activity, module: 'LEADS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], terminologyKey: 'leads' },
+  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard, module: 'DEALS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], terminologyKey: 'deals' },
   { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck, module: 'QUOTATIONS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: CalendarIcon, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
@@ -105,8 +105,8 @@ const salesNav: NavigationItem[] = [
 ];
 
 const supportNav: NavigationItem[] = [
-  { name: 'Tickets', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS' },
-  { name: 'AMC / CMC', href: '/dashboard/contracts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS' },
+  { name: 'Tickets', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', terminologyKey: 'tickets' },
+  { name: 'AMC / CMC', href: '/dashboard/contracts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', workspaceFeature: 'warranties' },
   { name: 'Service reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_REPORTS', workspaceFeature: 'serviceHistory' },
   { name: 'My tickets', href: '/portal/tickets', icon: List, roles: ['CUSTOMER'] },
   {
@@ -118,6 +118,7 @@ const supportNav: NavigationItem[] = [
     children: [
       { name: 'Support desk', href: '/dashboard/support', icon: LifeBuoy, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Inbox', href: '/dashboard/support/inbox', icon: Inbox, module: 'SUPPORT_INBOX', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Live chat', href: '/dashboard/support/live-chat', icon: MessageCircle, module: 'SUPPORT_LIVE_CHAT', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'SLA policies', href: '/dashboard/support/sla-policies', icon: Clock, module: 'SUPPORT_SLA', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
       { name: 'Knowledge base', href: '/dashboard/support/knowledge', icon: BookOpen, module: 'SUPPORT_KNOWLEDGE', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Canned replies', href: '/dashboard/support/canned-responses', icon: MessageSquare, module: 'SUPPORT_CANNED', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
@@ -168,6 +169,7 @@ const emailNav: NavigationItem[] = [
       { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Sequences', href: '/dashboard/sequences', icon: Activity, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Templates', href: '/dashboard/email-templates', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Settings', href: '/dashboard/emails/settings', icon: Settings, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
     ]
   }
 ];

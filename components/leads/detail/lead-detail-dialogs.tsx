@@ -251,12 +251,12 @@ export function LeadDetailDialogs({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="DISCOVERY">🔍 Discovery</SelectItem>
-                  <SelectItem value="QUALIFICATION">✅ Qualification</SelectItem>
-                  <SelectItem value="PROPOSAL">📄 Proposal</SelectItem>
-                  <SelectItem value="NEGOTIATION">🤝 Negotiation</SelectItem>
-                  <SelectItem value="CLOSED_WON">🎉 Closed Won</SelectItem>
-                  <SelectItem value="CLOSED_LOST">❌ Closed Lost</SelectItem>
+                  <SelectItem value="PROSPECTING">Prospecting</SelectItem>
+                  <SelectItem value="QUALIFICATION">Qualification</SelectItem>
+                  <SelectItem value="PROPOSAL">Proposal</SelectItem>
+                  <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
+                  <SelectItem value="CLOSED_WON">Closed won</SelectItem>
+                  <SelectItem value="CLOSED_LOST">Closed lost</SelectItem>
                 </SelectContent>
               </Select>
             </div>

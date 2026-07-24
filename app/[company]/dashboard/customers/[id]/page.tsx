@@ -44,6 +44,8 @@ import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { ServiceLinkCard } from '@/components/service-request/service-link-card';
 import { DetailSkeleton } from '@/components/loading';
+import { CurrencySelect } from '@/components/ui/currency-select';
+import { CURRENCIES } from '@/lib/currency';
 import {
     Table,
     TableBody,
@@ -83,6 +85,32 @@ export default function CustomerDetailPage() {
         temporaryPassword?: string;
         signInUrl?: string;
     } | null>(null);
+    const [billingCurrencyDraft, setBillingCurrencyDraft] = useState<string | null>(null);
+    const [savingCurrency, setSavingCurrency] = useState(false);
+
+    const billingCurrencyValue =
+        billingCurrencyDraft ?? customer?.billingCurrency ?? '';
+
+    const handleSaveBillingCurrency = async () => {
+        setSavingCurrency(true);
+        try {
+            const response = await workspaceFetch(`/api/customers/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    billingCurrency: billingCurrencyValue || null,
+                }),
+            });
+            if (!response.ok) throw new Error('Failed to update currency');
+            toast.success('Billing currency updated');
+            setBillingCurrencyDraft(null);
+            queryClient.invalidateQueries({ queryKey: ['customer', slug, id] });
+        } catch {
+            toast.error('Could not update billing currency');
+        } finally {
+            setSavingCurrency(false);
+        }
+    };
 
     const handleInviteToPortal = async () => {
         setIsInviting(true);
@@ -260,6 +288,44 @@ export default function CustomerDetailPage() {
                                     <p className="text-sm">{customer.phone}</p>
                                 </div>
                             )}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-sm font-medium">Billing currency</CardTitle>
+                            <CardDescription>
+                                Overrides company default for this client&apos;s new quotes and invoices.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <CurrencySelect
+                                id="customer-billing-currency"
+                                label=""
+                                allowEmpty
+                                emptyLabel="Use company default"
+                                value={billingCurrencyValue}
+                                onValueChange={(value) => setBillingCurrencyDraft(String(value))}
+                            />
+                            {customer.billingCurrency ? (
+                                <p className="text-xs text-muted-foreground">
+                                    Current:{' '}
+                                    {CURRENCIES[customer.billingCurrency as keyof typeof CURRENCIES]
+                                        ? `${customer.billingCurrency} (${CURRENCIES[customer.billingCurrency as keyof typeof CURRENCIES].symbol})`
+                                        : customer.billingCurrency}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">Using company default</p>
+                            )}
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                disabled={savingCurrency || billingCurrencyDraft === null}
+                                onClick={handleSaveBillingCurrency}
+                            >
+                                {savingCurrency ? 'Saving…' : 'Save currency'}
+                            </Button>
                         </CardContent>
                     </Card>
 

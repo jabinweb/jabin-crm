@@ -41,6 +41,7 @@ import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FullTableSkeleton } from '@/components/loading';
+import { CurrencySelect } from '@/components/ui/currency-select';
 
 export default function CustomersPage() {
     const queryClient = useQueryClient();
@@ -57,6 +58,7 @@ export default function CustomersPage() {
         phone: '',
         address: '',
         city: '',
+        billingCurrency: '',
     });
 
     const { data, isLoading } = useQuery({
@@ -99,6 +101,7 @@ export default function CustomersPage() {
                 phone: '',
                 address: '',
                 city: '',
+                billingCurrency: '',
             });
         } catch (error) {
             toast.error('Failed to add customer');
@@ -179,6 +182,17 @@ export default function CustomersPage() {
                                     onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                                 />
                             </div>
+                            <CurrencySelect
+                                id="billingCurrency"
+                                label="Billing currency"
+                                allowEmpty
+                                emptyLabel="Use company default"
+                                value={newCustomer.billingCurrency}
+                                onValueChange={(value) =>
+                                    setNewCustomer({ ...newCustomer, billingCurrency: String(value) })
+                                }
+                                description="Quotes and invoices for this client will default to this currency."
+                            />
                         </div>
                         <DialogFooter>
                             <Button onClick={handleAddCustomer} disabled={isAdding}>

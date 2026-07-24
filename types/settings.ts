@@ -24,6 +24,11 @@ export interface CompanyData {
 }
 
 export interface CompanySettings {
+  /** CRM billing defaults (not platform SaaS subscription currency). */
+  billing?: {
+    /** Default currency for new deals, quotes, invoices, contracts. */
+    defaultCurrency: string;
+  };
   customization: {
     theme: {
       primaryColor: string;

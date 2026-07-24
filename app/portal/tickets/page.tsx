@@ -32,11 +32,28 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
+import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
-export default function CustomerTicketQueue() {
+export default function CustomerTicketsPage() {
+  return (
+    <PortalFeatureGuard
+      feature="customerPortal"
+      title="Support portal not available"
+      description="Ticket tracking is not enabled for your account."
+    >
+      <CustomerTicketQueue />
+    </PortalFeatureGuard>
+  );
+}
+
+function CustomerTicketQueue() {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
-
+    const terminology = useWorkspaceTerminology();
+    const ticketsLabel = terminology?.tickets ?? 'Tickets';
+    const ticketLabel = terminology?.ticket ?? 'Ticket';
+    const newRequestLabel = terminology?.newRequest ?? 'New request';
     const { data: tickets, isLoading } = useQuery({
         queryKey: ['portal-tickets'],
         queryFn: async () => {
@@ -68,14 +85,14 @@ export default function CustomerTicketQueue() {
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold ">Support Request Queue</h1>
-                        <p className="text-sm text-slate-500">Monitor the live status of your support requests.</p>
+                        <h1 className="text-2xl font-bold ">{ticketsLabel}</h1>
+                        <p className="text-sm text-muted-foreground">Your {ticketLabel.toLowerCase()} queue</p>
                     </div>
                 </div>
                 <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-none shadow-blue-500/20">
                     <Link href="/portal/tickets/new">
                         <Ticket className="mr-2 h-4 w-4" />
-                        Submit New Request
+                        {newRequestLabel}
                     </Link>
                 </Button>
             </div>

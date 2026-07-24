@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CardListSkeleton, StatCardsSkeleton } from '@/components/loading';
+import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 
 function getWarrantyStatus(expiryDate: string | null) {
     if (!expiryDate) return { label: 'No Warranty', color: 'text-slate-500', bgColor: 'bg-slate-50 dark:bg-slate-800/50', borderColor: 'border-slate-200 dark:border-slate-700', Icon: ShieldX };
@@ -72,6 +73,18 @@ function WarrantyCard({ installation }: { installation: any }) {
 }
 
 export default function WarrantiesPage() {
+  return (
+    <PortalFeatureGuard
+      feature="warranties"
+      title="Warranties not available"
+      description="Warranty tracking is not enabled for your portal."
+    >
+      <WarrantiesContent />
+    </PortalFeatureGuard>
+  );
+}
+
+function WarrantiesContent() {
     const { data: equipment = [], isLoading } = useQuery({
         queryKey: ['portal-warranties'],
         queryFn: async () => {

@@ -16,13 +16,41 @@ export class DealService {
    * Create a new deal
    */
   async createDeal(userId: string, data: CreateDealData) {
+    const { resolveDocumentCurrency } = await import('@/lib/currency/resolve-document');
+
+    let customerId: string | undefined;
+    let companyId: string | undefined;
+    const lead = await prisma.lead.findUnique({
+      where: { id: data.leadId },
+      select: { email: true, companyId: true },
+    });
+    companyId = lead?.companyId || undefined;
+    if (lead?.email && companyId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          companyId,
+          email: { equals: lead.email, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      customerId = customer?.id;
+    }
+
+    const currency = await resolveDocumentCurrency({
+      explicit: data.currency,
+      customerId,
+      customerEmail: lead?.email,
+      companyId,
+      userId,
+    });
+
     const deal = await prisma.deal.create({
       data: {
         userId,
         leadId: data.leadId,
         title: data.title,
         value: data.value,
-        currency: data.currency || 'USD',
+        currency,
         stage: data.stage || 'PROSPECTING',
         probability: data.probability || 50,
         expectedCloseDate: data.expectedCloseDate,
@@ -61,14 +89,20 @@ export class DealService {
   }
 
   /**
-   * Get all deals for a user
+   * Get deals for a user, or company-wide when companyId is provided (admin view).
    */
-  async getUserDeals(userId: string, filters?: {
-    stage?: string;
-    minValue?: number;
-    maxValue?: number;
-  }) {
-    const where: any = { userId };
+  async getUserDeals(
+    userId: string,
+    filters?: {
+      stage?: string;
+      minValue?: number;
+      maxValue?: number;
+      companyId?: string;
+    }
+  ) {
+    const where: any = filters?.companyId
+      ? { lead: { companyId: filters.companyId } }
+      : { userId };
 
     if (filters?.stage) where.stage = filters.stage;
     if (filters?.minValue) where.value = { ...where.value, gte: filters.minValue };
@@ -109,6 +143,36 @@ export class DealService {
     });
   }
 
+  async getDealById(dealId: string, scope?: { userId?: string; companyId?: string }) {
+    const deal = await prisma.deal.findUnique({
+      where: { id: dealId },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            companyId: true,
+            companyName: true,
+            email: true,
+            contactName: true,
+            phone: true,
+            status: true,
+          },
+        },
+        tasks: {
+          orderBy: { dueDate: 'asc' },
+        },
+        user: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    if (!deal) return null;
+    if (scope?.companyId && deal.lead?.companyId !== scope.companyId) return null;
+    if (scope?.userId && !scope.companyId && deal.userId !== scope.userId) return null;
+    return deal;
+  }
+
   /**
    * Update deal
    */
@@ -130,13 +194,22 @@ export class DealService {
       if (data.stage === 'CLOSED_WON') {
         const deal = await prisma.deal.findUnique({
           where: { id: dealId },
-          select: { leadId: true },
+          select: { leadId: true, userId: true, title: true, lead: { select: { companyId: true } } },
         });
 
         if (deal) {
           await prisma.lead.update({
             where: { id: deal.leadId },
             data: { status: 'CONVERTED' },
+          });
+          const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+          void dispatchWorkflowEvent('deal.won', {
+            userId: deal.userId,
+            dealId,
+            leadId: deal.leadId,
+            companyId: deal.lead?.companyId,
+            title: 'Deal won',
+            summary: `Deal won: ${deal.title}`,
           });
         }
       }
@@ -226,11 +299,11 @@ export class DealService {
   }
 
   /**
-   * Get deal pipeline stats
+   * Get deal pipeline stats (company-wide when companyId set)
    */
-  async getPipelineStats(userId: string) {
+  async getPipelineStats(userId: string, companyId?: string) {
     const deals = await prisma.deal.findMany({
-      where: { userId },
+      where: companyId ? { lead: { companyId } } : { userId },
       select: {
         stage: true,
         value: true,

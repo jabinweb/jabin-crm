@@ -51,7 +51,7 @@ export class TaskService {
   }
 
   /**
-   * Get tasks for a user
+   * Get tasks for a user (or company-wide for admins via companyId)
    */
   async getUserTasks(userId: string, filters?: {
     status?: string;
@@ -60,8 +60,18 @@ export class TaskService {
     leadId?: string;
     dealId?: string;
     overdue?: boolean;
+    companyId?: string;
   }) {
-    const where: any = { userId };
+    const where: any = filters?.companyId
+      ? {
+          OR: [
+            { lead: { companyId: filters.companyId } },
+            { deal: { lead: { companyId: filters.companyId } } },
+            { user: { primaryCompanyId: filters.companyId } },
+            { user: { userCompanies: { some: { companyId: filters.companyId } } } },
+          ],
+        }
+      : { userId };
 
     if (filters?.status) where.status = filters.status;
     if (filters?.priority) where.priority = filters.priority;
@@ -86,6 +96,7 @@ export class TaskService {
             id: true,
             companyName: true,
             email: true,
+            companyId: true,
           },
         },
         deal: {
@@ -98,11 +109,57 @@ export class TaskService {
         },
       },
       orderBy: [
-        { status: 'asc' }, // Pending first
-        { priority: 'desc' }, // High priority first
+        { status: 'asc' },
+        { priority: 'desc' },
         { dueDate: 'asc' },
       ],
     });
+  }
+
+  async getTaskById(taskId: string, scope?: { userId?: string; companyId?: string }) {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            companyName: true,
+            email: true,
+            companyId: true,
+          },
+        },
+        deal: {
+          select: {
+            id: true,
+            title: true,
+            value: true,
+            stage: true,
+            lead: { select: { companyId: true } },
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            primaryCompanyId: true,
+            userCompanies: { select: { companyId: true } },
+          },
+        },
+      },
+    });
+    if (!task) return null;
+
+    if (scope?.companyId) {
+      const inCompany =
+        task.lead?.companyId === scope.companyId ||
+        task.deal?.lead?.companyId === scope.companyId ||
+        task.user.primaryCompanyId === scope.companyId ||
+        task.user.userCompanies.some((c) => c.companyId === scope.companyId);
+      if (!inCompany) return null;
+      return task;
+    }
+
+    if (scope?.userId && task.userId !== scope.userId) return null;
+    return task;
   }
 
   /**

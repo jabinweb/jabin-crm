@@ -1,158 +1,64 @@
-import { NextRequest } from 'next/server'
-import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
-import { CompanyTaskStatus } from '@prisma/client'
-import "@/types/auth"
+import { NextRequest, NextResponse } from 'next/server';
+import { withSessionRoute, jsonOk } from '@/lib/api/with-route';
+import { taskService } from '@/lib/tasks/task-service';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Response> {
-  try {
-    const session = await auth()
-    if (!session?.user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    const id = (await params).id
-    const task = await prisma.companyTask.findUnique({
-      where: { id },
-      include: {
-        creator: true,
-        assignee: true,
-        comments: {
-          include: { author: true },
-          orderBy: { createdAt: 'desc' }
-        },
-        subTasks: {
-          include: {
-            assignee: true
-          }
-        },
-        company: true
-      }
-    })
-
-    if (!task) {
-      return new Response(JSON.stringify({ error: 'CompanyTask not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    return new Response(JSON.stringify(task), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
-
-  } catch (error) {
-    return new Response(JSON.stringify({
-      error: 'Failed to fetch task',
-      details: error instanceof Error ? error.message : undefined
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
-  }
+function isCompanyAdmin(role?: string) {
+  return role === 'ADMIN' || role === 'SUPER_ADMIN';
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Response> {
-  try {
-    const session = await auth()
-    if (!session?.user?.employeeId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      })
+async function resolveScope(session: { user: { id: string; role?: string } }, req: NextRequest) {
+  let companyId: string | undefined;
+  if (isCompanyAdmin(session.user.role)) {
+    try {
+      const ctx = await resolveCompanyContextFromRequest(session as never, req);
+      companyId = ctx.companyId;
+    } catch {
+      /* user-scoped */
     }
-
-    const id = (await params).id
-    const body = await request.json()
-
-    // Handle status change timestamps
-    const additionalData: any = {}
-    if (body.status) {
-      switch (body.status) {
-        case CompanyTaskStatus.IN_PROGRESS:
-          additionalData.startedAt = new Date()
-          break
-        case CompanyTaskStatus.COMPLETED:
-          additionalData.completedAt = new Date()
-          break
-      }
-    }
-
-    const task = await prisma.companyTask.update({
-      where: { id },
-      data: {
-        ...body,
-        ...additionalData,
-        updatedAt: new Date()
-      },
-      include: {
-        creator: true,
-        assignee: true,
-        comments: {
-          include: { author: true }
-        },
-        subTasks: true
-      }
-    })
-
-    return new Response(JSON.stringify(task), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
-
-  } catch (error) {
-    return new Response(JSON.stringify({
-      error: 'Failed to update task',
-      details: error instanceof Error ? error.message : undefined
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
   }
+  return { userId: session.user.id, companyId };
 }
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-): Promise<Response> {
-  try {
-    const session = await auth()
-    if (!session?.user?.employeeId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      })
-    }
-
-    const id = (await params).id
-
-    // Delete task and cascade to comments and subtasks
-    await prisma.companyTask.delete({
-      where: { id },
-    })
-
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    })
-
-  } catch (error) {
-    return new Response(JSON.stringify({
-      error: 'Failed to delete task',
-      details: error instanceof Error ? error.message : undefined
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    })
+export const GET = withSessionRoute(async (req, { session }, routeContext) => {
+  const id = (await routeContext!.params).id as string;
+  const scope = await resolveScope(session, req);
+  const task = await taskService.getTaskById(id, scope);
+  if (!task) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
-}
+  return jsonOk(task);
+});
+
+export const PATCH = withSessionRoute(async (req, { session }, routeContext) => {
+  const id = (await routeContext!.params).id as string;
+  const scope = await resolveScope(session, req);
+  const owned = await taskService.getTaskById(id, scope);
+  if (!owned) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
+
+  const body = await req.json();
+  const task = await taskService.updateTask(id, {
+    title: body.title,
+    description: body.description,
+    type: body.type,
+    priority: body.priority,
+    status: body.status,
+    dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+  });
+
+  return jsonOk(task);
+});
+
+export const DELETE = withSessionRoute(async (req, { session }, routeContext) => {
+  const id = (await routeContext!.params).id as string;
+  const scope = await resolveScope(session, req);
+  const owned = await taskService.getTaskById(id, scope);
+  if (!owned) {
+    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+  }
+
+  await taskService.deleteTask(id);
+  return jsonOk({ success: true });
+});

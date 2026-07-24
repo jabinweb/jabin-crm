@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { CurrencySelect } from '@/components/ui/currency-select';
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function NewCustomerPage() {
     phone: '',
     address: '',
     city: '',
+    billingCurrency: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,6 +109,15 @@ export default function NewCustomerPage() {
                 onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
               />
             </div>
+            <CurrencySelect
+              id="billingCurrency"
+              label="Billing currency"
+              allowEmpty
+              emptyLabel="Use company default"
+              value={form.billingCurrency}
+              onValueChange={(value) => setForm((f) => ({ ...f, billingCurrency: String(value) }))}
+              description="Quotes and invoices for this client will default to this currency."
+            />
             <Button type="submit" disabled={saving} className="w-full">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               Create customer

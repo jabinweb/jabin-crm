@@ -2,12 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma';
-import {
-  resolveCompanyContextFromRequest,
-  TenantError,
-} from '@/lib/auth/company-membership';
-import { handleApiError } from '@/lib/api-error-handler';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { handleApiError } from '@/lib/api-error-handler';
 
 export async function GET(
   request: NextRequest,
@@ -22,11 +19,27 @@ export async function GET(
     await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
 
     const { id } = await params;
+    const role = (session.user as { role?: string }).role;
+    const isAdmin =
+      role === 'ADMIN' ||
+      role === 'SUPER_ADMIN' ||
+      role === 'SALES' ||
+      role === 'SUPPORT_MANAGER';
+
+    let companyId: string | undefined;
+    try {
+      const ctx = await resolveCompanyContextFromRequest(session, request);
+      companyId = ctx.companyId;
+    } catch {
+      /* fall through */
+    }
 
     const lead = await prisma.lead.findFirst({
       where: {
         id,
-        userId: session.user.id,
+        ...(companyId && isAdmin
+          ? { companyId }
+          : { userId: session.user.id }),
       },
       include: {
         score: {
@@ -47,13 +60,8 @@ export async function GET(
 
     return NextResponse.json(lead);
   } catch (error) {
-    return handleRouteError(error);
     if (isApiException(error)) return handleApiError(error);
-    console.error('Error fetching lead:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch lead' },
-      { status: 500 }
-    );
+    return handleRouteError(error);
   }
 }
 
@@ -82,9 +90,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return handleRouteError(error);
     if (isApiException(error)) return handleApiError(error);
-    console.error('Error deleting lead:', error);
-    return NextResponse.json({ error: 'Failed to delete lead' }, { status: 500 });
+    return handleRouteError(error);
   }
 }

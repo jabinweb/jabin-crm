@@ -63,9 +63,23 @@ export async function GET(req: NextRequest) {
 
     const searchParams = Object.fromEntries(req.nextUrl.searchParams.entries());
     const validatedParams = listQuotationsSchema.parse(searchParams);
-    
+
+    let companyId: string | undefined;
+    if (session.user.role === 'ADMIN' || session.user.role === 'SUPER_ADMIN') {
+      try {
+        const { resolveCompanyContextFromRequest } = await import(
+          '@/lib/auth/company-membership'
+        );
+        const ctx = await resolveCompanyContextFromRequest(session, req);
+        companyId = ctx.companyId;
+      } catch {
+        /* user-scoped */
+      }
+    }
+
     const result = await quotationService.listQuotations({
-      userId: session.user.id,
+      userId: companyId ? undefined : session.user.id,
+      companyId,
       ...validatedParams,
     });
 

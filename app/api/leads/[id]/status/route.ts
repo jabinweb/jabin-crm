@@ -57,6 +57,16 @@ export async function PATCH(
       },
     });
 
+    const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+    void dispatchWorkflowEvent('lead.updated', {
+      userId: session.user.id,
+      leadId: resolvedParams.id,
+      companyId: lead.companyId,
+      title: 'Lead updated',
+      summary: `Lead status → ${data.status}`,
+      metadata: { oldStatus: lead.status, newStatus: data.status },
+    });
+
     return NextResponse.json(updatedLead);
   } catch (error) {
     if (isApiException(error)) return handleApiError(error);

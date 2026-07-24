@@ -24,17 +24,20 @@ import {
     ShieldCheck,
     Calendar,
     Search,
-    Download
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
+import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
-export default function CustomerEquipmentInventory() {
+function CustomerEquipmentInventory() {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
+    const terminology = useWorkspaceTerminology();
+    const equipmentLabel = terminology?.equipment ?? 'Equipment';
 
     const { data: inventory, isLoading } = useQuery({
         queryKey: ['portal-equipment'],
@@ -67,14 +70,12 @@ export default function CustomerEquipmentInventory() {
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold ">Installed assets</h1>
-                        <p className="text-sm text-slate-500">Inventory of products and equipment deployed for your organization.</p>
+                        <h1 className="text-2xl font-bold tracking-tight">{equipmentLabel}</h1>
+                        <p className="text-sm text-muted-foreground">
+                          Inventory of {equipmentLabel.toLowerCase()} linked to your account.
+                        </p>
                     </div>
                 </div>
-                <Button variant="outline" className="border-slate-200">
-                    <Download className="mr-2 h-4 w-4" />
-                    Export Inventory
-                </Button>
             </div>
 
             <div className="flex items-center space-x-3">
@@ -162,5 +163,17 @@ export default function CustomerEquipmentInventory() {
             </Card>
         </div>
     );
+}
+
+export default function CustomerEquipmentPage() {
+  return (
+    <PortalFeatureGuard
+      feature="equipment"
+      title="Equipment not available"
+      description="Your provider has not enabled asset tracking for this portal."
+    >
+      <CustomerEquipmentInventory />
+    </PortalFeatureGuard>
+  );
 }
 

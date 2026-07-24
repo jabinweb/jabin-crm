@@ -33,8 +33,14 @@ export const POST = withTenantRoute(async (request, { companyId }) => {
     );
   }
 
+  const billingCurrency =
+    typeof data.billingCurrency === 'string' && data.billingCurrency.trim()
+      ? data.billingCurrency.trim().toUpperCase()
+      : null;
+
   const customer = await customerService.createCustomer({
     ...data,
+    billingCurrency,
     companyId,
   });
 

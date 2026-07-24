@@ -15,6 +15,10 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useCurrency } from '@/hooks/use-currency';
+import { CurrencySelect } from '@/components/ui/currency-select';
+import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
+import { useParams } from 'next/navigation';
 
 interface QuotationItem {
   name: string;
@@ -26,7 +30,10 @@ interface QuotationItem {
 
 export default function NewQuotationPage() {
   const router = useRouter();
+  const params = useParams<{ company?: string }>();
+  const workspaceSlug = typeof params?.company === 'string' ? params.company : undefined;
   const { path } = useWorkspacePaths();
+  const { currency: defaultCurrency } = useCurrency();
   const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -47,15 +54,6 @@ export default function NewQuotationPage() {
     { name: '', description: '', quantity: 1, unitPrice: 0, amount: 0 },
   ]);
 
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: async () => {
-      const response = await fetch('/api/profile');
-      if (!response.ok) throw new Error('Failed to fetch profile');
-      return response.json();
-    },
-  });
-
   const { data: leads } = useQuery({
     queryKey: ['leads'],
     queryFn: async () => {
@@ -65,16 +63,36 @@ export default function NewQuotationPage() {
     },
   });
 
-  // Set currency from profile settings
   useEffect(() => {
-    if (profile && !isInitialized) {
-      setFormData(prev => ({ 
-        ...prev, 
-        currency: profile.preferredCurrency || 'USD' 
+    if (!isInitialized && defaultCurrency) {
+      setFormData((prev) => ({
+        ...prev,
+        currency: prev.currency || defaultCurrency,
       }));
       setIsInitialized(true);
     }
-  }, [profile, isInitialized]);
+  }, [defaultCurrency, isInitialized]);
+
+  useEffect(() => {
+    if (!formData.customerEmail?.trim()) return;
+    const email = formData.customerEmail.trim();
+    let cancelled = false;
+    const headers = workspaceSlug ? workspaceSlugHeaders(workspaceSlug) : {};
+    void (async () => {
+      const res = await fetch(
+        `/api/currency/resolve?customerEmail=${encodeURIComponent(email)}`,
+        { headers: { ...headers } }
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { currency?: string };
+      if (data.currency && !cancelled) {
+        setFormData((prev) => ({ ...prev, currency: data.currency! }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.customerEmail, workspaceSlug]);
 
   const createQuotationMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -269,23 +287,12 @@ export default function NewQuotationPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="currency">Currency *</Label>
-                  <Select value={formData.currency} onValueChange={(value) => handleChange('currency', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="USD">USD - US Dollar ($)</SelectItem>
-                      <SelectItem value="EUR">EUR - Euro (€)</SelectItem>
-                      <SelectItem value="GBP">GBP - British Pound (£)</SelectItem>
-                      <SelectItem value="INR">INR - Indian Rupee (₹)</SelectItem>
-                      <SelectItem value="AUD">AUD - Australian Dollar (A$)</SelectItem>
-                      <SelectItem value="CAD">CAD - Canadian Dollar (C$)</SelectItem>
-                      <SelectItem value="JPY">JPY - Japanese Yen (¥)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <CurrencySelect
+                  id="currency"
+                  label="Currency *"
+                  value={formData.currency}
+                  onValueChange={(value) => handleChange('currency', value)}
+                />
               </div>
             </CardContent>
           </Card>

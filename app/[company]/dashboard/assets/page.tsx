@@ -79,6 +79,21 @@ export default function AssetsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await workspaceFetch(`/api/assets/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete');
+      }
+    },
+    onSuccess: () => {
+      toast.success('Asset deleted');
+      queryClient.invalidateQueries({ queryKey: ['assets', slug] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -164,6 +179,7 @@ export default function AssetsPage() {
                   <TableHead className="text-right">Value</TableHead>
                   <TableHead className="text-right">Depreciation</TableHead>
                   <TableHead>Purchased</TableHead>
+                  <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -174,6 +190,17 @@ export default function AssetsPage() {
                     <TableCell className="text-right">{a.value.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{a.depreciation.toLocaleString()}</TableCell>
                     <TableCell>{new Date(a.purchaseDate).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Delete this asset?')) deleteMutation.mutate(a.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

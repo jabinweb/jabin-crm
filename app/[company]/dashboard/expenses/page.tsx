@@ -116,6 +116,21 @@ export default function ExpensesPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await workspaceFetch(`/api/expenses/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete');
+      }
+    },
+    onSuccess: () => {
+      toast.success('Expense deleted');
+      queryClient.invalidateQueries({ queryKey: ['expenses', slug] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -229,6 +244,7 @@ export default function ExpensesPage() {
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -237,6 +253,17 @@ export default function ExpensesPage() {
                     <TableCell className="font-medium">{e.description}</TableCell>
                     <TableCell className="text-right">{e.amount.toLocaleString()}</TableCell>
                     <TableCell>{new Date(e.date).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Delete this expense?')) deleteMutation.mutate(e.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

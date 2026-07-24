@@ -1,8 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, DollarSign, TrendingUp, Award } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -11,6 +28,7 @@ import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-
 import { toast } from 'sonner';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { BoardSkeleton, PageHeaderSkeleton, StatCardsSkeleton } from '@/components/loading';
+import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
 type Deal = {
   id: string;
@@ -20,9 +38,16 @@ type Deal = {
   stage: string;
   probability: number;
   lead: {
+    id?: string;
     companyName: string;
     contactName?: string;
   };
+};
+
+type LeadOption = {
+  id: string;
+  companyName: string;
+  contactName?: string | null;
 };
 
 type PipelineStats = {
@@ -31,13 +56,26 @@ type PipelineStats = {
   weightedValue: number;
 };
 
+const EMPTY_FORM = {
+  title: '',
+  value: '',
+  leadId: '',
+  probability: '50',
+  stage: 'PROSPECTING',
+};
+
 export default function DealsPage() {
-  const { workspaceFetch } = useWorkspacePaths();
+  const { workspaceFetch, path } = useWorkspacePaths();
   const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('deals');
   const [deals, setDeals] = useState<Deal[]>([]);
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [leads, setLeads] = useState<LeadOption[]>([]);
+  const [form, setForm] = useState(EMPTY_FORM);
   const { formatCurrency } = useCurrency();
+  const terminology = useWorkspaceTerminology();
 
   const fetchDeals = useCallback(async () => {
     try {
@@ -65,6 +103,59 @@ export default function DealsPage() {
     void fetchDeals();
     void fetchStats();
   }, [fetchDeals, fetchStats]);
+
+  const openCreate = async () => {
+    setForm(EMPTY_FORM);
+    setCreateOpen(true);
+    try {
+      const res = await workspaceFetch('/api/leads?limit=100');
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.leads || data.data || [];
+      setLeads(
+        list.map((l: LeadOption) => ({
+          id: l.id,
+          companyName: l.companyName,
+          contactName: l.contactName,
+        }))
+      );
+    } catch {
+      toast.error('Failed to load leads');
+    }
+  };
+
+  const createDeal = async () => {
+    if (!form.title.trim() || !form.leadId || !form.value) {
+      toast.error('Title, lead, and value are required');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await workspaceFetch('/api/deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          leadId: form.leadId,
+          value: Number(form.value),
+          probability: Number(form.probability) || 50,
+          stage: form.stage,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create deal');
+      }
+      toast.success('Deal created');
+      setCreateOpen(false);
+      void fetchDeals();
+      void fetchStats();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create deal');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const { columns, itemsByStage } = useMemo(
     () => buildBoardState(deals, baseColumns),
@@ -104,14 +195,16 @@ export default function DealsPage() {
     <DashboardPage>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Deal pipeline</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {terminology?.deals ?? 'Deal'} pipeline
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Track deals through your sales process
+            Track {terminology?.deals?.toLowerCase() ?? 'deals'} through your sales process
           </p>
         </div>
-        <Button>
+        <Button onClick={() => void openCreate()}>
           <Plus className="mr-2 h-4 w-4" />
-          New deal
+          New {terminology?.deal?.toLowerCase() ?? 'deal'}
         </Button>
       </div>
 
@@ -163,7 +256,7 @@ export default function DealsPage() {
           ) : null
         }
         renderCard={(deal) => (
-          <div className="p-3 space-y-2">
+          <Link href={path(`/dashboard/deals/${deal.id}`)} className="block p-3 space-y-2">
             <p className="text-sm font-semibold">{deal.title}</p>
             <p className="text-base font-bold text-emerald-600">
               {formatCurrency(deal.value, deal.currency as never)}
@@ -183,9 +276,98 @@ export default function DealsPage() {
               </div>
               <span className="text-xs font-medium">{deal.probability}%</span>
             </div>
-          </div>
+          </Link>
         )}
       />
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New deal</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Lead *</Label>
+              <Select
+                value={form.leadId}
+                onValueChange={(leadId) => {
+                  const lead = leads.find((l) => l.id === leadId);
+                  setForm((f) => ({
+                    ...f,
+                    leadId,
+                    title: f.title || (lead ? `${lead.companyName} deal` : ''),
+                  }));
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a lead" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leads.map((lead) => (
+                    <SelectItem key={lead.id} value={lead.id}>
+                      {lead.companyName}
+                      {lead.contactName ? ` — ${lead.contactName}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Title *</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Enterprise package"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Value *</Label>
+                <Input
+                  type="number"
+                  value={form.value}
+                  onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Probability %</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={form.probability}
+                  onChange={(e) => setForm((f) => ({ ...f, probability: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Stage</Label>
+              <Select
+                value={form.stage}
+                onValueChange={(stage) => setForm((f) => ({ ...f, stage }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PROSPECTING">Prospecting</SelectItem>
+                  <SelectItem value="QUALIFICATION">Qualification</SelectItem>
+                  <SelectItem value="PROPOSAL">Proposal</SelectItem>
+                  <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void createDeal()} disabled={creating}>
+              {creating ? 'Creating…' : 'Create deal'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardPage>
   );
 }

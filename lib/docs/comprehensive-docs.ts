@@ -27,7 +27,7 @@ export const documentationTopics: DocTopic[] = [
     id: 'introduction',
     title: 'Introduction',
     slug: 'introduction',
-    description: 'Welcome to the Lead Generation & CRM Platform',
+    description: 'Welcome to Opslane — sales, service, HR, and client portal',
     category: 'Getting Started',
     order: 1,
     sections: [
@@ -37,24 +37,34 @@ export const documentationTopics: DocTopic[] = [
         content: [
           {
             type: 'paragraph',
-            data: 'This platform is a comprehensive Lead Generation and CRM system designed to help you capture, nurture, and convert leads into customers. Built with Next.js 14, React 19, and powered by PostgreSQL, it offers enterprise-grade features for modern sales teams.',
+            data: 'Opslane is a multi-tenant workspace for sales CRM, support tickets, field service / AMC, invoicing, HR self-service, and a customer portal. Each company (tenant) gets its own slug URL, settings, and users.',
           },
           {
             type: 'heading',
-            data: { level: 3, text: 'What You Can Do' },
+            data: { level: 3, text: 'Who uses what' },
+          },
+          {
+            type: 'table',
+            data: {
+              headers: ['Role', 'Primary area', 'Typical jobs'],
+              rows: [
+                ['SUPER_ADMIN', '/admin', 'Platform: companies, plans, subscriptions, tenancy'],
+                ['ADMIN', '/{company}/dashboard + /{company}/admin', 'Workspace CRM, HR, payroll, users, settings'],
+                ['SALES / TECH / others', '/{company}/dashboard', 'Leads, deals, tickets, field jobs'],
+                ['EMPLOYEE (or staff with employee record)', '/{company}/employee', 'Attendance, leave, payslips, tasks, messages'],
+                ['CUSTOMER', '/portal', 'Tickets, assets, quotes, invoices, documents'],
+              ],
+            },
           },
           {
             type: 'list',
             data: {
               items: [
-                'Capture leads from multiple sources (manual entry, CSV import, web scraping)',
-                'Automatically score and qualify leads based on engagement',
-                'Send one-time email campaigns to thousands of recipients',
-                'Create automated email sequences with conditional logic',
-                'Manage your sales pipeline with multi-currency support',
-                'Track meetings and events with Google Calendar integration',
-                'Analyze performance with comprehensive analytics',
-                'Collaborate with your team on deals and leads',
+                'Capture and nurture leads; run deals, quotes, and invoices',
+                'Support tickets, live chat, SLA, and customer portal',
+                'Field service: equipment, warranties, AMC/CMC contracts',
+                'People: employees, attendance, leave, payroll',
+                'Industry templates change terminology and which modules appear',
               ],
             },
           },
@@ -62,8 +72,8 @@ export const documentationTopics: DocTopic[] = [
             type: 'alert',
             data: {
               type: 'info',
-              title: 'First Time Here?',
-              message: 'Start with the Quick Start Guide to get your account set up in under 5 minutes.',
+              title: 'First time here?',
+              message: 'Read Roles & access, then Platform admin, Workspace admin, or Employee portal depending on your role.',
             },
           },
         ],
@@ -74,36 +84,36 @@ export const documentationTopics: DocTopic[] = [
     id: 'quick-start',
     title: 'Quick Start Guide',
     slug: 'quick-start',
-    description: 'Get up and running in 5 minutes',
+    description: 'Get a company workspace live',
     category: 'Getting Started',
     order: 2,
     sections: [
       {
         id: 'setup',
-        title: 'Initial Setup',
+        title: 'Workspace admin setup',
         content: [
           {
             type: 'steps',
             data: [
               {
-                title: 'Sign In',
-                description: 'Sign in with your Google account. The platform uses NextAuth for secure authentication.',
+                title: 'Sign in',
+                description: 'Sign in at /auth/signin. You are routed by role (dashboard, employee portal, platform admin, or customer portal).',
               },
               {
-                title: 'Complete Your Profile',
-                description: 'Navigate to Settings and fill in your profile details including name, company, and phone number.',
+                title: 'Pick industry / workspace',
+                description: 'Settings → Company → Business: choose a vertical so features and labels match your business.',
               },
               {
-                title: 'Set Currency Preference',
-                description: 'Choose your preferred currency from 14 supported currencies (USD, EUR, GBP, INR, etc.). This affects all deal values throughout the platform.',
+                title: 'Set company currency',
+                description: 'Settings → Company → Payment → Company currency. Defaults new deals, quotes, and invoices. Clients can override via billing currency on the customer record.',
               },
               {
-                title: 'Configure Email Settings',
-                description: 'Set up SMTP configuration in Settings > Email Settings to send campaigns and sequences.',
+                title: 'Configure email (SMTP/IMAP)',
+                description: 'Personal CRM / advanced settings: SMTP for outbound campaigns and sequences; IMAP for reply checking when enabled.',
               },
               {
-                title: 'Invite Team Members (Optional)',
-                description: 'Go to Team page to invite colleagues with different permission levels.',
+                title: 'Invite staff & approve employees',
+                description: 'Workspace Admin → Users for CRM access. People → Approve staff for HR registrations. Linked employees can open /{company}/employee.',
               },
             ],
           },
@@ -112,7 +122,7 @@ export const documentationTopics: DocTopic[] = [
             data: {
               type: 'success',
               title: 'Ready to Go!',
-              message: "Once you've completed these steps, you're ready to start adding leads and creating campaigns.",
+              message: 'Add a lead or customer, send a quote, and invite a client to the portal when you are ready.',
             },
           },
         ],
@@ -722,28 +732,7 @@ Your Name`,
         content: [
           {
             type: 'paragraph',
-            data: 'The platform supports 14 currencies. Set your preference in Settings and all deal values will display in your chosen currency.',
-          },
-          {
-            type: 'list',
-            data: {
-              items: [
-                'USD - US Dollar ($)',
-                'EUR - Euro (€)',
-                'GBP - British Pound (£)',
-                'INR - Indian Rupee (₹)',
-                'AUD - Australian Dollar',
-                'CAD - Canadian Dollar',
-                'JPY - Japanese Yen (¥)',
-                'CNY - Chinese Yuan',
-                'CHF - Swiss Franc',
-                'SGD - Singapore Dollar',
-                'AED - UAE Dirham',
-                'BRL - Brazilian Real',
-                'MXN - Mexican Peso',
-                'ZAR - South African Rand',
-              ],
-            },
+            data: 'Supported codes include USD, EUR, GBP, INR, AUD, CAD, JPY, CNY, CHF, SGD, AED, BRL, MXN, ZAR. Resolution for new documents: form value → customer billing currency → company default (Settings → Payment) → personal preferred currency → INR. Existing invoices/deals keep their stored currency.',
           },
         ],
       },
@@ -808,6 +797,401 @@ Your Name`,
     ],
   },
 
+  // ADMIN & EMPLOYEE
+  {
+    id: 'roles-access',
+    title: 'Roles & access',
+    slug: 'roles-access',
+    description: 'Platform admin vs workspace admin vs employee vs customer',
+    category: 'Admin & Employee',
+    order: 10,
+    sections: [
+      {
+        id: 'role-matrix',
+        title: 'Role matrix',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Access is role-based and tenant-scoped. URLs always include the company slug except platform admin (/admin) and the shared customer portal (/portal).',
+          },
+          {
+            type: 'table',
+            data: {
+              headers: ['Role', 'Entry URL', 'Can manage'],
+              rows: [
+                ['SUPER_ADMIN', '/admin', 'All tenants, plans, subscriptions, platform settings'],
+                ['ADMIN', '/{slug}/dashboard', 'That company CRM + People + Workspace admin'],
+                ['SALES / TECH / …', '/{slug}/dashboard', 'Modules allowed by plan + role nav'],
+                ['EMPLOYEE', '/{slug}/employee/login', 'Own HR self-service (+ leads if LEADS module)'],
+                ['CUSTOMER', '/portal', 'Own tickets, assets, quotes, invoices, contracts'],
+              ],
+            },
+          },
+          {
+            type: 'alert',
+            data: {
+              type: 'info',
+              title: 'Linked employee record',
+              message: 'CRM users (ADMIN/SALES/TECH) with an Employee profile can also open the Employee portal for attendance, leave, and payslips.',
+            },
+          },
+        ],
+      },
+      {
+        id: 'end-to-end-paths',
+        title: 'End-to-end paths',
+        content: [
+          {
+            type: 'steps',
+            data: [
+              {
+                title: 'Hire / register staff',
+                description: 'Employee registers at /{slug}/employee/register → pending. Workspace admin approves under People → Approve staff or Workspace Admin → Approvals.',
+              },
+              {
+                title: 'Grant CRM access',
+                description: 'Workspace Admin → Users: assign role (ADMIN, SALES, etc.) and company membership.',
+              },
+              {
+                title: 'Run payroll',
+                description: 'People → Employees (salary) → Payroll generate/process → Employee sees Payslips.',
+              },
+              {
+                title: 'Serve a client',
+                description: 'Customers → invite to portal → client uses /portal for tickets, quotes, invoices.',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'platform-admin',
+    title: 'Platform admin',
+    slug: 'platform-admin',
+    description: 'SUPER_ADMIN console at /admin',
+    category: 'Admin & Employee',
+    order: 11,
+    sections: [
+      {
+        id: 'platform-overview',
+        title: 'What this console is for',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Platform admin is Opslane SaaS control — not a single customer’s CRM. Only SUPER_ADMIN can open /admin.',
+          },
+          {
+            type: 'list',
+            data: {
+              items: [
+                'Overview — high-level platform health',
+                'Companies — list, inspect, approve/reject tenants',
+                'Users — cross-tenant user lookup and feature overrides',
+                'Subscriptions — tenant billing status',
+                'Plans — plan catalog and feature modules',
+                'Email logs — platform outbound mail audit',
+                'Activity — audit trail',
+                'Settings — tenancy mode (path vs subdomain) and platform knobs',
+              ],
+            },
+          },
+          {
+            type: 'alert',
+            data: {
+              type: 'warning',
+              title: 'Do not confuse with workspace admin',
+              message: 'Company users, payroll, and CRM settings live under /{slug}/admin and /{slug}/dashboard — not /admin.',
+            },
+          },
+        ],
+      },
+      {
+        id: 'platform-companies',
+        title: 'Companies & approvals',
+        content: [
+          {
+            type: 'steps',
+            data: [
+              {
+                title: 'Open Companies',
+                description: 'Go to /admin/companies.',
+              },
+              {
+                title: 'Review status',
+                description: 'PENDING companies await platform approval before full use.',
+              },
+              {
+                title: 'Approve or reject',
+                description: 'Use approve flows so the tenant admin and employees unlock.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'platform-plans',
+        title: 'Plans & modules',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Plans gate feature modules (LEADS, INVOICES, INVENTORY, etc.). Sync modules after catalog changes. Tenant checkout still uses platform Razorpay keys; company Razorpay in Settings → Payment is for payroll / future customer checkout.',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'workspace-admin',
+    title: 'Workspace admin',
+    slug: 'workspace-admin',
+    description: 'Company ADMIN: users, approvals, HR, settings',
+    category: 'Admin & Employee',
+    order: 12,
+    sections: [
+      {
+        id: 'workspace-admin-home',
+        title: 'Workspace admin home',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Open /{slug}/admin (ADMIN or SUPER_ADMIN). Cards link to workspace users and employee registration approvals.',
+          },
+          {
+            type: 'list',
+            data: {
+              items: [
+                'Users — people with access to this company',
+                'Approvals — pending employee registrations',
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: 'people-hr',
+        title: 'People & HR (admin)',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'From the main dashboard sidebar (People group), ADMIN can manage the workforce:',
+          },
+          {
+            type: 'table',
+            data: {
+              headers: ['Nav', 'Path', 'Purpose'],
+              rows: [
+                ['Employees', '/{slug}/dashboard/employees', 'Directory, profiles, salaries'],
+                ['Approve staff', '/{slug}/dashboard/approve-employees', 'Approve pending HR registrations'],
+                ['Payroll', '/{slug}/dashboard/payroll', 'Generate, process, mark paid'],
+              ],
+            },
+          },
+          {
+            type: 'steps',
+            data: [
+              {
+                title: 'Create or approve employee',
+                description: 'Add via Employees, or approve a self-registration from Approve staff / Workspace Admin → Approvals.',
+              },
+              {
+                title: 'Set salary',
+                description: 'Open employee → salary form. Required before meaningful payslips.',
+              },
+              {
+                title: 'Run payroll',
+                description: 'Payroll → generate for period → process. Optional company Razorpay under Settings → Payment for payouts.',
+              },
+              {
+                title: 'Employee views payslip',
+                description: 'Employee portal → Payslips (download when available).',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'workspace-settings',
+        title: 'Company settings checklist',
+        content: [
+          {
+            type: 'list',
+            data: {
+              ordered: true,
+              items: [
+                'Basic info — name, logo, contact',
+                'Business — vertical, terminology, ticket types',
+                'Customization — theme, date format, timezone',
+                'Payment — company default currency + Razorpay credentials',
+                'Security — session / password policy',
+                'Pipelines — lead/deal stages under Settings',
+              ],
+            },
+          },
+        ],
+      },
+      {
+        id: 'billing-clients',
+        title: 'Client billing (admin side)',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Create quotations and invoices from the dashboard. Record payments on the invoice detail page when bank/UPI/cash clears. Clients see the same docs in /portal. Set Customer → Billing currency when a client invoices in a different currency than company default.',
+          },
+        ],
+      },
+      {
+        id: 'ops-agent',
+        title: 'Ops Agent',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Each company gets one native Ops Agent (Gemini function calling). Staff open it from the floating bot button on any dashboard page. It uses your Gemini API key (Settings → API keys, or GEMINI_API_KEY), discovers live models, and tries a fallback chain if a model fails.',
+          },
+          {
+            type: 'list',
+            data: {
+              items: [
+                'Read tools: company snapshot, overdue invoices, open tickets/deals/quotes, search customers & leads, get invoice, AI qualify lead / suggest tasks',
+                'Write tools (confirm in UI before run): create task, add lead note, record invoice payment',
+                'Not available to CUSTOMER or EMPLOYEE portal users',
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'employee-portal',
+    title: 'Employee portal',
+    slug: 'employee-portal',
+    description: 'Self-service HR and day-to-day work',
+    category: 'Admin & Employee',
+    order: 13,
+    sections: [
+      {
+        id: 'employee-access',
+        title: 'How to get in',
+        content: [
+          {
+            type: 'steps',
+            data: [
+              {
+                title: 'Register (new hires)',
+                description: 'Go to /{slug}/employee/register. Wait for workspace admin approval.',
+              },
+              {
+                title: 'Sign in',
+                description: 'Go to /{slug}/employee/login. EMPLOYEE role, or any staff user with an employeeId, can enter.',
+              },
+              {
+                title: 'Land on dashboard',
+                description: '/{slug}/employee/dashboard shows attendance, leave, tasks, and announcements summary.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'employee-nav',
+        title: 'What you can do',
+        content: [
+          {
+            type: 'table',
+            data: {
+              headers: ['Area', 'Path', 'Notes'],
+              rows: [
+                ['Dashboard', '/employee/dashboard', 'Today’s snapshot'],
+                ['Profile', '/employee/profile', 'Personal details'],
+                ['Attendance', '/employee/attendance', 'Check-in / check-out'],
+                ['Leave', '/employee/leave', 'Request leave; see balance'],
+                ['Payslips', '/employee/payslips', 'View / download (history UI still thin)'],
+                ['Leads', '/employee/leads', 'Only if plan module LEADS is on'],
+                ['Tasks', '/employee/tasks', 'Assigned company tasks'],
+                ['Messages', '/employee/messages', 'Internal messaging'],
+                ['Announcements', '/employee/announcements', 'Company announcements'],
+              ],
+            },
+          },
+          {
+            type: 'alert',
+            data: {
+              type: 'info',
+              title: 'Not the CRM dashboard',
+              message: 'Full deals, invoices, and tickets for sales/ops live under /{slug}/dashboard. Employee portal is primarily HR self-service plus optional leads/tasks.',
+            },
+          },
+        ],
+      },
+      {
+        id: 'employee-attendance-leave',
+        title: 'Attendance & leave flow',
+        content: [
+          {
+            type: 'steps',
+            data: [
+              {
+                title: 'Check in',
+                description: 'Attendance → check in at start of day (API: /api/employee/attendance/check-in).',
+              },
+              {
+                title: 'Check out',
+                description: 'Check out when finished.',
+              },
+              {
+                title: 'Request leave',
+                description: 'Leave → new request. Admin reviews from HR tools; balance updates when approved.',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'customer-portal-docs',
+    title: 'Customer portal',
+    slug: 'customer-portal',
+    description: 'What clients see in /portal',
+    category: 'Admin & Employee',
+    order: 14,
+    sections: [
+      {
+        id: 'portal-overview',
+        title: 'Client self-service',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Invite customers from the customer detail page. They sign in to /portal (not the company dashboard).',
+          },
+          {
+            type: 'list',
+            data: {
+              items: [
+                'Tickets — create and track support requests',
+                'Equipment / warranties / service history — when those workspace features are on',
+                'Quotations — review, approve, or decline',
+                'Invoices — view, PDF, bank payment instructions',
+                'Documents — invoices, quotes, and service contracts',
+                'Contracts — open AMC/CMC coverage details',
+              ],
+            },
+          },
+          {
+            type: 'alert',
+            data: {
+              type: 'warning',
+              title: 'Payments',
+              message: 'Clients pay via bank details on the invoice today. Staff record clearance with Record payment on the invoice. Online Razorpay checkout for CRM invoices is not enabled yet.',
+            },
+          },
+        ],
+      },
+    ],
+  },
+
   // API REFERENCE
   {
     id: 'api-overview',
@@ -815,7 +1199,7 @@ Your Name`,
     slug: 'api-overview',
     description: 'REST API for integrations',
     category: 'API Reference',
-    order: 15,
+    order: 20,
     sections: [
       {
         id: 'authentication',
@@ -823,7 +1207,7 @@ Your Name`,
         content: [
           {
             type: 'paragraph',
-            data: 'All API endpoints require authentication via NextAuth session. Include session cookies with your requests.',
+            data: 'All API endpoints require authentication via NextAuth session. Include session cookies with your requests. Tenant routes usually need the workspace slug header when calling from multi-company contexts.',
           },
           {
             type: 'code',
@@ -865,6 +1249,9 @@ const leads = await response.json();`,
                 ['GET', '/api/deals', 'Get all deals'],
                 ['POST', '/api/deals', 'Create deal'],
                 ['PATCH', '/api/deals/:id', 'Update deal'],
+                ['POST', '/api/invoices/:id/payment', 'Record invoice payment (staff)'],
+                ['GET', '/api/employee/attendance/today', 'Employee attendance today'],
+                ['GET', '/api/portal/invoices', 'Customer portal invoices'],
               ],
             },
           },

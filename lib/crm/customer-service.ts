@@ -12,6 +12,8 @@ export interface CreateCustomerData {
     accountType?: string;
     companyId?: string;
     notes?: string;
+    /** ISO 4217; null/omit = use company default on new docs */
+    billingCurrency?: string | null;
 }
 
 export interface CreateContactData {
@@ -26,6 +28,12 @@ export class CustomerService {
      * Create a new customer
      */
     async createCustomer(data: CreateCustomerData) {
+        const { isCurrencyCode } = await import('@/lib/currency');
+        const billingCurrency =
+            data.billingCurrency && isCurrencyCode(String(data.billingCurrency).trim().toUpperCase())
+                ? String(data.billingCurrency).trim().toUpperCase()
+                : null;
+
         const customer = await prisma.customer.create({
             data: {
                 organizationName: data.organizationName,
@@ -39,6 +47,7 @@ export class CustomerService {
                 accountType: data.accountType,
                 companyId: data.companyId,
                 notes: data.notes,
+                billingCurrency,
             },
         });
 
@@ -79,9 +88,20 @@ export class CustomerService {
      * Update customer
      */
     async updateCustomer(id: string, data: Partial<CreateCustomerData>) {
+        const { isCurrencyCode } = await import('@/lib/currency');
+        const payload: Partial<CreateCustomerData> = { ...data };
+        if ('billingCurrency' in payload) {
+            if (!payload.billingCurrency || payload.billingCurrency === '') {
+                payload.billingCurrency = null;
+            } else {
+                const code = String(payload.billingCurrency).trim().toUpperCase();
+                payload.billingCurrency = isCurrencyCode(code) ? code : null;
+            }
+        }
+
         const customer = await prisma.customer.update({
             where: { id },
-            data,
+            data: payload,
         });
 
         await this.logActivity(id, 'UPDATED', `Customer information updated`);

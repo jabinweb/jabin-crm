@@ -3,6 +3,7 @@ import {
   buildInitialCompanySettings,
   parseWorkspaceSettings,
   resolveWorkspaceConfig,
+  workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
 
 describe('workspace-config', () => {
@@ -38,7 +39,30 @@ describe('workspace-config', () => {
     });
     expect(config.terminology.customers).toBe('Clients');
     expect(config.terminology.ticket).toBe('Client request');
+    expect(config.terminology.leads).toBe('Prospects');
     expect(config.features.products).toBe(true);
     expect(config.features.fieldService).toBe(false);
+  });
+
+  it('reads legacy top-level businessVertical from company settings', () => {
+    const settings = workspaceSettingsFromCompanySettings({
+      onboarding: { completed: true },
+      businessVertical: 'field_service',
+    });
+    expect(settings.businessVertical).toBe('field_service');
+  });
+
+  it('seeds lead pipeline stages from template flow', () => {
+    const initial = buildInitialCompanySettings('manufacturing');
+    expect(initial.pipelines.leads.stages).toContain('NEW');
+    expect(initial.pipelines.leads.stages).toContain('WON');
+    expect(initial.pipelines.leads.labels?.QUALIFIED).toBe('Rfq');
+    expect(initial.pipelines.leads.labels?.PROPOSAL).toBe('Quote');
+    expect(initial.pipelines.leads.labels?.NEGOTIATION).toBe('Po');
+  });
+
+  it('seeds company billing.defaultCurrency', () => {
+    const initial = buildInitialCompanySettings('general');
+    expect(initial.billing.defaultCurrency).toBe('INR');
   });
 });

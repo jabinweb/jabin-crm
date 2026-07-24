@@ -23,7 +23,9 @@ export async function GET() {
                 product: {
                     select: {
                         name: true,
-                        category: true
+                        category: true,
+                        manufacturer: true,
+                        modelNumber: true,
                     }
                 }
             }

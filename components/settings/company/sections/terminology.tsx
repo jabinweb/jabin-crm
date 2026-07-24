@@ -12,10 +12,15 @@ import { useMemo } from 'react';
 const TERMINOLOGY_KEYS: Array<{ key: keyof WorkspaceTerminology; label: string; hint?: string }> = [
   { key: 'customer', label: 'Customer (singular)' },
   { key: 'customers', label: 'Customers (plural)' },
+  { key: 'lead', label: 'Lead (singular)' },
+  { key: 'leads', label: 'Leads (plural / nav)' },
+  { key: 'deal', label: 'Deal (singular)' },
+  { key: 'deals', label: 'Deals (plural / nav)' },
   { key: 'agent', label: 'Support agent', hint: 'Replaces "technician" in support contexts' },
   { key: 'asset', label: 'Asset' },
   { key: 'equipment', label: 'Equipment / assets nav label' },
-  { key: 'ticket', label: 'Ticket / case label' },
+  { key: 'ticket', label: 'Ticket / case (singular)' },
+  { key: 'tickets', label: 'Tickets (plural / nav)' },
   { key: 'newRequest', label: 'New request button' },
   { key: 'portalSubtitle', label: 'Portal dashboard subtitle' },
 ];

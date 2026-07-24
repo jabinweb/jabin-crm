@@ -7,8 +7,8 @@ import {
 } from '@/lib/auth/company-membership';
 import { prisma } from '@/lib/prisma';
 import {
-  parseWorkspaceSettings,
   resolveWorkspaceConfig,
+  workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
 import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
 
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         ? (company.settings as Record<string, unknown>)
         : {};
 
-    const workspaceSettings = parseWorkspaceSettings(stored.workspace);
+    const workspaceSettings = workspaceSettingsFromCompanySettings(stored);
     const config = resolveWorkspaceConfig(workspaceSettings);
 
     return NextResponse.json({

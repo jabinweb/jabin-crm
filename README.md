@@ -72,17 +72,23 @@ STAGING_BASE_URL=https://staging.example.com npm run qa:staging
 
 ```
 app/
-  dashboard/          # Agent CRM + support (subscription-gated modules)
-  [company]/        # Company workspace (HRMS + tenant CRM)
-  [company]/employee/
+  admin/              # Platform SUPER_ADMIN console
+  [company]/dashboard/  # Tenant CRM + HR admin (People, payroll)
+  [company]/admin/   # Workspace users & approvals
+  [company]/employee/ # Employee self-service portal
   portal/             # Customer portal
   api/                # REST API routes
 lib/
-  feature-modules.ts  # Plan module resolution
-  env-validation.ts   # Boot-time env checks
+  docs/comprehensive-docs.ts  # In-app help (Dashboard → Docs)
+  feature-modules.ts
+  env-validation.ts
 docs/
   DEPLOYMENT.md       # Production guide
 ```
+
+## In-app documentation
+
+Tenant admins: **Dashboard → Docs**. Topics include Roles & access, Platform admin, Workspace admin, Employee portal, and Customer portal — aligned with live routes.
 
 ## License
 

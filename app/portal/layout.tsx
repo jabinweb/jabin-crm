@@ -170,9 +170,11 @@ function UserMenu() {
                     <Link href="/portal/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                         <Settings className="h-4 w-4 text-slate-400" /> Settings
                     </Link>
-                    <Link href={dashboardHref} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        <LayoutDashboard className="h-4 w-4 text-slate-400" /> Admin Dashboard
-                    </Link>
+                    {session?.user?.role !== 'CUSTOMER' && (
+                      <Link href={dashboardHref} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                          <LayoutDashboard className="h-4 w-4 text-slate-400" /> Staff dashboard
+                      </Link>
+                    )}
                     <div className="border-t border-slate-100 dark:border-slate-800 mt-1 pt-1">
                         <button
                             onClick={() => signOut({ callbackUrl: '/auth/signin' })}

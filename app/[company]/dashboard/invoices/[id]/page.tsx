@@ -7,10 +7,27 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Download, Send, DollarSign, Calendar, User, Mail, Phone, MapPin, Edit } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ArrowLeft, Download, Send, DollarSign, User, Mail, Phone, MapPin, Edit } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailSkeleton } from '@/components/loading';
@@ -67,6 +84,11 @@ export default function InvoiceDetailPage() {
   const { path } = useWorkspacePaths();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
+  const [payOpen, setPayOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
+  const [paymentNote, setPaymentNote] = useState('');
 
   useEffect(() => {
     fetchInvoice();
@@ -78,6 +100,9 @@ export default function InvoiceDetailPage() {
       if (!response.ok) throw new Error('Failed to fetch invoice');
       const data = await response.json();
       setInvoice(data);
+      if (data.amountDue > 0) {
+        setPaymentAmount(String(data.amountDue));
+      }
     } catch (error) {
       console.error('Error fetching invoice:', error);
       toast.error('Failed to load invoice');
@@ -90,7 +115,7 @@ export default function InvoiceDetailPage() {
     try {
       const response = await fetch(`/api/invoices/${params.id}/pdf`);
       if (!response.ok) throw new Error('Failed to download invoice');
-      
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -100,7 +125,7 @@ export default function InvoiceDetailPage() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       toast.success('Invoice downloaded successfully');
     } catch (error) {
       toast.error('Failed to download invoice');
@@ -114,7 +139,7 @@ export default function InvoiceDetailPage() {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to send invoice');
-      
+
       toast.success('Invoice sent successfully');
       fetchInvoice();
     } catch (error) {
@@ -123,12 +148,53 @@ export default function InvoiceDetailPage() {
     }
   };
 
+  const handleRecordPayment = async () => {
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a valid payment amount');
+      return;
+    }
+    if (invoice && amount > invoice.amountDue + 0.001) {
+      toast.error('Amount cannot exceed amount due');
+      return;
+    }
+
+    setRecording(true);
+    try {
+      const response = await fetch(`/api/invoices/${params.id}/payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          paymentMethod,
+          paymentDetails: paymentNote || undefined,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to record payment');
+      }
+      toast.success('Payment recorded');
+      setPayOpen(false);
+      setPaymentNote('');
+      await fetchInvoice();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to record payment');
+    } finally {
+      setRecording(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
+    const statusConfig: Record<
+      string,
+      { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }
+    > = {
       DRAFT: { variant: 'secondary', label: 'Draft' },
       SENT: { variant: 'default', label: 'Sent' },
+      VIEWED: { variant: 'outline', label: 'Viewed' },
       PAID: { variant: 'default', label: 'Paid' },
-      PARTIALLY_PAID: { variant: 'outline', label: 'Partially Paid' },
+      PARTIAL: { variant: 'outline', label: 'Partial' },
       OVERDUE: { variant: 'destructive', label: 'Overdue' },
       CANCELLED: { variant: 'secondary', label: 'Cancelled' },
     };
@@ -153,6 +219,9 @@ export default function InvoiceDetailPage() {
     );
   }
 
+  const canRecordPayment =
+    invoice.amountDue > 0 && !['PAID', 'CANCELLED', 'DRAFT', 'REFUNDED'].includes(invoice.status);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -169,7 +238,10 @@ export default function InvoiceDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push(path(`/dashboard/invoices/${params.id}/edit`))}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(path(`/dashboard/invoices/${params.id}/edit`))}
+          >
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -177,6 +249,18 @@ export default function InvoiceDetailPage() {
             <Download className="mr-2 h-4 w-4" />
             Download PDF
           </Button>
+          {canRecordPayment && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPaymentAmount(String(invoice.amountDue));
+                setPayOpen(true);
+              }}
+            >
+              <DollarSign className="mr-2 h-4 w-4" />
+              Record payment
+            </Button>
+          )}
           {invoice.status === 'DRAFT' && (
             <Button onClick={handleSend}>
               <Send className="mr-2 h-4 w-4" />
@@ -300,18 +384,16 @@ export default function InvoiceDetailPage() {
                         <div>
                           <div className="font-medium">{item.name}</div>
                           {item.description && (
-                            <div className="text-sm text-muted-foreground">
-                              {item.description}
-                            </div>
+                            <div className="text-sm text-muted-foreground">{item.description}</div>
                           )}
                         </div>
                       </TableCell>
                       <TableCell className="text-center">{item.quantity}</TableCell>
                       <TableCell className="text-right">
-                        {formatCurrency(item.unitPrice, invoice.currency as any)}
+                        {formatCurrency(item.unitPrice, invoice.currency as never)}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatCurrency(item.amount, invoice.currency as any)}
+                        {formatCurrency(item.amount, invoice.currency as never)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -334,8 +416,8 @@ export default function InvoiceDetailPage() {
                 )}
                 {invoice.notes && (
                   <div>
-                    <p className="text-sm font-semibold mb-2">Internal Notes</p>
-                    <p className="text-sm text-muted-foreground">{invoice.notes}</p>
+                    <p className="text-sm font-semibold mb-2">Notes</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{invoice.notes}</p>
                   </div>
                 )}
               </CardContent>
@@ -353,19 +435,13 @@ export default function InvoiceDetailPage() {
                 {invoice.user.profile?.companyName || invoice.user.name || 'Your Company'}
               </p>
               {invoice.user.profile?.companyEmail && (
-                <p className="text-sm text-muted-foreground">
-                  {invoice.user.profile.companyEmail}
-                </p>
+                <p className="text-sm text-muted-foreground">{invoice.user.profile.companyEmail}</p>
               )}
               {invoice.user.profile?.companyPhone && (
-                <p className="text-sm text-muted-foreground">
-                  {invoice.user.profile.companyPhone}
-                </p>
+                <p className="text-sm text-muted-foreground">{invoice.user.profile.companyPhone}</p>
               )}
               {invoice.user.profile?.companyAddress && (
-                <p className="text-sm text-muted-foreground">
-                  {invoice.user.profile.companyAddress}
-                </p>
+                <p className="text-sm text-muted-foreground">{invoice.user.profile.companyAddress}</p>
               )}
             </CardContent>
           </Card>
@@ -373,24 +449,29 @@ export default function InvoiceDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>Payment Summary</CardTitle>
+              <CardDescription>
+                {canRecordPayment
+                  ? 'Record bank or cash payments when they clear.'
+                  : 'Payment status for this invoice.'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>{formatCurrency(invoice.subtotal, invoice.currency as any)}</span>
+                  <span>{formatCurrency(invoice.subtotal, invoice.currency as never)}</span>
                 </div>
                 {invoice.taxRate > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tax ({invoice.taxRate}%)</span>
-                    <span>{formatCurrency(invoice.taxAmount, invoice.currency as any)}</span>
+                    <span>{formatCurrency(invoice.taxAmount, invoice.currency as never)}</span>
                   </div>
                 )}
                 {invoice.discount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
                     <span className="text-red-600">
-                      -{formatCurrency(invoice.discount, invoice.currency as any)}
+                      -{formatCurrency(invoice.discount, invoice.currency as never)}
                     </span>
                   </div>
                 )}
@@ -398,31 +479,91 @@ export default function InvoiceDetailPage() {
               <Separator />
               <div className="flex justify-between font-semibold text-lg">
                 <span>Total</span>
-                <span>{formatCurrency(invoice.total, invoice.currency as any)}</span>
+                <span>{formatCurrency(invoice.total, invoice.currency as never)}</span>
               </div>
-              {invoice.amountPaid > 0 && (
-                <>
-                  <Separator />
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Amount Paid</span>
-                      <span className="text-green-600">
-                        {formatCurrency(invoice.amountPaid, invoice.currency as any)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between font-semibold text-lg">
-                      <span>Amount Due</span>
-                      <span className="text-red-600">
-                        {formatCurrency(invoice.amountDue, invoice.currency as any)}
-                      </span>
-                    </div>
-                  </div>
-                </>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount Paid</span>
+                  <span className="text-green-600">
+                    {formatCurrency(invoice.amountPaid, invoice.currency as never)}
+                  </span>
+                </div>
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Amount Due</span>
+                  <span className={invoice.amountDue > 0 ? 'text-red-600' : ''}>
+                    {formatCurrency(invoice.amountDue, invoice.currency as never)}
+                  </span>
+                </div>
+              </div>
+              {canRecordPayment && (
+                <Button className="w-full" onClick={() => setPayOpen(true)}>
+                  <DollarSign className="mr-2 h-4 w-4" />
+                  Record payment
+                </Button>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <Dialog open={payOpen} onOpenChange={setPayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record payment</DialogTitle>
+            <DialogDescription>
+              Due: {formatCurrency(invoice.amountDue, invoice.currency as never)}. This updates the
+              invoice balance for staff and the client portal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="payment-amount">Amount</Label>
+              <Input
+                id="payment-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Method</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BANK_TRANSFER">Bank transfer</SelectItem>
+                  <SelectItem value="UPI">UPI</SelectItem>
+                  <SelectItem value="CASH">Cash</SelectItem>
+                  <SelectItem value="CHEQUE">Cheque</SelectItem>
+                  <SelectItem value="CARD">Card</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment-note">Note (optional)</Label>
+              <Textarea
+                id="payment-note"
+                rows={2}
+                placeholder="Reference number, bank name…"
+                value={paymentNote}
+                onChange={(e) => setPaymentNote(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayOpen(false)} disabled={recording}>
+              Cancel
+            </Button>
+            <Button onClick={handleRecordPayment} disabled={recording}>
+              {recording ? 'Saving…' : 'Save payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

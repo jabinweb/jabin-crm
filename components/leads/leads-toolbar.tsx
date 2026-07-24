@@ -4,6 +4,7 @@ import { type ChangeEvent, type RefObject } from 'react';
 import { Button } from '@/components/ui/button';
 import { Download, Mail, Plus, Upload } from 'lucide-react';
 import { type useLeadsPage } from '@/hooks/use-leads-page';
+import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
 type LeadsPageState = ReturnType<typeof useLeadsPage>;
 
@@ -41,6 +42,10 @@ export function LeadsToolbar({
   handleOpenImportPicker,
   handleExport,
 }: LeadsToolbarProps) {
+  const terminology = useWorkspaceTerminology();
+  const leadsLabel = terminology?.leads ?? 'Leads';
+  const leadLabel = terminology?.lead ?? 'Lead';
+
   return (
     <>
       <input
@@ -52,7 +57,7 @@ export function LeadsToolbar({
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Leads</h2>
+        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{leadsLabel}</h2>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {selectedLeads.length > 0 && (
             <>
@@ -104,7 +109,7 @@ export function LeadsToolbar({
           )}
           <Button onClick={() => setShowAddLeadDialog(true)} size="sm" className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            Add Lead
+            Add {leadLabel}
           </Button>
           <Button variant="outline" onClick={handleOpenImportPicker} size="sm" disabled={isImporting}>
             <Upload className="mr-2 h-4 w-4" />

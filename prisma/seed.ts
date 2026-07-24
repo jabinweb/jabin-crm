@@ -5,6 +5,7 @@ import { ensureFreePlan, ensureFreeTrialSubscription } from '../lib/subscription
 import { PLAN_CATALOG, PLAN_LIST_PRICES_PAISE } from '../lib/pricing/catalog';
 import { DEFAULT_PLAN_MODULES } from '../lib/plan-modules';
 import { ensureRbacCatalog, syncUserRoleAssignment } from '../lib/auth/rbac-catalog';
+import { buildInitialCompanySettings } from '../lib/workspace-config';
 
 const DEMO_SLUG = 'jabin-international-private-limited';
 const DEMO_PASSWORD = 'Demo@12345';
@@ -61,15 +62,15 @@ async function main() {
       phone: '+91 98765 43210',
       status: 'APPROVED',
       settings: {
-        onboarding: { completed: true, skipped: false },
-        businessVertical: 'field_service',
+        ...buildInitialCompanySettings('field_service'),
+        onboarding: { completed: true, skipped: false, currentStep: 'complete' },
       },
     },
     update: {
       status: 'APPROVED',
       settings: {
-        onboarding: { completed: true, skipped: false },
-        businessVertical: 'field_service',
+        ...buildInitialCompanySettings('field_service'),
+        onboarding: { completed: true, skipped: false, currentStep: 'complete' },
       },
     },
   });
@@ -564,6 +565,208 @@ async function main() {
     }
   }
 
+  // Ops Agent + CRM docs so agent tools have data to read
+  await prisma.companyAgent.upsert({
+    where: { companyId: company.id },
+    create: {
+      companyId: company.id,
+      name: 'Ops Agent',
+      preferredModel: 'gemini-2.5-flash',
+      fallbackModels: ['gemini-2.0-flash', 'gemini-1.5-flash'],
+      enabled: true,
+    },
+    update: { enabled: true },
+  });
+
+  const orbitLead = await prisma.lead.findFirst({
+    where: { companyId: company.id, companyName: 'Orbit Imaging' },
+  });
+  if (orbitLead) {
+    let deal = await prisma.deal.findFirst({
+      where: { leadId: orbitLead.id, title: 'Orbit Imaging — CT install' },
+    });
+    if (!deal) {
+      deal = await prisma.deal.create({
+        data: {
+          userId: salesUser.id,
+          assignedToId: salesUser.id,
+          leadId: orbitLead.id,
+          title: 'Orbit Imaging — CT install',
+          value: 850000,
+          currency: 'INR',
+          stage: 'PROPOSAL',
+          probability: 60,
+          expectedCloseDate: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+
+    const apollo = await prisma.lead.findFirst({
+      where: { companyId: company.id, companyName: 'Apollo Clinics North' },
+    });
+    if (apollo) {
+      const apolloDeal = await prisma.deal.findFirst({
+        where: { leadId: apollo.id, title: 'Apollo — AMC renewal' },
+      });
+      if (!apolloDeal) {
+        await prisma.deal.create({
+          data: {
+            userId: salesUser.id,
+            assignedToId: salesUser.id,
+            leadId: apollo.id,
+            title: 'Apollo — AMC renewal',
+            value: 240000,
+            currency: 'INR',
+            stage: 'NEGOTIATION',
+            probability: 70,
+            expectedCloseDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          },
+        });
+      }
+    }
+
+    const taskExists = await prisma.task.findFirst({
+      where: {
+        userId: adminUser.id,
+        title: 'Follow up Orbit Imaging proposal',
+      },
+    });
+    if (!taskExists) {
+      await prisma.task.create({
+        data: {
+          userId: adminUser.id,
+          assignedToId: salesUser.id,
+          leadId: orbitLead.id,
+          dealId: deal.id,
+          title: 'Follow up Orbit Imaging proposal',
+          description: 'Seeded task for Ops Agent / dashboard.',
+          type: 'FOLLOW_UP',
+          priority: 'HIGH',
+          status: 'PENDING',
+          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        },
+      });
+    }
+  }
+
+  for (let i = 0; i < customers.length; i++) {
+    const customer = customers[i];
+    const qNum = `QT-SEED-${i + 1}`;
+    let quote = await prisma.quotation.findFirst({
+      where: { quotationNumber: qNum },
+    });
+    if (!quote) {
+      const subtotal = 50000 + i * 25000;
+      const taxRate = 18;
+      const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+      const total = subtotal + taxAmount;
+      quote = await prisma.quotation.create({
+        data: {
+          quotationNumber: qNum,
+          userId: salesUser.id,
+          customerId: customer.id,
+          title: `${customer.organizationName} — service quote`,
+          validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currency: 'INR',
+          subtotal,
+          taxRate,
+          taxAmount,
+          total,
+          status: i === 0 ? 'SENT' : i === 1 ? 'VIEWED' : 'DRAFT',
+          customerName: customer.organizationName,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          sentAt: i < 2 ? new Date() : null,
+          items: {
+            create: [
+              {
+                name: 'Annual maintenance',
+                description: 'Seeded line item',
+                quantity: 1,
+                unitPrice: subtotal,
+                amount: subtotal,
+              },
+            ],
+          },
+        },
+      });
+    }
+
+    const invNum = `INV-SEED-${i + 1}`;
+    const existingInv = await prisma.invoice.findFirst({
+      where: { invoiceNumber: invNum },
+    });
+    if (!existingInv) {
+      const subtotal = 75000 + i * 15000;
+      const taxRate = 18;
+      const taxAmount = Math.round(subtotal * (taxRate / 100) * 100) / 100;
+      const total = subtotal + taxAmount;
+      const overdue = i === 0;
+      await prisma.invoice.create({
+        data: {
+          invoiceNumber: invNum,
+          userId: adminUser.id,
+          customerId: customer.id,
+          title: `${customer.organizationName} — service invoice`,
+          dueDate: overdue
+            ? new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+            : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
+          currency: 'INR',
+          subtotal,
+          taxRate,
+          taxAmount,
+          total,
+          amountPaid: 0,
+          amountDue: total,
+          status: overdue ? 'OVERDUE' : i === 1 ? 'SENT' : 'DRAFT',
+          customerName: customer.organizationName,
+          customerEmail: customer.email,
+          customerPhone: customer.phone,
+          sentAt: i < 2 ? new Date() : null,
+          items: {
+            create: [
+              {
+                name: 'Service visit',
+                quantity: 1,
+                unitPrice: subtotal,
+                amount: subtotal,
+              },
+            ],
+          },
+        },
+      });
+    }
+  }
+
+  // Ensure primary staff account is on this demo company
+  const harshit = await prisma.user.findUnique({
+    where: { email: 'harshit@jabin.org' },
+  });
+  if (harshit) {
+    await prisma.user.update({
+      where: { id: harshit.id },
+      data: {
+        companyId: company.id,
+        primaryCompanyId: company.id,
+        role: harshit.role === 'CUSTOMER' || harshit.role === 'EMPLOYEE' ? 'ADMIN' : harshit.role,
+        userStatus: 'ACTIVE',
+      },
+    });
+    await prisma.userCompany.upsert({
+      where: {
+        userId_companyId: { userId: harshit.id, companyId: company.id },
+      },
+      create: { userId: harshit.id, companyId: company.id },
+      update: {},
+    });
+    try {
+      await ensureFreeTrialSubscription(harshit.id);
+    } catch {
+      /* ignore */
+    }
+    console.log('  Linked harshit@jabin.org → demo company');
+  }
+
   console.log('\nDemo workspace ready');
   console.log(`  URL:   /${DEMO_SLUG}/dashboard`);
   console.log('  Admin:   admin@jabininternational.example');
@@ -578,6 +781,7 @@ async function main() {
     for (const u of [adminUser, salesUser, techUser, supportUser]) {
       await syncUserRoleAssignment(u.id, u.role);
     }
+    if (harshit) await syncUserRoleAssignment(harshit.id, harshit.role);
     console.log('  RBAC roles/permissions synced');
   } catch (e) {
     console.warn('  RBAC seed skipped:', e);

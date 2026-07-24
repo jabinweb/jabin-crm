@@ -19,18 +19,40 @@ export const CURRENCIES = {
 
 export type CurrencyCode = keyof typeof CURRENCIES;
 
+/** Product-wide fallback when company/customer/user have no currency set. */
+export const PRODUCT_DEFAULT_CURRENCY: CurrencyCode = 'INR';
+
+export function isCurrencyCode(value: unknown): value is CurrencyCode {
+  return typeof value === 'string' && value in CURRENCIES;
+}
+
+export function normalizeCurrencyCode(
+  value: unknown,
+  fallback: CurrencyCode = PRODUCT_DEFAULT_CURRENCY
+): CurrencyCode {
+  if (typeof value !== 'string') return fallback;
+  const upper = value.trim().toUpperCase();
+  return isCurrencyCode(upper) ? upper : fallback;
+}
+
+export const CURRENCY_OPTIONS = (Object.keys(CURRENCIES) as CurrencyCode[]).map((code) => ({
+  code,
+  label: `${code} - ${CURRENCIES[code].name} (${CURRENCIES[code].symbol})`,
+}));
+
 /**
  * Format a number as currency
  * @param amount - The amount to format
- * @param currency - The currency code (default: USD)
+ * @param currency - The currency code (default: product default)
  * @param options - Intl.NumberFormat options
  */
 export function formatCurrency(
   amount: number,
-  currency: CurrencyCode = 'USD',
+  currency: CurrencyCode | string = PRODUCT_DEFAULT_CURRENCY,
   options?: Intl.NumberFormatOptions
 ): string {
-  const currencyInfo = CURRENCIES[currency] || CURRENCIES.USD;
+  const code = normalizeCurrencyCode(currency);
+  const currencyInfo = CURRENCIES[code];
   
   try {
     return new Intl.NumberFormat('en-US', {
@@ -53,16 +75,16 @@ export function formatCurrency(
  * Get currency symbol
  * @param currency - The currency code
  */
-export function getCurrencySymbol(currency: CurrencyCode = 'USD'): string {
-  return CURRENCIES[currency]?.symbol || '$';
+export function getCurrencySymbol(currency: CurrencyCode | string = PRODUCT_DEFAULT_CURRENCY): string {
+  return CURRENCIES[normalizeCurrencyCode(currency)]?.symbol || '₹';
 }
 
 /**
  * Get currency name
  * @param currency - The currency code
  */
-export function getCurrencyName(currency: CurrencyCode = 'USD'): string {
-  return CURRENCIES[currency]?.name || 'US Dollar';
+export function getCurrencyName(currency: CurrencyCode | string = PRODUCT_DEFAULT_CURRENCY): string {
+  return CURRENCIES[normalizeCurrencyCode(currency)]?.name || 'Indian Rupee';
 }
 
 /**

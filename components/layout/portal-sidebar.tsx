@@ -11,7 +11,10 @@ import {
     ShieldCheck,
     History,
     LifeBuoy,
-    PlusCircle
+    PlusCircle,
+    FileText,
+    Receipt,
+    FileCheck2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -30,6 +33,9 @@ const portalNav: NavigationItem[] = [
     { name: 'Dashboard', href: '/portal', icon: LayoutDashboard },
     { name: 'Assets', href: '/portal/equipment', icon: Wrench, workspaceFeature: 'equipment' },
     { name: 'Tickets', href: '/portal/tickets', icon: Ticket, workspaceFeature: 'customerPortal' },
+    { name: 'Quotations', href: '/portal/quotations', icon: FileCheck2, workspaceFeature: 'customerPortal' },
+    { name: 'Invoices', href: '/portal/invoices', icon: Receipt, workspaceFeature: 'customerPortal' },
+    { name: 'Documents', href: '/portal/documents', icon: FileText, workspaceFeature: 'customerPortal' },
     { name: 'Service history', href: '/portal/service-history', icon: History, workspaceFeature: 'serviceHistory' },
 ];
 
@@ -105,6 +111,7 @@ export function PortalSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
     const brand = getClientBrandConfig();
     const newRequestLabel = terminology?.newRequest ?? 'New request';
+    const portalEnabled = !features || features.customerPortal === true;
 
     return (
         <div className="pb-12 w-64 border-r h-full bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-xl flex flex-col">
@@ -119,12 +126,14 @@ export function PortalSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
             <div className="flex-1 px-3 space-y-6 pt-2">
                 <div>
-                    <Button asChild className="w-full mb-6 bg-blue-600 hover:bg-blue-700 text-white shadow-none shadow-blue-500/20">
-                        <Link href="/portal/tickets/new">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            {newRequestLabel}
-                        </Link>
-                    </Button>
+                    {portalEnabled && (
+                      <Button asChild className="w-full mb-6 bg-blue-600 hover:bg-blue-700 text-white shadow-none shadow-blue-500/20">
+                          <Link href="/portal/tickets/new">
+                              <PlusCircle className="mr-2 h-4 w-4" />
+                              {newRequestLabel}
+                          </Link>
+                      </Button>
+                    )}
                     {renderNavGroup(portalNav, "Overview")}
                 </div>
                 {renderNavGroup(secondaryNav, "System")}

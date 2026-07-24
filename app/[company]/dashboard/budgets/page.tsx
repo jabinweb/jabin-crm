@@ -64,6 +64,21 @@ export default function BudgetsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await workspaceFetch(`/api/budgets/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete');
+      }
+    },
+    onSuccess: () => {
+      toast.success('Budget deleted');
+      queryClient.invalidateQueries({ queryKey: ['budgets', slug] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -130,6 +145,7 @@ export default function BudgetsPage() {
                   <TableHead>Year</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -138,6 +154,17 @@ export default function BudgetsPage() {
                     <TableCell className="font-medium">{b.year}</TableCell>
                     <TableCell className="text-right">{b.amount.toLocaleString()}</TableCell>
                     <TableCell>{new Date(b.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Delete this budget?')) deleteMutation.mutate(b.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -12,10 +12,27 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { Plus } from 'lucide-react';
 
 type WorkspaceUser = {
   id: string;
@@ -39,6 +56,15 @@ export default function WorkspaceUsersPage() {
   const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    role: 'SALES',
+    password: '',
+  });
+  const [tempPassword, setTempPassword] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -70,6 +96,48 @@ export default function WorkspaceUsersPage() {
     void fetchUsers();
   }, [fetchUsers]);
 
+  const invite = async () => {
+    if (!form.email.trim()) {
+      toast.error('Email is required');
+      return;
+    }
+    setInviting(true);
+    setTempPassword(null);
+    try {
+      const res = await workspaceFetch('/api/workspace/users/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name.trim() || undefined,
+          email: form.email.trim(),
+          role: form.role,
+          password: form.password.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to invite user');
+      }
+      const payload = data.data || data;
+      if (payload.temporaryPassword) {
+        setTempPassword(payload.temporaryPassword);
+        toast.success('User created — copy the temporary password');
+      } else if (payload.alreadyMember) {
+        toast.success('Existing user added to this workspace');
+        setInviteOpen(false);
+      } else {
+        toast.success('User invited');
+        setInviteOpen(false);
+      }
+      setForm({ name: '', email: '', role: 'SALES', password: '' });
+      void fetchUsers();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Invite failed');
+    } finally {
+      setInviting(false);
+    }
+  };
+
   if (loading) {
     return (
       <DashboardPage>
@@ -99,11 +167,17 @@ export default function WorkspaceUsersPage() {
 
   return (
     <DashboardPage>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Workspace users</h1>
-        <p className="text-sm text-muted-foreground">
-          People with access to this company workspace.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Workspace users</h1>
+          <p className="text-sm text-muted-foreground">
+            People with access to this company workspace.
+          </p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Invite teammate
+        </Button>
       </div>
 
       <Card>
@@ -161,6 +235,81 @@ export default function WorkspaceUsersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={inviteOpen}
+        onOpenChange={(open) => {
+          setInviteOpen(open);
+          if (!open) setTempPassword(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Invite teammate</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Name</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Optional"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Role</Label>
+              <Select
+                value={form.role}
+                onValueChange={(role) => setForm((f) => ({ ...f, role }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="SALES">Sales</SelectItem>
+                  <SelectItem value="SUPPORT_MANAGER">Support manager</SelectItem>
+                  <SelectItem value="TECHNICIAN">Technician</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Password (optional)</Label>
+              <Input
+                type="text"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="Auto-generated if empty"
+              />
+            </div>
+            {tempPassword && (
+              <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
+                <p className="font-medium">Temporary password</p>
+                <code className="text-xs break-all">{tempPassword}</code>
+                <p className="text-xs text-muted-foreground">
+                  Share this once — it will not be shown again.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={() => void invite()} disabled={inviting}>
+              {inviting ? 'Inviting…' : 'Invite'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardPage>
   );
 }

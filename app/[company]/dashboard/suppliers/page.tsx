@@ -79,6 +79,21 @@ export default function SuppliersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await workspaceFetch(`/api/suppliers/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete');
+      }
+    },
+    onSuccess: () => {
+      toast.success('Supplier deleted');
+      queryClient.invalidateQueries({ queryKey: ['suppliers', slug] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -167,6 +182,7 @@ export default function SuppliersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Rating</TableHead>
+                  <TableHead className="w-[80px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -176,6 +192,17 @@ export default function SuppliersPage() {
                     <TableCell>{s.email}</TableCell>
                     <TableCell>{s.phone}</TableCell>
                     <TableCell>{s.rating ?? '—'}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Delete this supplier?')) deleteMutation.mutate(s.id);
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

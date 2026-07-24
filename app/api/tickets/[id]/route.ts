@@ -52,6 +52,13 @@ export async function PATCH(
     const data = await request.json();
     const userId = guard.session.user.id;
 
+    if (guard.session.user.role === 'CUSTOMER') {
+      return NextResponse.json(
+        { error: 'Customers cannot change ticket status or assignment' },
+        { status: 403 }
+      );
+    }
+
     let result;
 
     if (data.status) {
@@ -67,6 +74,15 @@ export async function PATCH(
       if (rejected) return rejected;
 
       result = await ticketService.updateStatus(id, data.status, userId);
+      const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+      void dispatchWorkflowEvent('ticket.updated', {
+        userId,
+        ticketId: id,
+        companyId: existing?.customer?.companyId,
+        title: 'Ticket updated',
+        summary: `Ticket status → ${data.status}`,
+        metadata: { status: data.status },
+      });
     } else if (data.toTechnicianId) {
       result = await ticketService.transferTicket(
         id,

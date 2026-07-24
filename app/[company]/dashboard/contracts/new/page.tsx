@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +19,9 @@ import {
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useCurrency } from '@/hooks/use-currency';
+import { CurrencySelect } from '@/components/ui/currency-select';
+import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 
 function toInputDate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -27,6 +30,7 @@ function toInputDate(d: Date) {
 export default function NewContractPage() {
   const router = useRouter();
   const { path, workspaceFetch, slug } = useWorkspacePaths();
+  const { currency: defaultCurrency } = useCurrency();
   const [saving, setSaving] = useState(false);
 
   const defaultStart = useMemo(() => toInputDate(new Date()), []);
@@ -44,11 +48,37 @@ export default function NewContractPage() {
     startDate: defaultStart,
     endDate: defaultEnd,
     annualValue: '',
-    currency: 'INR',
+    currency: '',
     includesParts: false,
     visitLimit: '',
     notes: '',
   });
+
+  useEffect(() => {
+    if (!form.currency && defaultCurrency) {
+      setForm((f) => ({ ...f, currency: defaultCurrency }));
+    }
+  }, [defaultCurrency, form.currency]);
+
+  useEffect(() => {
+    if (!form.customerId) return;
+    let cancelled = false;
+    const headers = slug ? workspaceSlugHeaders(slug) : {};
+    void (async () => {
+      const res = await fetch(
+        `/api/currency/resolve?customerId=${encodeURIComponent(form.customerId)}`,
+        { headers: { ...headers } }
+      );
+      if (!res.ok || cancelled) return;
+      const data = (await res.json()) as { currency?: string };
+      if (data.currency && !cancelled) {
+        setForm((f) => ({ ...f, currency: data.currency! }));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.customerId, slug]);
 
   const { data: customersData, isLoading: customersLoading } = useQuery({
     queryKey: ['customers-pick', slug],
@@ -238,16 +268,14 @@ export default function NewContractPage() {
                   }
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Input
-                  id="currency"
-                  value={form.currency}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, currency: e.target.value }))
-                  }
-                />
-              </div>
+              <CurrencySelect
+                id="currency"
+                label="Currency"
+                value={form.currency}
+                onValueChange={(value) =>
+                  setForm((f) => ({ ...f, currency: String(value) }))
+                }
+              />
             </div>
 
             <div className="space-y-2">

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Download, Send, CheckCircle, XCircle, FileText, Mail, Edit } from 'lucide-react';
+import { ArrowLeft, Download, Send, CheckCircle, XCircle, FileText, Mail, Edit, Receipt } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -73,6 +73,7 @@ export default function QuotationDetailPage() {
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   useEffect(() => {
     fetchQuotation();
@@ -128,6 +129,27 @@ export default function QuotationDetailPage() {
     }
   };
 
+  const handleConvertToInvoice = async () => {
+    setConverting(true);
+    try {
+      const response = await fetch(`/api/quotations/${params.id}/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueInDays: 30 }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to convert quotation');
+      }
+      toast.success('Invoice created from quotation');
+      router.push(path(`/dashboard/invoices/${data.id}`));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to convert quotation');
+    } finally {
+      setConverting(false);
+    }
+  };
+
   if (loading) {
     return <DetailSkeleton />;
   }
@@ -174,6 +196,12 @@ export default function QuotationDetailPage() {
             <Button onClick={handleSendQuotation} disabled={sending} className="flex-1 sm:flex-none">
               <Send className="w-4 h-4 mr-2" />
               {sending ? 'Sending...' : 'Send'}
+            </Button>
+          )}
+          {quotation.status === 'ACCEPTED' && (
+            <Button onClick={() => void handleConvertToInvoice()} disabled={converting} className="flex-1 sm:flex-none">
+              <Receipt className="w-4 h-4 mr-2" />
+              {converting ? 'Converting…' : 'Convert to invoice'}
             </Button>
           )}
         </div>

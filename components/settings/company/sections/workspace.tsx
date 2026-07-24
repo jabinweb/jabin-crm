@@ -18,7 +18,7 @@ import {
   type BusinessVertical,
   type WorkspaceFeatureKey,
 } from '@/lib/workspace-templates';
-import { parseWorkspaceSettings, resolveWorkspaceConfig } from '@/lib/workspace-config';
+import { parseWorkspaceSettings, resolveWorkspaceConfig, buildVerticalSwitchPatch } from '@/lib/workspace-config';
 import { useMemo } from 'react';
 
 const FEATURE_LABELS: Record<WorkspaceFeatureKey, string> = {
@@ -59,17 +59,9 @@ export function WorkspaceSection({
   };
 
   const setVertical = (vertical: BusinessVertical) => {
-    const template = WORKSPACE_TEMPLATES[vertical];
+    const patch = buildVerticalSwitchPatch(vertical);
     onChange({
-      settings: {
-        workspace: {
-          businessVertical: vertical,
-          featureOverrides: undefined,
-        },
-        leads: {
-          statusFlow: template.leadStatusFlow,
-        },
-      } as SettingsUpdatePayload['settings'],
+      settings: patch as SettingsUpdatePayload['settings'],
     });
   };
 

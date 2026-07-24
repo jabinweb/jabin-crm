@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { CardListSkeleton } from '@/components/loading';
+import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 
 const statusColors: Record<string, string> = {
     RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -94,6 +95,18 @@ function ServiceEventCard({ report }: { report: any }) {
 }
 
 export default function ServiceHistoryPage() {
+  return (
+    <PortalFeatureGuard
+      feature="serviceHistory"
+      title="Service history not available"
+      description="Service history is not enabled for your portal."
+    >
+      <ServiceHistoryContent />
+    </PortalFeatureGuard>
+  );
+}
+
+function ServiceHistoryContent() {
     const { data: reports = [], isLoading } = useQuery({
         queryKey: ['portal-service-history'],
         queryFn: async () => {

@@ -918,6 +918,8 @@ model Customer {
   accountType            String?
   companyId              String?
   notes                  String?
+  /// ISO 4217 billing currency for this client (overrides company default on new docs)
+  billingCurrency        String?
   /// Public one-click / QR service-request token (no login required)
   serviceRequestToken    String?                 @unique
   createdAt              DateTime                @default(now())
@@ -1890,8 +1892,76 @@ model Company {
   slaPolicies       SlaPolicy[]
   liveChatSessions  LiveChatSession[]
   serviceContracts  ServiceContract[]
+  companyAgent      CompanyAgent?
 
   @@index([slug])
+  @@index([status])
+}
+
+/// One ops agent identity per tenant company
+model CompanyAgent {
+  id                   String   @id @default(cuid())
+  companyId            String   @unique
+  name                 String   @default("Ops Agent")
+  /// Preferred Gemini model id (without models/ prefix)
+  preferredModel       String?
+  /// Ordered fallback model ids
+  fallbackModels       Json     @default("[]")
+  systemPromptExtra    String?
+  enabled              Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  threads              AgentThread[]
+
+  @@index([companyId])
+}
+
+model AgentThread {
+  id        String          @id @default(cuid())
+  companyId String
+  agentId   String
+  userId    String
+  title     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  agent     CompanyAgent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages  AgentMessage[]
+  toolRuns  AgentToolRun[]
+
+  @@index([companyId])
+  @@index([agentId])
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+model AgentMessage {
+  id        String   @id @default(cuid())
+  threadId  String
+  role      String
+  /// Text content and/or structured parts (tool calls, etc.)
+  content   Json
+  createdAt DateTime @default(now())
+  thread    AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
+  @@index([createdAt])
+}
+
+model AgentToolRun {
+  id          String   @id @default(cuid())
+  threadId    String
+  toolName    String
+  args        Json
+  result      Json?
+  status      String   @default("pending")
+  /// pending | confirmed | executed | rejected | error
+  error       String?
+  createdAt   DateTime @default(now())
+  executedAt  DateTime?
+  thread      AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId])
   @@index([status])
 }
 

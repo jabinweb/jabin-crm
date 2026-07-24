@@ -110,12 +110,21 @@ export default function WorkflowsPage() {
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Notify on new lead" />
           </div>
           <div className="space-y-2">
-            <Label>Trigger key</Label>
-            <Input
+            <Label>Trigger</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={trigger}
               onChange={(e) => setTrigger(e.target.value)}
-              placeholder="lead.created"
-            />
+            >
+              <option value="lead.created">lead.created — new lead</option>
+              <option value="lead.updated">lead.updated — lead status change</option>
+              <option value="ticket.created">ticket.created — new ticket</option>
+              <option value="ticket.updated">ticket.updated — ticket status change</option>
+              <option value="deal.won">deal.won — deal marked won</option>
+            </select>
+            <p className="text-xs text-muted-foreground">
+              Only these events fire today. Actions send an in-app notification.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Description</Label>

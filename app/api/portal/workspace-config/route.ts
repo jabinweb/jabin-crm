@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import {
-  parseWorkspaceSettings,
   resolveWorkspaceConfig,
+  workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
 import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
@@ -31,7 +31,7 @@ export async function GET() {
         ? (customer.company.settings as Record<string, unknown>)
         : {};
 
-    const workspaceSettings = parseWorkspaceSettings(stored.workspace);
+    const workspaceSettings = workspaceSettingsFromCompanySettings(stored);
     const supportSettings = parseSupportSettings(stored.support);
     const config = resolveWorkspaceConfig(workspaceSettings);
 

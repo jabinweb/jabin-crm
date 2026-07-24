@@ -129,7 +129,10 @@ export function BusinessTab({ formData, handleChange, updateProfileMutation }: B
                   <SelectItem value="ZAR">ZAR - South African Rand (R)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Current: {formData.preferredCurrency}</p>
+              <p className="text-xs text-muted-foreground">
+                Personal fallback only. Company default and client billing currency take priority for
+                new documents. Current: {formData.preferredCurrency}
+              </p>
             </div>
           </div>
           <Separator />

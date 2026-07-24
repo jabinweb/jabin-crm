@@ -1,14 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, Phone, Mail, Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 interface Task {
   id: string;
@@ -33,61 +52,109 @@ interface TaskStats {
   overdue: number;
 }
 
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  type: 'TODO',
+  priority: 'MEDIUM',
+  dueDate: '',
+};
+
 export default function TasksPage() {
+  const { workspaceFetch } = useWorkspacePaths();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats>({ pending: 0, inProgress: 0, completed: 0, overdue: 0 });
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
 
-  useEffect(() => {
-    fetchTasks();
-    fetchStats();
-  }, [filter]);
-
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (filter === 'overdue') params.append('overdue', 'true');
       else if (filter !== 'all') params.append('status', filter.toUpperCase());
 
-      const res = await fetch(`/api/tasks?${params}`);
+      const res = await workspaceFetch(`/api/tasks?${params}`);
       if (res.ok) {
         const data = await res.json();
-        setTasks(data);
+        setTasks(Array.isArray(data) ? data : data.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch tasks:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, workspaceFetch]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/tasks/stats');
+      const res = await workspaceFetch('/api/tasks/stats');
       if (res.ok) {
-        const data = await res.json();
-        setStats(data);
+        setStats(await res.json());
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
-  };
+  }, [workspaceFetch]);
+
+  useEffect(() => {
+    void fetchTasks();
+    void fetchStats();
+  }, [fetchTasks, fetchStats]);
 
   const updateTaskStatus = async (taskId: string, status: string) => {
     try {
-      const res = await fetch(`/api/tasks/${taskId}`, {
+      const res = await workspaceFetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
 
       if (res.ok) {
-        fetchTasks();
-        fetchStats();
+        void fetchTasks();
+        void fetchStats();
+      } else {
+        toast.error('Failed to update task');
       }
     } catch (error) {
       console.error('Failed to update task:', error);
+      toast.error('Failed to update task');
+    }
+  };
+
+  const createTask = async () => {
+    if (!form.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await workspaceFetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description || undefined,
+          type: form.type,
+          priority: form.priority,
+          dueDate: form.dueDate || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to create task');
+      }
+      toast.success('Task created');
+      setCreateOpen(false);
+      setForm(EMPTY_FORM);
+      void fetchTasks();
+      void fetchStats();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to create task');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -131,13 +198,12 @@ export default function TasksPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Tasks</h1>
           <p className="text-sm md:text-base text-muted-foreground">Manage your sales activities</p>
         </div>
-        <Button className="w-full sm:w-auto">
+        <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           New Task
         </Button>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -177,7 +243,6 @@ export default function TasksPage() {
         </Card>
       </div>
 
-      {/* Tasks List */}
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList>
           <TabsTrigger value="all">All</TabsTrigger>
@@ -207,7 +272,7 @@ export default function TasksPage() {
                       <Checkbox
                         checked={task.status === 'COMPLETED'}
                         onCheckedChange={(checked) =>
-                          updateTaskStatus(task.id, checked ? 'COMPLETED' : 'PENDING')
+                          void updateTaskStatus(task.id, checked ? 'COMPLETED' : 'PENDING')
                         }
                         className="mt-1"
                       />
@@ -251,7 +316,84 @@ export default function TasksPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Title *</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Follow up with prospect"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Description</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={(type) => setForm((f) => ({ ...f, type }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODO">To-do</SelectItem>
+                    <SelectItem value="CALL">Call</SelectItem>
+                    <SelectItem value="EMAIL">Email</SelectItem>
+                    <SelectItem value="MEETING">Meeting</SelectItem>
+                    <SelectItem value="FOLLOW_UP">Follow up</SelectItem>
+                    <SelectItem value="DEMO">Demo</SelectItem>
+                    <SelectItem value="PROPOSAL">Proposal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Priority</Label>
+                <Select
+                  value={form.priority}
+                  onValueChange={(priority) => setForm((f) => ({ ...f, priority }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Due date</Label>
+              <Input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void createTask()} disabled={creating}>
+              {creating ? 'Creating…' : 'Create task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

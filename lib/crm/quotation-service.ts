@@ -6,6 +6,7 @@ export interface CreateQuotationInput {
   userId: string;
   leadId?: string;
   dealId?: string;
+  customerId?: string;
   title: string;
   description?: string;
   customerName: string;
@@ -111,19 +112,35 @@ export class QuotationService {
         ? new Date(Date.now() + input.validityDays * 24 * 60 * 60 * 1000)
         : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
 
+      const { resolveBillingCustomerId } = await import('@/lib/api/portal-billing-scope');
+      const { resolveDocumentCurrency } = await import('@/lib/currency/resolve-document');
+      const customerId = await resolveBillingCustomerId({
+        customerId: input.customerId,
+        customerEmail: input.customerEmail,
+        userId: input.userId,
+      });
+
+      const currency = await resolveDocumentCurrency({
+        explicit: input.currency,
+        customerId,
+        customerEmail: input.customerEmail,
+        userId: input.userId,
+      });
+
       const quotation = await prisma.quotation.create({
         data: {
           quotationNumber,
           userId: input.userId,
           leadId: input.leadId,
           dealId: input.dealId,
+          customerId: customerId || null,
           title: input.title,
           description: input.description,
           customerName: input.customerName,
           customerEmail: input.customerEmail,
           customerPhone: input.customerPhone,
           customerAddress: input.customerAddress,
-          currency: input.currency || 'USD',
+          currency,
           subtotal,
           taxRate: input.taxRate || 0,
           taxAmount,
@@ -333,7 +350,9 @@ export class QuotationService {
         data: {
           status: 'REJECTED',
           rejectedAt: new Date(),
-          notes: reason ? `Rejection reason: ${reason}` : undefined,
+          ...(reason
+            ? { notes: `Rejection reason: ${reason}` }
+            : {}),
         },
         include: {
           items: true,
@@ -384,6 +403,7 @@ export class QuotationService {
         userId: quotation.userId,
         leadId: quotation.leadId || undefined,
         dealId: quotation.dealId || undefined,
+        customerId: quotation.customerId || undefined,
         quotationId: quotation.id,
         title: quotation.title,
         description: quotation.description || undefined,
@@ -457,6 +477,7 @@ export class QuotationService {
    */
   async listQuotations(filters: {
     userId?: string;
+    companyId?: string;
     leadId?: string;
     dealId?: string;
     status?: QuotationStatus;
@@ -469,7 +490,17 @@ export class QuotationService {
       const skip = (page - 1) * limit;
 
       const where: any = {};
-      if (filters.userId) where.userId = filters.userId;
+      if (filters.companyId) {
+        Object.assign(where, {
+          OR: [
+            { lead: { companyId: filters.companyId } },
+            { user: { primaryCompanyId: filters.companyId } },
+            { user: { userCompanies: { some: { companyId: filters.companyId } } } },
+          ],
+        });
+      } else if (filters.userId) {
+        where.userId = filters.userId;
+      }
       if (filters.leadId) where.leadId = filters.leadId;
       if (filters.dealId) where.dealId = filters.dealId;
       if (filters.status) where.status = filters.status;

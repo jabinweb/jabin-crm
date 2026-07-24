@@ -14,7 +14,10 @@ import {
   canManageCompanyOnboarding,
   type OnboardingStepId,
 } from '@/lib/onboarding/company-onboarding';
-import { parseWorkspaceSettings } from '@/lib/workspace-config';
+import {
+  workspaceSettingsFromCompanySettings,
+  buildVerticalSwitchPatch,
+} from '@/lib/workspace-config';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
 import { isBusinessVertical, BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
 
@@ -44,7 +47,7 @@ export async function GET(req: NextRequest) {
 
     const stored = settingsRecord(company.settings);
     const onboarding = parseOnboardingState(stored.onboarding);
-    const workspace = parseWorkspaceSettings(stored.workspace);
+    const workspace = workspaceSettingsFromCompanySettings(stored);
     const support = parseSupportSettings(stored.support);
     const role = session.user.role ?? '';
 
@@ -114,12 +117,22 @@ export async function PATCH(req: NextRequest) {
       });
     } else if (step && action === 'complete') {
       if (step === 'welcome' && body.data) {
-        const vertical = body.data.businessVertical;
-        stored.workspace = {
-          ...(typeof stored.workspace === 'object' && stored.workspace
-            ? (stored.workspace as Record<string, unknown>)
+        const vertical = isBusinessVertical(body.data.businessVertical)
+          ? body.data.businessVertical
+          : 'general';
+        const patch = buildVerticalSwitchPatch(vertical);
+        stored.workspace = patch.workspace;
+        stored.leads = {
+          ...(typeof stored.leads === 'object' && stored.leads
+            ? (stored.leads as Record<string, unknown>)
             : {}),
-          businessVertical: isBusinessVertical(vertical) ? vertical : 'general',
+          ...patch.leads,
+        };
+        stored.pipelines = {
+          ...(typeof stored.pipelines === 'object' && stored.pipelines
+            ? (stored.pipelines as Record<string, unknown>)
+            : {}),
+          ...patch.pipelines,
         };
         if (body.data.companyName) {
           await prisma.company.update({
