@@ -37,6 +37,11 @@ export default function WhatsAppHubPage() {
     workspaceSlug?: string;
   } | null>(null);
   const [summoraBusy, setSummoraBusy] = useState(false);
+  const [filterType, setFilterType] = useState<'ALL' | 'GROUPS_ONLY' | 'CUSTOM'>('ALL');
+  const [allowedJids, setAllowedJids] = useState<string[]>([]);
+  const [groups, setGroups] = useState<{ jid: string; name: string }[]>([]);
+  const [filterBusy, setFilterBusy] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
   const [config, setConfig] = useState({
     provider: 'DISABLED',
     isActive: false,
@@ -192,6 +197,69 @@ export default function WhatsAppHubPage() {
     }
   };
 
+  const loadSummoraFilters = async () => {
+    const res = await fetch('/api/whatsapp/summora/filters', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to load filters');
+    const next = String(data.filterType || 'ALL').toUpperCase();
+    setFilterType(
+      next === 'GROUPS_ONLY' || next === 'CUSTOM' ? next : 'ALL'
+    );
+    setAllowedJids(Array.isArray(data.allowedJids) ? data.allowedJids : []);
+    return data;
+  };
+
+  const loadSummoraGroups = async () => {
+    setGroupsError(null);
+    const res = await fetch('/api/whatsapp/summora/groups', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setGroupsError(data.error || 'Failed to load groups');
+      setGroups([]);
+      return;
+    }
+    if (data.error === 'WHATSAPP_NOT_CONNECTED') {
+      setGroupsError('Connect WhatsApp first to list groups');
+      setGroups([]);
+      return;
+    }
+    setGroups(Array.isArray(data.groups) ? data.groups : []);
+  };
+
+  const saveSummoraFilters = async (
+    nextType: 'ALL' | 'GROUPS_ONLY' | 'CUSTOM',
+    nextJids = allowedJids
+  ) => {
+    setFilterBusy(true);
+    try {
+      const res = await fetch('/api/whatsapp/summora/filters', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filterType: nextType,
+          allowedJids: nextType === 'CUSTOM' ? nextJids : [],
+          bridgePassthrough: true,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to save filters');
+      setFilterType(nextType);
+      setAllowedJids(nextType === 'CUSTOM' ? nextJids : []);
+      toast.success('Inbox filter saved');
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not save filter');
+    } finally {
+      setFilterBusy(false);
+    }
+  };
+
+  const toggleGroupJid = (jid: string) => {
+    const next = allowedJids.includes(jid)
+      ? allowedJids.filter((j) => j !== jid)
+      : [...allowedJids, jid];
+    setAllowedJids(next);
+  };
+
   useEffect(() => {
     const init = async () => {
       const enabled = await checkFeatureEnabled();
@@ -225,6 +293,20 @@ export default function WhatsAppHubPage() {
       clearInterval(id);
     };
   }, [config.provider, config.isActive]);
+
+  useEffect(() => {
+    if (config.provider !== 'SUMMORA' || !config.isActive) return;
+    void loadSummoraFilters().catch(() => {
+      /* ignore until connected */
+    });
+  }, [config.provider, config.isActive]);
+
+  useEffect(() => {
+    if (config.provider !== 'SUMMORA' || !config.isActive) return;
+    if (filterType !== 'CUSTOM') return;
+    if (summoraSession?.status !== 'ACTIVE' && summoraSession?.status !== 'SYNCING') return;
+    void loadSummoraGroups();
+  }, [config.provider, config.isActive, filterType, summoraSession?.status]);
 
   if (!featureEnabled) {
     return (
@@ -475,6 +557,99 @@ export default function WhatsAppHubPage() {
                 Disconnect
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {config.provider === 'SUMMORA' && config.isActive && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">Inbox filter</CardTitle>
+            <CardDescription>
+              Choose which WhatsApp chats are forwarded into Opslane. Matching
+              messages are stored here only — Summora is connection + filter, not a chat archive.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {(
+                [
+                  { id: 'ALL' as const, label: 'All chats' },
+                  { id: 'GROUPS_ONLY' as const, label: 'Groups only' },
+                  { id: 'CUSTOM' as const, label: 'Selected groups' },
+                ] as const
+              ).map((opt) => (
+                <Button
+                  key={opt.id}
+                  type="button"
+                  size="sm"
+                  variant={filterType === opt.id ? 'default' : 'outline'}
+                  disabled={filterBusy}
+                  onClick={() => {
+                    if (opt.id === 'CUSTOM') {
+                      setFilterType('CUSTOM');
+                      return;
+                    }
+                    void saveSummoraFilters(opt.id);
+                  }}
+                >
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+
+            {filterType === 'CUSTOM' && (
+              <div className="space-y-3">
+                {groupsError ? (
+                  <p className="text-sm text-muted-foreground">{groupsError}</p>
+                ) : groups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No groups loaded yet. Connect WhatsApp, then refresh.
+                  </p>
+                ) : (
+                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
+                    {groups.map((g) => {
+                      const selected = allowedJids.includes(g.jid);
+                      return (
+                        <button
+                          key={g.jid}
+                          type="button"
+                          onClick={() => toggleGroupJid(g.jid)}
+                          className={cn(
+                            'flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm transition-colors',
+                            selected
+                              ? 'bg-foreground text-background'
+                              : 'hover:bg-muted'
+                          )}
+                        >
+                          <span className="truncate font-medium">{g.name || g.jid}</span>
+                          <span className="ml-2 shrink-0 text-xs opacity-70">
+                            {selected ? 'Selected' : 'Select'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    disabled={filterBusy}
+                    onClick={() => saveSummoraFilters('CUSTOM', allowedJids)}
+                  >
+                    {filterBusy ? 'Saving…' : `Save selection (${allowedJids.length})`}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={filterBusy}
+                    onClick={() => void loadSummoraGroups()}
+                  >
+                    Refresh groups
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
