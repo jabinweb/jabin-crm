@@ -112,6 +112,22 @@ export class EmailQueueService {
         continue;
       }
 
+      // Enforce subscription email quota (skip + reschedule when over limit)
+      try {
+        const { requireEmailQuota } = await import('@/lib/api/subscription-guards');
+        await requireEmailQuota(userId);
+      } catch {
+        results.rateLimited++;
+        await prisma.emailQueue.update({
+          where: { id: email.id },
+          data: {
+            scheduledFor: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            errorMessage: 'Plan email limit reached — upgrade or wait for monthly reset',
+          },
+        });
+        continue;
+      }
+
       // Check if email is in unsubscribe list
       const isUnsubscribed = await unsubscribeService.isUnsubscribed(email.to);
 
@@ -239,6 +255,13 @@ export class EmailQueueService {
           messageId: result.messageId || emailLog.id,
         },
       });
+
+      try {
+        const { recordEmailSent } = await import('@/lib/api/subscription-guards');
+        await recordEmailSent(queueItem.userId, 1);
+      } catch (usageErr) {
+        logError(usageErr, { context: 'Failed to record email usage', userId: queueItem.userId });
+      }
 
       // Update lead last contacted
       if (queueItem.leadId) {

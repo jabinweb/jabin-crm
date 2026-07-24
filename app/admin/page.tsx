@@ -32,16 +32,7 @@ type RecentActivityRow = Prisma.LeadActivityGetPayload<{
   };
 }>;
 
-async function getAdminStats(): Promise<{
-  totalUsers: number;
-  totalCompanies: number;
-  activeSubscriptions: number;
-  totalLeads: number;
-  totalEmailsSent: number;
-  totalRevenue: number;
-  recentUsers: RecentUserRow[];
-  recentActivity: RecentActivityRow[];
-}> {
+async function getAdminStats() {
   const [
     totalUsers,
     totalCompanies,
@@ -51,10 +42,11 @@ async function getAdminStats(): Promise<{
     totalRevenue,
     recentUsers,
     recentActivity,
+    usageWithSubs,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.company.count(),
-    prisma.subscription.count({ where: { status: 'ACTIVE' } }),
+    prisma.subscription.count({ where: { status: { in: ['ACTIVE', 'TRIALING'] } } }),
     prisma.lead.count(),
     prisma.emailLog.count({ where: { status: 'SENT' } }),
     prisma.payment.aggregate({
@@ -80,7 +72,48 @@ async function getAdminStats(): Promise<{
         lead: { select: { companyName: true } },
       },
     }),
+    prisma.usageTracking.findMany({
+      take: 200,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            subscription: { include: { plan: true } },
+          },
+        },
+      },
+    }),
   ]);
+
+  const nearLimitAccounts = usageWithSubs
+    .map((row) => {
+      const plan = row.user.subscription?.plan;
+      if (!plan) return null;
+      const pctOf = (used: number, limit: number) =>
+        limit > 0 && limit !== -1 ? Math.min((used / limit) * 100, 100) : 0;
+      const leadsPct = pctOf(row.leadsCreated, plan.maxLeads);
+      const emailsPct = pctOf(row.emailsSent, plan.maxEmails);
+      const campaignsPct = pctOf(row.campaignsCreated, plan.maxCampaigns);
+      if (Math.max(leadsPct, emailsPct, campaignsPct) < 80) return null;
+      return {
+        userId: row.userId,
+        email: row.user.email,
+        name: row.user.name,
+        planName: plan.displayName,
+        leadsPct,
+        emailsPct,
+        campaignsPct,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => !!row)
+    .sort(
+      (a, b) =>
+        Math.max(b.leadsPct, b.emailsPct, b.campaignsPct) -
+        Math.max(a.leadsPct, a.emailsPct, a.campaignsPct)
+    )
+    .slice(0, 8);
 
   return {
     totalUsers,
@@ -91,6 +124,7 @@ async function getAdminStats(): Promise<{
     totalRevenue: (totalRevenue._sum.amount || 0) / 100,
     recentUsers: recentUsers as RecentUserRow[],
     recentActivity: recentActivity as RecentActivityRow[],
+    nearLimitAccounts,
   };
 }
 
@@ -179,6 +213,61 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {stats.nearLimitAccounts.length > 0 && (
+        <Card className="border-orange-200/80">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">Approaching / at plan limits</CardTitle>
+                <CardDescription>
+                  Billing accounts at ≥80% of leads, emails, or campaigns — good candidates to upgrade
+                </CardDescription>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/admin/subscriptions">
+                  Grant plans
+                  <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="divide-y rounded-md border">
+              {stats.nearLimitAccounts.map((row) => (
+                <div
+                  key={row.userId}
+                  className="flex flex-col gap-1 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{row.name || 'Unnamed'}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {row.email} · {row.planName}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[11px] tabular-nums text-muted-foreground">
+                    {row.leadsPct >= 80 && (
+                      <Badge variant={row.leadsPct >= 100 ? 'destructive' : 'secondary'}>
+                        Leads {Math.round(row.leadsPct)}%
+                      </Badge>
+                    )}
+                    {row.emailsPct >= 80 && (
+                      <Badge variant={row.emailsPct >= 100 ? 'destructive' : 'secondary'}>
+                        Emails {Math.round(row.emailsPct)}%
+                      </Badge>
+                    )}
+                    {row.campaignsPct >= 80 && (
+                      <Badge variant={row.campaignsPct >= 100 ? 'destructive' : 'secondary'}>
+                        Campaigns {Math.round(row.campaignsPct)}%
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card className="lg:col-span-2">

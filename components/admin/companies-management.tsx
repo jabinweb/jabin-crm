@@ -19,15 +19,16 @@ import { Button } from '@/components/ui/button';
 import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 interface Company {
-  id: number;
+  id: string;
   name: string;
-  website: string;
+  website: string | null;
+  slug?: string;
   status: string;
   createdAt: string;
   admin?: {
     name: string;
     email: string;
-  };
+  } | null;
   employees?: Array<{
     id: string;
     name: string;
@@ -87,11 +88,14 @@ export default function CompaniesPage() {
   }, [fetchCompanies]);
 
   const handleEdit = async (companyId: string) => {
-    // Implement edit functionality
-    console.log('Edit company:', companyId);
+    router.push(`/admin/companies?focus=${encodeURIComponent(companyId)}`);
+    toast({
+      title: 'Company',
+      description: 'Use status actions below, or open Subscriptions to grant a plan for this workspace.',
+    });
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this company?')) return;
 
     try {
@@ -126,7 +130,7 @@ export default function CompaniesPage() {
     
     if (response.ok) {
       setCompanies(companies.map(company => 
-        company.id === Number(companyId) ? { ...company, status: newStatus } : company
+        company.id === companyId ? { ...company, status: newStatus } : company
       ));
     }
   };
@@ -228,9 +232,21 @@ export default function CompaniesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleEdit(company.id.toString())}
+                        onClick={() => handleEdit(company.id)}
                       >
-                        Edit
+                        View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handleStatusChange(
+                            company.id,
+                            company.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+                          )
+                        }
+                      >
+                        {company.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
                       </Button>
                       <Button
                         variant="destructive"

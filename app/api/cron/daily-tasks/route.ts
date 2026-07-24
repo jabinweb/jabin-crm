@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
       sla: { scanned: 0, escalated: 0, skippedRecentlyEscalated: 0, errors: 0 },
       contracts: { expired: 0, errors: 0 },
       invoices: { overdueMarked: 0, errors: 0 },
+      usage: { reset: 0, errors: 0 },
     };
 
     // Task 1: Process email sequences (real send path)
@@ -150,6 +151,16 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Error marking overdue invoices:', error);
       results.invoices.errors += 1;
+    }
+
+    // Task 7: Monthly usage allowance reset (≥30 days since lastResetAt)
+    try {
+      const { resetStaleMonthlyUsage } = await import('@/lib/subscription');
+      const usageReset = await resetStaleMonthlyUsage();
+      results.usage.reset = usageReset.reset;
+    } catch (error) {
+      console.error('Error resetting monthly usage:', error);
+      results.usage.errors += 1;
     }
 
     return NextResponse.json({

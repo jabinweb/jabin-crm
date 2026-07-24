@@ -67,9 +67,9 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
               </TableCell>
               <TableCell>
                 <div className="text-sm">
-                  <p>Leads: {plan.maxLeads}</p>
-                  <p>Emails: {plan.maxEmails}</p>
-                  <p>Campaigns: {plan.maxCampaigns}</p>
+                  <p>Leads: {plan.maxLeads === -1 ? 'Unlimited' : plan.maxLeads}</p>
+                  <p>Emails: {plan.maxEmails === -1 ? 'Unlimited' : plan.maxEmails}</p>
+                  <p>Campaigns: {plan.maxCampaigns === -1 ? 'Unlimited' : plan.maxCampaigns}</p>
                 </div>
               </TableCell>
               <TableCell>

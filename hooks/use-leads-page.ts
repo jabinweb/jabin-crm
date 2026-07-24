@@ -325,7 +325,12 @@ export function useLeadsPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add lead');
+        const errBody = await response.json().catch(() => ({}));
+        const { toastUpgradeIfNeeded } = await import('@/lib/subscription/upgrade-toast');
+        if (!toastUpgradeIfNeeded(errBody, '/pricing')) {
+          throw new Error(errBody.error || 'Failed to add lead');
+        }
+        return;
       }
 
       toast.success('Lead added successfully!');
@@ -333,7 +338,7 @@ export function useLeadsPage() {
       setShowAddLeadDialog(false);
       setNewLead(EMPTY_NEW_LEAD);
     } catch (error) {
-      toast.error('Failed to add lead');
+      toast.error(error instanceof Error ? error.message : 'Failed to add lead');
     } finally {
       setIsAddingLead(false);
     }

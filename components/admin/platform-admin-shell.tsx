@@ -28,6 +28,7 @@ const NAV = [
   { href: '/admin/plans', label: 'Plans', icon: FileText },
   { href: '/admin/emails', label: 'Email logs', icon: Mail },
   { href: '/admin/activity', label: 'Activity', icon: Activity },
+  { href: '/admin/files', label: 'Files', icon: FileText },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ] as const;
 

@@ -1666,6 +1666,11 @@ export const EXTENDED_OPS_TOOLS: AgentToolDef[] = [
       required: ['companyName'],
     },
     execute: async (args, ctx) => {
+      const { requireLeadQuota, recordLeadCreated } = await import(
+        '@/lib/api/subscription-guards'
+      );
+      await requireLeadQuota(ctx.userId);
+
       const priorityRaw = String(args.priority || 'MEDIUM').toUpperCase();
       const priority = (
         ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(priorityRaw)
@@ -1706,6 +1711,7 @@ export const EXTENDED_OPS_TOOLS: AgentToolDef[] = [
           userId: ctx.userId,
         },
       });
+      await recordLeadCreated(ctx.userId);
       return { lead };
     },
   },

@@ -136,3 +136,24 @@ export async function resetMonthlyUsage(userId: string): Promise<void> {
     },
   });
 }
+
+/**
+ * Reset counters for all billing accounts whose last reset was ≥ 30 days ago.
+ * Called from the daily cron so Free/paid plans get a monthly allowance again.
+ */
+export async function resetStaleMonthlyUsage(): Promise<{ reset: number }> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+
+  const result = await prisma.usageTracking.updateMany({
+    where: { lastResetAt: { lt: cutoff } },
+    data: {
+      leadsCreated: 0,
+      emailsSent: 0,
+      campaignsCreated: 0,
+      lastResetAt: new Date(),
+    },
+  });
+
+  return { reset: result.count };
+}

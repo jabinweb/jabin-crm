@@ -154,6 +154,9 @@ export const ApiErrors = {
   unauthorized: () => new ApiException('Unauthorized', 401, 'UNAUTHORIZED'),
   forbidden: (message?: string) =>
     new ApiException(message || 'Forbidden', 403, 'FORBIDDEN'),
+  /** Plan quota / module upgrade needed — clients should deep-link to billing */
+  upgradeRequired: (message: string) =>
+    new ApiException(message, 403, 'UPGRADE_REQUIRED', { upgrade: true }),
   notFound: (resource?: string) =>
     new ApiException(
       resource ? `${resource} not found` : 'Resource not found',

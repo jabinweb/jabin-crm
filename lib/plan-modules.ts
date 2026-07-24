@@ -67,19 +67,19 @@ export function parsePlanModules(
   planName: string,
   modulesJson: unknown
 ): PlanModuleMap {
+  const defaults = DEFAULT_PLAN_MODULES[planName] ?? DEFAULT_PLAN_MODULES.free;
+  const map = baseMap(defaults);
+
   if (modulesJson && typeof modulesJson === 'object' && !Array.isArray(modulesJson)) {
     const raw = modulesJson as Record<string, boolean>;
-    const map = baseMap({});
     for (const module of ALL_FEATURE_MODULES) {
       if (typeof raw[module] === 'boolean') {
         map[module] = raw[module];
       }
     }
-    return map;
   }
 
-  const defaults = DEFAULT_PLAN_MODULES[planName] ?? DEFAULT_PLAN_MODULES.free;
-  return baseMap(defaults);
+  return map;
 }
 
 export function isSubscriptionActive(subscription: {

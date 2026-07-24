@@ -41,7 +41,16 @@ export default function NewLeadPage() {
         })
       })
 
-      if (!response.ok) throw new Error('Failed to create lead')
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}))
+        const { toastUpgradeIfNeeded } = await import('@/lib/subscription/upgrade-toast')
+        if (
+          !toastUpgradeIfNeeded(errBody, path('/dashboard/settings/subscription') || '/pricing')
+        ) {
+          throw new Error(errBody.error || 'Failed to create lead')
+        }
+        return
+      }
 
       toast({
         title: "Success",
@@ -53,7 +62,7 @@ export default function NewLeadPage() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create lead",
+        description: error instanceof Error ? error.message : "Failed to create lead",
         variant: "destructive"
       })
     } finally {

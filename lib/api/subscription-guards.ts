@@ -25,7 +25,7 @@ export async function guardAgentFeature(
 export async function requireLeadQuota(userId: string): Promise<void> {
   const limits = await checkUsageLimits(userId);
   if (!limits.canCreateLead) {
-    throw ApiErrors.forbidden(
+    throw ApiErrors.upgradeRequired(
       'Lead limit reached for your subscription plan. Upgrade to create more leads.'
     );
   }
@@ -34,7 +34,7 @@ export async function requireLeadQuota(userId: string): Promise<void> {
 export async function requireEmailQuota(userId: string): Promise<void> {
   const limits = await checkUsageLimits(userId);
   if (!limits.canSendEmail) {
-    throw ApiErrors.forbidden(
+    throw ApiErrors.upgradeRequired(
       'Email limit reached for your subscription plan. Upgrade to send more emails.'
     );
   }
@@ -48,7 +48,7 @@ export async function requireEmailQuotaForCount(
   const limits = await checkUsageLimits(userId);
   if (limits.emailsRemaining === -1) return;
   if (limits.emailsRemaining < count) {
-    throw ApiErrors.forbidden(
+    throw ApiErrors.upgradeRequired(
       `Email limit reached. This send needs ${count} emails but you have ${limits.emailsRemaining} remaining on your plan.`
     );
   }
@@ -57,7 +57,7 @@ export async function requireEmailQuotaForCount(
 export async function requireCampaignQuota(userId: string): Promise<void> {
   const limits = await checkUsageLimits(userId);
   if (!limits.canCreateCampaign) {
-    throw ApiErrors.forbidden(
+    throw ApiErrors.upgradeRequired(
       'Campaign limit reached for your subscription plan. Upgrade to create more campaigns.'
     );
   }
