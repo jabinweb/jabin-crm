@@ -1,9 +1,7 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -14,247 +12,153 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { Loader2 } from 'lucide-react';
 
-interface CompanyItem {
-  id: number;  // Changed from string to number to match the API
-  name: string;
-  website: string;
-  status: string;
-  createdAt: string;
-}
-
-interface UserItem {
-  id: number;  // Changed from string to number to match the API
+type PendingEmployee = {
+  id: string;
   name: string;
   email: string;
-  status: string;
-  createdAt: string;
-  companies: Array<{ name: string }>;
-}
+  status?: string;
+  createdAt?: string;
+  company?: { name: string };
+  user?: { email?: string | null; name?: string | null };
+};
 
-interface PendingItems {
-  companies: CompanyItem[];
-  users: UserItem[];
-}
-
-export default function ApprovalsPage() {
-  const { data: session } = useSession();
-  const [pendingItems, setPendingItems] = useState<PendingItems>({ companies: [], users: [] });
-  const [activeTab, setActiveTab] = useState<'companies' | 'users'>('companies');
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Workspace-scoped approvals (employee registrations for this company).
+ * Platform company/signup approvals stay on SUPER_ADMIN `/api/admin/approve`.
+ */
+export default function WorkspaceApprovalsPage() {
+  const { workspaceFetch } = useWorkspacePaths();
+  const [employees, setEmployees] = useState<PendingEmployee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
-  const fetchPendingItems = useCallback(async () => {
+  const fetchPending = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch('/api/admin/approve');
+      const response = await workspaceFetch('/api/pending/employee');
       const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch pending items');
+        throw new Error(data.error || 'Failed to fetch pending employees');
       }
-
-      if (data.success && data.data) {
-        setPendingItems(data.data);
-      } else {
-        throw new Error('Invalid response format');
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
-      console.error('Fetch error:', error);
+      setEmployees(Array.isArray(data) ? data : data.employees ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [workspaceFetch]);
 
   useEffect(() => {
-    if (session?.user) {
-      fetchPendingItems();
-    }
-  }, [session, fetchPendingItems]);
+    void fetchPending();
+  }, [fetchPending]);
 
-  const handleApproval = async (id: number, action: 'approve' | 'reject', type: 'company' | 'user') => {
-    if (isLoading) return;
-    
+  const handleAction = async (id: string, action: 'approve' | 'reject') => {
+    if (actingId) return;
+    setActingId(id);
     try {
-      setIsLoading(true);
-
-      const response = await fetch('/api/admin/approve', {
-        method: 'POST',
+      const response = await workspaceFetch('/api/pending/employee', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: Number(id),
-          action, 
-          type
-        }),
+        body: JSON.stringify({ id, action }),
       });
-
-      const data = await response.json();
-
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.employeeMessage || 'Failed to process approval');
+        throw new Error(data.error || `Failed to ${action}`);
       }
-
-      setPendingItems({
-        companies: data.companies || [],
-        users: data.users || []
-      });
-      
-      toast({
-        title: 'Success',
-        description: data.employeeMessage,
-        duration: 3000,
-      });
-
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to process approval',
-        variant: 'destructive',
-      });
+      setEmployees((prev) => prev.filter((e) => e.id !== id));
+      toast.success(action === 'approve' ? 'Employee approved' : 'Registration rejected');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
     } finally {
-      setIsLoading(false);
+      setActingId(null);
     }
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="p-8 flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading pending registrations…
+      </div>
+    );
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return (
+      <div className="p-8 space-y-3">
+        <p className="text-destructive">Error: {error}</p>
+        <Button variant="outline" onClick={() => void fetchPending()}>
+          Retry
+        </Button>
+      </div>
+    );
   }
 
-  // Render the current tab's items
-  const currentItems = activeTab === 'companies' 
-    ? pendingItems.companies 
-    : pendingItems.users;
-
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-6">Pending Approvals</h1>
+    <div className="p-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Pending approvals</h1>
+        <p className="text-sm text-muted-foreground">
+          Review employee registration requests for this workspace.
+        </p>
+      </div>
 
-      <Tabs defaultValue="companies" onValueChange={(value) => setActiveTab(value as 'companies' | 'users')}>
-        <TabsList>
-          <TabsTrigger value="companies">
-            Companies ({pendingItems.companies?.length || 0})
-          </TabsTrigger>
-          <TabsTrigger value="users">
-            Users ({pendingItems.users?.length || 0})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="companies">
-          <Card className="p-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Website</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingItems.companies?.map((company: CompanyItem) => (
-                  <TableRow key={company.id}>
-                    <TableCell>{company.name}</TableCell>
-                    <TableCell>{company.website}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{company.status}</Badge>
-                    </TableCell>
-                    <TableCell className="space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleApproval(Number(company.id), 'approve', 'company')}
-                        disabled={isLoading}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleApproval(Number(company.id), 'reject', 'company')}
-                        disabled={isLoading}
-                      >
-                        Reject
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!pendingItems.companies?.length && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4">
-                      No pending companies
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="users">
-          <Card className="p-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingItems.users?.map((user: UserItem) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      {user.companies?.[0]?.name || 'No company'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{user.status}</Badge>
-                    </TableCell>
-                    <TableCell className="space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleApproval(Number(user.id), 'approve', 'user')}
-                        disabled={isLoading}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleApproval(Number(user.id), 'reject', 'user')}
-                        disabled={isLoading}
-                      >
-                        Reject
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {!pendingItems.users?.length && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4">
-                      No pending users
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <Card className="p-6">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {employees.map((emp) => (
+              <TableRow key={emp.id}>
+                <TableCell className="font-medium">
+                  {emp.name || emp.user?.name || '—'}
+                </TableCell>
+                <TableCell>{emp.email || emp.user?.email || '—'}</TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{emp.status || 'PENDING'}</Badge>
+                </TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={actingId === emp.id}
+                    onClick={() => void handleAction(emp.id, 'approve')}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={actingId === emp.id}
+                    onClick={() => void handleAction(emp.id, 'reject')}
+                  >
+                    Reject
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+            {employees.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  No pending employee registrations
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 }
