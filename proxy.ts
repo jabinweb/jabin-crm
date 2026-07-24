@@ -16,6 +16,7 @@ const PUBLIC_PREFIXES = [
   '/api/auth',
   '/register',
   '/api/webhooks',
+  '/api/whatsapp/webhook',
   '/api/uploadthing',
   '/api/payment/callback',
   '/api/pricing',
