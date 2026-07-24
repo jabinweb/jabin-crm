@@ -18,7 +18,9 @@ export function ServiceWorkerRegistration() {
 
     navigator.serviceWorker
       .register('/sw.js')
-      .then((registration) => {
+      .then(async (registration) => {
+        // Force activate updated SW (v4+ no longer hijacks /_next or /api)
+        await registration.update();
         registration.addEventListener('updatefound', () => {
           const newWorker = registration.installing;
           if (newWorker) {

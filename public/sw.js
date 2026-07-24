@@ -1,15 +1,17 @@
 const APP_NAME = "jabin-crm";
 
-const STATIC_CACHE_NAME = `${APP_NAME}-static-v3`;
-const DYNAMIC_CACHE_NAME = `${APP_NAME}-dynamic-v3`;
+const STATIC_CACHE_NAME = `${APP_NAME}-static-v4`;
+const DYNAMIC_CACHE_NAME = `${APP_NAME}-dynamic-v4`;
 
-const STATIC_ASSETS = ["/", "/manifest.json"];
+const STATIC_ASSETS = ["/manifest.json"];
 
 /* ---------------- INSTALL ---------------- */
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    caches.open(STATIC_CACHE_NAME).then((cache) =>
+      cache.addAll(STATIC_ASSETS).catch(() => undefined)
+    )
   );
   self.skipWaiting();
 });
@@ -40,41 +42,18 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Never intercept cross-origin (QR APIs, CDNs, etc.) — CSP + opaque responses break otherwise
+  // Never intercept cross-origin
   if (url.origin !== self.location.origin) return;
 
-  // Next.js internals / RSC / HMR: network only, no cache
+  // Critical: do NOT respondWith() for Next.js / RSC / API.
+  // Taking ownership + failed fetch() surfaces as uncaught "Failed to fetch"
+  // in sw.js and leaves the app stuck on skeletons.
   if (
     url.pathname.startsWith("/_next/") ||
+    url.pathname.startsWith("/__nextjs") ||
     url.searchParams.has("_rsc") ||
-    url.pathname.startsWith("/__nextjs")
+    url.pathname.startsWith("/api/")
   ) {
-    event.respondWith(fetch(request));
-    return;
-  }
-
-  /* -------- API REQUESTS (Network First) -------- */
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok && response.status === 200) {
-            const clone = response.clone();
-            caches.open(DYNAMIC_CACHE_NAME).then((cache) => {
-              cache.put(request, clone).catch(() => {});
-            });
-          }
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(request);
-          if (cached) return cached;
-          return new Response(JSON.stringify({ error: "Offline - data unavailable" }), {
-            status: 503,
-            headers: { "Content-Type": "application/json" },
-          });
-        })
-    );
     return;
   }
 
