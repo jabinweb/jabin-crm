@@ -45,7 +45,7 @@ export function Sidebar({ isCollapsed, isMobile, onSelect }: SidebarProps) {
       <div className="p-3 flex justify-between items-center bg-muted/30">
         {!isCollapsed && (
           <Avatar className="h-10 w-10">
-            <AvatarImage src="/avatars/default.png" />
+            <AvatarImage src="/avatars/default.svg" />
           </Avatar>
         )}
         <div className={cn(

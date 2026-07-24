@@ -1,8 +1,8 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
 import { UsageBanner } from '@/components/subscription/usage-banner';
@@ -12,7 +12,16 @@ import { OnboardingRedirect } from '@/components/onboarding/onboarding-redirect'
 import { Loader2, Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import '@/types/auth';
+
+function isFlushDashboardPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    /\/dashboard\/messages(?:\/|$)/.test(pathname) ||
+    /\/dashboard\/emails(?:\/|$)/.test(pathname)
+  );
+}
 
 export function DashboardLayoutClient({
   children,
@@ -21,7 +30,9 @@ export function DashboardLayoutClient({
 }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const flushContent = useMemo(() => isFlushDashboardPath(pathname), [pathname]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -70,17 +81,29 @@ export function DashboardLayoutClient({
       </div>
 
       <div className="flex flex-1 min-h-0">
-        {/* Desktop Sidebar — own scroll only when nav is taller than viewport */}
         <aside className="hidden lg:flex shrink-0 h-full min-h-0 overflow-hidden bg-background">
           <Sidebar />
         </aside>
 
-        {/* Main content — the only primary page scrollbar */}
-        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-contain bg-muted/20">
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            <UsageBanner />
-            {children}
-          </div>
+        <main
+          className={cn(
+            'flex-1 min-w-0 h-full overscroll-contain bg-muted/20',
+            flushContent ? 'overflow-hidden' : 'overflow-y-auto'
+          )}
+        >
+          {flushContent ? (
+            <div className="flex h-full min-h-0 flex-col">
+              <div className="shrink-0 px-4 pt-3 sm:px-6 lg:px-8">
+                <UsageBanner />
+              </div>
+              <div className="min-h-0 flex-1">{children}</div>
+            </div>
+          ) : (
+            <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+              <UsageBanner />
+              {children}
+            </div>
+          )}
         </main>
       </div>
     </div>

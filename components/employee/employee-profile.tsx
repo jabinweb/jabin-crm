@@ -27,7 +27,7 @@ export function EmployeeProfile({ employee }: EmployeeProfileProps) {
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
             <AvatarImage 
-              src={employee?.avatar || '/avatars/default.png'} 
+              src={employee?.avatar || '/avatars/default.svg'} 
               alt={employee?.name || 'Employee'} 
             />
             <AvatarFallback>

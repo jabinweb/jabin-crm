@@ -22,7 +22,7 @@ export function ChatMessage({ message, isOwn, isPending }: ChatMessageProps) {
       isOwn ? 'flex-row-reverse' : 'flex-row'
     )}>
       <Avatar className="h-8 w-8">
-        <AvatarImage src={message.sender?.avatar || '/avatars/default.png'} />
+        <AvatarImage src={message.sender?.avatar || '/avatars/default.svg'} />
       </Avatar>
       
       <div className={cn(

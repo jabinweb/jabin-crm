@@ -75,7 +75,7 @@ export function EmailsInboxView({
   const currentFolder = folders.find((f) => f.id === selectedFolder);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)]">
+    <div className="flex h-full min-h-0">
       <div className="w-[420px] border-r flex flex-col bg-background">
         <div className="border-b">
           <div className="flex items-center justify-between px-4 py-3">

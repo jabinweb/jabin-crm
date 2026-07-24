@@ -7,6 +7,8 @@ export default async function MessagesPage() {
   const defaultLayout = layout ? JSON.parse(layout.value) : undefined;
 
   return (
-    <ChatLayout defaultLayout={defaultLayout} navCollapsedSize={8} />
+    <div className="h-full min-h-0">
+      <ChatLayout defaultLayout={defaultLayout} navCollapsedSize={8} />
+    </div>
   );
 }

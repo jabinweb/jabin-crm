@@ -42,7 +42,7 @@ export function ChatLayout({
         const formattedContacts = data.map((contact: any) => ({
           id: contact.id,
           name: contact.name,
-          avatar: contact.avatar ?? '/avatars/default.png',
+          avatar: contact.avatar ?? '/avatars/default.svg',
           lastMessage: contact.lastMessageContent ? {
             content: contact.lastMessageContent,
             timestamp: contact.lastMessageTimestamp,
@@ -143,7 +143,7 @@ export function ChatLayout({
       currentUser={{
         id: currentUser.employeeId!,
         name: currentUser.name!,
-        avatar: currentUser.image ?? '/avatars/default.png'
+        avatar: currentUser.image ?? '/avatars/default.svg'
       }}
     >
       <ResizablePanelGroup

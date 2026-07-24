@@ -6,5 +6,9 @@ import { EmailsInboxView } from '@/components/email/emails-inbox-view';
 export default function EmailsPage() {
   const inbox = useEmailsInbox();
 
-  return <EmailsInboxView {...inbox} />;
+  return (
+    <div className="h-full min-h-0">
+      <EmailsInboxView {...inbox} />
+    </div>
+  );
 }
