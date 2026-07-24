@@ -8,6 +8,12 @@ import { Sidebar } from "./sidebar";
 import { Chat } from "./chat";
 import { ChatProvider } from '@/contexts/chat-context';
 import { useMessageStore } from '@/lib/stores/message-store';
+import { DEFAULT_AVATAR_SRC } from '@/lib/default-avatar';
+
+function resolveAvatar(src: string | null | undefined): string {
+  if (!src || src === '/avatars/default.png') return DEFAULT_AVATAR_SRC;
+  return src;
+}
 
 interface ChatLayoutProps {
   defaultLayout: number[] | undefined;
@@ -42,7 +48,7 @@ export function ChatLayout({
         const formattedContacts = data.map((contact: any) => ({
           id: contact.id,
           name: contact.name,
-          avatar: contact.avatar ?? '/avatars/default.svg',
+          avatar: resolveAvatar(contact.avatar),
           lastMessage: contact.lastMessageContent ? {
             content: contact.lastMessageContent,
             timestamp: contact.lastMessageTimestamp,
@@ -143,7 +149,7 @@ export function ChatLayout({
       currentUser={{
         id: currentUser.employeeId!,
         name: currentUser.name!,
-        avatar: currentUser.image ?? '/avatars/default.svg'
+        avatar: resolveAvatar(currentUser.image)
       }}
     >
       <ResizablePanelGroup

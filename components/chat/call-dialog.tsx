@@ -2,7 +2,7 @@
 
 
 import { useEffect, useRef, useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarImage } from '@/components/ui/avatar'
 import { Phone, PhoneOff, Video, VideoOff, PhoneCall, PhoneIncoming } from 'lucide-react'
@@ -12,6 +12,8 @@ import { audioService } from '@/lib/audio-service'
 import React from 'react'
 import { webRTCService } from '@/lib/webrtc-service'
 import { CallTimer } from './call-timer'
+import { toast } from 'sonner'
+import { DEFAULT_AVATAR_SRC } from '@/lib/default-avatar'
 
 
 interface CallDialogProps {
@@ -145,6 +147,15 @@ export function CallDialog({ call, onAccept, onReject, onClose, isIncoming, rece
       })
       .catch(error => {
         console.error('[CallDialog] Media error:', error);
+        const name = error instanceof Error ? error.name : '';
+        const msg = error instanceof Error ? error.message : String(error);
+        if (name === 'NotAllowedError' || /permission|not allowed/i.test(msg)) {
+          toast.error(
+            'Microphone access is blocked. Allow mic (and camera for video) for this site, then try again.'
+          );
+        } else {
+          toast.error('Could not start the call. Check your microphone and try again.');
+        }
         onReject();
       });
     }
@@ -250,11 +261,19 @@ export function CallDialog({ call, onAccept, onReject, onClose, isIncoming, rece
                   <DialogTitle>
                     {isIncoming ? 'Incoming Call' : 'Outgoing Call'}
                   </DialogTitle>
+                  <DialogDescription>
+                    {isIncoming
+                      ? 'Incoming voice or video call'
+                      : 'Outgoing voice or video call'}
+                  </DialogDescription>
                 </VisuallyHidden>
               </DialogHeader>
               <div className="flex flex-col items-center gap-6 py-10">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={displayAvatar || ''} alt={displayName} />
+                  <AvatarImage
+                    src={displayAvatar || DEFAULT_AVATAR_SRC}
+                    alt={displayName}
+                  />
                 </Avatar>
                
                 <div className="flex flex-col items-center gap-2 text-center">

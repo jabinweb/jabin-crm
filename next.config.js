@@ -35,7 +35,8 @@ const nextConfig = {
       },
       {
         key: 'Permissions-Policy',
-        value: 'camera=(), microphone=(), geolocation=()',
+        // Calls need mic/camera; field GPS needs geolocation. Empty () blocks the browser prompt entirely.
+        value: 'camera=(self), microphone=(self), geolocation=(self)',
       },
     ];
 
