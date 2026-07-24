@@ -28,7 +28,7 @@ import { Ticket, Plus, Search, UserCheck, ChevronRight, LayoutGrid, List, Loader
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { toast } from 'sonner';
 
@@ -54,7 +54,8 @@ export default function TicketsPage() {
   const [status, setStatus] = useState<string>('all');
   const [priority, setPriority] = useState<string>('all');
   const [view, setView] = useState<'list' | 'board'>('list');
-  const { columns, loading: columnsLoading } = usePipelineColumns('tickets');
+  const [optimistic, setOptimistic] = useState<Record<string, string>>({});
+  const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('tickets');
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['tickets', slug, { status, priority }],
@@ -78,12 +79,16 @@ export default function TicketsPage() {
   }, [tickets, search]);
 
   const boardItems = useMemo(
-    () => filteredTickets.map((t) => ({ ...t, stage: t.status })),
-    [filteredTickets]
+    () =>
+      filteredTickets.map((t) => {
+        const stage = optimistic[t.id] ?? t.status;
+        return { ...t, status: stage, stage };
+      }),
+    [filteredTickets, optimistic]
   );
-  const itemsByStage = useMemo(
-    () => groupByStage(boardItems, columns),
-    [boardItems, columns]
+  const { columns, itemsByStage } = useMemo(
+    () => buildBoardState(boardItems, baseColumns),
+    [boardItems, baseColumns]
   );
 
   const getPriorityVariant = (p: string) => {
@@ -103,6 +108,7 @@ export default function TicketsPage() {
 
   const onMove = async (id: string, toStage: string, fromStage: string) => {
     if (toStage === fromStage) return;
+    setOptimistic((prev) => ({ ...prev, [id]: toStage }));
     try {
       const res = await workspaceFetch(`/api/tickets/${id}`, {
         method: 'PATCH',
@@ -113,8 +119,18 @@ export default function TicketsPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to update ticket');
       }
+      setOptimistic((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       await queryClient.invalidateQueries({ queryKey: ['tickets', slug] });
     } catch (error) {
+      setOptimistic((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       toast.error(error instanceof Error ? error.message : 'Move failed');
       await queryClient.invalidateQueries({ queryKey: ['tickets', slug] });
     }

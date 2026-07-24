@@ -35,6 +35,7 @@ export const GET = withTenantRoute(async (_request, { session, companyId }) => {
     (acc, kind) => {
       acc[kind] = {
         stages: pipelines[kind].stages,
+        labels: pipelines[kind].labels ?? {},
         columns: resolvePipelineStages(kind, company?.settings),
         available: PIPELINE_DEFS[kind],
         label: PIPELINE_KIND_LABELS[kind],
@@ -45,6 +46,7 @@ export const GET = withTenantRoute(async (_request, { session, companyId }) => {
       PipelineKind,
       {
         stages: string[];
+        labels: Record<string, string>;
         columns: ReturnType<typeof resolvePipelineStages>;
         available: (typeof PIPELINE_DEFS)[PipelineKind];
         label: string;
@@ -66,8 +68,8 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }) => 
     return NextResponse.json({ error: 'Invalid pipeline kind' }, { status: 400 });
   }
 
-  const stages = sanitizePipelinePatch(kind, body.stages);
-  if (!stages) {
+  const patched = sanitizePipelinePatch(kind, body.stages, body.labels);
+  if (!patched) {
     return NextResponse.json(
       { error: 'stages must be a non-empty array of valid enum values' },
       { status: 400 }
@@ -83,7 +85,10 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }) => 
     settings.pipelines && typeof settings.pipelines === 'object' && !Array.isArray(settings.pipelines)
       ? { ...(settings.pipelines as Record<string, unknown>) }
       : {};
-  pipelinesRaw[kind] = { stages };
+  pipelinesRaw[kind] = {
+    stages: patched.stages,
+    ...(patched.labels ? { labels: patched.labels } : {}),
+  };
   settings.pipelines = pipelinesRaw;
 
   await prisma.company.update({
@@ -93,7 +98,8 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }) => 
 
   return jsonOk({
     kind,
-    stages,
+    stages: patched.stages,
+    labels: patched.labels ?? {},
     columns: resolvePipelineStages(kind, settings),
   });
 });

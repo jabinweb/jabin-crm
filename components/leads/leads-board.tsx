@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { Loader2 } from 'lucide-react';
@@ -16,6 +16,7 @@ type LeadCard = {
   email?: string | null;
   status: string;
   priority?: string;
+  revenue?: string | null;
 };
 
 type LeadsBoardProps = {
@@ -26,12 +27,13 @@ type LeadsBoardProps = {
     email?: string | null;
     status: string;
     priority?: string;
+    revenue?: string | null;
   }>;
   onChanged?: () => void;
 };
 
 export function LeadsBoard({ leads, onChanged }: LeadsBoardProps) {
-  const { columns, loading } = usePipelineColumns('leads');
+  const { columns: baseColumns, loading } = usePipelineColumns('leads');
   const { workspaceFetch, path } = useWorkspacePaths();
   const router = useRouter();
   const [local, setLocal] = useState<LeadCard[] | null>(null);
@@ -41,7 +43,10 @@ export function LeadsBoard({ leads, onChanged }: LeadsBoardProps) {
     return source;
   }, [leads, local]);
 
-  const itemsByStage = useMemo(() => groupByStage(items, columns), [items, columns]);
+  const { columns, itemsByStage } = useMemo(
+    () => buildBoardState(items, baseColumns),
+    [items, baseColumns]
+  );
 
   const onMove = async (id: string, toStage: string, fromStage: string) => {
     if (toStage === fromStage) return;
@@ -75,7 +80,7 @@ export function LeadsBoard({ leads, onChanged }: LeadsBoardProps) {
     );
   }
 
-  if (!columns.length) {
+  if (!baseColumns.length) {
     return <p className="text-sm text-muted-foreground">No lead stages configured.</p>;
   }
 
@@ -95,13 +100,15 @@ export function LeadsBoard({ leads, onChanged }: LeadsBoardProps) {
             <p className="text-xs text-muted-foreground">{lead.contactName}</p>
           )}
           {lead.email && <p className="text-xs text-muted-foreground truncate">{lead.email}</p>}
-          {lead.priority && (
-            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {lead.priority}
-            </p>
-          )}
+          <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+            {lead.priority && <span>{lead.priority}</span>}
+            {lead.revenue && (
+              <span className="normal-case tabular-nums">{lead.revenue}</span>
+            )}
+          </div>
         </button>
       )}
     />
   );
 }
+

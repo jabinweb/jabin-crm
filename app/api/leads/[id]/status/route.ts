@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { rejectIfOutsideCompanyPipeline } from '@/lib/pipelines/assert-stage';
 
 export async function PATCH(
   request: NextRequest,
@@ -18,7 +19,7 @@ export async function PATCH(
 
     const resolvedParams = await params;
     const data = await request.json();
-    
+
     const lead = await prisma.lead.findUnique({
       where: { id: resolvedParams.id },
     });
@@ -34,13 +35,18 @@ export async function PATCH(
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
-    // Update lead status
+    const rejected = await rejectIfOutsideCompanyPipeline(
+      lead.companyId,
+      'leads',
+      data.status
+    );
+    if (rejected) return rejected;
+
     const updatedLead = await prisma.lead.update({
       where: { id: resolvedParams.id },
       data: { status: data.status },
     });
 
-    // Log activity
     await prisma.leadActivity.create({
       data: {
         leadId: resolvedParams.id,

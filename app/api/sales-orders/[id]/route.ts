@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { hasPermissionOrRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import type { SOStatus } from '@prisma/client';
+import { rejectIfOutsideCompanyPipeline } from '@/lib/pipelines/assert-stage';
 
 const SO_STATUSES = new Set<SOStatus>([
   'PENDING',
@@ -30,6 +31,13 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (!SO_STATUSES.has(statusRaw as SOStatus)) {
     return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
   }
+
+  const rejected = await rejectIfOutsideCompanyPipeline(
+    companyId,
+    'sales_orders',
+    statusRaw
+  );
+  if (rejected) return rejected;
 
   const existing = await prisma.salesOrder.findFirst({
     where: { id, companyId },

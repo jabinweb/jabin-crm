@@ -7,7 +7,7 @@ import { Plus, DollarSign, TrendingUp, Award, Loader2 } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
-import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { toast } from 'sonner';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 
@@ -32,7 +32,7 @@ type PipelineStats = {
 
 export default function DealsPage() {
   const { workspaceFetch } = useWorkspacePaths();
-  const { columns, loading: columnsLoading } = usePipelineColumns('deals');
+  const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('deals');
   const [deals, setDeals] = useState<Deal[]>([]);
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,10 @@ export default function DealsPage() {
     void fetchStats();
   }, [fetchDeals, fetchStats]);
 
-  const itemsByStage = useMemo(() => groupByStage(deals, columns), [deals, columns]);
+  const { columns, itemsByStage } = useMemo(
+    () => buildBoardState(deals, baseColumns),
+    [deals, baseColumns]
+  );
 
   const onMove = async (id: string, toStage: string, fromStage: string) => {
     if (toStage === fromStage) return;

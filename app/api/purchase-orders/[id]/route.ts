@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { hasPermissionOrRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import type { POStatus } from '@prisma/client';
+import { rejectIfOutsideCompanyPipeline } from '@/lib/pipelines/assert-stage';
 
 type LineItem = { productId: string; quantity: number; unitPrice?: number; name?: string };
 
@@ -27,6 +28,24 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   });
   if (!existing) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const targetStatus =
+    statusRaw ||
+    (action === 'approve'
+      ? 'SENT'
+      : action === 'receive'
+        ? 'RECEIVED'
+        : action === 'cancel'
+          ? 'CANCELLED'
+          : '');
+  if (targetStatus) {
+    const rejected = await rejectIfOutsideCompanyPipeline(
+      companyId,
+      'purchase_orders',
+      targetStatus
+    );
+    if (rejected) return rejected;
   }
 
   if (statusRaw === 'DRAFT' && !action) {

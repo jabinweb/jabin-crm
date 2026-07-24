@@ -8,8 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
+import { useState } from 'react';
 
 type JobTicket = {
   id: string;
@@ -28,7 +29,8 @@ export default function ServiceJobBoardPage() {
   const router = useRouter();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
-  const { columns, loading: columnsLoading } = usePipelineColumns('tickets');
+  const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('tickets');
+  const [optimistic, setOptimistic] = useState<Record<string, string>>({});
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['service-job-board', slug],
@@ -46,16 +48,21 @@ export default function ServiceJobBoardPage() {
   }, [tickets]);
 
   const boardItems = useMemo(
-    () => jobs.map((t) => ({ ...t, stage: t.status })),
-    [jobs]
+    () =>
+      jobs.map((t) => {
+        const stage = optimistic[t.id] ?? t.status;
+        return { ...t, status: stage, stage };
+      }),
+    [jobs, optimistic]
   );
-  const itemsByStage = useMemo(
-    () => groupByStage(boardItems, columns),
-    [boardItems, columns]
+  const { columns, itemsByStage } = useMemo(
+    () => buildBoardState(boardItems, baseColumns),
+    [boardItems, baseColumns]
   );
 
   const onMove = async (id: string, toStage: string, fromStage: string) => {
     if (toStage === fromStage) return;
+    setOptimistic((prev) => ({ ...prev, [id]: toStage }));
     try {
       const res = await workspaceFetch(`/api/tickets/${id}`, {
         method: 'PATCH',
@@ -66,8 +73,18 @@ export default function ServiceJobBoardPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to update job');
       }
+      setOptimistic((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       await queryClient.invalidateQueries({ queryKey: ['service-job-board', slug] });
     } catch (error) {
+      setOptimistic((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       toast.error(error instanceof Error ? error.message : 'Move failed');
       await queryClient.invalidateQueries({ queryKey: ['service-job-board', slug] });
     }

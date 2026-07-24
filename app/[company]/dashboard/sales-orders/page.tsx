@@ -27,7 +27,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Loader2, Plus, ShoppingCart, Trash2, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 
 type ProductOption = { id: string; name: string; price: number; sku?: string };
@@ -74,7 +74,8 @@ export default function SalesOrdersPage() {
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([emptyLine()]);
   const [showReport, setShowReport] = useState(reportFromUrl);
   const [view, setView] = useState<'list' | 'board'>('list');
-  const { columns, loading: columnsLoading } = usePipelineColumns('sales_orders');
+  const [optimistic, setOptimistic] = useState<Record<string, string>>({});
+  const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('sales_orders');
 
   const reportEnabled = showReport;
 
@@ -111,16 +112,21 @@ export default function SalesOrdersPage() {
   const report = listData?.report ?? null;
 
   const boardItems = useMemo(
-    () => orders.map((o) => ({ ...o, stage: o.status })),
-    [orders]
+    () =>
+      orders.map((o) => {
+        const stage = optimistic[o.id] ?? o.status;
+        return { ...o, status: stage, stage };
+      }),
+    [orders, optimistic]
   );
-  const itemsByStage = useMemo(
-    () => groupByStage(boardItems, columns),
-    [boardItems, columns]
+  const { columns, itemsByStage } = useMemo(
+    () => buildBoardState(boardItems, baseColumns),
+    [boardItems, baseColumns]
   );
 
   const onBoardMove = async (id: string, toStage: string, fromStage: string) => {
     if (toStage === fromStage) return;
+    setOptimistic((prev) => ({ ...prev, [id]: toStage }));
     try {
       const res = await workspaceFetch(`/api/sales-orders/${id}`, {
         method: 'PATCH',
@@ -131,8 +137,18 @@ export default function SalesOrdersPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to update SO');
       }
+      setOptimistic((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       await queryClient.invalidateQueries({ queryKey: ['sales-orders', slug] });
     } catch (error) {
+      setOptimistic((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
       toast.error(error instanceof Error ? error.message : 'Move failed');
       await queryClient.invalidateQueries({ queryKey: ['sales-orders', slug] });
     }

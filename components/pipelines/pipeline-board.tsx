@@ -3,7 +3,11 @@
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import type { PipelineStageDef } from '@/lib/pipelines';
+import {
+  UNMAPPED_STAGE_ID,
+  columnsWithUnmapped,
+  type PipelineStageDef,
+} from '@/lib/pipelines';
 import type { ReactNode } from 'react';
 
 export type PipelineBoardCard = {
@@ -31,6 +35,7 @@ export function PipelineBoard<T extends PipelineBoardCard>({
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
+    if (destination.droppableId === UNMAPPED_STAGE_ID) return;
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
@@ -45,6 +50,7 @@ export function PipelineBoard<T extends PipelineBoardCard>({
       <div className={cn('flex gap-4 overflow-x-auto pb-4', className)}>
         {columns.map((stage) => {
           const items = itemsByStage[stage.id] || [];
+          const isUnmapped = stage.id === UNMAPPED_STAGE_ID;
           return (
             <div key={stage.id} className="flex-shrink-0 w-72 sm:w-80">
               <div className="mb-3 flex items-center justify-between gap-2">
@@ -55,14 +61,15 @@ export function PipelineBoard<T extends PipelineBoardCard>({
                 <Badge variant="secondary">{items.length}</Badge>
               </div>
               {columnFooter?.(stage.id, items)}
-              <Droppable droppableId={stage.id}>
+              <Droppable droppableId={stage.id} isDropDisabled={isUnmapped}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
                       'min-h-[420px] space-y-2 rounded-md border bg-muted/40 p-2 transition-colors',
-                      snapshot.isDraggingOver && 'bg-accent/60'
+                      snapshot.isDraggingOver && 'bg-accent/60',
+                      isUnmapped && 'border-dashed opacity-90'
                     )}
                   >
                     {items.map((item, index) => (
@@ -98,6 +105,9 @@ export function groupByStage<T extends PipelineBoardCard>(
   items: T[],
   columns: PipelineStageDef[]
 ): Record<string, T[]> {
+  const configured = new Set(
+    columns.filter((c) => c.id !== UNMAPPED_STAGE_ID).map((c) => c.id)
+  );
   const grouped = columns.reduce(
     (acc, col) => {
       acc[col.id] = [];
@@ -105,10 +115,28 @@ export function groupByStage<T extends PipelineBoardCard>(
     },
     {} as Record<string, T[]>
   );
+  if (!grouped[UNMAPPED_STAGE_ID]) {
+    // Caller may not have appended Unmapped yet; still collect there if needed
+  }
   for (const item of items) {
-    if (grouped[item.stage]) {
+    if (configured.has(item.stage) && grouped[item.stage]) {
       grouped[item.stage].push(item);
+    } else if (grouped[UNMAPPED_STAGE_ID]) {
+      grouped[UNMAPPED_STAGE_ID].push(item);
+    } else {
+      // No unmapped column in list — skip until board merges columnsWithUnmapped
+      if (!grouped[UNMAPPED_STAGE_ID]) grouped[UNMAPPED_STAGE_ID] = [];
+      grouped[UNMAPPED_STAGE_ID].push(item);
     }
   }
   return grouped;
+}
+
+/** Resolve board columns (with Unmapped when needed) and grouped cards. */
+export function buildBoardState<T extends PipelineBoardCard>(
+  items: T[],
+  baseColumns: PipelineStageDef[]
+): { columns: PipelineStageDef[]; itemsByStage: Record<string, T[]> } {
+  const columns = columnsWithUnmapped(baseColumns, items);
+  return { columns, itemsByStage: groupByStage(items, columns) };
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -17,6 +18,7 @@ import { ArrowDown, ArrowUp, Loader2, Save } from 'lucide-react';
 
 type KindState = {
   stages: string[];
+  labels: Record<string, string>;
   available: PipelineStageDef[];
   label: string;
 };
@@ -40,6 +42,7 @@ export function PipelineSettingsPanel() {
         if (!entry) continue;
         next[kind] = {
           stages: entry.stages,
+          labels: entry.labels ?? {},
           available: entry.available,
           label: entry.label || PIPELINE_KIND_LABELS[kind],
         };
@@ -90,6 +93,22 @@ export function PipelineSettingsPanel() {
     });
   };
 
+  const setLabel = (id: string, label: string) => {
+    setByKind((prev) => {
+      const cur = prev[active];
+      if (!cur) return prev;
+      const labels = { ...cur.labels };
+      const trimmed = label.trim();
+      const def = cur.available.find((a) => a.id === id);
+      if (!trimmed || (def && trimmed === def.label)) {
+        delete labels[id];
+      } else {
+        labels[id] = trimmed.slice(0, 64);
+      }
+      return { ...prev, [active]: { ...cur, labels } };
+    });
+  };
+
   const save = async () => {
     if (!current) return;
     setSaving(true);
@@ -97,7 +116,11 @@ export function PipelineSettingsPanel() {
       const res = await workspaceFetch('/api/workspace/pipelines', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind: active, stages: current.stages }),
+        body: JSON.stringify({
+          kind: active,
+          stages: current.stages,
+          labels: current.labels,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
@@ -140,8 +163,15 @@ export function PipelineSettingsPanel() {
           <CardHeader>
             <CardTitle className="text-base">{current.label} stages</CardTitle>
             <CardDescription>
-              Enable stages and reorder columns for the board view. Values must stay within the
+              Enable stages, rename column labels, and reorder the board. Values stay within the
               system status set.
+              {active === 'tickets' && (
+                <>
+                  {' '}
+                  Per–ticket-type status pipelines remain under Support settings (type filters);
+                  this controls the global board columns.
+                </>
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -152,13 +182,21 @@ export function PipelineSettingsPanel() {
                 return (
                   <div
                     key={id}
-                    className="flex items-center justify-between rounded-md border px-3 py-2"
+                    className="flex flex-col gap-2 rounded-md border px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2.5 w-2.5 rounded-full ${def?.color || 'bg-muted'}`} />
-                      <span className="text-sm font-medium">{def?.label || id}</span>
+                    <div className="flex flex-1 items-center gap-2 min-w-0">
+                      <div className={`h-2.5 w-2.5 shrink-0 rounded-full ${def?.color || 'bg-muted'}`} />
+                      <Input
+                        className="h-8"
+                        value={current.labels[id] ?? def?.label ?? id}
+                        onChange={(e) => setLabel(id, e.target.value)}
+                        aria-label={`Label for ${id}`}
+                      />
+                      <span className="hidden text-[10px] text-muted-foreground sm:inline">
+                        {id}
+                      </span>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 shrink-0">
                       <Button
                         type="button"
                         size="icon"
