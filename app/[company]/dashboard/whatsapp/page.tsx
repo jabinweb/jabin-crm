@@ -30,6 +30,13 @@ export default function WhatsAppHubPage() {
   const [savingConfig, setSavingConfig] = useState(false);
   const [channelFilter, setChannelFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [summoraSession, setSummoraSession] = useState<{
+    status: string;
+    qr: string | null;
+    hasQr: boolean;
+    workspaceSlug?: string;
+  } | null>(null);
+  const [summoraBusy, setSummoraBusy] = useState(false);
   const [config, setConfig] = useState({
     provider: 'DISABLED',
     isActive: false,
@@ -124,6 +131,67 @@ export default function WhatsAppHubPage() {
     }
   };
 
+  const refreshSummoraSession = async () => {
+    const res = await fetch('/api/whatsapp/summora/session', { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Failed to load session');
+    setSummoraSession({
+      status: data.status || 'UNKNOWN',
+      qr: data.qr || null,
+      hasQr: !!data.hasQr || !!data.qr,
+      workspaceSlug: data.workspaceSlug,
+    });
+    return data;
+  };
+
+  const startSummoraConnect = async (force = false) => {
+    setSummoraBusy(true);
+    try {
+      const res = await fetch('/api/whatsapp/summora/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start', force }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to start WhatsApp link');
+      setSummoraSession({
+        status: data.status || 'CONNECTING',
+        qr: data.qr || null,
+        hasQr: !!data.qr,
+        workspaceSlug: data.workspaceSlug,
+      });
+      toast.success('Scan the QR with WhatsApp on your phone');
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not start WhatsApp connection');
+    } finally {
+      setSummoraBusy(false);
+    }
+  };
+
+  const disconnectSummora = async () => {
+    setSummoraBusy(true);
+    try {
+      const res = await fetch('/api/whatsapp/summora/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to disconnect');
+      setSummoraSession({
+        status: 'DISCONNECTED',
+        qr: null,
+        hasQr: false,
+        workspaceSlug: data.workspaceSlug,
+      });
+      toast.success('WhatsApp disconnected');
+    } catch (error: any) {
+      toast.error(error?.message || 'Could not disconnect');
+    } finally {
+      setSummoraBusy(false);
+    }
+  };
+
   useEffect(() => {
     const init = async () => {
       const enabled = await checkFeatureEnabled();
@@ -136,6 +204,27 @@ export default function WhatsAppHubPage() {
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (config.provider !== 'SUMMORA' || !config.isActive) {
+      setSummoraSession(null);
+      return;
+    }
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        if (!cancelled) await refreshSummoraSession();
+      } catch {
+        /* ignore transient poll errors */
+      }
+    };
+    void tick();
+    const id = setInterval(tick, 2500);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [config.provider, config.isActive]);
 
   if (!featureEnabled) {
     return (
@@ -283,7 +372,7 @@ export default function WhatsAppHubPage() {
               <div className="space-y-2 md:col-span-2">
                 <Label>Summora base URL</Label>
                 <Input
-                  placeholder="https://summora.example.com"
+                  placeholder="https://summora.jabin.org"
                   value={config.summoraBaseUrl}
                   onChange={(e) => setConfig({ ...config, summoraBaseUrl: e.target.value })}
                 />
@@ -306,14 +395,11 @@ export default function WhatsAppHubPage() {
               </div>
               <div className="text-xs text-muted-foreground md:col-span-2 space-y-1">
                 <p>
-                  Create a bridge app in Summora (<code>POST /api/v1/bridge/apps</code>) and set its webhook URL to:
+                  Webhook URL for Summora bridge app:
                 </p>
                 <code className="block break-all">
                   {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}&provider=SUMMORA`}
                 </code>
-                <p>
-                  On reconnect, Summora syncs missed WhatsApp history and retries outbound + webhooks.
-                </p>
               </div>
             </div>
           )}
@@ -323,6 +409,75 @@ export default function WhatsAppHubPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {config.provider === 'SUMMORA' && config.isActive && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-semibold">Connect WhatsApp</CardTitle>
+            <CardDescription>
+              Scan from Opslane — phone: WhatsApp → Linked devices → Link a device
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge variant="outline">
+                {summoraSession?.status || '…'}
+              </Badge>
+              {summoraSession?.workspaceSlug && (
+                <span className="text-xs text-muted-foreground">
+                  workspace: {summoraSession.workspaceSlug}
+                </span>
+              )}
+            </div>
+
+            {summoraSession?.qr ? (
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={summoraSession.qr}
+                  alt="WhatsApp QR code"
+                  className="h-56 w-56 rounded-md border bg-white p-2"
+                />
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  QR refreshes automatically. Keep this page open until status becomes ACTIVE or SYNCING.
+                </p>
+              </div>
+            ) : summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING' ? (
+              <p className="text-sm text-muted-foreground">
+                WhatsApp is linked
+                {summoraSession.status === 'SYNCING' ? ' and syncing missed messages…' : '.'}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Not linked yet. Click Connect to show a QR code here.
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => startSummoraConnect(false)}
+                disabled={summoraBusy}
+              >
+                {summoraBusy ? 'Working…' : summoraSession?.qr ? 'Refresh QR' : 'Connect WhatsApp'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => startSummoraConnect(true)}
+                disabled={summoraBusy}
+              >
+                Force reconnect
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={disconnectSummora}
+                disabled={summoraBusy}
+              >
+                Disconnect
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
