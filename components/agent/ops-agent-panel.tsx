@@ -27,7 +27,15 @@ type PendingWrite = {
   description: string;
 };
 
-type ChatImage = { mimeType: string; url?: string; data?: string; previewUrl?: string };
+type ChatImage = {
+  mimeType: string;
+  url?: string;
+  data?: string;
+  previewUrl?: string;
+  /** History marker — screenshot was local-only and is not in the DB */
+  localOnlyPlaceholder?: boolean;
+};
+
 
 type ChatMessage = {
   id: string;
@@ -202,14 +210,16 @@ export function OpsAgentPanel() {
           role: string;
           content: {
             text?: string;
-            images?: ChatImage[];
+            localScreenshot?: boolean;
             pendingWrites?: PendingWrite[];
           };
         }) => ({
           id: m.id,
           role: m.role === 'assistant' ? 'assistant' : 'user',
           text: m.content?.text || '',
-          images: m.content?.images,
+          images: m.content?.localScreenshot
+            ? [{ mimeType: 'image/png', localOnlyPlaceholder: true }]
+            : undefined,
           pendingWrites: m.content?.pendingWrites,
           followUps:
             m.role === 'assistant' && m.content?.text
@@ -268,59 +278,61 @@ export function OpsAgentPanel() {
       toast.error('Image must be under 8MB');
       return;
     }
+    if (pendingImages.length >= 4) {
+      toast.error('Max 4 images per message');
+      return;
+    }
     setUploading(true);
     const previewUrl = URL.createObjectURL(file);
     try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('folder', 'ops-agent');
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { ...headers },
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && (data.url || data.file?.url)) {
-        setPendingImages((imgs) => [
-          ...imgs,
-          {
-            mimeType: file.type || 'image/png',
-            url: data.url || data.file?.url,
-            previewUrl,
-          },
-        ]);
-        return;
-      }
-      // Fallback: inline base64 for the turn
+      // Local-device only — never upload screenshots to the cloud
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = reject;
+        reader.onerror = () => reject(new Error('read failed'));
         reader.readAsDataURL(file);
       });
       const base64 = dataUrl.replace(/^data:[^;]+;base64,/, '');
+      if (!base64) throw new Error('empty image');
       setPendingImages((imgs) => [
         ...imgs,
-        { mimeType: file.type || 'image/png', data: base64, previewUrl },
+        {
+          mimeType: file.type || 'image/png',
+          data: base64,
+          previewUrl,
+        },
       ]);
-      if (!res.ok) toast.message('Uploaded inline — cloud upload unavailable');
     } catch {
-      toast.error('Could not attach image');
+      toast.error('Could not attach screenshot');
       URL.revokeObjectURL(previewUrl);
     } finally {
       setUploading(false);
     }
   };
 
+  const removePendingImage = (index: number) => {
+    setPendingImages((imgs) => {
+      const target = imgs[index];
+      if (target?.previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return imgs.filter((_, j) => j !== index);
+    });
+  };
+
   const sendMessage = async (raw: string) => {
     const message = raw.trim();
     if ((!message && !pendingImages.length) || sending) return;
-    const imagesToSend = pendingImages.map(({ mimeType, url, data }) => ({
+    const imagesToSend = pendingImages.map(({ mimeType, data }) => ({
       mimeType,
-      url,
       data,
     }));
-    const previewImages = [...pendingImages];
+    const previewImages = pendingImages.map(({ mimeType, previewUrl, data }) => ({
+      mimeType,
+      previewUrl,
+      // Keep data only in this session for display fallback — not re-sent to DB
+      data: previewUrl ? undefined : data,
+    }));
     setInput('');
     setPendingImages([]);
     setSending(true);
@@ -524,7 +536,7 @@ export function OpsAgentPanel() {
 
                 {!loadingChat && messages.length === 0 ? (
                   <div className="text-sm text-muted-foreground space-y-3 p-2">
-                    <p>Ask OPS, attach a screenshot, or message a teammate.</p>
+                    <p>Ask OPS, paste a screenshot, or message a teammate.</p>
                     <div className="flex flex-wrap gap-1.5">
                       {[
                         'What is overdue today?',
@@ -556,15 +568,35 @@ export function OpsAgentPanel() {
                     >
                       {msg.images?.length ? (
                         <div className="mb-2 flex flex-wrap gap-1.5">
-                          {msg.images.map((img, i) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={i}
-                              src={img.previewUrl || img.url || (img.data ? `data:${img.mimeType};base64,${img.data}` : '')}
-                              alt="Attachment"
-                              className="max-h-28 rounded-md border border-white/20 object-cover"
-                            />
-                          ))}
+                          {msg.images.map((img, i) =>
+                            img.localOnlyPlaceholder ? (
+                              <div
+                                key={i}
+                                className={cn(
+                                  'flex h-16 w-24 items-center justify-center rounded-md border text-[10px] px-1 text-center',
+                                  msg.role === 'user'
+                                    ? 'border-white/30 text-white/80'
+                                    : 'border-border text-muted-foreground'
+                                )}
+                              >
+                                Screenshot (device only)
+                              </div>
+                            ) : (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                key={i}
+                                src={
+                                  img.previewUrl ||
+                                  img.url ||
+                                  (img.data
+                                    ? `data:${img.mimeType};base64,${img.data}`
+                                    : '')
+                                }
+                                alt="Screenshot"
+                                className="max-h-28 rounded-md border border-white/20 object-cover"
+                              />
+                            )
+                          )}
                         </div>
                       ) : null}
                       {msg.role === 'assistant' ? (
@@ -644,9 +676,7 @@ export function OpsAgentPanel() {
                         <button
                           type="button"
                           className="absolute -right-1 -top-1 h-5 w-5 rounded-full bg-background border text-[10px]"
-                          onClick={() =>
-                            setPendingImages((imgs) => imgs.filter((_, j) => j !== i))
-                          }
+                          onClick={() => removePendingImage(i)}
                         >
                           ×
                         </button>
@@ -655,7 +685,23 @@ export function OpsAgentPanel() {
                   </div>
                 ) : null}
 
-                <div className="flex items-end gap-2 rounded-lg border bg-muted/30 px-2 py-1.5 focus-within:border-teal-700/50">
+                <div
+                  className="flex items-end gap-2 rounded-lg border bg-muted/30 px-2 py-1.5 focus-within:border-teal-700/50"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+                      f.type.startsWith('image/')
+                    );
+                    for (const file of files.slice(0, 4 - pendingImages.length)) {
+                      void addImageFile(file);
+                    }
+                  }}
+                >
                   <input
                     ref={fileRef}
                     type="file"
@@ -686,19 +732,17 @@ export function OpsAgentPanel() {
                     ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Message OPS…"
+                    placeholder="Message OPS — paste a screenshot anytime"
                     rows={2}
                     className="min-h-[44px] max-h-28 flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-sm outline-none ring-0 focus:outline-none focus:ring-0 placeholder:text-muted-foreground"
                     onPaste={(e) => {
-                      const item = Array.from(e.clipboardData.items).find((i) =>
-                        i.type.startsWith('image/')
-                      );
-                      if (item) {
+                      const items = Array.from(e.clipboardData?.items || []);
+                      const imageItems = items.filter((i) => i.type.startsWith('image/'));
+                      if (!imageItems.length) return;
+                      e.preventDefault();
+                      for (const item of imageItems.slice(0, 4 - pendingImages.length)) {
                         const file = item.getAsFile();
-                        if (file) {
-                          e.preventDefault();
-                          void addImageFile(file);
-                        }
+                        if (file) void addImageFile(file);
                       }
                     }}
                     onKeyDown={(e) => {

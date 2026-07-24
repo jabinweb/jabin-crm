@@ -233,19 +233,15 @@ export async function runAgentTurn(params: {
     threadId = thread.id;
   }
 
-  // Persist without huge base64 blobs — keep URLs (+ tiny data only if no url)
-  const persistedImages = images.map((img) => ({
-    mimeType: img.mimeType,
-    url: img.url || undefined,
-  }));
-
+  // Persist a marker only — screenshot bytes stay on the user's device / this request
   await prisma.agentMessage.create({
     data: {
       threadId,
       role: 'user',
       content: {
         text: params.message,
-        images: persistedImages.length ? persistedImages : undefined,
+        localScreenshot: images.length > 0,
+        screenshotCount: images.length || undefined,
       },
     },
   });
@@ -268,15 +264,17 @@ export async function runAgentTurn(params: {
     const msg = history[hi];
     const c = msg.content as {
       text?: string;
-      images?: AgentImageAttachment[];
+      localScreenshot?: boolean;
     };
     if (msg.role === 'user') {
       const isLatest = hi === history.length - 1;
-      // Only resolve heavy image bytes for the latest user turn (current request)
-      const imgs = isLatest ? images : c.images?.filter((i) => i.url) || [];
+      // Vision bytes only for the current turn (local device → this request)
       contents.push({
         role: 'user',
-        parts: await buildUserParts(c.text || '', imgs),
+        parts: await buildUserParts(
+          c.text || '',
+          isLatest ? images : null
+        ),
       });
     } else if (msg.role === 'assistant' && c.text) {
       contents.push({ role: 'model', parts: [{ text: c.text }] });

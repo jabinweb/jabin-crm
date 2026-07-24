@@ -1055,7 +1055,7 @@ Your Name`,
               items: [
                 'Read tools: snapshot, overdue invoices, tickets/deals/quotes, search customers & leads, get invoice, AI qualify / suggest tasks, search team members',
                 'Write tools (confirm first): create task, add lead note, record invoice payment, send team message (Employee DM + task)',
-                'Screenshots: attach or paste an image; OPS reads it and can act with tools',
+                'Screenshots: paste or attach — kept on your device only (not uploaded to cloud storage); sent to Gemini for that turn',
                 'Not available to CUSTOMER or EMPLOYEE portal users',
               ],
             },
