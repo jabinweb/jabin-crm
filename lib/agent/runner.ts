@@ -65,9 +65,18 @@ type ModelPart = {
   thoughtSignature?: string;
   functionCall?: { name?: string; args?: Record<string, unknown> };
   functionResponse?: unknown;
+  inlineData?: { mimeType: string; data: string };
 };
 
 type ModelContent = { role: string; parts: ModelPart[] };
+
+export type AgentImageAttachment = {
+  mimeType: string;
+  /** Public URL (preferred for persistence) */
+  url?: string;
+  /** Raw base64 without data: prefix (for immediate vision; optional persist) */
+  data?: string;
+};
 
 /** Return the model content exactly as Gemini sent it (keeps thoughtSignature). */
 function getModelContent(response: {
@@ -129,12 +138,48 @@ function modelTurnWithFunctionCalls(
     role: 'model',
     parts: calls.map((c, index) => ({
       functionCall: { name: c.name, args: c.args },
-      // Last-resort for history we constructed ourselves (not from the API)
       ...(index === 0
         ? { thoughtSignature: 'skip_thought_signature_validator' }
         : {}),
     })),
   };
+}
+
+async function resolveInlineImage(
+  image: AgentImageAttachment
+): Promise<{ mimeType: string; data: string } | null> {
+  const mimeType = (image.mimeType || 'image/png').split(';')[0].trim();
+  if (image.data) {
+    const data = image.data.replace(/^data:[^;]+;base64,/, '');
+    if (data) return { mimeType, data };
+  }
+  if (!image.url) return null;
+  try {
+    const res = await fetch(image.url);
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    // Cap ~4MB decoded
+    if (buf.byteLength > 4 * 1024 * 1024) return null;
+    return { mimeType, data: buf.toString('base64') };
+  } catch {
+    return null;
+  }
+}
+
+async function buildUserParts(
+  text: string,
+  images?: AgentImageAttachment[] | null
+): Promise<ModelPart[]> {
+  const parts: ModelPart[] = [];
+  if (text.trim()) parts.push({ text: text.trim() });
+  if (images?.length) {
+    for (const img of images.slice(0, 4)) {
+      const inline = await resolveInlineImage(img);
+      if (inline) parts.push({ inlineData: inline });
+    }
+  }
+  if (!parts.length) parts.push({ text: '(screenshot attached)' });
+  return parts;
 }
 
 export async function runAgentTurn(params: {
@@ -144,10 +189,11 @@ export async function runAgentTurn(params: {
   userName?: string | null;
   threadId?: string | null;
   message: string;
+  images?: AgentImageAttachment[] | null;
 }): Promise<AgentTurnResult> {
   const apiKey = await resolveApiKey(params.userId);
   const agent = await getOrCreateCompanyAgent(params.companyId);
-  if (!agent.enabled) throw new Error('Ops Agent is disabled for this company');
+  if (!agent.enabled) throw new Error('OPS is disabled for this company');
 
   const { chain } = await refreshCompanyAgentModels({
     companyId: params.companyId,
@@ -161,6 +207,10 @@ export async function runAgentTurn(params: {
     userName: params.userName,
   });
 
+  const images = (params.images || [])
+    .filter((img) => img && (img.url || img.data))
+    .slice(0, 4);
+
   let threadId = params.threadId || null;
   if (threadId) {
     const existing = await prisma.agentThread.findFirst({
@@ -169,22 +219,34 @@ export async function runAgentTurn(params: {
     if (!existing) threadId = null;
   }
   if (!threadId) {
+    const titleBase =
+      params.message.trim() ||
+      (images.length ? 'Screenshot analysis' : 'New chat');
     const thread = await prisma.agentThread.create({
       data: {
         companyId: params.companyId,
         agentId: agent.id,
         userId: params.userId,
-        title: params.message.slice(0, 80),
+        title: titleBase.slice(0, 80),
       },
     });
     threadId = thread.id;
   }
 
+  // Persist without huge base64 blobs — keep URLs (+ tiny data only if no url)
+  const persistedImages = images.map((img) => ({
+    mimeType: img.mimeType,
+    url: img.url || undefined,
+  }));
+
   await prisma.agentMessage.create({
     data: {
       threadId,
       role: 'user',
-      content: { text: params.message },
+      content: {
+        text: params.message,
+        images: persistedImages.length ? persistedImages : undefined,
+      },
     },
   });
 
@@ -202,10 +264,20 @@ export async function runAgentTurn(params: {
   type Content = ModelContent;
 
   const contents: Content[] = [];
-  for (const msg of history) {
-    const c = msg.content as { text?: string };
+  for (let hi = 0; hi < history.length; hi++) {
+    const msg = history[hi];
+    const c = msg.content as {
+      text?: string;
+      images?: AgentImageAttachment[];
+    };
     if (msg.role === 'user') {
-      contents.push({ role: 'user', parts: [{ text: c.text || '' }] });
+      const isLatest = hi === history.length - 1;
+      // Only resolve heavy image bytes for the latest user turn (current request)
+      const imgs = isLatest ? images : c.images?.filter((i) => i.url) || [];
+      contents.push({
+        role: 'user',
+        parts: await buildUserParts(c.text || '', imgs),
+      });
     } else if (msg.role === 'assistant' && c.text) {
       contents.push({ role: 'model', parts: [{ text: c.text }] });
     }

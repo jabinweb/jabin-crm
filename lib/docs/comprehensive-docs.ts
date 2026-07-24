@@ -1047,14 +1047,15 @@ Your Name`,
         content: [
           {
             type: 'paragraph',
-            data: 'Each company gets one native Ops Agent (Gemini function calling). Staff open it from the floating bot button on any dashboard page. It uses your Gemini API key (Settings → API keys, or GEMINI_API_KEY), discovers live models, and tries a fallback chain if a model fails.',
+            data: 'Each company gets OPS (Gemini function calling). Staff open it from the floating bot on any dashboard page. Chats are saved per user; use the back button to browse history. Attach screenshots for vision analysis. Write actions (tasks, payments, teammate messages) need confirm in the UI. Models are discovered live with a fallback chain.',
           },
           {
             type: 'list',
             data: {
               items: [
-                'Read tools: company snapshot, overdue invoices, open tickets/deals/quotes, search customers & leads, get invoice, AI qualify lead / suggest tasks',
-                'Write tools (confirm in UI before run): create task, add lead note, record invoice payment',
+                'Read tools: snapshot, overdue invoices, tickets/deals/quotes, search customers & leads, get invoice, AI qualify / suggest tasks, search team members',
+                'Write tools (confirm first): create task, add lead note, record invoice payment, send team message (Employee DM + task)',
+                'Screenshots: attach or paste an image; OPS reads it and can act with tools',
                 'Not available to CUSTOMER or EMPLOYEE portal users',
               ],
             },

@@ -466,6 +466,263 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       });
     },
   },
+  {
+    name: 'search_team_members',
+    description:
+      'Search company teammates by name or email (employees and CRM users). Use before send_team_message.',
+    kind: 'read',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Name or email fragment' },
+        limit: { type: 'number' },
+      },
+      required: ['query'],
+    },
+    execute: async (args, ctx) => {
+      const q = String(args.query || '').trim();
+      if (!q) return { members: [] };
+      const limit = Math.min(Number(args.limit) || 10, 20);
+
+      const [employees, users] = await Promise.all([
+        prisma.employee.findMany({
+          where: {
+            companyId: ctx.companyId,
+            status: { in: ['ACTIVE', 'PENDING'] },
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { email: { contains: q, mode: 'insensitive' } },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            jobTitle: true,
+            department: true,
+            userId: true,
+          },
+          take: limit,
+        }),
+        prisma.user.findMany({
+          where: {
+            AND: [
+              {
+                OR: [
+                  { primaryCompanyId: ctx.companyId },
+                  { companyId: ctx.companyId },
+                  { userCompanies: { some: { companyId: ctx.companyId } } },
+                ],
+              },
+              { role: { notIn: ['CUSTOMER'] } },
+              {
+                OR: [
+                  { name: { contains: q, mode: 'insensitive' } },
+                  { email: { contains: q, mode: 'insensitive' } },
+                ],
+              },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            employeeProfile: { select: { id: true } },
+          },
+          take: limit,
+        }),
+      ]);
+
+      return {
+        members: [
+          ...employees.map((e) => ({
+            kind: 'employee' as const,
+            employeeId: e.id,
+            userId: e.userId,
+            name: e.name,
+            email: e.email,
+            title: e.jobTitle,
+            department: e.department,
+          })),
+          ...users.map((u) => ({
+            kind: 'user' as const,
+            userId: u.id,
+            employeeId: u.employeeProfile?.id ?? null,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+          })),
+        ],
+      };
+    },
+  },
+  {
+    name: 'send_team_message',
+    description:
+      'Send a direct message to a teammate (Employee DM when possible, otherwise assigns them a CRM task with the message). Requires confirmation.',
+    kind: 'write',
+    parameters: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', description: 'Message body to send' },
+        employeeId: { type: 'string', description: 'Receiver Employee.id if known' },
+        userId: { type: 'string', description: 'Receiver User.id if known' },
+        nameOrEmail: {
+          type: 'string',
+          description: 'Fallback lookup by name or email',
+        },
+      },
+      required: ['message'],
+    },
+    execute: async (args, ctx) => {
+      const body = String(args.message || '').trim();
+      if (!body) throw new Error('message required');
+
+      let receiverEmployeeId = args.employeeId ? String(args.employeeId) : '';
+      let receiverUserId = args.userId ? String(args.userId) : '';
+      let receiverName = '';
+
+      if (!receiverEmployeeId && !receiverUserId && args.nameOrEmail) {
+        const q = String(args.nameOrEmail).trim();
+        const emp = await prisma.employee.findFirst({
+          where: {
+            companyId: ctx.companyId,
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { email: { equals: q, mode: 'insensitive' } },
+            ],
+          },
+          select: { id: true, userId: true, name: true },
+        });
+        if (emp) {
+          receiverEmployeeId = emp.id;
+          receiverUserId = emp.userId || '';
+          receiverName = emp.name;
+        } else {
+          const user = await prisma.user.findFirst({
+            where: {
+              AND: [
+                {
+                  OR: [
+                    { primaryCompanyId: ctx.companyId },
+                    { companyId: ctx.companyId },
+                    { userCompanies: { some: { companyId: ctx.companyId } } },
+                  ],
+                },
+                {
+                  OR: [
+                    { name: { contains: q, mode: 'insensitive' } },
+                    { email: { equals: q, mode: 'insensitive' } },
+                  ],
+                },
+              ],
+            },
+            select: {
+              id: true,
+              name: true,
+              employeeProfile: { select: { id: true } },
+            },
+          });
+          if (user) {
+            receiverUserId = user.id;
+            receiverEmployeeId = user.employeeProfile?.id || '';
+            receiverName = user.name || q;
+          }
+        }
+      }
+
+      if (receiverEmployeeId && !receiverName) {
+        const emp = await prisma.employee.findFirst({
+          where: { id: receiverEmployeeId, companyId: ctx.companyId },
+          select: { id: true, userId: true, name: true },
+        });
+        if (!emp) throw new Error('Employee not found in this company');
+        receiverName = emp.name;
+        if (!receiverUserId) receiverUserId = emp.userId || '';
+      }
+
+      if (receiverUserId && !receiverName) {
+        const user = await prisma.user.findFirst({
+          where: {
+            id: receiverUserId,
+            OR: [
+              { primaryCompanyId: ctx.companyId },
+              { companyId: ctx.companyId },
+              { userCompanies: { some: { companyId: ctx.companyId } } },
+            ],
+          },
+          select: {
+            id: true,
+            name: true,
+            employeeProfile: { select: { id: true } },
+          },
+        });
+        if (!user) throw new Error('User not found in this company');
+        receiverName = user.name || user.id;
+        if (!receiverEmployeeId) receiverEmployeeId = user.employeeProfile?.id || '';
+      }
+
+      if (!receiverEmployeeId && !receiverUserId) {
+        throw new Error('Could not resolve teammate — provide employeeId, userId, or nameOrEmail');
+      }
+
+      const senderEmployee = await prisma.employee.findFirst({
+        where: { userId: ctx.userId, companyId: ctx.companyId },
+        select: { id: true },
+      });
+
+      const channels: string[] = [];
+      let dmId: string | null = null;
+
+      if (senderEmployee?.id && receiverEmployeeId) {
+        const dm = await prisma.employeeMessage.create({
+          data: {
+            content: `[OPS] ${body}`,
+            senderId: senderEmployee.id,
+            receiverId: receiverEmployeeId,
+            type: 'TEXT',
+            status: 'SENT',
+          },
+        });
+        dmId = dm.id;
+        channels.push('employee_dm');
+      }
+
+      if (receiverUserId) {
+        const task = await prisma.task.create({
+          data: {
+            userId: ctx.userId,
+            assignedToId: receiverUserId,
+            title: `OPS message from ${ctx.userName || 'teammate'}`,
+            description: body,
+            type: 'TODO',
+            priority: 'HIGH',
+            status: 'PENDING',
+            dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        });
+        channels.push('task');
+        return {
+          sent: true,
+          receiverName,
+          channels,
+          dmId,
+          taskId: task.id,
+        };
+      }
+
+      return {
+        sent: !!dmId,
+        receiverName,
+        channels,
+        dmId,
+        warning: dmId
+          ? undefined
+          : 'No linked user account — could not create task; DM may still have been sent.',
+      };
+    },
+  },
 ];
 
 export function getToolsForRole(role: string): AgentToolDef[] {
