@@ -152,12 +152,11 @@ export const documentationTopics: DocTopic[] = [
             data: {
               ordered: true,
               items: [
-                'Prepare CSV file with columns: companyName, email, contactPerson, phone',
-                'Go to Dashboard → Leads',
-                'Click "Import" button',
+                'Prepare CSV with columns: companyName, email, contactName, phone (or use Settings → Data migration for a mapping wizard)',
+                'Go to Dashboard → Leads, or Settings → Data migration',
+                'Click Import CSV (or follow the migration wizard steps)',
                 'Upload your CSV file',
-                'Map columns to fields',
-                'Review and confirm import',
+                'Review the import summary (duplicates are skipped)',
               ],
             },
           },
@@ -166,7 +165,7 @@ export const documentationTopics: DocTopic[] = [
             data: {
               language: 'csv',
               title: 'Example CSV Format',
-              code: `companyName,email,contactPerson,phone,industry
+              code: `companyName,email,contactName,phone,industry
 Acme Corp,john@acme.com,John Smith,+1-555-0123,Technology
 TechStart Inc,sarah@techstart.io,Sarah Johnson,+1-555-0124,SaaS
 Global Solutions,mike@global.com,Mike Davis,+1-555-0125,Consulting`,

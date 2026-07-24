@@ -34,7 +34,7 @@ const EMPTY_DEAL_DATA = {
 
 export function useLeadsPage() {
   const router = useRouter();
-  const { path } = useWorkspacePaths();
+  const { path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
@@ -150,7 +150,7 @@ export function useLeadsPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/leads/import', {
+      const response = await workspaceFetch('/api/leads/import', {
         method: 'POST',
         body: formData,
       });

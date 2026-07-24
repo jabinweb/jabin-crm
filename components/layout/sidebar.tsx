@@ -194,6 +194,7 @@ const settingsNav: NavigationItem[] = [
       { name: 'Personal CRM', href: '/dashboard/settings/advanced', icon: User },
       { name: 'Calendar sync', href: '/dashboard/settings/calendar', icon: CalendarIcon },
       { name: 'Billing', href: '/dashboard/settings/subscription', icon: CreditCard },
+      { name: 'Data migration', href: '/dashboard/settings/migration', icon: Database },
     ]
   },
 ];
