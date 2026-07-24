@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSession } from "next-auth/react";
 import {
   Table,
   TableBody,
@@ -11,11 +10,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { Loader2 } from 'lucide-react';
 
-interface User {
-  id: number;
-  name: string;
+type WorkspaceUser = {
+  id: string;
+  name: string | null;
   email: string;
   role: string;
   status: string;
@@ -23,103 +25,121 @@ interface User {
   primaryCompany?: {
     name: string;
     status: string;
-  };
-  companies: Array<{
+  } | null;
+  companies?: Array<{
     name: string;
     status: string;
   }>;
-}
+};
 
-interface ApiResponse {
-  success: boolean;
-  data: User[];
-  error?: string;
-}
-
-export default function UsersPage() {
-  const { data: session } = useSession();
-  const [users, setUsers] = useState<User[]>([]);
+export default function WorkspaceUsersPage() {
+  const { workspaceFetch } = useWorkspacePaths();
+  const [users, setUsers] = useState<WorkspaceUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/users');
-      const result: ApiResponse = await response.json();
+      setError(null);
+      const response = await workspaceFetch('/api/workspace/users');
+      const result = await response.json();
 
       if (!response.ok) {
         throw new Error(result.error || 'Failed to fetch users');
       }
 
-      if (result.success && Array.isArray(result.data)) {
-        setUsers(result.data);
-      } else {
-        throw new Error('Invalid data format received');
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'An error occurred');
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to load users"
-      });
+      const list = Array.isArray(result.data)
+        ? result.data
+        : Array.isArray(result)
+          ? result
+          : [];
+      setUsers(list);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred';
+      setError(message);
+      toast.error('Failed to load users');
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [workspaceFetch]);
 
   useEffect(() => {
-    if (session?.user) {
-      fetchUsers();
-    }
-  }, [session, fetchUsers]);
+    void fetchUsers();
+  }, [fetchUsers]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Loading users…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 space-y-3">
+        <p className="text-destructive">Error: {error}</p>
+        <Button variant="outline" onClick={() => void fetchUsers()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Users</h1>
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold">Workspace users</h1>
+        <p className="text-sm text-muted-foreground">
+          People with access to this company workspace.
+        </p>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>UserRole</TableHead>
+              <TableHead>Role</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Company</TableHead>
-              <TableHead>Company Status</TableHead>
+              <TableHead>Company status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.length > 0 ? (
               users.map((user) => (
                 <TableRow key={user.id}>
-                  <TableCell>{user.name}</TableCell>
+                  <TableCell>{user.name || '—'}</TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>{user.role}</TableCell>
                   <TableCell>
-                    <Badge>{user.status}</Badge>
+                    <Badge variant="secondary">{user.status}</Badge>
                   </TableCell>
-                  <TableCell>{user.primaryCompany?.name || 'N/A'}</TableCell>
+                  <TableCell>
+                    {user.primaryCompany?.name || user.companies?.[0]?.name || 'N/A'}
+                  </TableCell>
                   <TableCell>
                     {user.primaryCompany ? (
-                      <Badge variant={user.primaryCompany.status === 'APPROVED' ? 'default' : 'secondary'}>
+                      <Badge
+                        variant={
+                          user.primaryCompany.status === 'APPROVED' ? 'default' : 'secondary'
+                        }
+                      >
                         {user.primaryCompany.status}
                       </Badge>
                     ) : (
-                      '-'
+                      '—'
                     )}
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  No users found
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  No users found in this workspace
                 </TableCell>
               </TableRow>
             )}
