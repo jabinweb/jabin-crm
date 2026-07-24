@@ -5,7 +5,7 @@ import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { Loader2, Menu, Bell, Search, Settings, LogOut, LayoutDashboard, ChevronDown } from 'lucide-react';
+import { Menu, Bell, Search, Settings, LogOut, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
@@ -15,6 +15,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { LiveChatWidget } from '@/components/support/live-chat-widget';
+import { SectionSkeleton, ShellSkeleton } from '@/components/loading';
 
 function PortalLiveChat() {
     const { data: session } = useSession();
@@ -90,7 +91,9 @@ function NotificationPanel({ userId, onClose }: { userId: string; onClose: () =>
             </div>
             <div className="divide-y divide-slate-50 dark:divide-slate-800 max-h-72 overflow-y-auto">
                 {isLoading ? (
-                    <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
+                    <div className="px-4 py-4">
+                        <SectionSkeleton lines={4} />
+                    </div>
                 ) : notifications.length === 0 ? (
                     <p className="text-center text-xs text-slate-400 py-8">No notifications yet</p>
                 ) : (
@@ -229,11 +232,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     }, [session, status, router]);
 
     if (status === 'loading') {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-background">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        );
+        return <ShellSkeleton />;
     }
 
     if (!session || (session.user.role !== 'CUSTOMER' && session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {

@@ -28,6 +28,7 @@ import {
   MousePointerClick,
   UserCheck,
 } from 'lucide-react';
+import { FullTableSkeleton } from '@/components/loading';
 import { format } from 'date-fns';
 
 export default function CampaignsPage() {
@@ -151,7 +152,7 @@ export default function CampaignsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">Loading campaigns...</div>
+            <FullTableSkeleton columnCount={8} rowCount={5} />
           ) : !data?.campaigns || data.campaigns.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No campaigns yet. Create your first campaign to get started.

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
+import { FullTableSkeleton } from '@/components/loading';
 
 const statusColor: Record<string, string> = {
   SENT: 'text-foreground underline decoration-zinc-500 underline-offset-4',
@@ -353,6 +354,9 @@ export default function WhatsAppHubPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {loading ? (
+            <FullTableSkeleton columnCount={6} rowCount={5} />
+          ) : (
           <div className="rounded-none border overflow-x-auto">
             <Table>
               <TableHeader>
@@ -366,9 +370,7 @@ export default function WhatsAppHubPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading messages...</TableCell></TableRow>
-                ) : messages.length === 0 ? (
+                {messages.length === 0 ? (
                   <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No WhatsApp messages found.</TableCell></TableRow>
                 ) : (
                   messages.map((msg: any) => (
@@ -389,6 +391,7 @@ export default function WhatsAppHubPage() {
               </TableBody>
             </Table>
           </div>
+          )}
         </CardContent>
       </Card>
     </div>

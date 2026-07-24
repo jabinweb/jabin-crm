@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { Award, Target, Users } from 'lucide-react'
+import { StatCardsSkeleton } from '@/components/loading'
 
 export function LeadStatistics() {
   const { data, isLoading } = useQuery({
@@ -15,7 +15,9 @@ export function LeadStatistics() {
     }
   })
 
-  if (isLoading || !data) return null
+  if (isLoading || !data) {
+    return <StatCardsSkeleton count={3} className="md:grid-cols-3 lg:grid-cols-3" />
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-3">

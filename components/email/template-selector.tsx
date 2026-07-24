@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CardListSkeleton } from '@/components/loading';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -186,7 +187,7 @@ export function TemplateSelector({ onSelect, leadData }: TemplateSelectorProps) 
 
         {/* Templates List */}
         {loading ? (
-          <div className="text-center py-8">Loading templates...</div>
+          <CardListSkeleton rows={4} />
         ) : templates.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             No templates found. Create one in the Email Templates page.

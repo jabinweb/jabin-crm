@@ -33,6 +33,7 @@ import { EditEmployeeDialog } from './edit-employee-dialog'
 import { toast } from '@/hooks/use-toast'
 import { SalaryForm } from '@/components/employee/payroll/salary-form'
 import { EmployeeData, EmploymentType, EmployeeStatus } from '@/types/employee'
+import { DetailSkeleton } from '@/components/loading'
 
 type AddressShape = {
   street?: string
@@ -140,11 +141,7 @@ export default function EmployeePage() {
   }
 
   if (status === 'loading' || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-      </div>
-    )
+    return <DetailSkeleton />
   }
 
   if (!session?.user) {

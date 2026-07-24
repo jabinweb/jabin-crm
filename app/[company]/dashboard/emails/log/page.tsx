@@ -52,7 +52,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
+import { FullTableSkeleton } from '@/components/loading';
 
 interface EmailLog {
   id: string;
@@ -310,11 +310,7 @@ export default function EmailLogPage() {
 
           {/* Table */}
           {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
-              ))}
-            </div>
+            <FullTableSkeleton columnCount={6} rowCount={5} />
           ) : error ? (
             <div className="text-center py-8 text-muted-foreground">
               Failed to load email logs

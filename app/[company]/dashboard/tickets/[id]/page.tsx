@@ -54,6 +54,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AITicketSummary } from '@/components/tickets/AITicketSummary';
 import { useFeatureModule } from '@/components/feature-module-guard';
+import { DetailSkeleton } from '@/components/loading';
 
 export default function TicketDetailPage() {
     const { id } = useParams();
@@ -267,7 +268,7 @@ export default function TicketDetailPage() {
     };
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+        return <DetailSkeleton />;
     }
 
     if (!ticket) return <div className="text-center py-20"><h3 className="text-xl font-semibold">Ticket not found</h3></div>;

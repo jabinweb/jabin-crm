@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { DetailSkeleton } from '@/components/loading';
 
 interface InvoiceItem {
   id: string;
@@ -136,7 +137,7 @@ export default function InvoiceDetailPage() {
   };
 
   if (loading) {
-    return <div className="space-y-6">Loading...</div>;
+    return <DetailSkeleton />;
   }
 
   if (!invoice) {

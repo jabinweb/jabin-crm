@@ -5,8 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Users, TrendingUp, Target, CheckCircle, DollarSign, Loader2 } from 'lucide-react';
+import { Users, TrendingUp, Target, CheckCircle, DollarSign } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
+import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 
 interface TeamMember {
   id: string;
@@ -59,11 +60,10 @@ export default function TeamPerformancePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">Loading team performance…</p>
-        </div>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={4} />
+        <CardListSkeleton rows={5} />
       </div>
     );
   }

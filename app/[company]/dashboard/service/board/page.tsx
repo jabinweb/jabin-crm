@@ -5,11 +5,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
+import { BoardSkeleton } from '@/components/loading';
 import { useState } from 'react';
 
 type JobTicket = {
@@ -108,10 +108,7 @@ export default function ServiceJobBoardPage() {
         </CardHeader>
         <CardContent>
           {isLoading || columnsLoading ? (
-            <div className="flex items-center gap-2 text-muted-foreground py-6">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading…
-            </div>
+            <BoardSkeleton />
           ) : (
             <PipelineBoard
               columns={columns}

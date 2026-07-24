@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { Loader2 } from 'lucide-react';
+import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 type PendingEmployee = {
   id: string;
@@ -84,10 +84,15 @@ export default function WorkspaceApprovalsPage() {
   if (loading) {
     return (
       <DashboardPage>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading pending registrations…
-        </div>
+        <PageHeaderSkeleton />
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Registrations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FullTableSkeleton columnCount={4} rowCount={5} />
+          </CardContent>
+        </Card>
       </DashboardPage>
     );
   }

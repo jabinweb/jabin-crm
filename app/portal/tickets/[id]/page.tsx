@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { DetailSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
 import { AITicketSummary } from '@/components/tickets/AITicketSummary';
 
@@ -103,7 +104,7 @@ export default function PortalTicketDetailPage() {
     };
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="w-8 h-px bg-foreground animate-pulse"></div></div>;
+        return <DetailSkeleton />;
     }
 
     if (!ticket) return <div className="text-center py-20"><h3 className="text-xl font-semibold">Support request not found</h3></div>;

@@ -1,12 +1,16 @@
-type EventCallback = (data: any) => void;
+type EventCallback = (data: unknown) => void;
 
 class SSEClient {
   private static instance: SSEClient;
   private eventSource: EventSource | null = null;
   private listeners: Map<string, Set<EventCallback>> = new Map();
   private isConnected = false;
-  private reconnectTimer: NodeJS.Timeout | null = null;
-  private heartbeatTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private attempts = 0;
+  private readonly maxAttempts = 8;
+  private readonly baseDelayMs = 2000;
+  private readonly maxDelayMs = 60_000;
 
   private constructor() {}
 
@@ -29,9 +33,10 @@ class SSEClient {
     return new Promise((resolve, reject) => {
       try {
         this.eventSource = new EventSource('/api/sse');
-        
+
         this.eventSource.onopen = () => {
           this.isConnected = true;
+          this.attempts = 0;
           this.setupHeartbeat();
           resolve();
         };
@@ -43,11 +48,9 @@ class SSEClient {
 
         this.eventSource.onmessage = (event) => {
           try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'heartbeat') {
-              return; // Ignore heartbeat messages
-            }
-            this.notifyListeners(data.type, data);
+            const data = JSON.parse(event.data) as { type?: string };
+            if (data.type === 'heartbeat') return;
+            if (data.type) this.notifyListeners(data.type, data);
           } catch (error) {
             console.error('SSE parse error:', error);
           }
@@ -60,35 +63,37 @@ class SSEClient {
   }
 
   private setupHeartbeat() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-    }
-    // Check connection every 45 seconds (heartbeat is 30s)
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = setInterval(() => {
-      if (!this.isConnected) {
-        this.reconnect();
-      }
-    }, 45000);
+      if (!this.isConnected) this.scheduleReconnect();
+    }, 45_000);
   }
 
-  private handleError(error: any) {
-    console.error('SSE error:', error);
+  private handleError(_error: unknown) {
     this.cleanup();
     this.scheduleReconnect();
   }
 
   private scheduleReconnect() {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.attempts += 1;
+    if (this.attempts > this.maxAttempts) {
+      console.warn('[SSE] Stopped reconnecting after repeated 503/errors');
+      return;
     }
+    const delay = Math.min(this.maxDelayMs, this.baseDelayMs * 2 ** (this.attempts - 1));
     this.reconnectTimer = setTimeout(() => {
-      this.reconnect();
-    }, 5000);
+      void this.reconnect();
+    }, delay);
   }
 
   private async reconnect() {
     this.cleanup();
-    await this.connect();
+    try {
+      await this.connect();
+    } catch {
+      /* scheduleReconnect already handled via onerror */
+    }
   }
 
   private cleanup() {
@@ -114,8 +119,8 @@ class SSEClient {
     this.listeners.get(event)?.delete(callback);
   }
 
-  private notifyListeners(event: string, data: any) {
-    this.listeners.get(event)?.forEach(callback => callback(data));
+  private notifyListeners(event: string, data: unknown) {
+    this.listeners.get(event)?.forEach((callback) => callback(data));
   }
 
   disconnect() {

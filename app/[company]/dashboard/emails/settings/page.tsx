@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Mail, Save, Loader2, Send, Inbox, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 export default function EmailSettingsPage() {
   const { data: session } = useSession();
@@ -100,8 +101,13 @@ export default function EmailSettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="max-w-4xl space-y-6">
+        <PageHeaderSkeleton />
+        <Card>
+          <CardContent className="pt-6">
+            <FormSkeleton fields={6} />
+          </CardContent>
+        </Card>
       </div>
     );
   }

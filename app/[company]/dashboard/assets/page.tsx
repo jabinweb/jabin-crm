@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Loader2, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { FullTableSkeleton } from '@/components/loading';
 
 type Asset = {
   id: string;
@@ -147,9 +148,7 @@ export default function AssetsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <FullTableSkeleton columnCount={5} rowCount={5} />
           ) : assets.length === 0 ? (
             <EmptyState
               icon={Building2}

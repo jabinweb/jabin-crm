@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
+import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 export default function PortalSettingsPage() {
     const { data: session } = useSession();
@@ -110,8 +111,13 @@ export default function PortalSettingsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-8 max-w-2xl">
+                <PageHeaderSkeleton />
+                <Card className="border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none">
+                    <CardContent className="pt-6">
+                        <FormSkeleton fields={4} />
+                    </CardContent>
+                </Card>
             </div>
         );
     }

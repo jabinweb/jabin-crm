@@ -28,6 +28,7 @@ import {
   FEATURE_MODULE_LABELS,
   type FeatureModuleKey,
 } from '@/lib/feature-module-keys';
+import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 interface Plan {
   id: string;
@@ -197,8 +198,10 @@ export default function SubscriptionSettingsPage() {
 
   if (subLoading || usageLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={3} />
+        <SectionSkeleton lines={6} />
       </div>
     );
   }

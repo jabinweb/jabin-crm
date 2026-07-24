@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Phone, Mail, Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 
 interface Task {
   id: string;
@@ -114,7 +115,13 @@ export default function TasksPage() {
   };
 
   if (loading) {
-    return <div className="space-y-6">Loading tasks...</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={4} />
+        <CardListSkeleton rows={5} />
+      </div>
+    );
   }
 
   return (

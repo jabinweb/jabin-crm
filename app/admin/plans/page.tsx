@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { FullTableSkeleton } from "@/components/loading";
 import {
   Select,
   SelectContent,
@@ -260,10 +261,7 @@ export default function PlansPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-none h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="mt-2 text-gray-600">Loading plans...</p>
-        </div>
+        <FullTableSkeleton columnCount={5} rowCount={5} />
       ) : (
         <div className="bg-white rounded-none shadow">
           <div className="p-6">

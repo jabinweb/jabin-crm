@@ -27,6 +27,7 @@ import {
 import { Loader2, CheckCircle2, Rocket, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import { FormSkeleton } from '@/components/loading';
 
 export default function OnboardingPage() {
   const params = useParams<{ company: string }>();
@@ -92,8 +93,8 @@ export default function OnboardingPage() {
 
   if (sessionStatus === 'loading' || isLoading || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-12">
+        <FormSkeleton fields={5} />
       </div>
     );
   }

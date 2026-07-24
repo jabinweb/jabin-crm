@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, DollarSign, TrendingUp, Award, Loader2 } from 'lucide-react';
+import { Plus, DollarSign, TrendingUp, Award } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { toast } from 'sonner';
 import { DashboardPage } from '@/components/layout/dashboard-page';
+import { BoardSkeleton, PageHeaderSkeleton, StatCardsSkeleton } from '@/components/loading';
 
 type Deal = {
   id: string;
@@ -92,10 +93,9 @@ export default function DealsPage() {
   if (loading || columnsLoading) {
     return (
       <DashboardPage>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading deals…
-        </div>
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={3} />
+        <BoardSkeleton />
       </DashboardPage>
     );
   }

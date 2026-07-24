@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { Loader2, Wallet } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
+import { CardListSkeleton } from '@/components/loading'
 
 interface PayslipRow {
   id: string
@@ -220,9 +221,7 @@ export default function CompanyPayrollPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <CardListSkeleton rows={5} />
           ) : payslips.length === 0 ? (
             <p className="text-muted-foreground text-sm py-8 text-center">
               No payslips for this period. Generate payslips for active employees with salary configured.

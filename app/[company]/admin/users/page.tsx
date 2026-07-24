@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { Loader2 } from 'lucide-react';
+import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 type WorkspaceUser = {
   id: string;
@@ -73,10 +73,15 @@ export default function WorkspaceUsersPage() {
   if (loading) {
     return (
       <DashboardPage>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading users…
-        </div>
+        <PageHeaderSkeleton />
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Members</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FullTableSkeleton columnCount={6} rowCount={5} />
+          </CardContent>
+        </Card>
       </DashboardPage>
     );
   }

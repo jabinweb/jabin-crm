@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Loader2, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Button } from '@/components/ui/button';
+import { SectionSkeleton } from '@/components/loading';
 import type { FeatureModuleKey } from '@/lib/feature-module-keys';
 
 type ModuleMap = Partial<Record<FeatureModuleKey, boolean>>;
@@ -47,11 +48,7 @@ export function FeatureModuleGuard({
   const enabled = useFeatureModule(module);
 
   if (enabled === null) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <SectionSkeleton lines={4} className="py-24 max-w-lg mx-auto" />;
   }
 
   if (!enabled) {

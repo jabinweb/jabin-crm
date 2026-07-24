@@ -3,8 +3,9 @@
 import { useSession } from 'next-auth/react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, FileText, Info, Key, Loader2, Sparkles } from 'lucide-react';
+import { Building, FileText, Info, Key, Sparkles } from 'lucide-react';
 import { useUserProfileSettings } from '@/hooks/use-user-profile-settings';
+import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
 import { BusinessTab } from './business-tab';
 import { InvoicingTab } from './invoicing-tab';
 import { PaymentTab } from './payment-tab';
@@ -19,9 +20,8 @@ export default function UserProfileSettings() {
   if (settings.isLoading) {
     return (
       <div className="flex-1 space-y-4">
-        <div className="flex justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <PageHeaderSkeleton />
+        <FormSkeleton fields={5} />
       </div>
     );
   }

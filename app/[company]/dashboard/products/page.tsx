@@ -38,11 +38,11 @@ import {
     Filter,
     ShieldCheck,
     FileText,
-    Loader2,
 } from 'lucide-react';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { toast } from 'sonner';
+import { FullTableSkeleton } from '@/components/loading';
 
 const categories = [
     'HARDWARE',
@@ -238,9 +238,7 @@ export default function ProductsPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <FullTableSkeleton columnCount={5} rowCount={5} />
                     ) : (
                         <div className="rounded-none border">
                             <Table>

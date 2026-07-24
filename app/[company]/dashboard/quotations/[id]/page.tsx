@@ -12,6 +12,7 @@ import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { DetailSkeleton } from '@/components/loading';
 
 interface QuotationItem {
   id: string;
@@ -128,11 +129,7 @@ export default function QuotationDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Loading quotation...</div>
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   if (!quotation) {

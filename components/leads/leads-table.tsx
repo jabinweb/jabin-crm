@@ -28,6 +28,7 @@ import {
   MoreVertical,
 } from 'lucide-react';
 import { LeadScoreBadge } from '@/components/crm/lead-score-badge';
+import { FullTableSkeleton } from '@/components/loading';
 import { type useLeadsPage } from '@/hooks/use-leads-page';
 
 type LeadsPageState = ReturnType<typeof useLeadsPage>;
@@ -67,11 +68,7 @@ export function LeadsTable({
   handleConvertLead,
 }: LeadsTableProps) {
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-8">
-        <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <FullTableSkeleton columnCount={9} rowCount={5} />;
   }
 
   if (error) {

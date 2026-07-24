@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Loader2, Calendar } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
+import { CardListSkeleton } from '@/components/loading'
 
 interface LeaveRow {
   id: string
@@ -118,9 +119,7 @@ export default function CompanyLeaveRequestsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
+            <CardListSkeleton rows={4} />
           ) : requests.length === 0 ? (
             <p className="text-muted-foreground text-sm py-8 text-center">
               No leave requests{filter === 'PENDING' ? ' pending approval' : ''}.

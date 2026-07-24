@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/select';
 import { CheckCircle2, Loader2, Wrench } from 'lucide-react';
 import type { PortalTicketTypeDefinition } from '@/lib/support/ticket-types';
+import { FormSkeleton } from '@/components/loading';
 
 type ContextResponse = {
   organizationName: string;
@@ -69,11 +70,7 @@ export function ServiceRequestForm({ token }: { token: string }) {
   );
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <FormSkeleton fields={5} className="py-8" />;
   }
 
   if (error || !data) {

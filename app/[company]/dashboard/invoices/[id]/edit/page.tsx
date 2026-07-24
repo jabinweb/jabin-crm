@@ -3,7 +3,7 @@
 import { use } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { InvoiceForm } from '@/components/forms/invoice-form';
-import { Loader2 } from 'lucide-react';
+import { FormSkeleton } from '@/components/loading';
 
 export default function EditInvoicePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -19,8 +19,8 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="space-y-6">
+        <FormSkeleton fields={6} />
       </div>
     );
   }

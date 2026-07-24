@@ -13,10 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Loader2, Save } from 'lucide-react';
+import { Clock, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
+import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
@@ -78,8 +79,17 @@ export default function SlaPoliciesPage() {
   return (
     <FeatureModuleGuard module="SUPPORT_SLA">
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="space-y-8 max-w-3xl">
+          <PageHeaderSkeleton />
+          <div className="space-y-4">
+            {PRIORITIES.map((priority) => (
+              <Card key={priority}>
+                <CardContent className="pt-6">
+                  <FormSkeleton fields={3} />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       ) : (
     <div className="space-y-8 max-w-3xl">

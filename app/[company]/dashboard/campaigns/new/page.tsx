@@ -33,6 +33,7 @@ import {
   Info,
   Wand2,
 } from 'lucide-react';
+import { CardListSkeleton } from '@/components/loading';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -433,9 +434,7 @@ export default function NewCampaignPage() {
                   <Separator />
 
                   {leadsLoading ? (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    </div>
+                    <CardListSkeleton rows={5} />
                   ) : leadsData?.leads && leadsData.leads.length > 0 ? (
                     <div className="max-h-96 overflow-y-auto space-y-2">
                       {leadsData.leads.map((lead: any) => (

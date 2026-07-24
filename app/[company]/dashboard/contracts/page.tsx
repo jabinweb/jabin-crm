@@ -21,8 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Plus, FileText } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import { useState } from 'react';
+import { TableSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { daysUntil, renewalUrgency } from '@/lib/crm/service-contract-utils';
 
@@ -139,9 +140,7 @@ export default function ContractsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton columnCount={5} rowCount={5} />
           ) : !contracts.length ? (
             <EmptyState
               icon={FileText}

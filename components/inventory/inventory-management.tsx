@@ -21,6 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDistanceToNow } from "date-fns";
+import { FullTableSkeleton } from "@/components/loading";
+import { Loader2 } from "lucide-react";
 
 interface InventoryEntry {
   id: string;
@@ -242,7 +244,14 @@ export function InventoryManagement({ productId }: InventoryManagementProps) {
                   Cancel
                 </Button>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Updating..." : "Update"}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update"
+                  )}
                 </Button>
               </div>
             </form>
@@ -250,6 +259,9 @@ export function InventoryManagement({ productId }: InventoryManagementProps) {
         </Dialog>
       </div>
 
+      {isLoading && inventory.length === 0 ? (
+        <FullTableSkeleton columnCount={4} rowCount={5} />
+      ) : (
       <Table>
         <TableHeader>
           <TableRow>
@@ -270,6 +282,7 @@ export function InventoryManagement({ productId }: InventoryManagementProps) {
           ))}
         </TableBody>
       </Table>
+      )}
     </div>
   );
 }

@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Users, Mail, TrendingUp, Play, Pause, Edit } from 'lucide-react';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { DetailSkeleton } from '@/components/loading';
 
 interface SequenceStats {
   id: string;
@@ -117,7 +118,7 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
   };
 
   if (loading) {
-    return <div className="space-y-6">Loading...</div>;
+    return <DetailSkeleton />;
   }
 
   if (!stats) {

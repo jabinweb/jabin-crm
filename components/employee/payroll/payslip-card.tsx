@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { FileDown } from "lucide-react"
+import { CardListSkeleton } from "@/components/loading"
 
 interface PayslipCardProps {
   employeeId: string
@@ -80,9 +81,7 @@ export function PayslipCard({ employeeId }: PayslipCardProps) {
       <CardContent>
         <ScrollArea className="h-[300px]">
           {loading ? (
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
-              Loading payslips...
-            </div>
+            <CardListSkeleton rows={3} className="py-4" />
           ) : payslips.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-muted-foreground">
               No payslips found for {selectedYear}

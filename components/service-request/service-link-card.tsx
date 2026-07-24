@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Copy, Link2, Loader2, QrCode, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { SectionSkeleton } from '@/components/loading';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type ServiceLinkCardProps = {
   /** customer | equipment */
@@ -105,9 +107,7 @@ export function ServiceLinkCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {isLoading ? (
-          <div className="flex justify-center py-6">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <SectionSkeleton lines={4} className="py-4" />
         ) : data?.url ? (
           <>
             <div className="flex flex-col sm:flex-row gap-4 items-start">
@@ -116,7 +116,7 @@ export function ServiceLinkCard({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={qrDataUrl} alt="Service request QR code" width={180} height={180} />
                 ) : (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <Skeleton className="h-[180px] w-[180px]" />
                 )}
               </div>
               <div className="flex-1 space-y-3 w-full min-w-0">

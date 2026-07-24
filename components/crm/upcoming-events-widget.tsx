@@ -8,6 +8,7 @@ import { Calendar, Clock, MapPin, ExternalLink } from 'lucide-react';
 import { format, isToday, isTomorrow, isPast } from 'date-fns';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { SectionSkeleton } from '@/components/loading';
 
 interface UpcomingEvent {
   id: string;
@@ -75,9 +76,7 @@ export function UpcomingEventsWidget() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-purple-600"></div>
-          </div>
+          <SectionSkeleton lines={5} className="py-4" />
         </CardContent>
       </Card>
     );

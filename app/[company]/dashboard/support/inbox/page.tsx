@@ -27,6 +27,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { InboxReplySheet } from '@/components/support/inbox-reply-sheet';
 import { SupportBackLink } from '@/components/support/support-back-link';
+import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import type { UnifiedInboxItem } from '@/lib/support/unified-inbox';
 
@@ -137,8 +138,8 @@ export default function OmnichannelInboxPage() {
               </CardHeader>
               <CardContent className="p-0 divide-y">
                 {isLoading ? (
-                  <div className="flex justify-center py-16">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                  <div className="p-4">
+                    <CardListSkeleton rows={6} />
                   </div>
                 ) : items.length === 0 ? (
                   <p className="text-center py-12 text-muted-foreground">No conversations in this channel.</p>

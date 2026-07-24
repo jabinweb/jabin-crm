@@ -43,6 +43,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { ServiceLinkCard } from '@/components/service-request/service-link-card';
+import { DetailSkeleton } from '@/components/loading';
 import {
     Table,
     TableBody,
@@ -150,11 +151,7 @@ export default function CustomerDetailPage() {
     };
 
     if (isLoading) {
-        return (
-            <div className="flex justify-center py-20">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-        );
+        return <DetailSkeleton />;
     }
 
     if (!customer) {

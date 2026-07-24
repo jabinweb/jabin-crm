@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { PricingCountrySelector } from '@/components/pricing/pricing-country-selector';
 import { loadRazorpayCheckout } from '@/lib/payments/load-razorpay';
+import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -212,8 +213,9 @@ export default function PricingPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="mx-auto max-w-5xl space-y-8 px-6 py-16">
+        <PageHeaderSkeleton />
+        <CardListSkeleton rows={3} />
       </div>
     );
   }

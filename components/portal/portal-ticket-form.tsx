@@ -24,6 +24,7 @@ import {
 import { ChevronLeft, Loader2, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { KbDeflection } from '@/components/portal/kb-deflection';
+import { FormSkeleton } from '@/components/loading';
 import type {
   PortalTicketField,
   PortalTicketTypeDefinition,
@@ -216,11 +217,7 @@ export function PortalTicketForm() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <FormSkeleton fields={5} className="py-8" />;
   }
 
   if (issueResolved) {

@@ -18,7 +18,6 @@ import {
     ChevronRight,
     TrendingUp,
     Activity,
-    Loader2,
     User,
     Wrench
 } from 'lucide-react';
@@ -26,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 
 export default function TechnicianDashboard() {
     const { path } = useWorkspacePaths();
@@ -42,8 +42,10 @@ export default function TechnicianDashboard() {
 
     if (statsLoading) {
         return (
-            <div className="flex justify-center py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex-1 space-y-6">
+                <PageHeaderSkeleton />
+                <StatCardsSkeleton count={4} />
+                <CardListSkeleton rows={4} />
             </div>
         );
     }

@@ -1,77 +1,101 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
 
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const preferredRegion = 'auto'
-export const maxDuration = 60 // 1 minutes
+export const maxDuration = 60
 
-const connections = new Map<string, WritableStreamDefaultWriter<Uint8Array>>()
+type StreamWriter = WritableStreamDefaultWriter<Uint8Array>
+
+/** Per-isolate connection registry (not shared across Vercel instances). */
+const connections = new Map<string, StreamWriter>()
 const encoder = new TextEncoder()
-const HEARTBEAT_INTERVAL = 30000 // 30 seconds
+const HEARTBEAT_MS = 15_000
+
+function connectionId(user: { employeeId?: string | null; id?: string | null }): string | null {
+  return user.employeeId || user.id || null
+}
 
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()
-    const user = session?.user as any  // Cast to bypass type issues
-    
-    if (!user?.employeeId) {
-      return new Response('Unauthorized', { status: 401 })
+    const user = session?.user as { employeeId?: string | null; id?: string | null } | undefined
+    const userId = user ? connectionId(user) : null
+
+    if (!userId) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
-    const userId = user.employeeId
-    const stream = new TransformStream()
+    const stream = new TransformStream<Uint8Array, Uint8Array>()
     const writer = stream.writable.getWriter()
+    const previous = connections.get(userId)
+    if (previous) {
+      try {
+        await previous.close()
+      } catch {
+        /* ignore */
+      }
+    }
     connections.set(userId, writer)
 
-    // Send initial connection message
-    await writer.write(
-      encoder.encode(`data: ${JSON.stringify({ type: 'connected' })}\n\n`)
-    )
-
-    let isConnected = true
-    const heartbeat = setInterval(async () => {
-      if (!isConnected) {
-        clearInterval(heartbeat)
-        return
-      }
-      try {
-        await writer.write(
-          encoder.encode(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`)
-        )
-      } catch {
-        isConnected = false
-        clearInterval(heartbeat)
-      }
-    }, HEARTBEAT_INTERVAL)
-
-    // Cleanup on disconnect
-    req.signal.addEventListener('abort', () => {
-      isConnected = false
+    let closed = false
+    const close = () => {
+      if (closed) return
+      closed = true
       clearInterval(heartbeat)
-      connections.delete(userId)
+      if (connections.get(userId) === writer) {
+        connections.delete(userId)
+      }
       writer.close().catch(() => undefined)
-    })
+    }
+
+    const heartbeat = setInterval(() => {
+      writer
+        .write(encoder.encode(`data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`))
+        .catch(() => close())
+    }, HEARTBEAT_MS)
+
+    req.signal.addEventListener('abort', close)
+
+    try {
+      await writer.write(
+        encoder.encode(`data: ${JSON.stringify({ type: 'connected', userId })}\n\n`)
+      )
+    } catch {
+      close()
+      return new Response('Unable to open stream', { status: 503 })
+    }
 
     return new Response(stream.readable, {
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/event-stream; charset=utf-8',
         'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no',
       },
     })
   } catch (error) {
     console.error('[SSE] Error:', error)
-    return new Response('Error', { status: 500 })
+    return new Response(JSON.stringify({ error: 'Service Unavailable' }), {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json',
+        'Retry-After': '10',
+      },
+    })
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const session = await auth()
-    const user = session?.user as { employeeId?: string; id?: string } | undefined
+    const user = session?.user as { employeeId?: string | null; id?: string | null } | undefined
+    const senderId = user ? connectionId(user) : null
 
-    if (!user?.employeeId && !user?.id) {
+    if (!senderId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
@@ -79,8 +103,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const receiverId = body.receiverId as string | undefined
-
+    const receiverId = typeof body.receiverId === 'string' ? body.receiverId : ''
     if (!receiverId) {
       return new Response(JSON.stringify({ error: 'receiverId is required' }), {
         status: 400,
@@ -92,14 +115,20 @@ export async function POST(req: NextRequest) {
     const payload = {
       type: body.type ?? 'webrtc_signaling',
       payload: body.payload,
-      senderId: user.employeeId ?? user.id,
+      senderId,
     }
 
+    let delivered = false
     if (writer) {
-      await writer.write(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+      try {
+        await writer.write(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`))
+        delivered = true
+      } catch {
+        connections.delete(receiverId)
+      }
     }
 
-    return new Response(JSON.stringify({ ok: true, delivered: !!writer }), {
+    return new Response(JSON.stringify({ ok: true, delivered }), {
       headers: { 'Content-Type': 'application/json' },
     })
   } catch (error) {
@@ -110,35 +139,3 @@ export async function POST(req: NextRequest) {
     })
   }
 }
-
-// Helper to broadcast messages to connected clients
-export async function broadcast(message: any, excludeSessionId?: string) {
-  const encoder = new TextEncoder()
-  const encoded = encoder.encode(`data: ${JSON.stringify(message)}\n\n`)
-
-  // Use Array.from to convert Map entries to array for iteration
-  await Promise.all(
-    Array.from(connections).map(async ([sessionId, writer]) => {
-      if (sessionId !== excludeSessionId) {
-        try {
-          await writer.write(encoded)
-        } catch (error) {
-          connections.delete(sessionId)
-        }
-      }
-    })
-  )
-}
-
-// Clean up on module reload
-globalThis.addEventListener?.('beforeunload', () => {
-  // Use Array.from for values iteration
-  Array.from(connections.values()).forEach(writer => {
-    writer.close()
-  })
-  connections.clear()
-})
-
-
-
-

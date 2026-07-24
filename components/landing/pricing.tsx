@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, Loader2 } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { PricingCountrySelector } from '@/components/pricing/pricing-country-selector';
+import { CardListSkeleton } from '@/components/loading';
 
 const tierSummary: Record<string, { tagline: string; modules: string }> = {
   free: { tagline: 'Try it free', modules: 'Leads, basic tickets, HRMS' },
@@ -74,9 +75,7 @@ export function Pricing() {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-5 w-5 animate-spin text-[var(--lp-muted)]" />
-          </div>
+          <CardListSkeleton rows={4} />
         ) : plans.length === 0 ? (
           <div className="rounded-2xl border border-[var(--lp-line)] bg-white p-10 text-center">
             <p className="text-sm text-[var(--lp-muted)] mb-4">Plans are configured in admin.</p>

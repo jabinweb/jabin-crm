@@ -24,12 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Ticket, Plus, Search, UserCheck, ChevronRight, LayoutGrid, List, Loader2 } from 'lucide-react';
+import { Ticket, Plus, Search, UserCheck, ChevronRight, LayoutGrid, List } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
+import { BoardSkeleton, FullTableSkeleton } from '@/components/loading';
 import { toast } from 'sonner';
 
 type TicketRow = {
@@ -226,10 +227,7 @@ export default function TicketsPage() {
         <CardContent>
           {view === 'board' ? (
             isLoading || columnsLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground py-12 justify-center">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Loading…
-              </div>
+              <BoardSkeleton />
             ) : (
               <PipelineBoard
                 columns={columns}
@@ -260,9 +258,7 @@ export default function TicketsPage() {
               />
             )
           ) : isLoading ? (
-            <div className="flex justify-center py-12">
-              <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-            </div>
+            <FullTableSkeleton columnCount={7} rowCount={5} />
           ) : !filteredTickets?.length ? (
             <EmptyState
               icon={Ticket}

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
+import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 export default function CannedResponsesPage() {
@@ -79,7 +80,7 @@ export default function CannedResponsesPage() {
       <Card>
         <CardHeader><CardTitle>Library</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+          {isLoading ? <CardListSkeleton rows={3} /> : (
             responses?.map((r: any) => (
               <div key={r.id} className="border rounded-lg p-3">
                 <p className="font-medium text-sm">{r.title}</p>

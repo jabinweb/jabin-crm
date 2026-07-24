@@ -13,8 +13,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, FileCheck } from 'lucide-react';
+import { FileCheck } from 'lucide-react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { TableSkeleton } from '@/components/loading';
 
 type ServiceReportRow = {
   id: string;
@@ -90,9 +91,7 @@ export default function ServiceReportsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton columnCount={6} rowCount={5} />
           ) : !reports.length ? (
             <EmptyState
               icon={FileCheck}

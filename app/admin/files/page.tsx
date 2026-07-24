@@ -31,6 +31,7 @@ import {
     Folder
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { FullTableSkeleton } from '@/components/loading';
 
 interface FileRecord {
     id: string;
@@ -380,6 +381,9 @@ export default function FileManagerPage() {
                         </div>
                     </CardHeader>
                     <CardContent>
+                        {loading ? (
+                            <FullTableSkeleton columnCount={7} rowCount={6} />
+                        ) : (
                         <div className="overflow-x-auto overflow-y-visible scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40 transition-colors">
                             <Table>
                                 <TableHeader>
@@ -401,13 +405,7 @@ export default function FileManagerPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {loading ? (
-                                        <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                                                Loading files...
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : paginatedFiles.length === 0 ? (
+                                    {paginatedFiles.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                                 No files found
@@ -482,9 +480,10 @@ export default function FileManagerPage() {
                                 </TableBody>
                             </Table>
                         </div>
+                        )}
 
                         {/* Pagination */}
-                        {totalPages > 1 && (
+                        {!loading && totalPages > 1 && (
                             <div className="flex items-center justify-between mt-4 pt-4 border-t">
                                 <div className="text-sm text-muted-foreground">
                                     Showing {startIndex + 1} to {Math.min(endIndex, filteredFiles.length)} of {filteredFiles.length} files

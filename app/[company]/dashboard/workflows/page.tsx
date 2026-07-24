@@ -19,6 +19,7 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { Loader2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { TableSkeleton } from '@/components/loading';
 
 type WorkflowRow = {
   id: string;
@@ -140,9 +141,7 @@ export default function WorkflowsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <TableSkeleton columnCount={4} rowCount={5} />
           ) : workflows.length === 0 ? (
             <EmptyState
               icon={Zap}

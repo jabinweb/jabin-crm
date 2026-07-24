@@ -17,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { FullTableSkeleton } from "@/components/loading";
 
 interface User {
   id: string;
@@ -142,10 +143,7 @@ export default function UsersPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-none h-8 w-8 border-b-2 border-gray-900"></div>
-          <p className="mt-2 text-gray-600">Loading users...</p>
-        </div>
+        <FullTableSkeleton columnCount={5} rowCount={6} />
       ) : (
         <>
           <div className="bg-white rounded-none shadow">

@@ -9,7 +9,6 @@ import {
   MailOpen,
   Minus,
   Pencil,
-  RefreshCw,
   Reply as ReplyIcon,
   Send,
   Sparkles,
@@ -24,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { extractReplyContent } from '@/lib/email/extract-reply-content';
+import { SectionSkeleton } from '@/components/loading';
 import type { Email, EmailFolder, Reply, SentimentAnalysis } from '@/types/emails-inbox';
 
 interface EmailDetailPanelProps {
@@ -404,10 +404,7 @@ export function EmailDetailPanel({
             )}
 
             {loadingReplies && (
-              <div className="border rounded-none p-6 bg-muted/30 flex items-center justify-center">
-                <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
-                <span className="text-sm text-muted-foreground">Loading replies...</span>
-              </div>
+              <SectionSkeleton lines={4} className="border rounded-none p-6" />
             )}
           </div>
         )}

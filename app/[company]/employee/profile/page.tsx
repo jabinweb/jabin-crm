@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ProfileCard } from "@/components/employee/profile-card"
-import { Loader2, PencilIcon } from "lucide-react"
+import { PencilIcon } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
+import { PageHeaderSkeleton, DetailSkeleton } from "@/components/loading"
 
 interface Address {
   street: string
@@ -74,7 +75,14 @@ export default function ProfilePage() {
     )
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <PageHeaderSkeleton />
+        <DetailSkeleton />
+      </div>
+    )
+  }
   if (!profile) return null
 
   return (

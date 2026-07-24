@@ -10,18 +10,13 @@ import { LeadDetailActivity } from '@/components/leads/detail/lead-detail-activi
 import { LeadDetailActions } from '@/components/leads/detail/lead-detail-actions';
 import { LeadDetailDialogs } from '@/components/leads/detail/lead-detail-dialogs';
 import { LeadDocuments } from '@/components/leads/lead-documents';
+import { DetailSkeleton } from '@/components/loading';
 
 export default function LeadDetailPage() {
   const detail = useLeadDetailPage();
 
   if (detail.isLoading) {
-    return (
-      <div className="flex-1 space-y-4">
-        <div className="flex justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   if (!detail.lead) {

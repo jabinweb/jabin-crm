@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
+import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 interface Company {
   id: number;
@@ -145,10 +146,9 @@ export default function CompaniesPage() {
   // Render loading state only during initial load
   if (isInitialLoad) {
     return (
-      <div className="p-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
-        </div>
+      <div className="p-8 space-y-6">
+        <PageHeaderSkeleton />
+        <FullTableSkeleton columnCount={5} rowCount={6} />
       </div>
     );
   }

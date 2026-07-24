@@ -5,9 +5,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-card';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { SectionSkeleton } from '@/components/loading';
 import { ArrowLeft, Clock, Users } from 'lucide-react';
 
 export default function CompanyAttendancePage() {
@@ -69,7 +69,7 @@ export default function CompanyAttendancePage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-20 w-full" />
+              <SectionSkeleton lines={3} />
             ) : !opsToday?.attendance?.lateList?.length ? (
               <p className="text-sm text-muted-foreground">No late arrivals today.</p>
             ) : (
@@ -104,7 +104,7 @@ export default function CompanyAttendancePage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <Skeleton className="h-20 w-full" />
+              <SectionSkeleton lines={3} />
             ) : !opsToday?.attendance?.onLeaveList?.length ? (
               <p className="text-sm text-muted-foreground">Nobody on leave today.</p>
             ) : (

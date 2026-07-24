@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Badge } from '@/components/ui/badge';
+import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 export default function CustomerAnalyticsPage() {
     const { data: analytics, isLoading } = useQuery({
@@ -37,8 +38,10 @@ export default function CustomerAnalyticsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex h-[400px] items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex-1 space-y-6">
+                <PageHeaderSkeleton />
+                <StatCardsSkeleton count={4} />
+                <SectionSkeleton lines={8} />
             </div>
         );
     }

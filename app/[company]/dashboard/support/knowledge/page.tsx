@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
+import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 export default function KnowledgeBaseAdminPage() {
@@ -88,7 +89,7 @@ export default function KnowledgeBaseAdminPage() {
       <Card>
         <CardHeader><CardTitle>Published articles</CardTitle></CardHeader>
         <CardContent>
-          {isLoading ? <p className="text-sm text-muted-foreground">Loading…</p> : (
+          {isLoading ? <CardListSkeleton rows={4} /> : (
             <ul className="space-y-2">
               {(articles?.articles ?? []).map((a: any) => (
                 <li key={a.id} className="flex justify-between border-b py-2 text-sm">

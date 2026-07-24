@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmailComposeDialog } from '@/components/email/email-compose-dialog';
 import { EmailDetailPanel } from '@/components/email/email-detail-panel';
+import { CardListSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
 import type { Email } from '@/types/emails-inbox';
 import type { UseEmailsInboxReturn } from '@/hooks/use-emails-inbox';
@@ -147,7 +148,9 @@ export function EmailsInboxView({
 
         <ScrollArea className="flex-1">
           {loadingSent || loadingDrafts ? (
-            <div className="p-8 text-center text-muted-foreground">Loading...</div>
+            <div className="p-4">
+              <CardListSkeleton rows={8} />
+            </div>
           ) : filteredEmails.length === 0 ? (
             <div className="p-8 text-center">
               <Mail className="mx-auto h-12 w-12 text-muted-foreground" />

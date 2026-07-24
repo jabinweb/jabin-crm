@@ -8,13 +8,13 @@ import {
   Send,
   Trash2,
   Edit,
-  Loader2
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { EmailDraftModal } from '@/components/email/email-draft-modal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardListSkeleton, DetailSkeleton } from '@/components/loading';
 
 export default function EmailDraftsPageWithSidebar() {
   const queryClient = useQueryClient();
@@ -140,8 +140,8 @@ export default function EmailDraftsPageWithSidebar() {
           
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
-              <div className="flex items-center justify-center p-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="p-4">
+                <CardListSkeleton rows={6} />
               </div>
             ) : filteredDrafts.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
@@ -179,8 +179,8 @@ export default function EmailDraftsPageWithSidebar() {
       {/* Main Content - Draft Preview */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="p-6">
+            <DetailSkeleton />
           </div>
         ) : drafts.length === 0 ? (
           <div className="flex h-full items-center justify-center">

@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
+import { BoardSkeleton, FullTableSkeleton } from '@/components/loading';
 
 type SupplierOption = { id: string; name: string };
 type ProductOption = { id: string; name: string; price: number; sku?: string };
@@ -505,9 +506,7 @@ export default function PurchaseOrdersPage() {
           </CardHeader>
           <CardContent>
             {isLoading || columnsLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
+              <BoardSkeleton />
             ) : (
               <PipelineBoard
                 columns={columns}
@@ -531,9 +530,7 @@ export default function PurchaseOrdersPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              </div>
+              <FullTableSkeleton columnCount={6} rowCount={5} />
             ) : orders.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}

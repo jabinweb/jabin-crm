@@ -15,6 +15,7 @@ import {
   type PipelineStageDef,
 } from '@/lib/pipelines';
 import { ArrowDown, ArrowUp, Loader2, Save } from 'lucide-react';
+import { FormSkeleton } from '@/components/loading';
 
 type KindState = {
   stages: string[];
@@ -134,12 +135,7 @@ export function PipelineSettingsPanel() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading pipelines…
-      </div>
-    );
+    return <FormSkeleton fields={5} />;
   }
 
   return (

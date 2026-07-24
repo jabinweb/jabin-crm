@@ -15,6 +15,7 @@ import {
     CalendarDays,
 } from 'lucide-react';
 import Link from 'next/link';
+import { CardListSkeleton } from '@/components/loading';
 
 const statusColors: Record<string, string> = {
     RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -119,9 +120,7 @@ export default function ServiceHistoryPage() {
 
             {/* Content */}
             {isLoading ? (
-                <div className="flex justify-center py-24">
-                    <div className="animate-spin rounded-none h-10 w-10 border-b-2 border-blue-600" />
-                </div>
+                <CardListSkeleton rows={5} />
             ) : reports.length === 0 ? (
                 <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
                     <CardContent className="flex flex-col items-center justify-center py-24 text-center gap-3">

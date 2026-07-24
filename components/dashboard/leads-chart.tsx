@@ -3,7 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { SectionSkeleton } from '@/components/loading';
 
 export function LeadsChart() {
   const { data, isLoading } = useQuery({
@@ -23,9 +23,7 @@ export function LeadsChart() {
       </CardHeader>
       <CardContent className="pl-2">
         {isLoading ? (
-          <div className="flex items-center justify-center h-[250px] md:h-[280px]">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <SectionSkeleton lines={8} className="h-[250px] md:h-[280px] justify-center py-8" />
         ) : !data?.length ? (
           <div className="flex items-center justify-center h-[250px] md:h-[280px] text-sm text-muted-foreground">
             No lead activity yet this period.

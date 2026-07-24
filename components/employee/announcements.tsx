@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Bell } from "lucide-react"
+import { CardListSkeleton } from "@/components/loading"
 
 interface Announcement {
   id: string
@@ -36,7 +37,13 @@ export function Announcements() {
   }, [])
 
   if (isLoading) {
-    return <Card><CardContent>Loading announcements...</CardContent></Card>
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <CardListSkeleton rows={3} />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

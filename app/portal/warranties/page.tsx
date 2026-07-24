@@ -14,6 +14,7 @@ import {
     PackageSearch,
 } from 'lucide-react';
 import Link from 'next/link';
+import { CardListSkeleton, StatCardsSkeleton } from '@/components/loading';
 
 function getWarrantyStatus(expiryDate: string | null) {
     if (!expiryDate) return { label: 'No Warranty', color: 'text-slate-500', bgColor: 'bg-slate-50 dark:bg-slate-800/50', borderColor: 'border-slate-200 dark:border-slate-700', Icon: ShieldX };
@@ -134,8 +135,9 @@ export default function WarrantiesPage() {
 
             {/* Equipment Grid */}
             {isLoading ? (
-                <div className="flex justify-center py-24">
-                    <div className="animate-spin rounded-none h-10 w-10 border-b-2 border-blue-600" />
+                <div className="space-y-6">
+                    <StatCardsSkeleton count={3} />
+                    <CardListSkeleton rows={4} />
                 </div>
             ) : equipment.length === 0 ? (
                 <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">

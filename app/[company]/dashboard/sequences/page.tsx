@@ -9,6 +9,7 @@ import { Plus, Play, Pause, Users, Mail, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
 
 interface Sequence {
   id: string;
@@ -63,7 +64,12 @@ export default function SequencesPage() {
   };
 
   if (loading) {
-    return <div className="space-y-6">Loading sequences...</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <CardListSkeleton rows={4} />
+      </div>
+    );
   }
 
   return (

@@ -28,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 import {
   Select,
   SelectContent,
@@ -141,8 +142,10 @@ export default function DuplicatesPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={3} />
+        <CardListSkeleton rows={4} />
       </div>
     );
   }

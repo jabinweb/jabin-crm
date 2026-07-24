@@ -1,10 +1,2 @@
-
-export function LoadingSpinner() {
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="animate-spin rounded-none h-32 w-32 border-t-2 border-b-2 border-primary"></div>
-    </div>
-  )
-}
-
-
+/** @deprecated Use skeletons from `@/components/loading` for content loading. */
+export { SectionSkeleton as LoadingSpinner } from '@/components/loading';

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Bell } from "lucide-react"
+import { CardListSkeleton } from "@/components/loading"
 
 interface Announcement {
   id: string
@@ -55,9 +56,7 @@ export function AnnouncementsCard({ companyId }: AnnouncementsCardProps) {
       <CardContent>
         <ScrollArea className="h-[200px]">
           {isLoading ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              Loading announcements...
-            </div>
+            <CardListSkeleton rows={3} />
           ) : announcements.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               No announcements found

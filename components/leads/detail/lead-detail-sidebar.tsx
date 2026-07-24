@@ -3,11 +3,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Mail, Building, MapPin, Calendar, ExternalLink, Loader2 } from 'lucide-react';
+import { Mail, Building, MapPin, Calendar, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { LeadScoreBadge } from '@/components/crm/lead-score-badge';
 import { getLeadDisplayScore } from '@/types/lead';
+import { CardListSkeleton } from '@/components/loading';
 import { type useLeadDetailPage } from '@/hooks/use-lead-detail-page';
 
 type LeadDetailPageState = ReturnType<typeof useLeadDetailPage>;
@@ -122,9 +123,7 @@ export function LeadDetailSidebar({
         </CardHeader>
         <CardContent>
           {emailsLoading ? (
-            <div className="flex justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
-            </div>
+            <CardListSkeleton rows={3} />
           ) : emailSnapshot && emailSnapshot.length > 0 ? (
             <div className="space-y-3">
               {emailSnapshot.map((em) => (

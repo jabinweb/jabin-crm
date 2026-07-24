@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { FEATURE_MODULE_LABELS, type FeatureModuleKey } from '@/lib/feature-module-keys';
+import { FormSkeleton } from '@/components/loading';
+import { Loader2 } from 'lucide-react';
 
 export function FeatureModulesCard({ userId }: { userId: string }) {
   const [modules, setModules] = useState<Record<string, boolean>>({});
@@ -60,7 +62,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading modules...</p>
+          <FormSkeleton fields={4} />
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -91,6 +93,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
               })}
             </div>
             <Button onClick={saveModules} disabled={saving}>
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {saving ? 'Saving...' : 'Save Module Access'}
             </Button>
           </div>

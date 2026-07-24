@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Navbar } from '@/components/layout/navbar';
-import { Loader2 } from 'lucide-react';
+import { ShellSkeleton } from '@/components/loading';
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -28,11 +28,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   }, [session, status, router]);
 
   if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <ShellSkeleton />;
   }
 
   if (!session) {

@@ -10,6 +10,7 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
+import { FormSkeleton } from '@/components/loading'
 import {
   Plus,
   Users,
@@ -122,9 +123,7 @@ export function QuickActions() {
             <DialogTitle>Create task</DialogTitle>
           </DialogHeader>
           {loading ? (
-            <div className="flex items-center justify-center p-4">
-              Loading employees...
-            </div>
+            <FormSkeleton fields={3} />
           ) : (
             <TaskForm
               employees={employees}

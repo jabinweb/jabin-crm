@@ -10,9 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 type DashboardStatsResult =
   | { kind: 'stats'; employees: number; customers: number; products: number; projects: number }
@@ -80,8 +80,13 @@ export default function WorkspacePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="flex-1 space-y-6 max-w-7xl mx-auto">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={4} />
+        <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-7">
+          <SectionSkeleton lines={8} className="lg:col-span-4" />
+          <SectionSkeleton lines={6} className="lg:col-span-3" />
+        </div>
       </div>
     );
   }

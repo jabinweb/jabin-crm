@@ -26,6 +26,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
+import { DetailSkeleton, PageHeaderSkeleton, CardListSkeleton, SectionSkeleton } from '@/components/loading';
 
 function PortalSupportContent() {
   const searchParams = useSearchParams();
@@ -70,8 +71,9 @@ function PortalSupportContent() {
   if (slug) {
     if (articleLoading) {
       return (
-        <div className="flex justify-center py-16">
-          <div className="animate-spin h-10 w-10 border-b-2 border-primary rounded-full" />
+        <div className="space-y-6">
+          <PageHeaderSkeleton />
+          <DetailSkeleton />
         </div>
       );
     }
@@ -256,8 +258,9 @@ function PortalSupportContent() {
       </Card>
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <div className="animate-spin h-10 w-10 border-b-2 border-primary rounded-full" />
+        <div className="space-y-4">
+          <SectionSkeleton lines={2} />
+          <CardListSkeleton rows={4} />
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
@@ -357,8 +360,9 @@ export default function PortalSupportPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex justify-center py-16">
-          <div className="animate-spin h-10 w-10 border-b-2 border-primary rounded-full" />
+        <div className="space-y-6">
+          <PageHeaderSkeleton />
+          <CardListSkeleton rows={4} />
         </div>
       }
     >

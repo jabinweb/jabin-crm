@@ -22,6 +22,7 @@ import { Plus, FileText, Send, CheckCircle, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 import { formatCurrency } from "@/lib/currency";
+import { PageHeaderSkeleton, FullTableSkeleton } from "@/components/loading";
 
 interface Quotation {
   id: string;
@@ -96,8 +97,9 @@ export default function QuotationsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-lg">Loading quotations...</div>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <FullTableSkeleton columnCount={6} rowCount={6} />
       </div>
     );
   }

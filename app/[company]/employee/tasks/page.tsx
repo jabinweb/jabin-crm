@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Loader2 } from "lucide-react"
 import { CompanyTaskStatus } from "@prisma/client"
+import { PageHeaderSkeleton, BoardSkeleton } from "@/components/loading"
 
 interface CompanyTask {
   id: string
@@ -36,7 +36,14 @@ export default function TasksPage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  if (loading) {
+    return (
+      <div className="container mx-auto p-8 space-y-8">
+        <PageHeaderSkeleton />
+        <BoardSkeleton columns={3} cardsPerColumn={3} />
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto p-8 space-y-12">

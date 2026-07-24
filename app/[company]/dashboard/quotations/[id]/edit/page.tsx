@@ -13,6 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { FormSkeleton } from '@/components/loading';
 
 interface QuotationItem {
   id?: string;
@@ -179,8 +180,8 @@ export default function EditQuotationPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="space-y-6">
+        <FormSkeleton fields={6} />
       </div>
     );
   }

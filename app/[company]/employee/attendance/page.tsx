@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Loader2 } from "lucide-react"
+import { Clock } from "lucide-react"
 import { AttendanceStatus } from "@prisma/client"
+import { PageHeaderSkeleton, SectionSkeleton } from "@/components/loading"
 
 interface Attendance {
   id: string
@@ -69,7 +70,31 @@ export default function AttendancePage() {
     }
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <PageHeaderSkeleton />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Time Clock</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SectionSkeleton lines={4} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Overview</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SectionSkeleton lines={6} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">

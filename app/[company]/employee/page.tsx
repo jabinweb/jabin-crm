@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react"
 import { Card } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
+import { PageHeaderSkeleton, DetailSkeleton } from "@/components/loading"
 
 interface EmployeeData {
   id: string
@@ -45,7 +46,12 @@ export default function EmployeeDashboard() {
   }, [session])
 
   if (loading) {
-    return <div>Loading...</div>
+    return (
+      <div className="p-6 space-y-6">
+        <PageHeaderSkeleton />
+        <DetailSkeleton />
+      </div>
+    )
   }
 
   return (

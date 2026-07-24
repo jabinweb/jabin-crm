@@ -29,7 +29,6 @@ import {
   DollarSign,
   Calendar,
   Download,
-  Loader2,
   ArrowUpRight,
   ArrowDownRight,
   Activity,
@@ -38,6 +37,7 @@ import {
   MousePointer,
 } from 'lucide-react';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 type DateRange = '7d' | '30d' | 'week' | 'month' | 'all';
 
@@ -101,8 +101,10 @@ export default function ReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={4} />
+        <SectionSkeleton lines={8} />
       </div>
     );
   }

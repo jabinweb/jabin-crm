@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -253,7 +254,12 @@ export default function EmailTemplatesPage() {
   };
 
   if (loading) {
-    return <div className="space-y-6">Loading templates...</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <CardListSkeleton rows={5} />
+      </div>
+    );
   }
 
   return (

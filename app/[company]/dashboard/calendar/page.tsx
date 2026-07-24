@@ -12,10 +12,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X } from 'lucide-react';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { PageHeaderSkeleton, SectionSkeleton } from '@/components/loading';
 
 const locales = {
   'en-US': require('date-fns/locale/en-US'),
@@ -306,11 +307,13 @@ export default function CalendarPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">Loading calendar…</p>
-        </div>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <Card>
+          <CardContent className="pt-6">
+            <SectionSkeleton lines={12} />
+          </CardContent>
+        </Card>
       </div>
     );
   }

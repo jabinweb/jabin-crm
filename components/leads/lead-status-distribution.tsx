@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useQuery } from "@tanstack/react-query"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
 import { LeadStatus } from "@prisma/client"
+import { SectionSkeleton } from "@/components/loading"
 
 const COLORS: Record<LeadStatus, string> = {
   NEW: "#60a5fa",
@@ -29,7 +30,18 @@ export function LeadStatusDistribution() {
     }
   })
 
-  if (isLoading || !data) return null
+  if (isLoading || !data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Lead Status Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SectionSkeleton lines={8} className="h-[300px] py-8" />
+        </CardContent>
+      </Card>
+    )
+  }
 
   const chartData = Object.entries(data).map(([status, count]) => ({
     name: status.toLowerCase().replace('_', ' '),

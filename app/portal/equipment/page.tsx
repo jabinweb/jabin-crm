@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
 
 export default function CustomerEquipmentInventory() {
     const router = useRouter();
@@ -50,7 +51,12 @@ export default function CustomerEquipmentInventory() {
     );
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="animate-spin rounded-none h-12 w-12 border-b-2 border-primary"></div></div>;
+        return (
+            <div className="space-y-6">
+                <PageHeaderSkeleton />
+                <FullTableSkeleton columnCount={5} rowCount={5} />
+            </div>
+        );
     }
 
     return (

@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ExternalLink, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { FormSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import type { UnifiedInboxItem } from '@/lib/support/unified-inbox';
 
@@ -109,8 +110,8 @@ export function InboxReplySheet({ item, open, onOpenChange }: Props) {
             Live chat replies open in the messaging module. Select a ticket to reply here.
           </div>
         ) : isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <div className="flex-1 py-2">
+            <FormSkeleton fields={3} />
           </div>
         ) : (
           <div className="flex-1 flex flex-col gap-4 min-h-0">

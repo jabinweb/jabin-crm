@@ -20,6 +20,7 @@ import {
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { DetailSkeleton } from '@/components/loading';
 
 function toInputDate(iso: string) {
   return new Date(iso).toISOString().slice(0, 10);
@@ -116,11 +117,7 @@ export default function ContractDetailPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   if (error || !data) {

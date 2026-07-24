@@ -22,6 +22,7 @@ import {
 import { InventoryManagement } from "@/components/inventory/inventory-management"
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
+import { DetailSkeleton } from '@/components/loading'
 
 interface Product {
   id: string
@@ -106,7 +107,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   }
 
   if (isLoading) {
-    return <div className="space-y-6">Loading...</div>
+    return <DetailSkeleton />
   }
 
   if (!product) {

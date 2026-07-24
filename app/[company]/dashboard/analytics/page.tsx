@@ -7,8 +7,9 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { TrendingUp, Mail, MousePointer, Reply, AlertCircle, DollarSign, Target, Award, Loader2 } from 'lucide-react';
+import { TrendingUp, Mail, MousePointer, Reply, AlertCircle, DollarSign, Target, Award } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
+import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 interface PipelineData {
   pipeline: Array<{ stage: string; count: number; value: number }>;
@@ -85,11 +86,10 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground text-sm">Loading analytics…</p>
-        </div>
+      <div className="space-y-6">
+        <PageHeaderSkeleton />
+        <StatCardsSkeleton count={4} />
+        <SectionSkeleton lines={8} />
       </div>
     );
   }

@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Loader2,
   Ticket,
   Clock,
   Star,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 export default function SupportAnalyticsPage() {
@@ -46,8 +46,30 @@ export default function SupportAnalyticsPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <div className="space-y-6">
+            <StatCardsSkeleton />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardContent className="pt-6">
+                  <SectionSkeleton lines={5} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <SectionSkeleton lines={4} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <SectionSkeleton lines={4} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <SectionSkeleton lines={4} />
+                </CardContent>
+              </Card>
+            </div>
           </div>
         ) : (
           <>

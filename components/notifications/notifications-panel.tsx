@@ -10,6 +10,7 @@ import { useNotifications } from '@/hooks/use-notifications'
 import { NotificationHandler } from './notification-handler'
 import type { Notification, NotificationType } from '@/types/notifications'
 import { useState } from 'react'
+import { SectionSkeleton } from '@/components/loading'
 
 interface NotificationsPanelProps {
   userRole: string
@@ -112,9 +113,11 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
           </SheetHeader>
           <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
             <div className="space-y-4">
-              {notifications.length === 0 ? (
+              {loading ? (
+                <SectionSkeleton lines={5} className="px-2" />
+              ) : notifications.length === 0 ? (
                 <p className="text-center text-muted-foreground">
-                  {loading ? 'Loading notifications...' : 'No notifications'}
+                  No notifications
                 </p>
               ) : (
                 notifications.map(notification => (

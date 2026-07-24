@@ -8,7 +8,7 @@ import { TopBar } from '@/components/navigation/top-bar'
 import { NAV_ITEMS, type NavItem } from '@/components/navigation/nav-items'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path'
-import { Loader2 } from 'lucide-react'
+import { ShellSkeleton } from '@/components/loading'
 
 function filterNavByModules(items: NavItem[], moduleMap: Record<string, boolean>) {
   return items.filter((item) => !item.module || moduleMap[item.module] === true)
@@ -75,11 +75,7 @@ export function EmployeeLayoutClient({
   const allowed = canAccessEmployeePortal(session)
 
   if (status === 'loading' || (session && !allowed)) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    return <ShellSkeleton />
   }
 
   return (

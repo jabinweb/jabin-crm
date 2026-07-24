@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { FileText, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ActivityType } from '@/types/lead';
+import { CardListSkeleton } from '@/components/loading';
 import { type useLeadDetailPage } from '@/hooks/use-lead-detail-page';
 
 type LeadDetailPageState = ReturnType<typeof useLeadDetailPage>;
@@ -104,9 +105,7 @@ export function LeadDetailActivity({
           </div>
         )}
         {activitiesLoading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-          </div>
+          <CardListSkeleton rows={4} />
         ) : activities && activities.length > 0 ? (
           <div className="space-y-3">
             {activities.map((activity) => (

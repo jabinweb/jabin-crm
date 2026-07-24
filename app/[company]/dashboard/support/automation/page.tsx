@@ -16,6 +16,7 @@ import { Loader2, Zap, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
+import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import type { AutomationRule } from '@/lib/support/automation-rules';
 
@@ -82,9 +83,7 @@ export default function SupportAutomationPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <CardListSkeleton rows={4} />
         ) : (
           <div className="grid gap-4">
             {rules.map((rule) => (

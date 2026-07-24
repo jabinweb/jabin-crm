@@ -13,6 +13,7 @@ import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StockAdjustmentDialog } from "@/components/inventory/stock-adjustment-dialog"
 import { TransactionHistoryDialog } from "@/components/inventory/transaction-history-dialog"
+import { FullTableSkeleton } from '@/components/loading'
 import { toast } from '@/hooks/use-toast'
 import type { Product } from '@/types/inventory'
 
@@ -226,6 +227,9 @@ export default function InventoryPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="lg:col-span-2">
           <Card className="p-6">
+            {isLoading ? (
+              <FullTableSkeleton columnCount={7} rowCount={6} className="border-0" />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -239,13 +243,7 @@ export default function InventoryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredStockLevels.length === 0 ? (
+                {filteredStockLevels.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8">
                       No products found
@@ -299,6 +297,7 @@ export default function InventoryPage() {
                 )}
               </TableBody>
             </Table>
+            )}
           </Card>
         </div>
         <div>

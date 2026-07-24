@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Loader2, Megaphone } from 'lucide-react';
 import { toast } from 'sonner';
+import { CardListSkeleton } from '@/components/loading';
 
 type Announcement = {
   id: string;
@@ -104,9 +105,7 @@ export default function AnnouncementsAdminPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
+            <CardListSkeleton rows={4} />
           ) : announcements.length === 0 ? (
             <EmptyState
               icon={Megaphone}

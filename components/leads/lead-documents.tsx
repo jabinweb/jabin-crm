@@ -15,6 +15,7 @@ import {
 import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { LeadDocument } from '@/types/lead';
+import { CardListSkeleton } from '@/components/loading';
 
 interface LeadDocumentsProps {
   leadId: string;
@@ -246,9 +247,7 @@ export function LeadDocuments({ leadId, documents: initialDocuments }: LeadDocum
         )}
 
         {loading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
+          <CardListSkeleton rows={3} />
         ) : !documents.length ? (
           <div className="text-center py-8 text-muted-foreground">
             No documents have been uploaded yet

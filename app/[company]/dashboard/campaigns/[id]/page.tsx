@@ -44,6 +44,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { DetailSkeleton } from '@/components/loading';
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -86,11 +87,7 @@ export default function CampaignDetailPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
+    return <DetailSkeleton />;
   }
 
   if (!campaign) {

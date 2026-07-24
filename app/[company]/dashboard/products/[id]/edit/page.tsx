@@ -21,6 +21,7 @@ import { toast } from "@/hooks/use-toast"
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { ArrowLeft } from "lucide-react"
+import { FormSkeleton } from '@/components/loading'
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -131,7 +132,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   }
 
   if (isLoading) {
-    return <div className="space-y-6">Loading...</div>
+    return (
+      <div className="max-w-4xl space-y-6">
+        <FormSkeleton fields={6} />
+      </div>
+    )
   }
 
   return (

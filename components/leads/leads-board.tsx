@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { Loader2 } from 'lucide-react';
+import { BoardSkeleton } from '@/components/loading';
 
 type LeadCard = {
   id: string;
@@ -72,12 +72,7 @@ export function LeadsBoard({ leads, onChanged }: LeadsBoardProps) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-muted-foreground py-8">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading board…
-      </div>
-    );
+    return <BoardSkeleton />;
   }
 
   if (!baseColumns.length) {

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useQuery } from "@tanstack/react-query"
 import { BarChart, Cell, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
+import { SectionSkeleton } from "@/components/loading"
 
 const COLORS = {
   LOW: '#60a5fa',
@@ -21,7 +22,18 @@ export function LeadPriorityChart() {
     }
   })
 
-  if (isLoading || !data) return null
+  if (isLoading || !data) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Leads by CompanyTaskPriority</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SectionSkeleton lines={8} className="h-[300px] py-8" />
+        </CardContent>
+      </Card>
+    )
+  }
 
   const chartData = Object.entries(data).map(([priority, count]) => ({
     name: priority.toLowerCase(),

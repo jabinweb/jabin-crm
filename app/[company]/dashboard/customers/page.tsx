@@ -34,13 +34,13 @@ import {
     ChevronRight,
     MoreVertical,
     Activity,
-    Loader2,
     Users,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { EmptyState } from '@/components/ui/empty-state';
+import { FullTableSkeleton } from '@/components/loading';
 
 export default function CustomersPage() {
     const queryClient = useQueryClient();
@@ -211,9 +211,7 @@ export default function CustomersPage() {
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="flex justify-center py-12">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                        </div>
+                        <FullTableSkeleton columnCount={4} rowCount={5} />
                     ) : !data?.customers?.length ? (
                         <EmptyState
                             icon={Users}

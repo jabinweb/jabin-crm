@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
+import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 
 export default function CustomerPortalPage() {
     const { data: workspaceData } = useWorkspaceConfig();
@@ -33,7 +34,13 @@ export default function CustomerPortalPage() {
     });
 
     if (isLoading) {
-        return <div className="flex justify-center py-20"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>;
+        return (
+            <div className="space-y-6">
+                <PageHeaderSkeleton />
+                <StatCardsSkeleton count={4} />
+                <CardListSkeleton rows={3} />
+            </div>
+        );
     }
 
     const resolvedCount = stats?.resolvedTickets ?? 0;
