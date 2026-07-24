@@ -1,84 +1,66 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
+const CLIENT_TIMEOUT_MS = 8_000;
+const INTERVAL_MS = 5 * 60_000;
+const INITIAL_DELAY_MS = 20_000;
+const COOLDOWN_KEY = 'email-reply-check-cooldown-until';
+
 /**
- * Background email reply checker
- * Polls the check-replies endpoint every 30 seconds when user is active
+ * Background email reply checker — must never starve other API routes.
+ * Runs only on email dashboard paths, with a short client abort and long cooldown after failures.
  */
 export function EmailReplyChecker() {
   const { data: session } = useSession();
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pathname = usePathname();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isCheckingRef = useRef(false);
 
   useEffect(() => {
     if (!session?.user) return;
+    if (!pathname?.includes('/dashboard/emails')) return;
 
     const checkReplies = async () => {
-      // Prevent concurrent checks
       if (isCheckingRef.current) return;
-      
+      const until = Number(sessionStorage.getItem(COOLDOWN_KEY) || 0);
+      if (until && Date.now() < until) return;
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+
       try {
         isCheckingRef.current = true;
-        
         const response = await fetch('/api/emails/check-replies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ daysBack: 1 }), // Only check last 24 hours
+          body: JSON.stringify({ daysBack: 1 }),
+          signal: controller.signal,
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          if (result.processed > 0) {
-            console.log(`✅ Processed ${result.processed} email replies`);
-          }
-        } else {
-          // Handle error responses properly
-          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          // Soft-fail timeouts / gateway errors — IMAP is slow on serverless
-          if (response.status === 504 || response.status === 503 || errorData.timedOut) {
-            if (!sessionStorage.getItem('imap-timeout-logged')) {
-              console.log('ℹ️ Email reply check: timed out (will retry in background)');
-              sessionStorage.setItem('imap-timeout-logged', 'true');
-            }
-          } else if (errorData.error === 'IMAP not configured') {
-            if (!sessionStorage.getItem('imap-not-configured-logged')) {
-              console.log(`ℹ️ Email reply check: ${errorData.message || 'IMAP not configured'}`);
-              sessionStorage.setItem('imap-not-configured-logged', 'true');
-            }
-          } else if (!sessionStorage.getItem('email-checker-error-logged')) {
-            console.log(`ℹ️ Email reply check: ${errorData.message || errorData.error || 'Check failed'}`);
-            sessionStorage.setItem('email-checker-error-logged', 'true');
-          }
+        if (response.ok) return;
+
+        if (response.status === 504 || response.status === 503) {
+          sessionStorage.setItem(COOLDOWN_KEY, String(Date.now() + 15 * 60_000));
         }
-      } catch (error: any) {
-        // Silently handle fetch errors - likely due to missing IMAP dependencies or route not available
-        // Only log once to avoid console spam
-        if (!sessionStorage.getItem('email-checker-error-logged')) {
-          console.log('ℹ️ Email reply checker: Route unavailable (IMAP dependencies may not be installed)');
-          sessionStorage.setItem('email-checker-error-logged', 'true');
-        }
+      } catch {
+        sessionStorage.setItem(COOLDOWN_KEY, String(Date.now() + 10 * 60_000));
       } finally {
+        clearTimeout(timer);
         isCheckingRef.current = false;
       }
     };
 
-    // Delay initial check by 5 seconds to let app fully load
-    const initialTimeout = setTimeout(checkReplies, 5000);
+    const initialTimeout = setTimeout(checkReplies, INITIAL_DELAY_MS);
+    intervalRef.current = setInterval(checkReplies, INTERVAL_MS);
 
-    // Then check every 60 seconds (reduced frequency)
-    intervalRef.current = setInterval(checkReplies, 60000);
-
-    // Cleanup on unmount
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
       clearTimeout(initialTimeout);
     };
-  }, [session]);
+  }, [session?.user, pathname]);
 
-  // This component doesn't render anything
   return null;
 }

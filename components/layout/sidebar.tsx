@@ -56,6 +56,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import type { WorkspaceFeatureKey } from '@/lib/workspace-templates';
+import { fetchFeatureModules } from '@/components/feature-module-guard';
 
 interface NavigationItem {
   name: string;
@@ -292,17 +293,17 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   }, [companySlug, userRole]);
 
   useEffect(() => {
-    const loadModules = async () => {
-      try {
-        const res = await fetch('/api/features/me');
-        if (!res.ok) return;
-        const data = await res.json();
-        setModuleMap(data.modules || {});
-      } catch (_) {
-        setModuleMap({});
-      }
+    let cancelled = false;
+    fetchFeatureModules()
+      .then((modules) => {
+        if (!cancelled) setModuleMap(modules);
+      })
+      .catch(() => {
+        if (!cancelled) setModuleMap({});
+      });
+    return () => {
+      cancelled = true;
     };
-    loadModules();
   }, []);
 
   const toggleMenu = (menuName: string) => {

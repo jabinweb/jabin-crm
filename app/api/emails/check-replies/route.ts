@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
 /** IMAP can be slow; keep under Vercel serverless limits. */
-export const maxDuration = 60;
+export const maxDuration = 15;
 export const runtime = 'nodejs';
 
-const CHECK_TIMEOUT_MS = 45_000;
+const CHECK_TIMEOUT_MS = 10_000;
 
 // Dynamically import the IMAP checker to avoid build errors if dependencies are missing
 async function loadImapChecker() {

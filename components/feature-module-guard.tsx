@@ -10,27 +10,55 @@ import type { FeatureModuleKey } from '@/lib/feature-module-keys';
 type ModuleMap = Partial<Record<FeatureModuleKey, boolean>>;
 
 let cachedModules: ModuleMap | null = null;
+let fetchFailed = false;
 let cachePromise: Promise<ModuleMap> | null = null;
 
-async function fetchModules(): Promise<ModuleMap> {
-  if (cachedModules) return cachedModules;
+/** Shared module map fetch — one in-flight request for sidebar + guards. */
+export async function fetchFeatureModules(): Promise<ModuleMap> {
+  if (cachedModules !== null) return cachedModules;
   if (!cachePromise) {
-    cachePromise = fetch('/api/features/me')
-      .then((res) => (res.ok ? res.json() : { modules: {} }))
-      .then((data) => {
+    cachePromise = (async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 6_000);
+      try {
+        const res = await fetch('/api/features/me', { signal: controller.signal });
+        if (!res.ok) {
+          fetchFailed = true;
+          cachedModules = {};
+          return cachedModules;
+        }
+        const data = await res.json();
+        fetchFailed = false;
         cachedModules = data.modules ?? {};
         return cachedModules!;
-      })
-      .catch(() => ({}));
+      } catch {
+        fetchFailed = true;
+        cachedModules = {};
+        return cachedModules;
+      } finally {
+        clearTimeout(timer);
+        cachePromise = null;
+      }
+    })();
   }
   return cachePromise;
 }
 
 export function useFeatureModule(module: FeatureModuleKey) {
-  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [enabled, setEnabled] = useState<boolean | null>(() =>
+    cachedModules !== null ? cachedModules[module] === true || fetchFailed : null
+  );
 
   useEffect(() => {
-    fetchModules().then((modules) => setEnabled(modules[module] === true));
+    let cancelled = false;
+    fetchFeatureModules().then(() => {
+      if (!cancelled) {
+        setEnabled(fetchFailed || cachedModules?.[module] === true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [module]);
 
   return enabled;
@@ -48,7 +76,7 @@ export function FeatureModuleGuard({
   const enabled = useFeatureModule(module);
 
   if (enabled === null) {
-    return <SectionSkeleton lines={4} className="py-24 max-w-lg mx-auto" />;
+    return <SectionSkeleton lines={4} className="py-8 max-w-lg mx-auto" />;
   }
 
   if (!enabled) {
@@ -59,7 +87,8 @@ export function FeatureModuleGuard({
         </div>
         <h1 className="text-2xl font-bold">{title}</h1>
         <p className="text-muted-foreground">
-          This feature is not included in your current subscription plan. Upgrade to unlock it for your team.
+          This feature is not included in your current subscription plan. Upgrade to unlock it for
+          your team.
         </p>
         <Button asChild>
           <DashboardLink href="/dashboard/settings/subscription">View plans</DashboardLink>

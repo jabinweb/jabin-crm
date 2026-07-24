@@ -56,13 +56,17 @@ export function useEmailsInbox() {
     const checkRepliesInBackground = async () => {
       if (!isActive) return;
 
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 8_000);
+
       try {
         console.log('[Auto-check] Checking for new replies...');
 
         const response = await fetch('/api/emails/check-replies', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ daysBack: 7 }),
+          body: JSON.stringify({ daysBack: 1 }),
+          signal: controller.signal,
         });
 
         const data = await response.json().catch(() => ({}));
@@ -93,14 +97,16 @@ export function useEmailsInbox() {
         }
       } catch (error) {
         console.error('[Auto-check] Error checking replies:', error);
+      } finally {
+        clearTimeout(abortTimer);
       }
 
       if (isActive) {
-        timeoutId = setTimeout(checkRepliesInBackground, 60 * 1000);
+        timeoutId = setTimeout(checkRepliesInBackground, 5 * 60 * 1000);
       }
     };
 
-    checkRepliesInBackground();
+    timeoutId = setTimeout(checkRepliesInBackground, 15_000);
 
     return () => {
       isActive = false;
