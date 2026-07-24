@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DashboardPage } from '@/components/layout/dashboard-page';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { Loader2 } from 'lucide-react';
@@ -82,83 +83,90 @@ export default function WorkspaceApprovalsPage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading pending registrations…
-      </div>
+      <DashboardPage>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading pending registrations…
+        </div>
+      </DashboardPage>
     );
   }
 
   if (error) {
     return (
-      <div className="p-8 space-y-3">
+      <DashboardPage>
         <p className="text-destructive">Error: {error}</p>
         <Button variant="outline" onClick={() => void fetchPending()}>
           Retry
         </Button>
-      </div>
+      </DashboardPage>
     );
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <DashboardPage>
       <div>
-        <h1 className="text-2xl font-bold">Pending approvals</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Pending approvals</h1>
         <p className="text-sm text-muted-foreground">
           Review employee registration requests for this workspace.
         </p>
       </div>
 
-      <Card className="p-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employees.map((emp) => (
-              <TableRow key={emp.id}>
-                <TableCell className="font-medium">
-                  {emp.name || emp.user?.name || '—'}
-                </TableCell>
-                <TableCell>{emp.email || emp.user?.email || '—'}</TableCell>
-                <TableCell>
-                  <Badge variant="secondary">{emp.status || 'PENDING'}</Badge>
-                </TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={actingId === emp.id}
-                    onClick={() => void handleAction(emp.id, 'approve')}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    disabled={actingId === emp.id}
-                    onClick={() => void handleAction(emp.id, 'reject')}
-                  >
-                    Reject
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {employees.length === 0 && (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Registrations</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                  No pending employee registrations
-                </TableCell>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {employees.map((emp) => (
+                <TableRow key={emp.id}>
+                  <TableCell className="font-medium">
+                    {emp.name || emp.user?.name || '—'}
+                  </TableCell>
+                  <TableCell>{emp.email || emp.user?.email || '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{emp.status || 'PENDING'}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={actingId === emp.id}
+                      onClick={() => void handleAction(emp.id, 'approve')}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={actingId === emp.id}
+                      onClick={() => void handleAction(emp.id, 'reject')}
+                    >
+                      Reject
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {employees.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    No pending employee registrations
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
       </Card>
-    </div>
+    </DashboardPage>
   );
 }

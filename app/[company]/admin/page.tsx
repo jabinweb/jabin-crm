@@ -1,21 +1,21 @@
 'use client';
 
-import { useCompany } from '@/contexts/company-context';
 import { Card, CardContent } from '@/components/ui/card';
-import { Users, ShieldCheck, FileCheck } from 'lucide-react';
+import { DashboardPage } from '@/components/layout/dashboard-page';
+import { Users, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 
 const adminCards = [
   {
-    label: 'Users',
-    description: 'Manage workspace users',
+    label: 'Workspace users',
+    description: 'People with access to this company',
     icon: Users,
     path: '/admin/users',
   },
   {
     label: 'Approvals',
-    description: 'Review pending requests',
+    description: 'Review pending employee registrations',
     icon: ShieldCheck,
     path: '/admin/approvals',
   },
@@ -26,39 +26,31 @@ export default function AdminDashboard() {
   const slug = params?.company;
 
   return (
-    <div className="space-y-10">
-      <div className="border-b border-foreground/5 pb-8">
-        <h1 className="text-xl font-black tracking-[0.25em] uppercase text-foreground">
-          Workspace Admin
-        </h1>
-        <p className="text-[10px] font-bold text-muted-foreground uppercase mt-3 tracking-[0.2em] opacity-40">
-          {slug?.toUpperCase()} &bull; Management Console
+    <DashboardPage>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Workspace admin</h1>
+        <p className="text-sm text-muted-foreground">
+          Manage users and approvals for this company.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {adminCards.map((card) => (
-          <Link key={card.path} href={`/${slug}${card.path}`}>
-            <Card className="shadow-none border-2 border-foreground/5 bg-background rounded-none hover:border-foreground/20 transition-all group cursor-pointer">
-              <CardContent className="p-8">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 border border-foreground/10 group-hover:bg-foreground group-hover:text-background transition-colors">
-                    <card.icon className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.15em]">
-                      {card.label}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {card.description}
-                    </p>
-                  </div>
+          <Link key={card.path} href={`/${slug}${card.path}`} className="block">
+            <Card className="h-full transition-colors hover:bg-muted/40">
+              <CardContent className="flex items-start gap-3 p-5">
+                <div className="rounded-md border bg-background p-2">
+                  <card.icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div>
+                  <p className="font-medium">{card.label}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{card.description}</p>
                 </div>
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
-    </div>
+    </DashboardPage>
   );
 }

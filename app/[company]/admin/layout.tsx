@@ -6,7 +6,7 @@ import {
   isCompanyLayoutAllowed,
 } from '@/lib/auth/company-membership'
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path'
-import { AdminLayoutClient } from './admin-layout-client'
+import { DashboardLayoutClient } from '../dashboard/dashboard-layout-client'
 
 export default async function AdminLayout({
   children,
@@ -36,5 +36,5 @@ export default async function AdminLayout({
     )
   }
 
-  return <AdminLayoutClient>{children}</AdminLayoutClient>
+  return <DashboardLayoutClient>{children}</DashboardLayoutClient>
 }

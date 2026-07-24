@@ -223,11 +223,26 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     resolveWorkspaceDashboardHref(href, companySlug, userRole);
 
   const workspaceAdminNav = useMemo((): NavigationItem[] => {
-    if (!companySlug || userRole !== 'ADMIN') return [];
+    if (!companySlug || !['ADMIN', 'SUPER_ADMIN'].includes(userRole)) return [];
     return [
-      { name: 'Workspace overview', href: getCompanyUrl('/admin', companySlug), icon: Building2, roles: ['ADMIN'] },
-      { name: 'Approvals', href: getCompanyUrl('/admin/approvals', companySlug), icon: FileCheck, roles: ['ADMIN'] },
-      { name: 'Workspace users', href: getCompanyUrl('/admin/users', companySlug), icon: Users, roles: ['ADMIN'] },
+      {
+        name: 'Workspace overview',
+        href: getCompanyUrl('/admin', companySlug),
+        icon: Building2,
+        roles: ['ADMIN', 'SUPER_ADMIN'],
+      },
+      {
+        name: 'Approvals',
+        href: getCompanyUrl('/admin/approvals', companySlug),
+        icon: FileCheck,
+        roles: ['ADMIN', 'SUPER_ADMIN'],
+      },
+      {
+        name: 'Workspace users',
+        href: getCompanyUrl('/admin/users', companySlug),
+        icon: Users,
+        roles: ['ADMIN', 'SUPER_ADMIN'],
+      },
     ];
   }, [companySlug, userRole]);
 
