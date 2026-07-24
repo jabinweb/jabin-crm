@@ -15,7 +15,7 @@ export async function getOrCreateCompanyAgent(companyId: string) {
   return prisma.companyAgent.create({
     data: {
       companyId,
-      name: 'Ops Agent',
+      name: 'OPS',
       preferredModel: DEFAULT_MODEL_FALLBACKS[0],
       fallbackModels: [...DEFAULT_MODEL_FALLBACKS.slice(1, MIN_MODEL_CHAIN)],
       enabled: true,

@@ -570,9 +570,14 @@ async function main() {
     where: { companyId: company.id },
     create: {
       companyId: company.id,
-      name: 'Ops Agent',
-      preferredModel: 'gemini-2.5-flash',
-      fallbackModels: ['gemini-2.0-flash', 'gemini-1.5-flash'],
+      name: 'OPS',
+      preferredModel: 'gemini-3.1-flash-lite',
+      fallbackModels: [
+        'gemini-3.5-flash-lite',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-2.5-flash-lite',
+      ],
       enabled: true,
     },
     update: { enabled: true },

@@ -1902,7 +1902,7 @@ model Company {
 model CompanyAgent {
   id                   String   @id @default(cuid())
   companyId            String   @unique
-  name                 String   @default("Ops Agent")
+  name                 String   @default("OPS")
   /// Preferred Gemini model id (without models/ prefix)
   preferredModel       String?
   /// Ordered fallback model ids
