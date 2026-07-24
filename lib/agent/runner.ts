@@ -59,32 +59,82 @@ function extractText(response: {
     .trim();
 }
 
+type ModelPart = {
+  text?: string;
+  thought?: boolean;
+  thoughtSignature?: string;
+  functionCall?: { name?: string; args?: Record<string, unknown> };
+  functionResponse?: unknown;
+};
+
+type ModelContent = { role: string; parts: ModelPart[] };
+
+/** Return the model content exactly as Gemini sent it (keeps thoughtSignature). */
+function getModelContent(response: {
+  candidates?: Array<{ content?: { role?: string; parts?: ModelPart[] } }>;
+}): ModelContent | null {
+  const content = response.candidates?.[0]?.content;
+  if (!content?.parts?.length) return null;
+  return {
+    role: content.role || 'model',
+    // Clone parts so we never mutate the SDK response object
+    parts: content.parts.map((p) => ({ ...p })),
+  };
+}
+
 function extractFunctionCalls(response: {
   functionCalls?: Array<{ name?: string; args?: Record<string, unknown> }>;
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        functionCall?: { name?: string; args?: Record<string, unknown> };
-      }>;
-    };
-  }>;
+  candidates?: Array<{ content?: { parts?: ModelPart[] } }>;
 }): Array<{ name: string; args: Record<string, unknown> }> {
-  if (Array.isArray(response.functionCalls) && response.functionCalls.length) {
-    return response.functionCalls
-      .filter((f) => f.name)
-      .map((f) => ({ name: f.name!, args: (f.args || {}) as Record<string, unknown> }));
-  }
   const parts = response.candidates?.[0]?.content?.parts || [];
-  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const fromParts: Array<{ name: string; args: Record<string, unknown> }> = [];
   for (const part of parts) {
     if (part.functionCall?.name) {
-      calls.push({
+      fromParts.push({
         name: part.functionCall.name,
         args: (part.functionCall.args || {}) as Record<string, unknown>,
       });
     }
   }
-  return calls;
+  if (fromParts.length) return fromParts;
+
+  if (Array.isArray(response.functionCalls) && response.functionCalls.length) {
+    return response.functionCalls
+      .filter((f) => f.name)
+      .map((f) => ({
+        name: f.name!,
+        args: (f.args || {}) as Record<string, unknown>,
+      }));
+  }
+  return [];
+}
+
+/**
+ * Gemini 3.x requires thoughtSignature on functionCall parts when echoing
+ * history. Prefer the raw model content; otherwise attach the skip token.
+ */
+function modelTurnWithFunctionCalls(
+  response: {
+    candidates?: Array<{ content?: { role?: string; parts?: ModelPart[] } }>;
+  },
+  calls: Array<{ name: string; args: Record<string, unknown> }>
+): ModelContent {
+  const original = getModelContent(response);
+  if (original) {
+    const hasFc = original.parts.some((p) => p.functionCall?.name);
+    if (hasFc) return original;
+  }
+
+  return {
+    role: 'model',
+    parts: calls.map((c, index) => ({
+      functionCall: { name: c.name, args: c.args },
+      // Last-resort for history we constructed ourselves (not from the API)
+      ...(index === 0
+        ? { thoughtSignature: 'skip_thought_signature_validator' }
+        : {}),
+    })),
+  };
 }
 
 export async function runAgentTurn(params: {
@@ -148,8 +198,8 @@ export async function runAgentTurn(params: {
   const declarations = toGeminiFunctionDeclarations(tools);
   const systemPrompt = buildSystemPrompt(ctx, agent.systemPromptExtra);
 
-  type ContentPart = { text?: string; functionCall?: unknown; functionResponse?: unknown };
-  type Content = { role: string; parts: ContentPart[] };
+  type ContentPart = ModelPart;
+  type Content = ModelContent;
 
   const contents: Content[] = [];
   for (const msg of history) {
@@ -193,13 +243,8 @@ export async function runAgentTurn(params: {
       break;
     }
 
-    // Model asked for tools
-    contents.push({
-      role: 'model',
-      parts: calls.map((c) => ({
-        functionCall: { name: c.name, args: c.args },
-      })),
-    });
+    // Echo the model turn verbatim so thoughtSignature stays on functionCall parts
+    contents.push(modelTurnWithFunctionCalls(response as never, calls));
 
     const functionResponseParts: ContentPart[] = [];
 

@@ -87,13 +87,16 @@ export function OpsAgentPanel() {
         },
       ]);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Agent failed');
+      const message = error instanceof Error ? error.message : 'Agent failed';
+      toast.error(message);
       setMessages((m) => [
         ...m,
         {
           id: `e-${Date.now()}`,
           role: 'assistant',
-          text: 'Sorry — I could not complete that. Check your Gemini API key in Settings.',
+          text: message.includes('API key')
+            ? 'Sorry — I could not complete that. Check your Gemini API key in Settings.'
+            : `Sorry — I could not complete that.\n\n${message}`,
         },
       ]);
     } finally {
