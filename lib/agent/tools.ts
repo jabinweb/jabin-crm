@@ -3,26 +3,10 @@ import { prisma } from '@/lib/prisma';
 import type { AgentRuntimeContext } from '@/lib/agent/context';
 import { invoiceService } from '@/lib/crm/invoice-service';
 import { qualifyLead, suggestTasks } from '@/lib/ai/ai-service';
+import { EXTENDED_OPS_TOOLS } from '@/lib/agent/ops-tools-extended';
+import type { AgentToolDef, ToolKind } from '@/lib/agent/tool-types';
 
-export type ToolKind = 'read' | 'write';
-
-export type AgentToolDef = {
-  name: string;
-  description: string;
-  kind: ToolKind;
-  /** Roles that may use this tool. Empty = all authenticated staff. */
-  roles?: string[];
-  parameters: {
-    type: 'object';
-    properties: Record<string, unknown>;
-    required?: string[];
-  };
-  execute: (
-    args: Record<string, unknown>,
-    ctx: AgentRuntimeContext,
-    apiKey?: string
-  ) => Promise<unknown>;
-};
+export type { AgentToolDef, ToolKind } from '@/lib/agent/tool-types';
 
 function companyInvoiceWhere(companyId: string) {
   return {
@@ -44,7 +28,8 @@ function companyLeadWhere(companyId: string) {
   };
 }
 
-export const AGENT_TOOLS: AgentToolDef[] = [
+export const AGENT_TOOLS_BASE: AgentToolDef[] = [
+  // ── Core reads & writes (base) ─────────────────────────────────────────
   {
     name: 'get_company_snapshot',
     description: 'Get live counts for open tickets, overdue invoices, open deals, pending quotes, and due tasks.',
@@ -724,6 +709,8 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     },
   },
 ];
+
+export const AGENT_TOOLS: AgentToolDef[] = [...AGENT_TOOLS_BASE, ...EXTENDED_OPS_TOOLS];
 
 export function getToolsForRole(role: string): AgentToolDef[] {
   return AGENT_TOOLS.filter((t) => {

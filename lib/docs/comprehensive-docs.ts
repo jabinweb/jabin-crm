@@ -1047,15 +1047,15 @@ Your Name`,
         content: [
           {
             type: 'paragraph',
-            data: 'Each company gets OPS (Gemini function calling). Staff open it from the floating bot on any dashboard page. Chats are saved per user; use the back button to browse history. Attach screenshots for vision analysis. Write actions (tasks, payments, teammate messages) need confirm in the UI. Models are discovered live with a fallback chain.',
+            data: 'Each company gets OPS (Gemini function calling). Staff open it from the floating bot on any dashboard page. Chats are saved per user; use the back button to browse history. Attach screenshots for vision analysis. Write actions need confirm in the UI. Models are discovered live with a fallback chain. OPS can run day-to-day company ops end-to-end (CRM, service, finance, field, HR reads).',
           },
           {
             type: 'list',
             data: {
               items: [
-                'Read tools: snapshot, overdue invoices, tickets/deals/quotes, search customers & leads, get invoice, AI qualify / suggest tasks, search team members',
-                'Write tools (confirm first): create task, add lead note, record invoice payment, send team message (Employee DM + task)',
-                'Screenshots: paste or attach — kept on your device only (not uploaded to cloud storage); sent to Gemini for that turn',
+                'Read: KPIs, customers/leads/deals/tickets/contracts, SLA breaches, docs search, expenses, sequences, inventory/assets, attendance/GPS, notifications, payroll summary (ADMIN)',
+                'Write (confirm first): create customer/lead, tasks, tickets (+ assign/status/service report), deals/lead status, quotes/invoices (+ send/pay), sequences (enroll/pause), calendar, WhatsApp/email, expense approve, announcements, teammate DMs',
+                'Screenshots: paste or attach — kept on your device only; sent to Gemini for that turn',
                 'Not available to CUSTOMER or EMPLOYEE portal users',
               ],
             },
