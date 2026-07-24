@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
+/** IMAP can be slow; keep under Vercel serverless limits. */
+export const maxDuration = 60;
+export const runtime = 'nodejs';
+
+const CHECK_TIMEOUT_MS = 45_000;
+
 // Dynamically import the IMAP checker to avoid build errors if dependencies are missing
 async function loadImapChecker() {
   try {
@@ -10,6 +16,21 @@ async function loadImapChecker() {
     console.error('[IMAP] Failed to load IMAP checker:', error);
     return null;
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('IMAP check timed out')), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -49,13 +70,31 @@ export async function POST(req: NextRequest) {
 
     // Optional: check only emails from the last N days
     const body = await req.json().catch(() => ({}));
-    const daysBack = body.daysBack || 7;
+    const daysBack = Math.min(Number(body.daysBack) || 7, 14);
     const since = new Date();
     since.setDate(since.getDate() - daysBack);
 
     console.log(`[IMAP] Checking for replies since ${since.toISOString()} for user ${session.user.id}`);
 
-    const result = await checker.checkForReplies(since);
+    let result: { processed: number; errors: string[] };
+    try {
+      result = await withTimeout(checker.checkForReplies(since), CHECK_TIMEOUT_MS);
+    } catch (timeoutErr) {
+      const message =
+        timeoutErr instanceof Error ? timeoutErr.message : 'IMAP check timed out';
+      console.warn(`[IMAP] ${message}`);
+      return NextResponse.json(
+        {
+          success: false,
+          processed: 0,
+          timedOut: true,
+          error: 'IMAP timeout',
+          message:
+            'Email reply check took too long and was stopped. Try again later, or use Email Settings to verify IMAP.',
+        },
+        { status: 504 }
+      );
+    }
 
     console.log(`[IMAP] Processed ${result.processed} replies, ${result.errors.length} errors`);
     

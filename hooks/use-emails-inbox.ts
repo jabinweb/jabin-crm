@@ -65,7 +65,7 @@ export function useEmailsInbox() {
           body: JSON.stringify({ daysBack: 7 }),
         });
 
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
 
         if (response.ok) {
           await queryClient.invalidateQueries({ queryKey: ['sent-emails'] });
@@ -79,6 +79,8 @@ export function useEmailsInbox() {
           } else {
             console.log('[Auto-check] No new replies, but refreshed list');
           }
+        } else if (response.status === 504 || data.timedOut) {
+          console.log('[Auto-check] IMAP timed out — will retry later');
         } else {
           console.error('[Auto-check] Error response:', data);
           if (data.error === 'IMAP not configured') {
@@ -94,7 +96,7 @@ export function useEmailsInbox() {
       }
 
       if (isActive) {
-        timeoutId = setTimeout(checkRepliesInBackground, 20 * 1000);
+        timeoutId = setTimeout(checkRepliesInBackground, 60 * 1000);
       }
     };
 
@@ -314,7 +316,13 @@ export function useEmailsInbox() {
         body: JSON.stringify({ daysBack: 7 }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+
+      if (response.status === 504 || data.timedOut) {
+        await queryClient.invalidateQueries({ queryKey: ['sent-emails'] });
+        toast.message('Reply check timed out — inbox refreshed from local log', { id: toastId });
+        return;
+      }
 
       if (!response.ok) {
         const errorMsg = data.hint

@@ -36,14 +36,20 @@ export function EmailReplyChecker() {
         } else {
           // Handle error responses properly
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-          // Only log once if IMAP not configured, suppress subsequent errors
-          if (errorData.error === 'IMAP not configured') {
+          // Soft-fail timeouts / gateway errors — IMAP is slow on serverless
+          if (response.status === 504 || response.status === 503 || errorData.timedOut) {
+            if (!sessionStorage.getItem('imap-timeout-logged')) {
+              console.log('ℹ️ Email reply check: timed out (will retry in background)');
+              sessionStorage.setItem('imap-timeout-logged', 'true');
+            }
+          } else if (errorData.error === 'IMAP not configured') {
             if (!sessionStorage.getItem('imap-not-configured-logged')) {
               console.log(`ℹ️ Email reply check: ${errorData.message || 'IMAP not configured'}`);
               sessionStorage.setItem('imap-not-configured-logged', 'true');
             }
-          } else {
+          } else if (!sessionStorage.getItem('email-checker-error-logged')) {
             console.log(`ℹ️ Email reply check: ${errorData.message || errorData.error || 'Check failed'}`);
+            sessionStorage.setItem('email-checker-error-logged', 'true');
           }
         }
       } catch (error: any) {

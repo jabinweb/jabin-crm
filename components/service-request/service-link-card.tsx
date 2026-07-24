@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ export function ServiceLinkCard({
 }: ServiceLinkCardProps) {
   const { workspaceFetch } = useWorkspacePaths();
   const [rotating, setRotating] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   const endpoint =
     scope === 'customer'
@@ -44,6 +46,28 @@ export function ServiceLinkCard({
       return body as { url: string; token: string; organizationName?: string };
     },
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    setQrDataUrl(null);
+    if (!data?.url) return;
+
+    QRCode.toDataURL(data.url, {
+      width: 180,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    })
+      .then((url) => {
+        if (!cancelled) setQrDataUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setQrDataUrl(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.url]);
 
   const copyLink = async () => {
     if (!data?.url) return;
@@ -70,10 +94,6 @@ export function ServiceLinkCard({
     }
   };
 
-  const qrSrc = data?.url
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(data.url)}`
-    : null;
-
   return (
     <Card className="shadow-none">
       <CardHeader>
@@ -91,12 +111,14 @@ export function ServiceLinkCard({
         ) : data?.url ? (
           <>
             <div className="flex flex-col sm:flex-row gap-4 items-start">
-              {qrSrc && (
-                <div className="rounded-lg border bg-white p-2 shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={qrSrc} alt="Service request QR code" width={180} height={180} />
-                </div>
-              )}
+              <div className="rounded-lg border bg-white p-2 shrink-0 min-h-[196px] min-w-[196px] flex items-center justify-center">
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={qrDataUrl} alt="Service request QR code" width={180} height={180} />
+                ) : (
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                )}
+              </div>
               <div className="flex-1 space-y-3 w-full min-w-0">
                 <div className="space-y-1.5">
                   <p className="text-xs font-medium text-muted-foreground">Public link</p>
