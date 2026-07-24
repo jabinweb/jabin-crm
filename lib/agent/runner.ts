@@ -70,6 +70,16 @@ type ModelPart = {
 
 type ModelContent = { role: string; parts: ModelPart[] };
 
+export type AgentMention = {
+  id: string;
+  type: 'employee' | 'user' | 'customer';
+  label: string;
+  email?: string | null;
+  employeeId?: string | null;
+  userId?: string | null;
+  customerId?: string | null;
+};
+
 export type AgentImageAttachment = {
   mimeType: string;
   /** Public URL (preferred for persistence) */
@@ -190,6 +200,7 @@ export async function runAgentTurn(params: {
   threadId?: string | null;
   message: string;
   images?: AgentImageAttachment[] | null;
+  mentions?: AgentMention[] | null;
 }): Promise<AgentTurnResult> {
   const apiKey = await resolveApiKey(params.userId);
   const agent = await getOrCreateCompanyAgent(params.companyId);
@@ -210,6 +221,27 @@ export async function runAgentTurn(params: {
   const images = (params.images || [])
     .filter((img) => img && (img.url || img.data))
     .slice(0, 4);
+
+  const mentions = (params.mentions || []).slice(0, 10);
+  const mentionBlock =
+    mentions.length > 0
+      ? `\n\n[Tagged people/orgs]\n${mentions
+          .map((m) => {
+            const ids = [
+              m.type,
+              m.employeeId ? `employeeId=${m.employeeId}` : null,
+              m.userId ? `userId=${m.userId}` : null,
+              m.customerId ? `customerId=${m.customerId}` : null,
+              m.email ? `email=${m.email}` : null,
+            ]
+              .filter(Boolean)
+              .join(', ');
+            return `- @${m.label} (${ids})`;
+          })
+          .join('\n')}`
+      : '';
+
+  const messageForModel = `${params.message.trim()}${mentionBlock}`.trim();
 
   let threadId = params.threadId || null;
   if (threadId) {
@@ -242,6 +274,16 @@ export async function runAgentTurn(params: {
         text: params.message,
         localScreenshot: images.length > 0,
         screenshotCount: images.length || undefined,
+        mentions: mentions.length
+          ? mentions.map((m) => ({
+              id: m.id,
+              type: m.type,
+              label: m.label,
+              employeeId: m.employeeId,
+              userId: m.userId,
+              customerId: m.customerId,
+            }))
+          : undefined,
       },
     },
   });
@@ -272,7 +314,7 @@ export async function runAgentTurn(params: {
       contents.push({
         role: 'user',
         parts: await buildUserParts(
-          c.text || '',
+          isLatest ? messageForModel || c.text || '' : c.text || '',
           isLatest ? images : null
         ),
       });

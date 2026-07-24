@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
-import { runAgentTurn, type AgentImageAttachment } from '@/lib/agent/runner';
+import { runAgentTurn, type AgentImageAttachment, type AgentMention } from '@/lib/agent/runner';
 import { prisma } from '@/lib/prisma';
 
 export const maxDuration = 60;
@@ -33,6 +33,26 @@ export async function POST(req: NextRequest) {
       })
       .filter(Boolean) as AgentImageAttachment[];
 
+    const mentionsRaw = Array.isArray(body.mentions) ? body.mentions : [];
+    const mentions: AgentMention[] = mentionsRaw
+      .map((m: unknown) => {
+        if (!m || typeof m !== 'object') return null;
+        const o = m as Record<string, unknown>;
+        if (typeof o.id !== 'string' || typeof o.label !== 'string') return null;
+        const type = o.type;
+        if (type !== 'employee' && type !== 'user' && type !== 'customer') return null;
+        return {
+          id: o.id,
+          type,
+          label: o.label,
+          email: typeof o.email === 'string' ? o.email : null,
+          employeeId: typeof o.employeeId === 'string' ? o.employeeId : null,
+          userId: typeof o.userId === 'string' ? o.userId : null,
+          customerId: typeof o.customerId === 'string' ? o.customerId : null,
+        } satisfies AgentMention;
+      })
+      .filter(Boolean) as AgentMention[];
+
     if (!message && !images.length) {
       return NextResponse.json(
         { error: 'message or image required' },
@@ -48,6 +68,7 @@ export async function POST(req: NextRequest) {
       threadId: typeof body.threadId === 'string' ? body.threadId : null,
       message: message || (images.length ? 'Please analyze this screenshot and take any needed actions.' : ''),
       images,
+      mentions,
     });
 
     return NextResponse.json(result);

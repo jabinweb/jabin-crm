@@ -14,6 +14,9 @@ import {
   ImagePlus,
   MessageSquare,
   Trash2,
+  Building2,
+  UserRound,
+  Users,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -46,12 +49,39 @@ type ChatMessage = {
   followUps?: string[];
 };
 
-type ThreadSummary = {
+type MentionSuggestion = {
   id: string;
-  title: string | null;
-  updatedAt: string;
-  createdAt: string;
+  type: 'employee' | 'user' | 'customer';
+  label: string;
+  subtitle: string;
+  email?: string | null;
+  employeeId?: string | null;
+  userId?: string | null;
+  customerId?: string | null;
 };
+
+function getActiveMention(
+  text: string,
+  caret: number
+): { start: number; query: string } | null {
+  const before = text.slice(0, caret);
+  const match = before.match(/(^|[\s\n])@([^\s@]*)$/);
+  if (!match || match.index === undefined) return null;
+  const atIndex = match.index + match[1].length;
+  return { start: atIndex, query: match[2] };
+}
+
+function mentionTypeIcon(type: MentionSuggestion['type']) {
+  if (type === 'customer') return Building2;
+  if (type === 'employee') return Users;
+  return UserRound;
+}
+
+function mentionTypeLabel(type: MentionSuggestion['type']) {
+  if (type === 'customer') return 'Customer';
+  if (type === 'employee') return 'Employee';
+  return 'User';
+}
 
 function renderInline(text: string): ReactNode[] {
   const nodes: ReactNode[] = [];
@@ -149,6 +179,13 @@ function formatThreadTime(iso: string) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+type ThreadSummary = {
+  id: string;
+  title: string | null;
+  updatedAt: string;
+  createdAt: string;
+};
+
 export function OpsAgentPanel() {
   const params = useParams<{ company?: string }>();
   const slug = typeof params?.company === 'string' ? params.company : undefined;
@@ -163,11 +200,95 @@ export function OpsAgentPanel() {
   const [sending, setSending] = useState(false);
   const [pendingImages, setPendingImages] = useState<ChatImage[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [taggedMentions, setTaggedMentions] = useState<MentionSuggestion[]>([]);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [mentionStart, setMentionStart] = useState<number | null>(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState<MentionSuggestion[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [mentionLoading, setMentionLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const mentionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const headers = slug ? workspaceSlugHeaders(slug) : {};
+
+  const closeMentions = useCallback(() => {
+    setMentionOpen(false);
+    setMentionSuggestions([]);
+    setMentionQuery('');
+    setMentionStart(null);
+    setMentionIndex(0);
+  }, []);
+
+  const syncMentionsFromCaret = useCallback(
+    (text: string, caret: number) => {
+      const active = getActiveMention(text, caret);
+      if (!active) {
+        closeMentions();
+        return;
+      }
+      setMentionOpen(true);
+      setMentionStart(active.start);
+      setMentionQuery(active.query);
+      setMentionIndex(0);
+
+      if (mentionTimer.current) clearTimeout(mentionTimer.current);
+      mentionTimer.current = setTimeout(async () => {
+        setMentionLoading(true);
+        try {
+          const res = await fetch(
+            `/api/agent/mentions?q=${encodeURIComponent(active.query)}`,
+            { headers: { ...headers } }
+          );
+          if (!res.ok) {
+            setMentionSuggestions([]);
+            return;
+          }
+          const data = await res.json();
+          setMentionSuggestions(Array.isArray(data.results) ? data.results : []);
+        } catch {
+          setMentionSuggestions([]);
+        } finally {
+          setMentionLoading(false);
+        }
+      }, 120);
+    },
+    [closeMentions, slug]
+  );
+
+  const applyMention = useCallback(
+    (suggestion: MentionSuggestion) => {
+      const el = inputRef.current;
+      const caret = el?.selectionStart ?? input.length;
+      const start = mentionStart ?? getActiveMention(input, caret)?.start;
+      if (start == null) return;
+
+      const before = input.slice(0, start);
+      const after = input.slice(caret);
+      const inserted = `@${suggestion.label} `;
+      const next = `${before}${inserted}${after}`;
+      setInput(next);
+      setTaggedMentions((prev) => {
+        if (prev.some((p) => p.id === suggestion.id)) return prev;
+        return [...prev, suggestion];
+      });
+      closeMentions();
+      requestAnimationFrame(() => {
+        const pos = before.length + inserted.length;
+        inputRef.current?.focus();
+        inputRef.current?.setSelectionRange(pos, pos);
+      });
+    },
+    [closeMentions, input, mentionStart]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (mentionTimer.current) clearTimeout(mentionTimer.current);
+    };
+  }, []);
 
   const loadThreads = useCallback(async () => {
     setLoadingThreads(true);
@@ -240,7 +361,9 @@ export function OpsAgentPanel() {
     setThreadId(null);
     setMessages([]);
     setPendingImages([]);
+    setTaggedMentions([]);
     setInput('');
+    closeMentions();
     setView('chat');
     setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -330,11 +453,15 @@ export function OpsAgentPanel() {
     const previewImages = pendingImages.map(({ mimeType, previewUrl, data }) => ({
       mimeType,
       previewUrl,
-      // Keep data only in this session for display fallback — not re-sent to DB
       data: previewUrl ? undefined : data,
     }));
+    const mentionsToSend = taggedMentions.filter((m) =>
+      message.toLowerCase().includes(`@${m.label}`.toLowerCase())
+    );
     setInput('');
     setPendingImages([]);
+    setTaggedMentions([]);
+    closeMentions();
     setSending(true);
     setMessages((m) => [
       ...m,
@@ -354,6 +481,7 @@ export function OpsAgentPanel() {
           message,
           threadId,
           images: imagesToSend,
+          mentions: mentionsToSend,
         }),
       });
       const data = await res.json();
@@ -536,7 +664,7 @@ export function OpsAgentPanel() {
 
                 {!loadingChat && messages.length === 0 ? (
                   <div className="text-sm text-muted-foreground space-y-3 p-2">
-                    <p>Ask OPS, paste a screenshot, or message a teammate.</p>
+                    <p>Ask OPS, type @ to tag people, or paste a screenshot.</p>
                     <div className="flex flex-wrap gap-1.5">
                       {[
                         'What is overdue today?',
@@ -686,7 +814,7 @@ export function OpsAgentPanel() {
                 ) : null}
 
                 <div
-                  className="flex items-end gap-2 rounded-lg border bg-muted/30 px-2 py-1.5 focus-within:border-teal-700/50"
+                  className="relative flex items-end gap-2 rounded-lg border bg-muted/30 px-2 py-1.5 focus-within:border-teal-700/50"
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -702,6 +830,57 @@ export function OpsAgentPanel() {
                     }
                   }}
                 >
+                  {mentionOpen ? (
+                    <div className="absolute bottom-[calc(100%+6px)] left-0 right-0 z-50 max-h-56 overflow-y-auto rounded-lg border bg-background shadow-lg">
+                      <div className="sticky top-0 border-b bg-muted/50 px-2.5 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        Tag people & customers
+                        {mentionQuery ? ` · “${mentionQuery}”` : ''}
+                      </div>
+                      {mentionLoading ? (
+                        <div className="flex items-center gap-2 px-3 py-3 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Searching…
+                        </div>
+                      ) : mentionSuggestions.length === 0 ? (
+                        <p className="px-3 py-3 text-xs text-muted-foreground">
+                          No matches. Try a name or email.
+                        </p>
+                      ) : (
+                        <ul className="py-1">
+                          {mentionSuggestions.map((s, i) => {
+                            const Icon = mentionTypeIcon(s.type);
+                            return (
+                              <li key={s.id}>
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    'flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-muted',
+                                    i === mentionIndex && 'bg-muted'
+                                  )}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    applyMention(s);
+                                  }}
+                                  onMouseEnter={() => setMentionIndex(i)}
+                                >
+                                  <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-700" />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block truncate font-medium">
+                                      {s.label}
+                                    </span>
+                                    <span className="block truncate text-[11px] text-muted-foreground">
+                                      {mentionTypeLabel(s.type)}
+                                      {s.subtitle ? ` · ${s.subtitle}` : ''}
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
                   <input
                     ref={fileRef}
                     type="file"
@@ -731,8 +910,27 @@ export function OpsAgentPanel() {
                   <textarea
                     ref={inputRef}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Message OPS — paste a screenshot anytime"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setInput(value);
+                      syncMentionsFromCaret(value, e.target.selectionStart ?? value.length);
+                    }}
+                    onClick={(e) => {
+                      const t = e.currentTarget;
+                      syncMentionsFromCaret(t.value, t.selectionStart ?? t.value.length);
+                    }}
+                    onKeyUp={(e) => {
+                      if (
+                        e.key === 'ArrowLeft' ||
+                        e.key === 'ArrowRight' ||
+                        e.key === 'Home' ||
+                        e.key === 'End'
+                      ) {
+                        const t = e.currentTarget;
+                        syncMentionsFromCaret(t.value, t.selectionStart ?? t.value.length);
+                      }
+                    }}
+                    placeholder="Message OPS — type @ to tag people"
                     rows={2}
                     className="min-h-[44px] max-h-28 flex-1 resize-none border-0 bg-transparent px-1 py-1.5 text-sm outline-none ring-0 focus:outline-none focus:ring-0 placeholder:text-muted-foreground"
                     onPaste={(e) => {
@@ -746,6 +944,32 @@ export function OpsAgentPanel() {
                       }
                     }}
                     onKeyDown={(e) => {
+                      if (mentionOpen && mentionSuggestions.length > 0) {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setMentionIndex((i) => (i + 1) % mentionSuggestions.length);
+                          return;
+                        }
+                        if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setMentionIndex(
+                            (i) =>
+                              (i - 1 + mentionSuggestions.length) %
+                              mentionSuggestions.length
+                          );
+                          return;
+                        }
+                        if (e.key === 'Enter' || e.key === 'Tab') {
+                          e.preventDefault();
+                          applyMention(mentionSuggestions[mentionIndex]);
+                          return;
+                        }
+                        if (e.key === 'Escape') {
+                          e.preventDefault();
+                          closeMentions();
+                          return;
+                        }
+                      }
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
                         void sendMessage(input);
