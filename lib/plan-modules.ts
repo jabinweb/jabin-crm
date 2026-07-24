@@ -35,6 +35,7 @@ export const DEFAULT_PLAN_MODULES: Record<string, Partial<Record<FeatureModuleKe
     DEALS: true,
     QUOTATIONS: true,
     INVENTORY: true,
+    WHATSAPP: true,
   },
   professional: {
     LEADS: true,

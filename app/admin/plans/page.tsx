@@ -225,24 +225,27 @@ export default function PlansPage() {
             variant="outline"
             onClick={async () => {
               try {
-                const res = await fetch('/api/admin/plans/sync-modules', { method: 'POST' });
+                const res = await fetch(
+                  '/api/admin/plans/sync-modules?force=1&catalog=1',
+                  { method: 'POST' }
+                );
                 if (!res.ok) throw new Error('Sync failed');
                 const data = await res.json();
                 toast({
-                  title: 'Modules synced',
-                  description: `Updated ${data.updated} plan(s) with default modules`,
+                  title: 'Plans synced',
+                  description: `Updated ${data.updated} plan(s) from catalog defaults (incl. WhatsApp on Starter)`,
                 });
                 fetchPlans();
               } catch {
                 toast({
                   title: 'Error',
-                  description: 'Failed to sync default modules',
+                  description: 'Failed to sync plan defaults',
                   variant: 'destructive',
                 });
               }
             }}
           >
-            Sync default modules
+            Sync catalog defaults
           </Button>
           <Button onClick={fetchPlans} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />

@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useState } from 'react';
 import { Loader2, CheckCircle2, XCircle, Calendar, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -28,6 +29,8 @@ import {
   FEATURE_MODULE_LABELS,
   type FeatureModuleKey,
 } from '@/lib/feature-module-keys';
+import { startPlanCheckout } from '@/lib/payments/start-plan-checkout';
+import { companyPath } from '@/lib/routing/paths';
 import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 interface Plan {
@@ -75,6 +78,34 @@ export default function SubscriptionSettingsPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [checkoutPlanId, setCheckoutPlanId] = useState<string | null>(null);
+  const companySlug =
+    typeof (session?.user as { companySlug?: string } | undefined)?.companySlug === 'string'
+      ? (session!.user as { companySlug: string }).companySlug
+      : null;
+
+  const beginCheckout = async (plan: Plan) => {
+    if (!session?.user) {
+      toast.error('Please sign in again');
+      return;
+    }
+    setCheckoutPlanId(plan.id);
+    await startPlanCheckout({
+      planId: plan.id,
+      planName: plan.name,
+      session,
+      successPath: companySlug
+        ? companyPath(companySlug, '/dashboard/settings/subscription')
+        : undefined,
+      onBusy: (busy) => {
+        if (!busy) setCheckoutPlanId(null);
+      },
+    });
+    setCheckoutPlanId(null);
+    await queryClient.invalidateQueries({ queryKey: ['subscription'] });
+    await queryClient.invalidateQueries({ queryKey: ['pricing-plans'] });
+    await queryClient.invalidateQueries({ queryKey: ['feature-modules-me'] });
+  };
 
   // Fetch enabled modules for current user/plan
   const { data: featureAccess } = useQuery<{
@@ -334,7 +365,16 @@ export default function SubscriptionSettingsPage() {
           <Separator />
 
           <div className="flex gap-3">
-            <Button onClick={() => router.push('/pricing')}>
+            <Button
+              onClick={() => {
+                const el = document.getElementById('available-plans');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  return;
+                }
+                router.push('/pricing');
+              }}
+            >
               <TrendingUp className="mr-2 h-4 w-4" />
               Upgrade Plan
             </Button>
@@ -459,7 +499,7 @@ export default function SubscriptionSettingsPage() {
 
       {/* Available Plans */}
       {plans && plans.length > 0 && (
-        <Card>
+        <Card id="available-plans">
           <CardHeader>
             <CardTitle>Available Plans</CardTitle>
             <CardDescription>Upgrade or downgrade your subscription</CardDescription>
@@ -468,6 +508,7 @@ export default function SubscriptionSettingsPage() {
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {plans.map((plan) => {
                 const isCurrentPlan = plan.id === subscription.plan.id;
+                const isBusy = checkoutPlanId === plan.id;
                 return (
                   <Card key={plan.id} className={isCurrentPlan ? 'border-primary' : ''}>
                     <CardHeader>
@@ -502,12 +543,22 @@ export default function SubscriptionSettingsPage() {
                         </li>
                       </ul>
                       {!isCurrentPlan && (
-                        <Button 
-                          className="w-full mt-4" 
+                        <Button
+                          className="w-full mt-4"
                           variant={plan.price > subscription.plan.price ? 'default' : 'outline'}
-                          onClick={() => router.push('/pricing')}
+                          disabled={checkoutPlanId !== null}
+                          onClick={() => beginCheckout(plan)}
                         >
-                          {plan.price > subscription.plan.price ? 'Upgrade' : 'Downgrade'}
+                          {isBusy ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Processing…
+                            </>
+                          ) : plan.price > subscription.plan.price ? (
+                            'Upgrade'
+                          ) : (
+                            'Downgrade'
+                          )}
                         </Button>
                       )}
                     </CardContent>

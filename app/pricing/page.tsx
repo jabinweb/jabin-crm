@@ -6,16 +6,12 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import Link from 'next/link';
-import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { PricingCountrySelector } from '@/components/pricing/pricing-country-selector';
-import { loadRazorpayCheckout } from '@/lib/payments/load-razorpay';
+import { startPlanCheckout } from '@/lib/payments/start-plan-checkout';
 import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
 
 export default function PricingPage() {
-  const router = useRouter();
   const { data: session, status } = useSession();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
@@ -24,9 +20,13 @@ export default function PricingPage() {
     queryKey: ['pricing-plans'],
     queryFn: async () => {
       const response = await fetch('/api/pricing/plans');
-      if (!response.ok) throw new Error('Failed to fetch plans');
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || body.details || 'Failed to fetch plans');
+      }
       return response.json();
     },
+    retry: 1,
   });
 
   const plans = pricingData?.plans ?? [];
@@ -48,159 +48,17 @@ export default function PricingPage() {
   const currentSubscription = subscriptionData?.subscription;
 
   const handleSelectPlan = async (planId: string, planName: string) => {
-    // Check if user is authenticated
-    if (!session) {
-      toast.error('Please sign in to select a plan');
-      router.push(`/auth/signin?callbackUrl=/pricing`);
-      return;
-    }
-
-    if (planName === 'free') {
-      // Handle free plan activation
-      setLoadingPlan(planId);
-      try {
-        const response = await fetch('/api/subscription/activate-free', {
-          method: 'POST',
-        });
-        
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to activate free plan');
-        }
-        
-        toast.success('Free plan activated!');
-        router.push(
-          resolvePostLoginPath({
-            role: session.user.role,
-            companySlug: (session.user as { companySlug?: string }).companySlug,
-          })
-        );
-      } catch (error: any) {
-        toast.error(error.message || 'Failed to activate plan');
-      } finally {
-        setLoadingPlan(null);
-      }
-      return;
-    }
-
-    // Handle paid plan - create Razorpay order
     setLoadingPlan(planId);
-    try {
-      const response = await fetch('/api/payment/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || data.details || 'Failed to create order');
-      }
-
-      const { order, key, plan: orderPlan } = data;
-
-      if (!order?.id || !key) {
-        throw new Error('Invalid payment session. Check Razorpay configuration.');
-      }
-
-      await loadRazorpayCheckout();
-
-      if (!window.Razorpay) {
-        throw new Error('Razorpay checkout failed to initialize');
-      }
-
-      const callbackUrl = `${window.location.origin}/api/payment/callback`;
-
-      const razorpay = new window.Razorpay({
-        key,
-        amount: order.amount,
-        currency: order.currency,
-        name: process.env.NEXT_PUBLIC_APP_NAME || 'CRM',
-        description: `${orderPlan?.formattedPrice ?? ''} / month — ${planName} plan`,
-        order_id: order.id,
-        callback_url: callbackUrl,
-        redirect: true,
-        handler: async function (paymentResponse: {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        }) {
-          try {
-            setIsVerifyingPayment(true);
-            toast.loading('Verifying payment...', { id: 'payment-verify' });
-
-            const verifyResponse = await fetch('/api/payment/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_order_id: paymentResponse.razorpay_order_id,
-                razorpay_payment_id: paymentResponse.razorpay_payment_id,
-                razorpay_signature: paymentResponse.razorpay_signature,
-                planId,
-              }),
-            });
-
-            if (verifyResponse.ok) {
-              toast.success('Payment successful! Activating your subscription...', {
-                id: 'payment-verify',
-                duration: 3000,
-              });
-              setTimeout(
-                () =>
-                  router.push(
-                    resolvePostLoginPath({
-                      role: session.user.role,
-                      companySlug: (session.user as { companySlug?: string }).companySlug,
-                    })
-                  ),
-                1500
-              );
-            } else {
-              const errorData = await verifyResponse.json().catch(() => ({}));
-              toast.error(errorData.error || 'Payment verification failed', {
-                id: 'payment-verify',
-              });
-              setIsVerifyingPayment(false);
-            }
-          } catch {
-            toast.error('Failed to verify payment', { id: 'payment-verify' });
-            setIsVerifyingPayment(false);
-          }
-        },
-        modal: {
-          ondismiss: function () {
-            setLoadingPlan(null);
-          },
-        },
-        prefill: {
-          email: session?.user?.email || '',
-          name: session?.user?.name || '',
-          contact: '',
-        },
-        theme: {
-          color: '#000000',
-        },
-      });
-
-      razorpay.on('payment.failed', function (response: { error?: { description?: string } }) {
-        toast.error(response.error?.description || 'Payment failed');
-        setLoadingPlan(null);
-        setIsVerifyingPayment(false);
-      });
-
-      razorpay.open();
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message.includes('timed out') || error.message.includes('network')
-            ? 'Could not load Razorpay. Disable ad blockers, restart the dev server, and try again.'
-            : error.message
-          : 'Failed to initiate payment';
-      toast.error(message);
-    } finally {
-      setLoadingPlan(null);
-    }
+    await startPlanCheckout({
+      planId,
+      planName,
+      session,
+      onBusy: (busy) => {
+        if (!busy) setLoadingPlan(null);
+      },
+      onVerifying: setIsVerifyingPayment,
+    });
+    setLoadingPlan(null);
   };
 
   const formatPrice = (plan: { formattedPrice?: string; displayAmount?: number; price?: number }) =>
@@ -287,9 +145,16 @@ export default function PricingPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 2xl:grid-cols-4 2xl:max-w-[1280px] 2xl:mx-auto">
           {plans.length === 0 ? (
-            <p className="col-span-full text-center text-sm text-muted-foreground py-12">
-              No active plans yet. Ask a platform admin to publish plans.
-            </p>
+            <div className="col-span-full flex flex-col items-center gap-3 py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                No active plans are published yet. If you expect to see Free / Starter /
+                Professional, a platform admin can re-sync plans from{' '}
+                <span className="font-medium text-foreground">Admin → Plans</span>.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Refresh plans
+              </Button>
+            </div>
           ) : (
             plans.map((plan: any) => {
             const isCurrentPlan = currentSubscription?.planId === plan.id;
