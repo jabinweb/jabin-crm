@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,9 +24,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, ClipboardList, Plus, Trash2 } from 'lucide-react';
+import { Loader2, ClipboardList, Plus, Trash2, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 
 type SupplierOption = { id: string; name: string };
 type ProductOption = { id: string; name: string; price: number; sku?: string };
@@ -75,6 +77,8 @@ export default function PurchaseOrdersPage() {
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([emptyLine()]);
   const [showReport, setShowReport] = useState(reportFromUrl);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [view, setView] = useState<'list' | 'board'>('list');
+  const { columns, loading: columnsLoading } = usePipelineColumns('purchase_orders');
 
   const reportEnabled = showReport;
 
@@ -119,6 +123,34 @@ export default function PurchaseOrdersPage() {
 
   const orders = listData?.orders ?? [];
   const report = listData?.report ?? null;
+
+  const boardItems = useMemo(
+    () => orders.map((o) => ({ ...o, stage: o.status })),
+    [orders]
+  );
+  const itemsByStage = useMemo(
+    () => groupByStage(boardItems, columns),
+    [boardItems, columns]
+  );
+
+  const onBoardMove = async (id: string, toStage: string, fromStage: string) => {
+    if (toStage === fromStage) return;
+    try {
+      const res = await workspaceFetch(`/api/purchase-orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: toStage }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update PO');
+      }
+      await queryClient.invalidateQueries({ queryKey: ['purchase-orders', slug] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Move failed');
+      await queryClient.invalidateQueries({ queryKey: ['purchase-orders', slug] });
+    }
+  };
 
   const computedTotal = useMemo(() => {
     return lineItems.reduce((sum, row) => {
@@ -217,15 +249,35 @@ export default function PurchaseOrdersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Purchase orders</h1>
           <p className="text-sm text-muted-foreground">Create and track POs with suppliers.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Switch
-            id="po-report"
-            checked={reportEnabled}
-            onCheckedChange={setShowReport}
-          />
-          <Label htmlFor="po-report" className="text-sm font-normal cursor-pointer">
-            Show report summary
-          </Label>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={view === 'list' ? 'default' : 'outline'}
+              onClick={() => setView('list')}
+            >
+              <List className="mr-1.5 h-4 w-4" />
+              List
+            </Button>
+            <Button
+              size="sm"
+              variant={view === 'board' ? 'default' : 'outline'}
+              onClick={() => setView('board')}
+            >
+              <LayoutGrid className="mr-1.5 h-4 w-4" />
+              Board
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="po-report"
+              checked={reportEnabled}
+              onCheckedChange={setShowReport}
+            />
+            <Label htmlFor="po-report" className="text-sm font-normal cursor-pointer">
+              Show report summary
+            </Label>
+          </div>
         </div>
       </div>
 
@@ -429,94 +481,123 @@ export default function PurchaseOrdersPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">All purchase orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : orders.length === 0 ? (
-            <EmptyState
-              icon={ClipboardList}
-              title="No purchase orders"
-              description="Create a PO above."
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>PO #</TableHead>
-                  <TableHead>Supplier</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((o) => {
-                  const busy = actionMutation.isPending && actionId === o.id;
-                  const canApprove = o.status === 'DRAFT';
-                  const canReceive = o.status === 'DRAFT' || o.status === 'SENT';
-                  const canCancel = o.status !== 'CANCELLED' && o.status !== 'RECEIVED';
-                  return (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-medium">{o.poNumber}</TableCell>
-                      <TableCell>{o.supplier?.name}</TableCell>
-                      <TableCell>{o.status}</TableCell>
-                      <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
-                      <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {canApprove && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              onClick={() =>
-                                actionMutation.mutate({ id: o.id, action: 'approve' })
-                              }
-                            >
-                              Approve
-                            </Button>
-                          )}
-                          {canReceive && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              onClick={() =>
-                                actionMutation.mutate({ id: o.id, action: 'receive' })
-                              }
-                            >
-                              Receive
-                            </Button>
-                          )}
-                          {canCancel && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              disabled={busy}
-                              onClick={() =>
-                                actionMutation.mutate({ id: o.id, action: 'cancel' })
-                              }
-                            >
-                              Cancel
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {view === 'board' ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">PO pipeline</CardTitle>
+            <CardDescription>Drag orders between stages. Receiving still updates stock.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading || columnsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <PipelineBoard
+                columns={columns}
+                itemsByStage={itemsByStage}
+                onMove={onBoardMove}
+                renderCard={(o) => (
+                  <div className="p-3 space-y-1">
+                    <p className="text-sm font-semibold">{o.poNumber}</p>
+                    <p className="text-xs text-muted-foreground">{o.supplier?.name}</p>
+                    <p className="text-xs tabular-nums">{o.totalAmount.toLocaleString()}</p>
+                  </div>
+                )}
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">All purchase orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : orders.length === 0 ? (
+              <EmptyState
+                icon={ClipboardList}
+                title="No purchase orders"
+                description="Create a PO above."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>PO #</TableHead>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((o) => {
+                    const busy = actionMutation.isPending && actionId === o.id;
+                    const canApprove = o.status === 'DRAFT';
+                    const canReceive = o.status === 'DRAFT' || o.status === 'SENT';
+                    const canCancel = o.status !== 'CANCELLED' && o.status !== 'RECEIVED';
+                    return (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-medium">{o.poNumber}</TableCell>
+                        <TableCell>{o.supplier?.name}</TableCell>
+                        <TableCell>{o.status}</TableCell>
+                        <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
+                        <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap justify-end gap-1">
+                            {canApprove && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() =>
+                                  actionMutation.mutate({ id: o.id, action: 'approve' })
+                                }
+                              >
+                                Approve
+                              </Button>
+                            )}
+                            {canReceive && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() =>
+                                  actionMutation.mutate({ id: o.id, action: 'receive' })
+                                }
+                              >
+                                Receive
+                              </Button>
+                            )}
+                            {canCancel && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() =>
+                                  actionMutation.mutate({ id: o.id, action: 'cancel' })
+                                }
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,9 +24,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Plus, ShoppingCart, Trash2 } from 'lucide-react';
+import { Loader2, Plus, ShoppingCart, Trash2, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 
 type ProductOption = { id: string; name: string; price: number; sku?: string };
 
@@ -71,6 +73,8 @@ export default function SalesOrdersPage() {
   const [status, setStatus] = useState('PENDING');
   const [lineItems, setLineItems] = useState<LineItemDraft[]>([emptyLine()]);
   const [showReport, setShowReport] = useState(reportFromUrl);
+  const [view, setView] = useState<'list' | 'board'>('list');
+  const { columns, loading: columnsLoading } = usePipelineColumns('sales_orders');
 
   const reportEnabled = showReport;
 
@@ -105,6 +109,34 @@ export default function SalesOrdersPage() {
 
   const orders = listData?.orders ?? [];
   const report = listData?.report ?? null;
+
+  const boardItems = useMemo(
+    () => orders.map((o) => ({ ...o, stage: o.status })),
+    [orders]
+  );
+  const itemsByStage = useMemo(
+    () => groupByStage(boardItems, columns),
+    [boardItems, columns]
+  );
+
+  const onBoardMove = async (id: string, toStage: string, fromStage: string) => {
+    if (toStage === fromStage) return;
+    try {
+      const res = await workspaceFetch(`/api/sales-orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: toStage }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update SO');
+      }
+      await queryClient.invalidateQueries({ queryKey: ['sales-orders', slug] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Move failed');
+      await queryClient.invalidateQueries({ queryKey: ['sales-orders', slug] });
+    }
+  };
 
   const computedTotal = useMemo(() => {
     return lineItems.reduce((sum, row) => {
@@ -178,11 +210,31 @@ export default function SalesOrdersPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Sales orders</h1>
           <p className="text-sm text-muted-foreground">Track outbound sales orders with line items.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Switch id="so-report" checked={reportEnabled} onCheckedChange={setShowReport} />
-          <Label htmlFor="so-report" className="text-sm font-normal cursor-pointer">
-            Show report summary
-          </Label>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={view === 'list' ? 'default' : 'outline'}
+              onClick={() => setView('list')}
+            >
+              <List className="mr-1.5 h-4 w-4" />
+              List
+            </Button>
+            <Button
+              size="sm"
+              variant={view === 'board' ? 'default' : 'outline'}
+              onClick={() => setView('board')}
+            >
+              <LayoutGrid className="mr-1.5 h-4 w-4" />
+              Board
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="so-report" checked={reportEnabled} onCheckedChange={setShowReport} />
+            <Label htmlFor="so-report" className="text-sm font-normal cursor-pointer">
+              Show report summary
+            </Label>
+          </div>
         </div>
       </div>
 
@@ -368,49 +420,80 @@ export default function SalesOrdersPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">All sales orders</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : orders.length === 0 ? (
-            <EmptyState
-              icon={ShoppingCart}
-              title="No sales orders"
-              description="Create a sales order above."
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order #</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Lines</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.orderNumber}</TableCell>
-                    <TableCell>{o.status}</TableCell>
-                    <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
-                    <TableCell>
-                      {Array.isArray(o.lineItems) ? o.lineItems.length : '—'}
-                    </TableCell>
-                    <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
+      {view === 'board' ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">SO pipeline</CardTitle>
+            <CardDescription>Drag sales orders between stages.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading || columnsLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <PipelineBoard
+                columns={columns}
+                itemsByStage={itemsByStage}
+                onMove={onBoardMove}
+                renderCard={(o) => (
+                  <div className="p-3 space-y-1">
+                    <p className="text-sm font-semibold">{o.orderNumber}</p>
+                    <p className="text-xs tabular-nums">{o.totalAmount.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {Array.isArray(o.lineItems) ? `${o.lineItems.length} lines` : '—'}
+                    </p>
+                  </div>
+                )}
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">All sales orders</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : orders.length === 0 ? (
+              <EmptyState
+                icon={ShoppingCart}
+                title="No sales orders"
+                description="Create a sales order above."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order #</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Lines</TableHead>
+                    <TableHead>Created</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {orders.map((o) => (
+                    <TableRow key={o.id}>
+                      <TableCell className="font-medium">{o.orderNumber}</TableCell>
+                      <TableCell>{o.status}</TableCell>
+                      <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
+                      <TableCell>
+                        {Array.isArray(o.lineItems) ? o.lineItems.length : '—'}
+                      </TableCell>
+                      <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

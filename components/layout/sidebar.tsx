@@ -47,6 +47,7 @@ import {
   PiggyBank,
   FolderKanban,
   Landmark,
+  LayoutGrid,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -131,6 +132,7 @@ const supportNav: NavigationItem[] = [
     roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'],
     workspaceFeature: 'fieldService',
     children: [
+      { name: 'Job board', href: '/dashboard/service/board', icon: LayoutGrid, module: 'TICKETS' },
       { name: 'GPS tracking', href: '/dashboard/service/gps', icon: MapPin, module: 'SERVICE_GPS' },
       { name: 'Expenses', href: '/dashboard/service/expenses', icon: Route, module: 'SERVICE_EXPENSES' },
       { name: 'Cash on hand', href: '/dashboard/service/cash', icon: Wallet, module: 'SERVICE_CASH' },
@@ -195,6 +197,7 @@ const settingsNav: NavigationItem[] = [
       { name: 'Calendar sync', href: '/dashboard/settings/calendar', icon: CalendarIcon },
       { name: 'Billing', href: '/dashboard/settings/subscription', icon: CreditCard },
       { name: 'Data migration', href: '/dashboard/settings/migration', icon: Database },
+      { name: 'Pipelines', href: '/dashboard/settings/pipelines', icon: Activity },
     ]
   },
 ];

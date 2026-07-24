@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, DollarSign, TrendingUp, Award } from 'lucide-react';
+import { Plus, DollarSign, TrendingUp, Award, Loader2 } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
+import { PipelineBoard, groupByStage } from '@/components/pipelines/pipeline-board';
+import { toast } from 'sonner';
+import { DashboardPage } from '@/components/layout/dashboard-page';
 
-interface Deal {
+type Deal = {
   id: string;
   title: string;
   value: number;
@@ -19,130 +22,101 @@ interface Deal {
     companyName: string;
     contactName?: string;
   };
-}
+};
 
-interface PipelineStats {
-  stages: Array<{
-    stage: string;
-    count: number;
-    totalValue: number;
-  }>;
+type PipelineStats = {
+  stages: Array<{ stage: string; count: number; totalValue: number }>;
   totalValue: number;
   weightedValue: number;
-}
-
-const STAGES = [
-  { id: 'PROSPECTING', label: 'Prospecting', color: 'bg-gray-500' },
-  { id: 'QUALIFICATION', label: 'Qualification', color: 'bg-blue-500' },
-  { id: 'PROPOSAL', label: 'Proposal', color: 'bg-purple-500' },
-  { id: 'NEGOTIATION', label: 'Negotiation', color: 'bg-orange-500' },
-  { id: 'CLOSED_WON', label: 'Closed Won', color: 'bg-green-500' },
-  { id: 'CLOSED_LOST', label: 'Closed Lost', color: 'bg-red-500' },
-];
+};
 
 export default function DealsPage() {
-  const [dealsByStage, setDealsByStage] = useState<Record<string, Deal[]>>({});
+  const { workspaceFetch } = useWorkspacePaths();
+  const { columns, loading: columnsLoading } = usePipelineColumns('deals');
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [stats, setStats] = useState<PipelineStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const { formatCurrency } = useCurrency();
 
-  useEffect(() => {
-    fetchDeals();
-    fetchStats();
-  }, []);
-
-  const fetchDeals = async () => {
+  const fetchDeals = useCallback(async () => {
     try {
-      const res = await fetch('/api/deals');
+      const res = await workspaceFetch('/api/deals');
       if (res.ok) {
-        const deals: Deal[] = await res.json();
-
-        // Group deals by stage
-        const grouped = STAGES.reduce((acc, stage) => {
-          acc[stage.id] = deals.filter((d) => d.stage === stage.id);
-          return acc;
-        }, {} as Record<string, Deal[]>);
-
-        setDealsByStage(grouped);
+        setDeals(await res.json());
       }
-    } catch (error) {
-      console.error('Failed to fetch deals:', error);
+    } catch {
+      toast.error('Failed to load deals');
     } finally {
       setLoading(false);
     }
-  };
+  }, [workspaceFetch]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/deals/stats');
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      const res = await workspaceFetch('/api/deals/stats');
+      if (res.ok) setStats(await res.json());
+    } catch {
+      /* ignore */
     }
-  };
+  }, [workspaceFetch]);
 
-  const onDragEnd = async (result: DropResult) => {
-    const { source, destination, draggableId } = result;
+  useEffect(() => {
+    void fetchDeals();
+    void fetchStats();
+  }, [fetchDeals, fetchStats]);
 
-    if (!destination) return;
-    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+  const itemsByStage = useMemo(() => groupByStage(deals, columns), [deals, columns]);
 
-    // Update local state optimistically
-    const sourceLane = [...dealsByStage[source.droppableId]];
-    const destLane = source.droppableId === destination.droppableId
-      ? sourceLane
-      : [...dealsByStage[destination.droppableId]];
-
-    const [movedDeal] = sourceLane.splice(source.index, 1);
-    destLane.splice(destination.index, 0, { ...movedDeal, stage: destination.droppableId });
-
-    setDealsByStage({
-      ...dealsByStage,
-      [source.droppableId]: sourceLane,
-      [destination.droppableId]: destLane,
-    });
-
-    // Update on server
+  const onMove = async (id: string, toStage: string, fromStage: string) => {
+    if (toStage === fromStage) return;
+    const prev = deals;
+    setDeals((list) => list.map((d) => (d.id === id ? { ...d, stage: toStage } : d)));
     try {
-      await fetch(`/api/deals/${draggableId}`, {
+      const res = await workspaceFetch(`/api/deals/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage: destination.droppableId }),
+        body: JSON.stringify({ stage: toStage }),
       });
-      fetchStats(); // Refresh stats
-    } catch (error) {
-      console.error('Failed to update deal:', error);
-      fetchDeals(); // Revert on error
+      if (!res.ok) throw new Error('Failed to update deal');
+      void fetchStats();
+    } catch {
+      setDeals(prev);
+      toast.error('Could not move deal');
+      void fetchDeals();
     }
   };
 
-  const { formatCurrency } = useCurrency();
-
-  if (loading) {
-    return <div className="space-y-6">Loading deals...</div>;
+  if (loading || columnsLoading) {
+    return (
+      <DashboardPage>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading deals…
+        </div>
+      </DashboardPage>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <DashboardPage>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Deal Pipeline</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Track deals through your sales process</p>
+          <h1 className="text-2xl font-semibold tracking-tight">Deal pipeline</h1>
+          <p className="text-sm text-muted-foreground">
+            Track deals through your sales process
+          </p>
         </div>
-        <Button className="w-full sm:w-auto">
+        <Button>
           <Plus className="mr-2 h-4 w-4" />
-          New Deal
+          New deal
         </Button>
       </div>
 
-      {/* Stats Cards */}
       {stats && (
         <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Pipeline</CardTitle>
+              <CardTitle className="text-sm font-medium">Total pipeline</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -151,108 +125,64 @@ export default function DealsPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Weighted Value</CardTitle>
+              <CardTitle className="text-sm font-medium">Weighted value</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{formatCurrency(stats.weightedValue)}</div>
-              <p className="text-xs text-muted-foreground">Based on probability</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Deals</CardTitle>
+              <CardTitle className="text-sm font-medium">Active deals</CardTitle>
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {stats?.stages?.reduce((sum, s) => sum + s.count, 0) ?? 0}
+                {stats.stages?.reduce((sum, s) => sum + s.count, 0) ?? 0}
               </div>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {STAGES.map((stage) => (
-            <div key={stage.id} className="flex-shrink-0 w-80">
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-none ${stage.color}`} />
-                    {stage.label}
-                  </h3>
-                  <Badge variant="secondary">
-                    {dealsByStage[stage.id]?.length || 0}
-                  </Badge>
-                </div>
-                {stats && (
-                  <p className="text-sm text-muted-foreground">
-                    {formatCurrency(
-                      stats.stages.find((s) => s.stage === stage.id)?.totalValue || 0
-                    )}
-                  </p>
-                )}
-              </div>
-
-              <Droppable droppableId={stage.id}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`min-h-[500px] p-2 rounded-none transition-colors ${snapshot.isDraggingOver ? 'bg-accent' : 'bg-muted/50'
-                      }`}
-                  >
-                    {(dealsByStage[stage.id] || []).map((deal, index) => (
-                      <Draggable key={deal.id} draggableId={deal.id} index={index}>
-                        {(provided, snapshot) => (
-                          <Card
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            className={`mb-2 cursor-move ${snapshot.isDragging ? 'shadow-none ring-2 ring-primary' : ''
-                              }`}
-                          >
-                            <CardHeader className="p-4">
-                              <CardTitle className="text-sm font-semibold">
-                                {deal.title}
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-0 space-y-2">
-                              <div className="text-lg font-bold text-green-600">
-                                {formatCurrency(deal.value, deal.currency as any)}
-                              </div>
-                              <div className="text-sm">
-                                <p className="font-medium">{deal.lead.companyName}</p>
-                                {deal.lead.contactName && (
-                                  <p className="text-muted-foreground">{deal.lead.contactName}</p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-muted rounded-none h-2 overflow-hidden">
-                                  <div
-                                    className="bg-primary h-full transition-all"
-                                    style={{ width: `${deal.probability}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs font-medium">{deal.probability}%</span>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+      <PipelineBoard
+        columns={columns}
+        itemsByStage={itemsByStage}
+        onMove={onMove}
+        columnFooter={(stageId) =>
+          stats ? (
+            <p className="text-xs text-muted-foreground mb-2">
+              {formatCurrency(
+                stats.stages.find((s) => s.stage === stageId)?.totalValue || 0
+              )}
+            </p>
+          ) : null
+        }
+        renderCard={(deal) => (
+          <div className="p-3 space-y-2">
+            <p className="text-sm font-semibold">{deal.title}</p>
+            <p className="text-base font-bold text-emerald-600">
+              {formatCurrency(deal.value, deal.currency as never)}
+            </p>
+            <div className="text-sm">
+              <p className="font-medium">{deal.lead?.companyName}</p>
+              {deal.lead?.contactName && (
+                <p className="text-muted-foreground text-xs">{deal.lead.contactName}</p>
+              )}
             </div>
-          ))}
-        </div>
-      </DragDropContext>
-    </div>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-muted rounded h-1.5 overflow-hidden">
+                <div
+                  className="bg-primary h-full"
+                  style={{ width: `${deal.probability}%` }}
+                />
+              </div>
+              <span className="text-xs font-medium">{deal.probability}%</span>
+            </div>
+          </div>
+        )}
+      />
+    </DashboardPage>
   );
 }
-

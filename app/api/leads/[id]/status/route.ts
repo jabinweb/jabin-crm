@@ -23,7 +23,14 @@ export async function PATCH(
       where: { id: resolvedParams.id },
     });
 
-    if (!lead || lead.userId !== session.user.id) {
+    const role = (session.user as { role?: string }).role;
+    const canAccess =
+      lead &&
+      (lead.userId === session.user.id ||
+        (lead.companyId &&
+          ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER'].includes(String(role))));
+
+    if (!canAccess) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 

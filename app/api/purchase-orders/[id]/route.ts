@@ -29,6 +29,21 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
+  if (statusRaw === 'DRAFT' && !action) {
+    if (existing.status === 'RECEIVED') {
+      return NextResponse.json(
+        { error: 'Received POs cannot move back to draft' },
+        { status: 400 }
+      );
+    }
+    const order = await prisma.purchaseOrder.update({
+      where: { id },
+      data: { status: 'DRAFT' as POStatus },
+      include: { supplier: { select: { id: true, name: true, email: true } } },
+    });
+    return jsonOk(order);
+  }
+
   if (action === 'approve' || statusRaw === 'SENT') {
     if (existing.status !== 'DRAFT' && existing.status !== 'SENT') {
       return NextResponse.json({ error: 'Only draft POs can be approved/sent' }, { status: 400 });
@@ -42,6 +57,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   }
 
   if (action === 'cancel' || statusRaw === 'CANCELLED') {
+    if (existing.status === 'RECEIVED') {
+      return NextResponse.json(
+        { error: 'Received POs cannot be cancelled' },
+        { status: 400 }
+      );
+    }
     const order = await prisma.purchaseOrder.update({
       where: { id },
       data: { status: 'CANCELLED' },
