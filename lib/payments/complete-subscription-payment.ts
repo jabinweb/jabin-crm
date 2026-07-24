@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
+import { activatePaidSubscription } from '@/lib/subscription/activate-paid';
 
 export function getRazorpayKeySecret(): string | null {
   const env = process.env.RAZORPAY_ENV || 'test';
@@ -66,14 +67,9 @@ export async function completeSubscriptionPayment(input: {
     throw new Error('Plan mismatch');
   }
 
-  const plan = await prisma.plan.findUnique({ where: { id: resolvedPlanId } });
-  if (!plan) {
-    throw new Error('Plan not found');
-  }
-
   // Idempotent — already processed
   if (pendingPayment.status === 'CAPTURED' && pendingPayment.razorpayPaymentId === razorpayPaymentId) {
-    return { userId, planId: plan.id, alreadyProcessed: true };
+    return { userId, planId: resolvedPlanId, alreadyProcessed: true };
   }
 
   await prisma.payment.updateMany({
@@ -85,46 +81,12 @@ export async function completeSubscriptionPayment(input: {
     },
   });
 
-  const periodEnd = new Date();
-  periodEnd.setDate(periodEnd.getDate() + 30);
-
-  const existingSubscription = await prisma.subscription.findUnique({
-    where: { userId },
+  await activatePaidSubscription({
+    userId,
+    planId: resolvedPlanId,
+    periodDays: 30,
+    status: 'ACTIVE',
   });
 
-  if (existingSubscription) {
-    await prisma.subscription.update({
-      where: { userId },
-      data: {
-        planId: plan.id,
-        status: 'ACTIVE',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: periodEnd,
-        cancelAtPeriodEnd: false,
-        trialEndsAt: null,
-      },
-    });
-  } else {
-    await prisma.subscription.create({
-      data: {
-        userId,
-        planId: plan.id,
-        status: 'ACTIVE',
-        currentPeriodEnd: periodEnd,
-      },
-    });
-  }
-
-  await prisma.usageTracking.upsert({
-    where: { userId },
-    create: { userId },
-    update: {
-      leadsCreated: 0,
-      emailsSent: 0,
-      campaignsCreated: 0,
-      lastResetAt: new Date(),
-    },
-  });
-
-  return { userId, planId: plan.id, alreadyProcessed: false };
+  return { userId, planId: resolvedPlanId, alreadyProcessed: false };
 }

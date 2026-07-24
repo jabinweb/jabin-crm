@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { ensureFreeTrialSubscription } from '@/lib/subscription/ensure-free-trial';
+import {
+  canActivatePersonalFreeTrial,
+  ensureFreeTrialSubscription,
+} from '@/lib/subscription/ensure-free-trial';
 
 export async function POST() {
   try {
@@ -20,6 +23,11 @@ export async function POST() {
         { error: 'You already have an active subscription' },
         { status: 400 }
       );
+    }
+
+    const allowed = await canActivatePersonalFreeTrial(session.user.id);
+    if (!allowed.ok) {
+      return NextResponse.json({ error: allowed.reason }, { status: 400 });
     }
 
     const subscription = await ensureFreeTrialSubscription(session.user.id);

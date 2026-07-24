@@ -99,42 +99,82 @@ export function isSubscriptionActive(subscription: {
   return new Date() <= new Date(subscription.currentPeriodEnd);
 }
 
-/** Resolve which user's subscription controls feature access for a workspace member. */
-export async function resolveBillingUserId(userId: string): Promise<string> {
-  const ownSub = await prisma.subscription.findUnique({
-    where: { userId },
-    select: { status: true, currentPeriodEnd: true },
+/** Pick company billing owner: primary-company admin with best plan, else highest active plan. */
+export async function resolveCompanyBillingUserId(
+  companyId: string
+): Promise<string | null> {
+  const admins = await prisma.user.findMany({
+    where: {
+      OR: [{ companyId }, { primaryCompanyId: companyId }],
+      role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+    },
+    select: {
+      id: true,
+      createdAt: true,
+      primaryCompanyId: true,
+      subscription: {
+        select: {
+          status: true,
+          currentPeriodEnd: true,
+          trialEndsAt: true,
+          plan: { select: { price: true, name: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
   });
 
-  if (ownSub && isSubscriptionActive(ownSub)) {
-    return userId;
-  }
+  if (!admins.length) return null;
 
+  const rank = (a: (typeof admins)[number]) => {
+    const price =
+      a.subscription && isSubscriptionActive(a.subscription)
+        ? a.subscription.plan.price || 0
+        : -1;
+    const isPrimary = a.primaryCompanyId === companyId ? 1 : 0;
+    return { price, isPrimary };
+  };
+
+  const sorted = [...admins].sort((a, b) => {
+    const ra = rank(a);
+    const rb = rank(b);
+    if (rb.price !== ra.price) return rb.price - ra.price;
+    if (rb.isPrimary !== ra.isPrimary) return rb.isPrimary - ra.isPrimary;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  const withActive = sorted.find(
+    (a) => a.subscription && isSubscriptionActive(a.subscription)
+  );
+  if (withActive) return withActive.id;
+
+  const withSub = sorted.find((a) => a.subscription);
+  return withSub?.id ?? sorted[0].id;
+}
+
+/**
+ * Resolve which user's subscription controls feature access for a workspace member.
+ * Company staff always inherit the company billing admin's plan (not personal Free trials).
+ */
+export async function resolveBillingUserId(userId: string): Promise<string> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { companyId: true, primaryCompanyId: true },
+    select: { id: true, role: true, companyId: true, primaryCompanyId: true },
   });
+  if (!user) return userId;
 
-  const companyId = user?.companyId ?? user?.primaryCompanyId;
+  const companyId = user.companyId ?? user.primaryCompanyId;
   if (!companyId) {
     return userId;
   }
 
-  const adminWithSub = await prisma.user.findFirst({
-    where: {
-      OR: [{ companyId }, { primaryCompanyId: companyId }],
-      role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-      subscription: {
-        status: { in: ['ACTIVE', 'TRIALING', 'PAST_DUE'] },
-      },
-    },
-    select: { id: true, subscription: { select: { status: true, currentPeriodEnd: true } } },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  if (adminWithSub?.subscription && isSubscriptionActive(adminWithSub.subscription)) {
-    return adminWithSub.id;
+  // Non-admin staff never bill personally
+  if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+    return (await resolveCompanyBillingUserId(companyId)) ?? userId;
   }
+
+  const companyBillingId = await resolveCompanyBillingUserId(companyId);
+  if (companyBillingId) return companyBillingId;
 
   return userId;
 }
@@ -155,27 +195,20 @@ export async function getPlanModuleMapForUser(userId: string): Promise<PlanModul
 }
 
 export async function getPlanModuleMapForCompany(companyId: string): Promise<PlanModuleMap> {
-  const adminWithSub = await prisma.user.findFirst({
-    where: {
-      OR: [{ companyId }, { primaryCompanyId: companyId }],
-      role: { in: ['ADMIN', 'SUPER_ADMIN'] },
-      subscription: {
-        status: { in: ['ACTIVE', 'TRIALING', 'PAST_DUE'] },
-      },
-    },
-    include: { subscription: { include: { plan: true } } },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  if (
-    adminWithSub?.subscription &&
-    isSubscriptionActive(adminWithSub.subscription)
-  ) {
-    return parsePlanModules(
-      adminWithSub.subscription.plan.name,
-      adminWithSub.subscription.plan.modules
-    );
+  const billingUserId = await resolveCompanyBillingUserId(companyId);
+  if (!billingUserId) {
+    return parsePlanModules('free', null);
   }
 
-  return parsePlanModules('free', null);
+  const subscription = await prisma.subscription.findUnique({
+    where: { userId: billingUserId },
+    include: { plan: true },
+  });
+
+  if (!subscription || !isSubscriptionActive(subscription)) {
+    return parsePlanModules('free', null);
+  }
+
+  return parsePlanModules(subscription.plan.name, subscription.plan.modules);
 }
+

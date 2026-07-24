@@ -792,12 +792,8 @@ async function main() {
     console.warn('  RBAC seed skipped:', e);
   }
 
-  try {
-    await ensureFreeTrialSubscription(adminUser.id);
-    console.log('  Admin free trial subscription attached');
-  } catch (e) {
-    console.warn('  Could not attach trial subscription:', e);
-  }
+  // Billing stays on harshit (company owner) — do not attach Free trials to seeded staff
+  console.log('  Billing: harshit@jabin.org (staff inherit company plan)');
 }
 
 main()
