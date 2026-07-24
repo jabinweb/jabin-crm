@@ -52,12 +52,11 @@ export function BasicInfoSection({ onChange }: BasicInfoSectionProps) {
           <CardTitle>Company Identity</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-2">
+          <div className="space-y-2">
             <Label>Company Logo</Label>
             <ImageUpload
               value={formData.logo}
               onChange={(url) => handleChange('logo', url)}
-              className="w-40 h-40"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

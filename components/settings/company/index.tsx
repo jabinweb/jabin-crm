@@ -95,13 +95,13 @@ function CompanySettingsContent() {
         .
       </p>
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="workspace">Business</TabsTrigger>
-          <TabsTrigger value="customization">Customization</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="payment">Payment</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-x-auto sm:flex-nowrap">
+          <TabsTrigger value="basic" className="shrink-0">Basic Info</TabsTrigger>
+          <TabsTrigger value="workspace" className="shrink-0">Business</TabsTrigger>
+          <TabsTrigger value="customization" className="shrink-0">Customization</TabsTrigger>
+          <TabsTrigger value="notifications" className="shrink-0">Notifications</TabsTrigger>
+          <TabsTrigger value="payment" className="shrink-0">Payment</TabsTrigger>
+          <TabsTrigger value="security" className="shrink-0">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic">

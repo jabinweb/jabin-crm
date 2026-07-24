@@ -1,12 +1,12 @@
 ﻿{
-  "name": "LeadGen CRM",
-  "short_name": "LeadGen",
-  "description": "Professional CRM and Lead Generation Platform",
-  "start_url": "/workspace",
+  "name": "Opslane",
+  "short_name": "Opslane",
+  "description": "Sales, service, and operations workspace",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
-  "orientation": "portrait-primary",
+  "theme_color": "#0f766e",
+  "orientation": "any",
   "icons": [
     {
       "src": "/icons/icon.svg",
@@ -18,14 +18,9 @@
   "categories": ["business", "productivity"],
   "shortcuts": [
     {
-      "name": "Workspace",
-      "url": "/workspace",
-      "description": "Open your workspace"
-    },
-    {
       "name": "Sign in",
       "url": "/auth/signin",
-      "description": "Sign in to your account"
+      "description": "Sign in to your workspace"
     }
   ]
 }

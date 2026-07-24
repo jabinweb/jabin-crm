@@ -2,139 +2,127 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Download, X } from 'lucide-react';
+import { getClientBrandConfig } from '@/lib/branding';
 
+const DISMISS_KEY = 'pwa-prompt-dismissed-at';
+const DISMISS_DAYS = 30;
+const SHOW_DELAY_MS = 60_000;
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+};
+
+function wasDismissedRecently(): boolean {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    // Legacy boolean dismiss
+    if (raw === 'true') return true;
+    const at = Number(raw);
+    if (!Number.isFinite(at)) return false;
+    return Date.now() - at < DISMISS_DAYS * 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+function markDismissed() {
+  try {
+    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    localStorage.removeItem('pwa-prompt-dismissed');
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Soft PWA install hint — delayed, dismissible, never blocks primary UI (OPS FAB).
+ */
 export function PWAInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showPrompt, setShowPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [visible, setVisible] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const brand = getClientBrandConfig();
 
   useEffect(() => {
-    // Check if running on iOS
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    setIsIOS(isIOSDevice);
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if (wasDismissedRecently()) return;
 
-    // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      return;
-    }
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(ios);
 
-    // Check if user dismissed the prompt before
-    const dismissed = localStorage.getItem('pwa-prompt-dismissed');
-    if (dismissed) {
-      return;
-    }
-
-    // Listen for beforeinstallprompt event
     const handler = (e: Event) => {
       e.preventDefault();
-      setDeferredPrompt(e);
-      setShowPrompt(true);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
-
     window.addEventListener('beforeinstallprompt', handler);
+
+    const timer = window.setTimeout(() => {
+      // Chrome/Edge: only after browser offered install
+      // iOS: optional tip (no beforeinstallprompt)
+      setVisible(true);
+    }, SHOW_DELAY_MS);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
+      window.clearTimeout(timer);
     };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
-      return;
-    }
-
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    }
-
+    if (!deferredPrompt) return;
+    await deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
     setDeferredPrompt(null);
-    setShowPrompt(false);
+    setVisible(false);
+    markDismissed();
   };
 
   const handleDismiss = () => {
-    setShowPrompt(false);
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
+    setVisible(false);
+    markDismissed();
   };
 
-  if (!showPrompt && !isIOS) {
-    return null;
-  }
+  // Never show until delay elapsed; Chrome needs deferredPrompt; iOS is tip-only
+  if (!visible) return null;
+  if (!isIOS && !deferredPrompt) return null;
 
-  // iOS install instructions
-  if (isIOS) {
-    return (
-      <Card className="fixed bottom-4 right-4 z-50 w-80 shadow-none">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Install App</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDismiss}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-          <CardDescription>
-            Install LeadGen CRM on your iPhone for quick access
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm">
-            1. Tap the Share button{' '}
-            <span className="inline-block">
-              <svg
-                className="inline h-4 w-4"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z" />
-              </svg>
-            </span>
-          </p>
-          <p className="text-sm">2. Scroll down and tap "Add to Home Screen"</p>
-          <p className="text-sm">3. Tap "Add" in the top right corner</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Chrome/Edge install prompt
   return (
-    <Card className="fixed bottom-4 right-4 z-50 w-80 shadow-none">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Install App</CardTitle>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDismiss}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+    <div
+      className="fixed bottom-6 left-4 z-40 w-[min(20rem,calc(100vw-5.5rem))] rounded-lg border bg-background p-3 shadow-md sm:left-6"
+      role="dialog"
+      aria-label={`Install ${brand.appName}`}
+    >
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-sm font-medium leading-none">Install {brand.appName}</p>
+          <p className="text-xs text-muted-foreground">
+            {isIOS
+              ? 'Share → Add to Home Screen for quick access.'
+              : 'Add to your home screen for faster access.'}
+          </p>
         </div>
-        <CardDescription>
-          Install LeadGen CRM for quick access and offline support
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Button onClick={handleInstall} className="w-full">
-          <Download className="h-4 w-4 mr-2" />
-          Install Now
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 shrink-0"
+          onClick={handleDismiss}
+          aria-label="Dismiss"
+        >
+          <X className="h-3.5 w-3.5" />
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+      {!isIOS && (
+        <Button type="button" size="sm" className="mt-2 w-full" onClick={handleInstall}>
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Install
+        </Button>
+      )}
+    </div>
   );
 }
-
