@@ -40,6 +40,8 @@ export default function WhatsAppHubPage() {
     metaPhoneNumberId: '',
     metaBusinessId: '',
     metaApiVersion: 'v22.0',
+    summoraBaseUrl: '',
+    summoraApiKey: '',
     webhookVerifyToken: '',
   });
 
@@ -80,6 +82,8 @@ export default function WhatsAppHubPage() {
         metaPhoneNumberId: data.metaPhoneNumberId || '',
         metaBusinessId: data.metaBusinessId || '',
         metaApiVersion: data.metaApiVersion || 'v22.0',
+        summoraBaseUrl: data.summoraBaseUrl || '',
+        summoraApiKey: data.hasSummoraApiKey ? '••••••••' : '',
         webhookVerifyToken: data.hasWebhookVerifyToken ? '••••••••' : '',
       });
     } catch (error) {
@@ -213,6 +217,7 @@ export default function WhatsAppHubPage() {
                   <SelectItem value="DISABLED">Disabled</SelectItem>
                   <SelectItem value="TWILIO">Twilio</SelectItem>
                   <SelectItem value="META_CLOUD">Meta Cloud API</SelectItem>
+                  <SelectItem value="SUMMORA">Summora (Baileys bridge)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -269,6 +274,46 @@ export default function WhatsAppHubPage() {
               </div>
               <div className="text-xs text-muted-foreground md:col-span-2">
                 Meta webhook URL: <code>{`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}`}</code>
+              </div>
+            </div>
+          )}
+
+          {config.provider === 'SUMMORA' && (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2 md:col-span-2">
+                <Label>Summora base URL</Label>
+                <Input
+                  placeholder="https://summora.example.com"
+                  value={config.summoraBaseUrl}
+                  onChange={(e) => setConfig({ ...config, summoraBaseUrl: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Bridge API key</Label>
+                <Input
+                  type="password"
+                  value={config.summoraApiKey}
+                  onChange={(e) => setConfig({ ...config, summoraApiKey: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Webhook signing secret</Label>
+                <Input
+                  type="password"
+                  value={config.webhookVerifyToken}
+                  onChange={(e) => setConfig({ ...config, webhookVerifyToken: e.target.value })}
+                />
+              </div>
+              <div className="text-xs text-muted-foreground md:col-span-2 space-y-1">
+                <p>
+                  Create a bridge app in Summora (<code>POST /api/v1/bridge/apps</code>) and set its webhook URL to:
+                </p>
+                <code className="block break-all">
+                  {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}&provider=SUMMORA`}
+                </code>
+                <p>
+                  On reconnect, Summora syncs missed WhatsApp history and retries outbound + webhooks.
+                </p>
               </div>
             </div>
           )}

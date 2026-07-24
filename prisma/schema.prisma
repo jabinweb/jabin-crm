@@ -1420,6 +1420,10 @@ model WhatsAppProviderConfig {
   metaPhoneNumberId  String?
   metaBusinessId     String?
   metaApiVersion     String?          @default("v22.0")
+  /// Summora bridge base URL (e.g. https://summora.example.com)
+  summoraBaseUrl     String?
+  /// Summora bridge API key (encrypted)
+  summoraApiKey      String?
   isActive           Boolean          @default(false)
   webhookVerifyToken String?
   createdAt          DateTime         @default(now())
@@ -1779,6 +1783,7 @@ enum WhatsAppProvider {
   DISABLED
   TWILIO
   META_CLOUD
+  SUMMORA
 }
 
 enum FeatureModule {

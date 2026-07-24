@@ -65,6 +65,10 @@ export class WhatsAppService {
       return this.sendViaMetaCloud(messageLog.id, input, config);
     }
 
+    if (config.provider === 'SUMMORA') {
+      return this.sendViaSummora(messageLog.id, input, config);
+    }
+
     return prisma.whatsAppMessage.update({
       where: { id: messageLog.id },
       data: {
@@ -206,6 +210,65 @@ export class WhatsAppService {
         data: {
           status: 'FAILED',
           errorMessage: error?.message || 'Unknown Meta Cloud send error',
+        },
+      });
+    }
+  }
+
+  private async sendViaSummora(messageId: string, input: SendWhatsAppInput, config: any) {
+    const baseUrl = String(config.summoraBaseUrl || '').replace(/\/$/, '');
+    const apiKey = config.summoraApiKey ? decrypt(config.summoraApiKey) : '';
+
+    if (!baseUrl || !apiKey) {
+      return prisma.whatsAppMessage.update({
+        where: { id: messageId },
+        data: {
+          status: 'FAILED',
+          errorMessage: 'Summora bridge URL or API key is incomplete',
+        },
+      });
+    }
+
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/bridge/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: normalizeE164(input.toPhone),
+          message: input.message,
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        return prisma.whatsAppMessage.update({
+          where: { id: messageId },
+          data: {
+            status: 'FAILED',
+            errorMessage: result?.error || `Summora send failed (${res.status})`,
+            metadata: result,
+          },
+        });
+      }
+
+      return prisma.whatsAppMessage.update({
+        where: { id: messageId },
+        data: {
+          status: 'SENT',
+          sentAt: new Date(),
+          externalMessageId: result?.id || null,
+          metadata: result,
+        },
+      });
+    } catch (error: any) {
+      return prisma.whatsAppMessage.update({
+        where: { id: messageId },
+        data: {
+          status: 'FAILED',
+          errorMessage: error?.message || 'Unknown Summora send error',
         },
       });
     }
@@ -358,6 +421,78 @@ export class WhatsAppService {
     }
 
     return { ok: true };
+  }
+
+  /**
+   * Summora bridge webhook: message.created / sync.completed / connection.updated
+   * Header X-Summora-Signature = HMAC-SHA256(body, webhookVerifyToken)
+   */
+  async handleSummoraWebhook(
+    payload: any,
+    headers: { signature?: string | null; rawBody?: string },
+    userId?: string
+  ) {
+    const createHmac = (await import('crypto')).createHmac;
+
+    if (userId && headers.signature) {
+      const config = await this.getProviderConfig(userId);
+      const secret = config?.webhookVerifyToken
+        ? decrypt(config.webhookVerifyToken)
+        : null;
+      if (secret) {
+        const body = headers.rawBody ?? JSON.stringify(payload);
+        const expected = createHmac('sha256', secret).update(body).digest('hex');
+        if (expected !== headers.signature) {
+          throw new Error('Invalid Summora webhook signature');
+        }
+      }
+    }
+
+    const type = payload?.type as string | undefined;
+    const data = payload?.data || {};
+
+    if (type === 'message.created' && userId && !data.fromMe) {
+      const externalId = data.externalId || data.id || null;
+      if (externalId) {
+        const existing = await prisma.whatsAppMessage.findFirst({
+          where: { externalMessageId: String(externalId) },
+        });
+        if (existing) return existing;
+      }
+
+      const fromPhone = String(data.remoteJid || data.sender || '').replace(
+        /@s\.whatsapp\.net$/,
+        ''
+      );
+      const body = String(data.content || '');
+      const created = await prisma.whatsAppMessage.create({
+        data: {
+          userId,
+          channel: 'SERVICE',
+          direction: 'INBOUND',
+          toPhone: fromPhone,
+          fromPhone,
+          message: body,
+          status: 'SENT',
+          externalMessageId: externalId ? String(externalId) : null,
+          metadata: payload,
+        },
+      });
+
+      if (body.trim()) {
+        const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
+        ensureWhatsAppTicket({
+          userId,
+          fromPhone,
+          message: body,
+          messageLogId: created.id,
+        }).catch((err) => console.error('[whatsapp-ticket]', err));
+      }
+      return created;
+    }
+
+    // sync.completed / connection.updated — acknowledge; apps can poll if needed
+    return { ok: true, type };
   }
 }
 

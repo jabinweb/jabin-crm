@@ -39,7 +39,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const payload = await req.json();
+    const rawBody = await req.text();
+    const payload = JSON.parse(rawBody || '{}');
+    if (provider === 'SUMMORA') {
+      await whatsAppService.handleSummoraWebhook(
+        payload,
+        {
+          signature: req.headers.get('x-summora-signature'),
+          rawBody,
+        },
+        userId
+      );
+      return NextResponse.json({ ok: true });
+    }
     await whatsAppService.handleMetaWebhook(payload, userId);
     return NextResponse.json({ ok: true });
   } catch (error) {

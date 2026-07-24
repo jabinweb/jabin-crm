@@ -6,7 +6,7 @@ import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { withSessionRoute, jsonOk } from '@/lib/api/with-route';
 
 const saveConfigSchema = z.object({
-  provider: z.enum(['DISABLED', 'TWILIO', 'META_CLOUD']),
+  provider: z.enum(['DISABLED', 'TWILIO', 'META_CLOUD', 'SUMMORA']),
   isActive: z.boolean().optional(),
   twilioAccountSid: z.string().optional(),
   twilioAuthToken: z.string().optional(),
@@ -15,6 +15,8 @@ const saveConfigSchema = z.object({
   metaPhoneNumberId: z.string().optional(),
   metaBusinessId: z.string().optional(),
   metaApiVersion: z.string().optional(),
+  summoraBaseUrl: z.string().optional(),
+  summoraApiKey: z.string().optional(),
   webhookVerifyToken: z.string().optional(),
 });
 
@@ -37,8 +39,10 @@ export const GET = withSessionRoute(async (_req, { userId }) => {
       metaPhoneNumberId: '',
       metaBusinessId: '',
       metaApiVersion: 'v22.0',
+      summoraBaseUrl: '',
       hasTwilioAuthToken: false,
       hasMetaAccessToken: false,
+      hasSummoraApiKey: false,
       hasWebhookVerifyToken: false,
     });
   }
@@ -51,8 +55,10 @@ export const GET = withSessionRoute(async (_req, { userId }) => {
     metaPhoneNumberId: config.metaPhoneNumberId || '',
     metaBusinessId: config.metaBusinessId || '',
     metaApiVersion: config.metaApiVersion || 'v22.0',
+    summoraBaseUrl: config.summoraBaseUrl || '',
     hasTwilioAuthToken: !!config.twilioAuthToken,
     hasMetaAccessToken: !!config.metaAccessToken,
+    hasSummoraApiKey: !!config.summoraApiKey,
     hasWebhookVerifyToken: !!config.webhookVerifyToken,
   });
 });
@@ -80,6 +86,11 @@ export const POST = withSessionRoute(async (req, { userId }) => {
       ? encrypt(body.webhookVerifyToken)
       : existing?.webhookVerifyToken;
 
+  const summoraApiKey =
+    body.summoraApiKey && !isMasked(body.summoraApiKey)
+      ? encrypt(body.summoraApiKey)
+      : existing?.summoraApiKey;
+
   const config = await prisma.whatsAppProviderConfig.upsert({
     where: { userId },
     update: {
@@ -92,6 +103,8 @@ export const POST = withSessionRoute(async (req, { userId }) => {
       metaPhoneNumberId: body.metaPhoneNumberId || null,
       metaBusinessId: body.metaBusinessId || null,
       metaApiVersion: body.metaApiVersion || 'v22.0',
+      summoraBaseUrl: body.summoraBaseUrl || null,
+      summoraApiKey: summoraApiKey || null,
       webhookVerifyToken: webhookVerifyToken || null,
     },
     create: {
@@ -105,6 +118,8 @@ export const POST = withSessionRoute(async (req, { userId }) => {
       metaPhoneNumberId: body.metaPhoneNumberId || null,
       metaBusinessId: body.metaBusinessId || null,
       metaApiVersion: body.metaApiVersion || 'v22.0',
+      summoraBaseUrl: body.summoraBaseUrl || null,
+      summoraApiKey: summoraApiKey || null,
       webhookVerifyToken: webhookVerifyToken || null,
     },
   });
@@ -114,6 +129,7 @@ export const POST = withSessionRoute(async (req, { userId }) => {
     isActive: config.isActive,
     hasTwilioAuthToken: !!config.twilioAuthToken,
     hasMetaAccessToken: !!config.metaAccessToken,
+    hasSummoraApiKey: !!config.summoraApiKey,
     hasWebhookVerifyToken: !!config.webhookVerifyToken,
   });
 });
