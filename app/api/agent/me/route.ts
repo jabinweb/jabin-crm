@@ -48,7 +48,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       agent: refreshed.agent,
       listedModels: refreshed.listedModels,
+      listedCount: refreshed.listedModels.length,
+      listedLive: refreshed.listedLive,
       chain: refreshed.chain,
+      chainLength: refreshed.chain.length,
     });
   } catch (error) {
     console.error('[api/agent/me]', error);

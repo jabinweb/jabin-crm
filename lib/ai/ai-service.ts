@@ -59,7 +59,7 @@ export async function listAvailableModels(apiKey?: string): Promise<Array<{ name
         // Must include 'gemini'
         if (!name.includes('gemini')) return false;
         
-        // Exclude specialized models
+        // Exclude specialized / non-chat models
         const excludePatterns = [
           'embedding',
           'image',
@@ -67,7 +67,15 @@ export async function listAvailableModels(apiKey?: string): Promise<Array<{ name
           'audio',
           'video',
           'robotics',
-          'computer-use'
+          'computer-use',
+          'live',
+          'omni',
+          'dialog',
+          'imagen',
+          'veo',
+          'lyria',
+          'native-audio',
+          'customtools',
         ];
         
         // Check if any exclude pattern matches

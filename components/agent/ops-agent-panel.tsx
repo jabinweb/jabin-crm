@@ -47,7 +47,7 @@ export function OpsAgentPanel() {
         if (!res.ok) return;
         const data = await res.json();
         if (data.agent?.name) setAgentName(data.agent.name);
-        if (Array.isArray(data.chain)) setModelChain(data.chain.slice(0, 4));
+        if (Array.isArray(data.chain)) setModelChain(data.chain.slice(0, 10));
       } catch {
         /* ignore */
       }
@@ -156,8 +156,9 @@ export function OpsAgentPanel() {
               </p>
             </div>
             {modelChain[0] ? (
-              <Badge variant="outline" className="text-[10px] font-normal max-w-[140px] truncate">
+              <Badge variant="outline" className="text-[10px] font-normal max-w-[160px] truncate">
                 {modelChain[0]}
+                {modelChain.length > 1 ? ` +${modelChain.length - 1}` : ''}
               </Badge>
             ) : null}
           </div>

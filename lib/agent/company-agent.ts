@@ -1,5 +1,10 @@
 import { prisma } from '@/lib/prisma';
-import { resolveModelFallbackChain, DEFAULT_MODEL_FALLBACKS } from '@/lib/agent/models';
+import {
+  resolveModelFallbackChain,
+  DEFAULT_MODEL_FALLBACKS,
+  MIN_MODEL_CHAIN,
+  MAX_MODEL_CHAIN,
+} from '@/lib/agent/models';
 
 export async function getOrCreateCompanyAgent(companyId: string) {
   const existing = await prisma.companyAgent.findUnique({
@@ -12,7 +17,7 @@ export async function getOrCreateCompanyAgent(companyId: string) {
       companyId,
       name: 'Ops Agent',
       preferredModel: DEFAULT_MODEL_FALLBACKS[0],
-      fallbackModels: [...DEFAULT_MODEL_FALLBACKS.slice(1)],
+      fallbackModels: [...DEFAULT_MODEL_FALLBACKS.slice(1, MIN_MODEL_CHAIN)],
       enabled: true,
     },
   });
@@ -23,16 +28,24 @@ export async function refreshCompanyAgentModels(params: {
   apiKey: string;
 }) {
   const agent = await getOrCreateCompanyAgent(params.companyId);
-  const { models, chain } = await resolveModelFallbackChain({
+  const { models, chain, listedLive } = await resolveModelFallbackChain({
     apiKey: params.apiKey,
-    preferredModel: agent.preferredModel,
-    storedFallbacks: Array.isArray(agent.fallbackModels)
-      ? (agent.fallbackModels as string[])
-      : [],
+    // Re-rank from live API each refresh so exhausted models aren't sticky
+    preferredModel: null,
+    storedFallbacks: [],
   });
 
-  const preferred = chain[0] || DEFAULT_MODEL_FALLBACKS[0];
-  const fallbacks = chain.slice(1);
+  const trimmed = chain.slice(0, MAX_MODEL_CHAIN);
+  const preferred = trimmed[0] || DEFAULT_MODEL_FALLBACKS[0];
+  const fallbacks = trimmed.slice(1);
+
+  while (fallbacks.length < MIN_MODEL_CHAIN - 1) {
+    const next = DEFAULT_MODEL_FALLBACKS.find(
+      (m) => m !== preferred && !fallbacks.includes(m)
+    );
+    if (!next) break;
+    fallbacks.push(next);
+  }
 
   const updated = await prisma.companyAgent.update({
     where: { id: agent.id },
@@ -42,5 +55,10 @@ export async function refreshCompanyAgentModels(params: {
     },
   });
 
-  return { agent: updated, listedModels: models, chain };
+  return {
+    agent: updated,
+    listedModels: models,
+    chain: [preferred, ...fallbacks],
+    listedLive,
+  };
 }
