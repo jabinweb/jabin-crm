@@ -84,7 +84,13 @@ function formatMsgTime(iso: string) {
 
 function connectionTone(status?: string) {
   if (status === 'ACTIVE') return 'bg-emerald-500';
-  if (status === 'SYNCING' || status === 'CONNECTING') return 'bg-amber-500 animate-pulse';
+  if (
+    status === 'SYNCING' ||
+    status === 'CONNECTING' ||
+    status === 'INITIALIZING'
+  ) {
+    return 'bg-amber-500 animate-pulse';
+  }
   return 'bg-muted-foreground/40';
 }
 
@@ -92,7 +98,8 @@ function statusLabel(status?: string) {
   if (!status) return 'Unknown';
   if (status === 'ACTIVE') return 'Connected';
   if (status === 'SYNCING') return 'Syncing';
-  if (status === 'CONNECTING') return 'Waiting for scan';
+  if (status === 'CONNECTING') return 'Scan QR';
+  if (status === 'INITIALIZING') return 'Starting…';
   if (status === 'DISCONNECTED') return 'Disconnected';
   return status;
 }
@@ -116,6 +123,7 @@ export default function WhatsAppHubPage() {
     qr: string | null;
     hasQr: boolean;
     workspaceSlug?: string;
+    hint?: string;
   } | null>(null);
   const [summoraBusy, setSummoraBusy] = useState(false);
   const [filterType, setFilterType] = useState<'ALL' | 'GROUPS_ONLY' | 'CUSTOM'>('ALL');
@@ -309,6 +317,7 @@ export default function WhatsAppHubPage() {
       qr: data.qr || null,
       hasQr: !!data.hasQr || !!data.qr,
       workspaceSlug: data.workspaceSlug,
+      hint: typeof data.hint === 'string' ? data.hint : undefined,
     });
     return data;
   };
@@ -328,8 +337,13 @@ export default function WhatsAppHubPage() {
         qr: data.qr || null,
         hasQr: !!data.qr,
         workspaceSlug: data.workspaceSlug,
+        hint: typeof data.hint === 'string' ? data.hint : undefined,
       });
-      toast.success('Scan the QR with WhatsApp on your phone');
+      toast.success(
+        data.qr
+          ? 'Scan the QR with WhatsApp on your phone'
+          : 'Starting WhatsApp — QR should appear shortly'
+      );
       setMainTab('setup');
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Could not start WhatsApp connection');
@@ -1086,8 +1100,22 @@ export default function WhatsAppHubPage() {
                   <CardContent className="space-y-4">
                     {summoraSession?.workspaceSlug && (
                       <p className="text-xs text-muted-foreground">
-                        Workspace <code className="rounded bg-muted px-1">{summoraSession.workspaceSlug}</code>
+                        Workspace{' '}
+                        <code className="rounded bg-muted px-1">
+                          {summoraSession.workspaceSlug}
+                        </code>
                       </p>
+                    )}
+
+                    {summoraSession?.hint && (
+                      <p className="text-sm text-muted-foreground">{summoraSession.hint}</p>
+                    )}
+
+                    {summoraSession?.status === 'INITIALIZING' && !summoraSession?.qr && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                        WhatsApp engine is starting. If no QR appears in ~15s, use{' '}
+                        <strong>Force reconnect</strong> (common after a Summora server deploy).
+                      </div>
                     )}
 
                     {summoraSession?.qr ? (
