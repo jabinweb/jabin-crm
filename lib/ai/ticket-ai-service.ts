@@ -4,67 +4,122 @@ import { getAIClient } from './ai-service';
  * Extract and parse JSON from AI response (handles markdown code blocks)
  */
 function extractJSON(text: string): any {
-    let jsonText = text.trim();
+  let jsonText = text.trim();
 
-    // Remove markdown code blocks
-    if (jsonText.includes('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-    } else if (jsonText.includes('```')) {
-        jsonText = jsonText.replace(/```\n?/g, '');
+  // Remove markdown code blocks
+  if (jsonText.includes('```json')) {
+    jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+  } else if (jsonText.includes('```')) {
+    jsonText = jsonText.replace(/```\n?/g, '');
+  }
+
+  // Find JSON object or array
+  const jsonMatch = jsonText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error('Failed to parse JSON match:', jsonMatch[0]);
+      throw e;
     }
+  }
 
-    // Find JSON object or array
-    const jsonMatch = jsonText.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-    if (jsonMatch) {
-        try {
-            return JSON.parse(jsonMatch[0]);
-        } catch (e) {
-            console.error('Failed to parse JSON match:', jsonMatch[0]);
-            throw e;
-        }
-    }
+  throw new Error('No valid JSON found in response');
+}
 
-    throw new Error('No valid JSON found in response');
+function responseText(response: {
+  text?: string | null;
+  candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+}): string {
+  if (response.text) return response.text;
+  const parts = response.candidates?.[0]?.content?.parts || [];
+  return parts.map((p) => p.text || '').join('').trim();
 }
 
 export interface TicketSummary {
-    summary: string;
-    keyIssues: string[];
-    suggestedSteps: string[];
-    priorityScore: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  summary: string;
+  keyIssues: string[];
+  suggestedSteps: string[];
+  priorityScore: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
 export interface ReportSummary {
-    summary: string;
-    technicalDetails: string;
-    partsMentioned: string[];
-    recommendation: string;
+  summary: string;
+  technicalDetails: string;
+  partsMentioned: string[];
+  recommendation: string;
 }
 
+const MODEL_FALLBACKS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
+];
+
 export class TicketAIService {
-    /**
-     * Summarize a support ticket's history and activities
-     */
-    async summarizeTicket(params: {
-        subject: string;
-        description: string;
-        activities: Array<{ eventType: string; description: string; createdAt: Date }>;
-        apiKey?: string;
-        model?: string;
-    }): Promise<TicketSummary> {
-        const { subject, description, activities, model = 'gemini-2.0-flash', apiKey } = params;
-        const client = getAIClient(apiKey);
+  private async generateWithFallback(
+    client: ReturnType<typeof getAIClient>,
+    prompt: string,
+    preferredModel: string
+  ) {
+    const models = [
+      preferredModel,
+      ...MODEL_FALLBACKS.filter((m) => m !== preferredModel),
+    ];
+    let lastError: unknown;
+    for (const model of models) {
+      try {
+        const response = await client.models.generateContent({
+          model,
+          contents: prompt,
+        });
+        const text = responseText(response as any);
+        if (!text) throw new Error('No response from AI');
+        return text;
+      } catch (err) {
+        lastError = err;
+        console.warn(`[ticket-ai] model ${model} failed`, err);
+      }
+    }
+    throw lastError instanceof Error
+      ? lastError
+      : new Error('AI summary failed for all models');
+  }
 
-        const activityLog = activities.map(a => `[${a.createdAt.toISOString()}] ${a.eventType}: ${a.description}`).join('\n');
+  /**
+   * Summarize a support ticket's history and activities
+   */
+  async summarizeTicket(params: {
+    subject: string;
+    description: string;
+    activities: Array<{ eventType: string; description: string; createdAt: Date }>;
+    apiKey?: string;
+    model?: string;
+  }): Promise<TicketSummary> {
+    const {
+      subject,
+      description,
+      activities,
+      model = 'gemini-2.5-flash',
+      apiKey,
+    } = params;
+    const client = getAIClient(apiKey);
 
-        const prompt = `You are an expert field service and support coordinator.
+    const activityLog = activities
+      .map(
+        (a) =>
+          `[${a.createdAt instanceof Date ? a.createdAt.toISOString() : String(a.createdAt)}] ${a.eventType}: ${a.description}`
+      )
+      .join('\n');
+
+    const prompt = `You are an expert field service and support coordinator.
 Summarize this support ticket history for a technician or service agent.
 
 Ticket Subject: ${subject}
 Original Description: ${description}
 
 Activity History:
-${activityLog}
+${activityLog || '(no activity yet)'}
 
 Provide:
 1. A concise summary of the current situation.
@@ -80,31 +135,40 @@ Return ONLY a JSON object:
   "priorityScore": "..."
 }`;
 
-        const response = await client.models.generateContent({
-            model,
-            contents: prompt,
-        });
+    const text = await this.generateWithFallback(client, prompt, model);
+    const parsed = extractJSON(text);
+    return {
+      summary: String(parsed.summary || ''),
+      keyIssues: Array.isArray(parsed.keyIssues) ? parsed.keyIssues.map(String) : [],
+      suggestedSteps: Array.isArray(parsed.suggestedSteps)
+        ? parsed.suggestedSteps.map(String)
+        : [],
+      priorityScore: (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(
+        String(parsed.priorityScore || '').toUpperCase()
+      )
+        ? String(parsed.priorityScore).toUpperCase()
+        : 'MEDIUM') as TicketSummary['priorityScore'],
+    };
+  }
 
-        if (!response.text) {
-            throw new Error('No response from AI');
-        }
+  /**
+   * Summarize a service report
+   */
+  async summarizeReport(params: {
+    serviceNotes: string;
+    partsReplaced?: string;
+    apiKey?: string;
+    model?: string;
+  }): Promise<ReportSummary> {
+    const {
+      serviceNotes,
+      partsReplaced,
+      model = 'gemini-2.5-flash',
+      apiKey,
+    } = params;
+    const client = getAIClient(apiKey);
 
-        return extractJSON(response.text);
-    }
-
-    /**
-     * Summarize a service report
-     */
-    async summarizeReport(params: {
-        serviceNotes: string;
-        partsReplaced?: string;
-        apiKey?: string;
-        model?: string;
-    }): Promise<ReportSummary> {
-        const { serviceNotes, partsReplaced, model = 'gemini-2.0-flash', apiKey } = params;
-        const client = getAIClient(apiKey);
-
-        const prompt = `You are a service operations manager.
+    const prompt = `You are a service operations manager.
 Summarize this service report for the customer or account manager.
 
 Service Notes:
@@ -127,17 +191,17 @@ Return ONLY a JSON object:
   "recommendation": "..."
 }`;
 
-        const response = await client.models.generateContent({
-            model,
-            contents: prompt,
-        });
-
-        if (!response.text) {
-            throw new Error('No response from AI');
-        }
-
-        return extractJSON(response.text);
-    }
+    const text = await this.generateWithFallback(client, prompt, model);
+    const parsed = extractJSON(text);
+    return {
+      summary: String(parsed.summary || ''),
+      technicalDetails: String(parsed.technicalDetails || ''),
+      partsMentioned: Array.isArray(parsed.partsMentioned)
+        ? parsed.partsMentioned.map(String)
+        : [],
+      recommendation: String(parsed.recommendation || ''),
+    };
+  }
 }
 
 export const ticketAIService = new TicketAIService();

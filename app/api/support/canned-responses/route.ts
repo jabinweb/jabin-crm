@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { ensureFeatureEnabled } from '@/lib/feature-modules';
+import { isFeatureEnabled } from '@/lib/feature-modules';
 import { TenantError } from '@/lib/auth/company-membership';
 import {
   requireStaffCompanyScope,
   resolveOptionalStaffCompanyScope,
 } from '@/lib/tenant/scope-staff-query';
+import { handleApiError } from '@/lib/api-error-handler';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,9 +16,24 @@ export async function GET(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    await ensureFeatureEnabled(session.user.id, 'SUPPORT_CANNED');
 
-    const companyId = await resolveOptionalStaffCompanyScope(session, req);
+    // Optional on ticket pages — soft-empty when plan doesn't include canned replies
+    const enabled = await isFeatureEnabled(session.user.id, 'SUPPORT_CANNED');
+    if (!enabled) {
+      return NextResponse.json([]);
+    }
+
+    let companyId: string | undefined;
+    try {
+      companyId = await resolveOptionalStaffCompanyScope(session, req);
+    } catch (e) {
+      // Ticket detail used to call this without workspace headers → don't 500
+      if (e instanceof TenantError && e.status === 400) {
+        companyId = undefined;
+      } else {
+        throw e;
+      }
+    }
 
     const responses = await prisma.supportCannedResponse.findMany({
       where: companyId
@@ -31,8 +48,10 @@ export async function GET(req: NextRequest) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error('[api/support/canned-responses GET]', error);
-    return NextResponse.json({ error: 'Failed to load canned responses' }, { status: 500 });
+    if (!isApiException(error)) {
+      console.error('[api/support/canned-responses GET]', error);
+    }
+    return handleApiError(error);
   }
 }
 
@@ -43,7 +62,14 @@ export async function POST(req: NextRequest) {
     if (!session?.user || !role || !['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    await ensureFeatureEnabled(session.user.id, 'SUPPORT_CANNED');
+
+    const enabled = await isFeatureEnabled(session.user.id, 'SUPPORT_CANNED');
+    if (!enabled) {
+      return NextResponse.json(
+        { error: 'Canned responses are not included in your plan' },
+        { status: 403 }
+      );
+    }
 
     const companyId = await requireStaffCompanyScope(session, req);
     const body = await req.json();
@@ -67,7 +93,9 @@ export async function POST(req: NextRequest) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
     }
-    console.error('[api/support/canned-responses POST]', error);
-    return NextResponse.json({ error: 'Failed to create canned response' }, { status: 500 });
+    if (!isApiException(error)) {
+      console.error('[api/support/canned-responses POST]', error);
+    }
+    return handleApiError(error);
   }
 }

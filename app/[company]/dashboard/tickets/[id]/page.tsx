@@ -59,7 +59,7 @@ import { DetailSkeleton } from '@/components/loading';
 export default function TicketDetailPage() {
     const { id } = useParams();
     const router = useRouter();
-    const { path } = useWorkspacePaths();
+    const { path, workspaceFetch } = useWorkspacePaths();
     const queryClient = useQueryClient();
     const ticketAdvancedEnabled = useFeatureModule('TICKET_ADVANCED');
     const [newComment, setNewComment] = useState('');
@@ -97,7 +97,7 @@ export default function TicketDetailPage() {
     const { data: ticket, isLoading } = useQuery({
         queryKey: ['ticket', id],
         queryFn: async () => {
-            const response = await fetch(`/api/tickets/${id}`);
+            const response = await workspaceFetch(`/api/tickets/${id}`);
             if (!response.ok) throw new Error('Failed to fetch ticket');
             return response.json();
         },
@@ -107,7 +107,7 @@ export default function TicketDetailPage() {
     const { data: cannedResponses } = useQuery({
         queryKey: ['canned-responses'],
         queryFn: async () => {
-            const response = await fetch('/api/support/canned-responses');
+            const response = await workspaceFetch('/api/support/canned-responses');
             if (!response.ok) return [];
             return response.json();
         },
@@ -118,7 +118,7 @@ export default function TicketDetailPage() {
         queryKey: ['ticket-sla', id],
         enabled: !!id,
         queryFn: async () => {
-            const response = await fetch(`/api/tickets/${id}/sla`);
+            const response = await workspaceFetch(`/api/tickets/${id}/sla`);
             if (!response.ok) return null;
             return response.json();
         },
@@ -129,7 +129,7 @@ export default function TicketDetailPage() {
         if (!newComment.trim()) return;
         setIsSubmittingComment(true);
         try {
-            const response = await fetch(`/api/tickets/${id}/activities`, {
+            const response = await workspaceFetch(`/api/tickets/${id}/activities`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ comment: newComment, isInternal: isInternalNote }),
@@ -150,7 +150,7 @@ export default function TicketDetailPage() {
     const handleUpdateStatus = async (status: string) => {
         setIsUpdatingStatus(true);
         try {
-            const response = await fetch(`/api/tickets/${id}`, {
+            const response = await workspaceFetch(`/api/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status }),
@@ -173,7 +173,7 @@ export default function TicketDetailPage() {
         }
         setIsSubmittingReport(true);
         try {
-            const response = await fetch('/api/service-reports', {
+            const response = await workspaceFetch('/api/service-reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...reportData, ticketId: id }),
@@ -192,7 +192,7 @@ export default function TicketDetailPage() {
     const { data: technicians } = useQuery({
         queryKey: ['technicians'],
         queryFn: async () => {
-            const response = await fetch('/api/users/technicians');
+            const response = await workspaceFetch('/api/users/technicians');
             if (!response.ok) return [];
             return response.json();
         }
@@ -205,7 +205,7 @@ export default function TicketDetailPage() {
         }
         setIsTransferring(true);
         try {
-            const response = await fetch(`/api/tickets/${id}`, {
+            const response = await workspaceFetch(`/api/tickets/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(transferData),
@@ -229,7 +229,7 @@ export default function TicketDetailPage() {
         }
         setIsMerging(true);
         try {
-            const response = await fetch(`/api/tickets/${id}/merge`, {
+            const response = await workspaceFetch(`/api/tickets/${id}/merge`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ticketIds: ids }),
@@ -253,7 +253,7 @@ export default function TicketDetailPage() {
         }
         setIsSplitting(true);
         try {
-            const response = await fetch(`/api/tickets/${id}/split`, {
+            const response = await workspaceFetch(`/api/tickets/${id}/split`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(splitData),

@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 interface AITicketSummaryProps {
     ticketId: string;
@@ -15,22 +16,33 @@ interface AITicketSummaryProps {
 }
 
 export function AITicketSummary({ ticketId, initialSummary, className }: AITicketSummaryProps) {
+    const { workspaceFetch } = useWorkspacePaths();
     const [isGenerating, setIsGenerating] = useState(false);
     const [summary, setSummary] = useState<any>(initialSummary);
 
     const handleGenerate = async () => {
         setIsGenerating(true);
         try {
-            const response = await fetch(`/api/tickets/${ticketId}/ai-summary`, {
+            const response = await workspaceFetch(`/api/tickets/${ticketId}/ai-summary`, {
                 method: 'POST',
             });
-            if (!response.ok) throw new Error('Failed to generate AI insights');
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(
+                    typeof data.error === 'string'
+                        ? data.error
+                        : 'Failed to generate AI insights'
+                );
+            }
             setSummary(data);
             toast.success('AI Insights updated');
         } catch (error) {
             console.error('AI Summary Error:', error);
-            toast.error('Could not generate AI summary at this time');
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : 'Could not generate AI summary at this time'
+            );
         } finally {
             setIsGenerating(false);
         }
