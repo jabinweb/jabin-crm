@@ -4,10 +4,12 @@ import type { WhatsAppChannel } from '@prisma/client';
 import { fetchSummoraBridge, getSummoraCreds } from '@/lib/crm/summora-bridge';
 import {
   extractWhatsAppChatJid,
+  extractWhatsAppOccurredAt,
   extractWhatsAppSenderFields,
   isWhatsAppGroupJid,
   messageMatchesInboxFilter,
   normalizeWhatsAppChatJid,
+  canonicalWhatsAppChatJid,
   resolveWhatsAppSenderName,
 } from '@/lib/crm/whatsapp-chat';
 
@@ -312,7 +314,10 @@ export class WhatsAppService {
       chatJid?: string;
     }
   ) {
-    const limit = Math.min(Math.max(filters?.limit ?? 100, 1), 200);
+    const limit = Math.min(Math.max(filters?.limit ?? 100, 1), 400);
+    const wantChat = filters?.chatJid
+      ? normalizeWhatsAppChatJid(filters.chatJid)
+      : null;
     const where: Record<string, unknown> = { userId };
     if (filters?.channel) where.channel = filters.channel;
     if (filters?.leadId) where.leadId = filters.leadId;
@@ -321,9 +326,13 @@ export class WhatsAppService {
     if (filters?.before) {
       const beforeDate = new Date(filters.before);
       if (!Number.isNaN(beforeDate.getTime())) {
-        where.createdAt = { lt: beforeDate };
+        // Keep for memory filter after remapping to WhatsApp occurredAt
+        (where as { __beforeOccurredAt?: Date }).__beforeOccurredAt = beforeDate;
       }
     }
+
+    const beforeOccurredAt = (where as { __beforeOccurredAt?: Date }).__beforeOccurredAt;
+    delete (where as { __beforeOccurredAt?: Date }).__beforeOccurredAt;
 
     // Over-fetch so inbox filter / chat filter still yield a full page
     const rows = await prisma.whatsAppMessage.findMany({
@@ -334,7 +343,7 @@ export class WhatsAppService {
         ticket: { select: { id: true, subject: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: Math.min(limit * 4, 500),
+      take: Math.min(limit * (wantChat ? 8 : 6), wantChat ? 800 : 600),
     });
 
     const respect = filters?.respectInboxFilter !== false;
@@ -356,10 +365,6 @@ export class WhatsAppService {
       }
     }
 
-    const wantChat = filters?.chatJid
-      ? normalizeWhatsAppChatJid(filters.chatJid)
-      : null;
-
     const enriched = rows
       .map((msg) => {
         const chatJid = extractWhatsAppChatJid(msg);
@@ -377,15 +382,25 @@ export class WhatsAppService {
           senderLid: fields.senderLid,
           contactName: fields.contactName,
         });
+        const occurredAt = extractWhatsAppOccurredAt(msg);
         return {
           ...msg,
           chatJid,
           isGroup: isWhatsAppGroupJid(chatJid),
           senderName: resolved.label,
           senderPhone: resolved.phone,
+          // Expose WhatsApp time for UI sorting (overrides ingest-time createdAt)
+          createdAt: occurredAt,
+          occurredAt,
         };
       })
       .filter((msg) => {
+        if (
+          beforeOccurredAt &&
+          new Date(msg.createdAt).getTime() >= beforeOccurredAt.getTime()
+        ) {
+          return false;
+        }
         if (
           respect &&
           !messageMatchesInboxFilter(msg.chatJid, filterType, allowedJids)
@@ -393,10 +408,17 @@ export class WhatsAppService {
           return false;
         }
         if (wantChat && normalizeWhatsAppChatJid(msg.chatJid) !== wantChat) {
-          return false;
+          // Also match bare phone ↔ full jid
+          const wantLocal = wantChat.split('@')[0];
+          const msgLocal = String(msg.chatJid).split('@')[0];
+          if (wantLocal !== msgLocal) return false;
         }
         return true;
-      });
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
 
     const page = enriched.slice(0, limit);
     const hasMore = enriched.length > limit;
@@ -572,15 +594,20 @@ export class WhatsAppService {
         if (existing) return existing;
       }
 
-      const fromMe = data.fromMe === true;
-      const chatJid = normalizeWhatsAppChatJid(
+      const fromMe = data.fromMe === true || data.fromMe === 'true';
+      const chatJid = canonicalWhatsAppChatJid(
+        String(data.remoteJid || ''),
+        data.remoteJidAlt ? String(data.remoteJidAlt) : null
+      ) || normalizeWhatsAppChatJid(
         String(data.remoteJid || (!fromMe ? data.sender : '') || '')
       );
       if (!chatJid) {
         return { ok: true, type, skipped: 'missing_remote_jid' };
       }
 
-      const peer = chatJid.replace(/@s\.whatsapp\.net$/, '').replace(/@lid$/, '');
+      const peer = chatJid
+        .replace(/@s\.whatsapp\.net$/i, '')
+        .replace(/@lid$/i, '');
       const resolved = resolveWhatsAppSenderName({
         fromMe,
         chatJid,
@@ -593,6 +620,15 @@ export class WhatsAppService {
         contactName: data.contactName,
       });
       const body = String(data.content || '');
+      const occurredAt = (() => {
+        const raw = data.timestamp || data.messageTimestamp;
+        if (raw == null || raw === '') return new Date();
+        if (typeof raw === 'number' && Number.isFinite(raw)) {
+          return new Date(raw > 1e12 ? raw : raw * 1000);
+        }
+        const d = new Date(String(raw));
+        return Number.isNaN(d.getTime()) ? new Date() : d;
+      })();
       const created = await prisma.whatsAppMessage.create({
         data: {
           userId,
@@ -602,7 +638,8 @@ export class WhatsAppService {
           fromPhone: peer,
           message: body,
           status: 'SENT',
-          sentAt: fromMe ? new Date() : undefined,
+          createdAt: occurredAt,
+          sentAt: fromMe ? occurredAt : undefined,
           externalMessageId: externalId ? String(externalId) : null,
           metadata: {
             ...payload,
@@ -616,6 +653,11 @@ export class WhatsAppService {
             contactName: data.contactName || resolved.name,
             pushName: data.pushName || null,
             fromMe,
+            timestamp: occurredAt.toISOString(),
+            messageTimestamp:
+              typeof data.messageTimestamp === 'number'
+                ? data.messageTimestamp
+                : Math.floor(occurredAt.getTime() / 1000),
           },
         },
       });

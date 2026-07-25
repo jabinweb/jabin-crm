@@ -302,7 +302,7 @@ export default function WhatsAppHubPage() {
 
       const params = new URLSearchParams();
       if (channel !== 'ALL') params.append('channel', channel);
-      params.set('limit', '150');
+      params.set('limit', '300');
       const res = await fetch(`/api/whatsapp/messages?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load messages');
       const data = await res.json();
@@ -548,6 +548,41 @@ export default function WhatsAppHubPage() {
     setChatHasMore(true);
   }, [selectedChatKey]);
 
+  // When opening a chat, pull a fuller thread (not just the global inbox page)
+  useEffect(() => {
+    if (!selectedChatKey || !featureEnabled) return;
+    let cancelled = false;
+    const loadThread = async () => {
+      try {
+        const params = new URLSearchParams({
+          chatJid: selectedChatKey,
+          limit: '200',
+        });
+        if (channelFilter !== 'ALL') params.set('channel', channelFilter);
+        const res = await fetch(`/api/whatsapp/messages?${params}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const list = (data.messages ?? []) as WaMessage[];
+        if (!list.length || cancelled) return;
+        setChatHasMore(!!data.hasMore);
+        setMessages((prev) => mergeMessageLists(prev, list));
+        const userId = session?.user?.id;
+        if (userId) {
+          void cacheWhatsAppMessages(
+            userId,
+            list.map((m) => ({ ...m, userId })) as CachedWaMessage[]
+          );
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadThread();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedChatKey, channelFilter, featureEnabled, session?.user?.id]);
+
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) {
       setSummoraSession(null);
@@ -601,11 +636,16 @@ export default function WhatsAppHubPage() {
   const threads: ChatThread[] = useMemo(() => {
     const map = new Map<string, WaMessage[]>();
     for (const msg of messages) {
-      const key =
+      const raw =
         msg.chatJid ||
         msg.fromPhone ||
         msg.toPhone ||
         msg.id;
+      const key = String(raw).endsWith('@g.us')
+        ? normalizeWhatsAppChatJid(raw)
+        : normalizeWhatsAppChatJid(raw)
+            .replace(/@s\.whatsapp\.net$/i, '')
+            .replace(/@lid$/i, '');
       const list = map.get(key) || [];
       list.push(msg);
       map.set(key, list);

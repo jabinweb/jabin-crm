@@ -18,6 +18,22 @@ export function jidLocalPart(jid: string | null | undefined): string {
     .trim();
 }
 
+/** Prefer phone JID for DMs so LID + PN don't split into two threads. */
+export function canonicalWhatsAppChatJid(
+  remoteJid: string | null | undefined,
+  remoteJidAlt?: string | null
+): string {
+  const primary = normalizeWhatsAppChatJid(remoteJid);
+  const alt = normalizeWhatsAppChatJid(remoteJidAlt);
+  if (!primary) return alt;
+  if (primary.endsWith('@g.us') || primary === 'status@broadcast') return primary;
+  if (primary.includes('@lid') && alt.includes('@s.whatsapp.net')) return alt;
+  if (alt.includes('@s.whatsapp.net') && !primary.includes('@s.whatsapp.net')) {
+    return alt;
+  }
+  return primary;
+}
+
 /** Extract chat JID from a stored WhatsAppMessage row. */
 export function extractWhatsAppChatJid(message: {
   fromPhone?: string | null;
@@ -26,13 +42,43 @@ export function extractWhatsAppChatJid(message: {
 }): string {
   const meta = (message.metadata || {}) as Record<string, unknown>;
   const data = (meta.data || {}) as Record<string, unknown>;
-  return normalizeWhatsAppChatJid(
+  const remote =
     (typeof data.remoteJid === 'string' && data.remoteJid) ||
-      (typeof meta.remoteJid === 'string' && meta.remoteJid) ||
-      message.fromPhone ||
-      message.toPhone ||
-      ''
-  );
+    (typeof meta.remoteJid === 'string' && meta.remoteJid) ||
+    '';
+  const alt =
+    (typeof data.remoteJidAlt === 'string' && data.remoteJidAlt) ||
+    (typeof meta.remoteJidAlt === 'string' && meta.remoteJidAlt) ||
+    '';
+  const canonical = canonicalWhatsAppChatJid(remote, alt);
+  if (canonical) return canonical;
+  return normalizeWhatsAppChatJid(message.fromPhone || message.toPhone || '');
+}
+
+/** WhatsApp event time when available; else DB createdAt (fixes history order). */
+export function extractWhatsAppOccurredAt(message: {
+  createdAt: Date | string;
+  metadata?: unknown;
+}): Date {
+  const meta = (message.metadata || {}) as Record<string, unknown>;
+  const data = (meta.data || {}) as Record<string, unknown>;
+  const candidates = [
+    data.timestamp,
+    meta.timestamp,
+    data.messageTimestamp,
+    meta.messageTimestamp,
+  ];
+  for (const raw of candidates) {
+    if (raw == null || raw === '') continue;
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      const ms = raw > 1e12 ? raw : raw * 1000;
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    const d = new Date(String(raw));
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date(message.createdAt);
 }
 
 function pickMetaField(
