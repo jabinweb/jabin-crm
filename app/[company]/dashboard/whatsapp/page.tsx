@@ -484,8 +484,11 @@ export default function WhatsAppHubPage() {
     void tick();
     const status = summoraSession?.status;
     const intervalMs =
-      status === 'CONNECTING' || status === 'UNKNOWN' || !status
-        ? 4000
+      status === 'CONNECTING' ||
+      status === 'INITIALIZING' ||
+      status === 'UNKNOWN' ||
+      !status
+        ? 2500
         : status === 'SYNCING'
           ? 8000
           : 15000;
