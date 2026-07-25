@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -118,6 +118,10 @@ export default function WhatsAppHubPage() {
   const [chatSearch, setChatSearch] = useState('');
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
   const [linkIdsOpen, setLinkIdsOpen] = useState(false);
+  const threadEndRef = useRef<HTMLDivElement>(null);
+  const skipThreadAutoScrollRef = useRef(false);
+  const lastAutoScrollKeyRef = useRef<string | null>(null);
+  const lastAutoScrollChatRef = useRef<string | null>(null);
   const [summoraSession, setSummoraSession] = useState<{
     status: string;
     qr: string | null;
@@ -276,6 +280,7 @@ export default function WhatsAppHubPage() {
       new Date(a.createdAt) < new Date(b.createdAt) ? a : b
     );
     setLoadingOlder(true);
+    skipThreadAutoScrollRef.current = true;
     try {
       const params = new URLSearchParams({
         chatJid: chatKey,
@@ -581,6 +586,27 @@ export default function WhatsAppHubPage() {
   }, [filteredThreads, selectedChatKey]);
 
   const activeThread = filteredThreads.find((t) => t.key === selectedChatKey) || null;
+  const activeLastMessageId =
+    activeThread?.messages[activeThread.messages.length - 1]?.id ?? null;
+
+  useEffect(() => {
+    if (!activeThread || !activeLastMessageId) return;
+    const scrollKey = `${activeThread.key}:${activeLastMessageId}:${activeThread.messages.length}`;
+    if (skipThreadAutoScrollRef.current) {
+      skipThreadAutoScrollRef.current = false;
+      lastAutoScrollKeyRef.current = scrollKey;
+      lastAutoScrollChatRef.current = activeThread.key;
+      return;
+    }
+    if (lastAutoScrollKeyRef.current === scrollKey) return;
+    const sameChat = lastAutoScrollChatRef.current === activeThread.key;
+    lastAutoScrollKeyRef.current = scrollKey;
+    lastAutoScrollChatRef.current = activeThread.key;
+    const behavior: ScrollBehavior = sameChat ? 'smooth' : 'auto';
+    requestAnimationFrame(() => {
+      threadEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    });
+  }, [activeThread?.key, activeLastMessageId, activeThread?.messages.length]);
 
   useEffect(() => {
     if (!activeThread) return;
