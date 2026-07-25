@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,7 +10,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function mapsUrl(latitude: number, longitude: number) {
+  return `https://www.google.com/maps?q=${latitude},${longitude}`;
+}
+
+function MapLink({ latitude, longitude }: { latitude: number; longitude: number }) {
+  return (
+    <a
+      href={mapsUrl(latitude, longitude)}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open in Google Maps"
+      aria-label="Open in Google Maps"
+      className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+    >
+      <MapPin className="h-4 w-4" />
+    </a>
+  );
+}
+
 export default function ServiceGpsPage() {
+  const { data: session } = useSession();
+  const isTechnician = session?.user?.role === 'TECHNICIAN';
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [technicians, setTechnicians] = useState<any[]>([]);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -17,7 +44,13 @@ export default function ServiceGpsPage() {
   const [loading, setLoading] = useState(true);
   const [tracking, setTracking] = useState(false);
   const [selectedTechnician, setSelectedTechnician] = useState('');
-  const [selectedTicket, setSelectedTicket] = useState('');
+  const [selectedTicket, setSelectedTicket] = useState('__NONE__');
+
+  useEffect(() => {
+    if (isTechnician) {
+      setSelectedTechnician((current) => (current ? current : '__NONE__'));
+    }
+  }, [isTechnician]);
 
   const loadData = async () => {
     setLoading(true);
@@ -39,10 +72,10 @@ export default function ServiceGpsPage() {
         fetch('/api/service/gps'),
       ]);
 
-      setTechnicians(techRes.ok ? await techRes.json() : []);
-      setTickets(ticketsRes.ok ? await ticketsRes.json() : []);
-      setLiveSnapshot(liveRes.ok ? await liveRes.json() : []);
-      setLogs(logsRes.ok ? await logsRes.json() : []);
+      setTechnicians(techRes.ok ? asArray(await techRes.json()) : []);
+      setTickets(ticketsRes.ok ? asArray(await ticketsRes.json()) : []);
+      setLiveSnapshot(liveRes.ok ? asArray(await liveRes.json()) : []);
+      setLogs(logsRes.ok ? asArray(await logsRes.json()) : []);
     } catch (error) {
       toast.error('Failed to load GPS data');
     } finally {
@@ -60,30 +93,46 @@ export default function ServiceGpsPage() {
       return;
     }
 
+    const technicianId =
+      selectedTechnician && selectedTechnician !== '__NONE__'
+        ? selectedTechnician
+        : undefined;
+
+    if (!isTechnician && !technicianId) {
+      toast.error('Select a technician to check in');
+      return;
+    }
+
     setTracking(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
+          const ticketId =
+            selectedTicket && selectedTicket !== '__NONE__' ? selectedTicket : undefined;
+
           const res = await fetch('/api/service/gps', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              technicianId: selectedTechnician && selectedTechnician !== '__NONE__' ? selectedTechnician : undefined,
-              ticketId: selectedTicket && selectedTicket !== '__NONE__' ? selectedTicket : undefined,
+              technicianId,
+              ticketId,
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy || undefined,
-              speed: position.coords.speed || undefined,
-              heading: position.coords.heading || undefined,
+              accuracy: position.coords.accuracy ?? undefined,
+              speed: position.coords.speed ?? undefined,
+              heading: position.coords.heading ?? undefined,
               source: 'PWA',
             }),
           });
 
-          if (!res.ok) throw new Error('Failed to submit location');
+          if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            throw new Error(data?.error || 'Failed to submit location');
+          }
           toast.success('Location check-in recorded');
           loadData();
         } catch (error) {
-          toast.error('Failed to submit location');
+          toast.error(error instanceof Error ? error.message : 'Failed to submit location');
         } finally {
           setTracking(false);
         }
@@ -128,11 +177,23 @@ export default function ServiceGpsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-sm mb-2">Technician (optional for managers)</p>
+              <p className="text-sm mb-2">
+                {isTechnician ? 'Technician' : 'Technician (required)'}
+              </p>
               <Select value={selectedTechnician} onValueChange={setSelectedTechnician}>
-                <SelectTrigger><SelectValue placeholder="Use current technician session" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      isTechnician
+                        ? 'You (logged-in technician)'
+                        : 'Select a technician'
+                    }
+                  />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__NONE__">Current Logged-in Technician</SelectItem>
+                  {isTechnician && (
+                    <SelectItem value="__NONE__">You (logged-in technician)</SelectItem>
+                  )}
                   {technicians.map((tech) => (
                     <SelectItem key={tech.id} value={tech.id}>{tech.name || tech.email}</SelectItem>
                   ))}
@@ -168,11 +229,12 @@ export default function ServiceGpsPage() {
                   <TableHead>Longitude</TableHead>
                   <TableHead>Accuracy</TableHead>
                   <TableHead>Captured At</TableHead>
+                  <TableHead className="w-12">Map</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {liveSnapshot.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No recent GPS snapshots.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No recent GPS snapshots.</TableCell></TableRow>
                 ) : (
                   liveSnapshot.map((row: any) => (
                     <TableRow key={row.id}>
@@ -181,6 +243,9 @@ export default function ServiceGpsPage() {
                       <TableCell>{row.longitude.toFixed(6)}</TableCell>
                       <TableCell>{row.accuracy ? `${Math.round(row.accuracy)}m` : '-'}</TableCell>
                       <TableCell>{new Date(row.capturedAt).toLocaleString()}</TableCell>
+                      <TableCell>
+                        <MapLink latitude={row.latitude} longitude={row.longitude} />
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -202,19 +267,27 @@ export default function ServiceGpsPage() {
                   <TableHead>Coordinates</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Ticket</TableHead>
+                  <TableHead className="w-12">Map</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No GPS logs yet.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No GPS logs yet.</TableCell></TableRow>
                 ) : (
                   logs.map((log: any) => (
                     <TableRow key={log.id}>
                       <TableCell>{new Date(log.capturedAt).toLocaleString()}</TableCell>
                       <TableCell>{log.technician?.name || log.technician?.email}</TableCell>
-                      <TableCell>{log.latitude.toFixed(6)}, {log.longitude.toFixed(6)}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1">
+                          {log.latitude.toFixed(6)}, {log.longitude.toFixed(6)}
+                        </span>
+                      </TableCell>
                       <TableCell><Badge variant="outline">{log.source}</Badge></TableCell>
                       <TableCell>{log.ticket?.subject || '-'}</TableCell>
+                      <TableCell>
+                        <MapLink latitude={log.latitude} longitude={log.longitude} />
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
