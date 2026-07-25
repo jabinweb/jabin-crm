@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'opslane-whatsapp';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = 'messages';
 
 export type CachedWaMessage = {
@@ -53,6 +53,29 @@ function txDone(tx: IDBTransaction): Promise<void> {
   });
 }
 
+export async function clearWhatsAppCache(userId?: string): Promise<void> {
+  try {
+    const db = await openDb();
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    if (!userId) {
+      store.clear();
+    } else {
+      const index = store.index('userId');
+      const rows: CachedWaMessage[] = await new Promise((resolve, reject) => {
+        const req = index.getAll(userId);
+        req.onsuccess = () => resolve((req.result || []) as CachedWaMessage[]);
+        req.onerror = () => reject(req.error);
+      });
+      for (const row of rows) store.delete(row.id);
+    }
+    await txDone(tx);
+    db.close();
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function cacheWhatsAppMessages(
   userId: string,
   messages: CachedWaMessage[]
@@ -96,7 +119,11 @@ export async function readCachedWhatsAppMessages(
     let list = rows;
     if (opts?.chatJid) {
       const want = opts.chatJid.replace(/^whatsapp:/i, '');
-      list = list.filter((m) => (m.chatJid || '').replace(/^whatsapp:/i, '') === want);
+      const wantLocal = want.split('@')[0];
+      list = list.filter((m) => {
+        const key = (m.chatJid || '').replace(/^whatsapp:/i, '');
+        return key === want || key.split('@')[0] === wantLocal;
+      });
     }
     list.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -108,12 +135,27 @@ export async function readCachedWhatsAppMessages(
   }
 }
 
+/**
+ * Merge for an open thread only. Server wins on id conflict.
+ * Do NOT use this for the global inbox list — stale cache floods sort order.
+ */
 export async function mergeCachedWithServer(
   userId: string,
-  serverMessages: CachedWaMessage[]
+  serverMessages: CachedWaMessage[],
+  opts?: { chatJid?: string }
 ): Promise<CachedWaMessage[]> {
   await cacheWhatsAppMessages(userId, serverMessages);
-  const cached = await readCachedWhatsAppMessages(userId, { limit: 2000 });
+  if (!opts?.chatJid) {
+    return serverMessages
+      .map((m) => ({ ...m, userId }))
+      .sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+  }
+  const cached = await readCachedWhatsAppMessages(userId, {
+    chatJid: opts.chatJid,
+    limit: 2000,
+  });
   const byId = new Map<string, CachedWaMessage>();
   for (const m of cached) byId.set(m.id, m);
   for (const m of serverMessages) byId.set(m.id, { ...m, userId });

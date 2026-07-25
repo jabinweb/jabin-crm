@@ -591,7 +591,44 @@ export class WhatsAppService {
         const existing = await prisma.whatsAppMessage.findFirst({
           where: { externalMessageId: String(externalId) },
         });
-        if (existing) return existing;
+        if (existing) {
+          // Repair rows that were stamped with ingest-time instead of WA time
+          const incomingAt = (() => {
+            const raw = data.timestamp || data.messageTimestamp;
+            if (raw == null || raw === '') return null;
+            if (typeof raw === 'number' && Number.isFinite(raw)) {
+              return new Date(raw > 1e12 ? raw : raw * 1000);
+            }
+            const d = new Date(String(raw));
+            return Number.isNaN(d.getTime()) ? null : d;
+          })();
+          if (
+            incomingAt &&
+            Math.abs(incomingAt.getTime() - existing.createdAt.getTime()) > 60_000
+          ) {
+            const fromMe =
+              data.fromMe === true ||
+              data.fromMe === 'true' ||
+              existing.direction === 'OUTBOUND';
+            return prisma.whatsAppMessage.update({
+              where: { id: existing.id },
+              data: {
+                createdAt: incomingAt,
+                sentAt: fromMe ? incomingAt : existing.sentAt,
+                direction: fromMe ? 'OUTBOUND' : existing.direction,
+                metadata: {
+                  ...((existing.metadata as object) || {}),
+                  ...payload,
+                  timestamp: incomingAt.toISOString(),
+                  messageTimestamp: Math.floor(incomingAt.getTime() / 1000),
+                  fromMe,
+                  repairedAt: new Date().toISOString(),
+                },
+              },
+            });
+          }
+          return existing;
+        }
       }
 
       const fromMe = data.fromMe === true || data.fromMe === 'true';

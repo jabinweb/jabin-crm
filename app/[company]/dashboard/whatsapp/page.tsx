@@ -40,8 +40,8 @@ import {
 } from 'lucide-react';
 import {
   cacheWhatsAppMessages,
+  clearWhatsAppCache,
   mergeCachedWithServer,
-  readCachedWhatsAppMessages,
   type CachedWaMessage,
 } from '@/lib/whatsapp/local-store';
 import {
@@ -190,6 +190,15 @@ export default function WhatsAppHubPage() {
   const [contacts, setContacts] = useState<
     { jid: string; name: string; phone?: string }[]
   >([]);
+  const [waChats, setWaChats] = useState<
+    {
+      jid: string;
+      name: string;
+      isGroup: boolean;
+      lastMessageAt: number;
+      preview?: string;
+    }[]
+  >([]);
   const [filterBusy, setFilterBusy] = useState(false);
   const [groupsError, setGroupsError] = useState<string | null>(null);
   const [config, setConfig] = useState({
@@ -295,11 +304,6 @@ export default function WhatsAppHubPage() {
     if (!opts?.silent) setLoading(true);
     const userId = session?.user?.id;
     try {
-      if (userId && !opts?.silent) {
-        const cached = await readCachedWhatsAppMessages(userId, { limit: 500 });
-        if (cached.length) setMessages(cached as WaMessage[]);
-      }
-
       const params = new URLSearchParams();
       if (channel !== 'ALL') params.append('channel', channel);
       params.set('limit', '300');
@@ -310,14 +314,27 @@ export default function WhatsAppHubPage() {
       applyInboxMeta(data);
       setChatHasMore(!!data.hasMore);
 
+      // Inbox list: trust server only (stale IndexedDB was scrambling order)
+      setMessages((prev) => {
+        if (!selectedChatKey) return list;
+        // Keep open-thread extras while refreshing inbox
+        const threadExtras = prev.filter((m) => {
+          const key = normalizeWhatsAppChatJid(m.chatJid || m.fromPhone || m.toPhone || '')
+            .replace(/@s\.whatsapp\.net$/i, '')
+            .replace(/@lid$/i, '');
+          const sel = selectedChatKey
+            .replace(/@s\.whatsapp\.net$/i, '')
+            .replace(/@lid$/i, '');
+          return key === sel || key === selectedChatKey;
+        });
+        return mergeMessageLists(list, threadExtras);
+      });
+
       if (userId) {
-        const merged = await mergeCachedWithServer(
+        await cacheWhatsAppMessages(
           userId,
           list.map((m) => ({ ...m, userId })) as CachedWaMessage[]
         );
-        setMessages(merged as WaMessage[]);
-      } else {
-        setMessages(list);
       }
     } catch {
       if (!opts?.silent) toast.error('Failed to load WhatsApp history');
@@ -387,6 +404,9 @@ export default function WhatsAppHubPage() {
   const startSummoraConnect = async (force = false) => {
     setSummoraBusy(true);
     try {
+      if (force && session?.user?.id) {
+        await clearWhatsAppCache(session.user.id);
+      }
       const res = await fetch('/api/whatsapp/summora/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -404,7 +424,9 @@ export default function WhatsAppHubPage() {
       toast.success(
         data.qr
           ? 'Scan the QR with WhatsApp on your phone'
-          : 'Starting WhatsApp — QR should appear shortly'
+          : force
+            ? 'Reconnecting — history will re-sync with correct times'
+            : 'Starting WhatsApp — QR should appear shortly'
       );
       setMainTab('setup');
     } catch (error: unknown) {
@@ -478,6 +500,17 @@ export default function WhatsAppHubPage() {
       setContacts(Array.isArray(data.contacts) ? data.contacts : []);
     } catch {
       /* ignore — labels fall back to numbers */
+    }
+  };
+
+  const loadSummoraChats = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/summora/chats', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      setWaChats(Array.isArray(data.chats) ? data.chats : []);
+    } catch {
+      /* ignore — fall back to message-derived list */
     }
   };
 
@@ -563,15 +596,32 @@ export default function WhatsAppHubPage() {
         if (!res.ok || cancelled) return;
         const data = await res.json();
         const list = (data.messages ?? []) as WaMessage[];
-        if (!list.length || cancelled) return;
+        if (cancelled) return;
         setChatHasMore(!!data.hasMore);
-        setMessages((prev) => mergeMessageLists(prev, list));
         const userId = session?.user?.id;
         if (userId) {
-          void cacheWhatsAppMessages(
+          const merged = await mergeCachedWithServer(
             userId,
-            list.map((m) => ({ ...m, userId })) as CachedWaMessage[]
+            list.map((m) => ({ ...m, userId })) as CachedWaMessage[],
+            { chatJid: selectedChatKey }
           );
+          if (cancelled) return;
+          setMessages((prev) => {
+            const others = prev.filter((m) => {
+              const key = normalizeWhatsAppChatJid(
+                m.chatJid || m.fromPhone || m.toPhone || ''
+              )
+                .replace(/@s\.whatsapp\.net$/i, '')
+                .replace(/@lid$/i, '');
+              const sel = selectedChatKey
+                .replace(/@s\.whatsapp\.net$/i, '')
+                .replace(/@lid$/i, '');
+              return key !== sel && key !== selectedChatKey;
+            });
+            return mergeMessageLists(others, merged as WaMessage[]);
+          });
+        } else if (list.length) {
+          setMessages((prev) => mergeMessageLists(prev, list));
         }
       } catch {
         /* ignore */
@@ -624,34 +674,33 @@ export default function WhatsAppHubPage() {
     const ready =
       summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING';
     if (!ready) return;
-    // Always load group subjects + contact names so chat list shows names (not raw ids)
     void loadSummoraGroups();
     void loadSummoraContacts();
+    void loadSummoraChats();
     const id = setInterval(() => {
       void loadSummoraContacts();
-    }, 60_000);
+      void loadSummoraChats();
+    }, 45_000);
     return () => clearInterval(id);
   }, [config.provider, config.isActive, summoraSession?.status]);
 
   const threads: ChatThread[] = useMemo(() => {
     const map = new Map<string, WaMessage[]>();
+    const threadKeyOf = (raw: string) => {
+      const n = normalizeWhatsAppChatJid(raw);
+      if (n.endsWith('@g.us')) return n;
+      return n.replace(/@s\.whatsapp\.net$/i, '').replace(/@lid$/i, '');
+    };
+
     for (const msg of messages) {
-      const raw =
-        msg.chatJid ||
-        msg.fromPhone ||
-        msg.toPhone ||
-        msg.id;
-      const key = String(raw).endsWith('@g.us')
-        ? normalizeWhatsAppChatJid(raw)
-        : normalizeWhatsAppChatJid(raw)
-            .replace(/@s\.whatsapp\.net$/i, '')
-            .replace(/@lid$/i, '');
+      const raw = msg.chatJid || msg.fromPhone || msg.toPhone || msg.id;
+      const key = threadKeyOf(String(raw));
       const list = map.get(key) || [];
       list.push(msg);
       map.set(key, list);
     }
-    const result: ChatThread[] = [];
-    for (const [key, msgs] of Array.from(map.entries())) {
+
+    const buildFromMessages = (key: string, msgs: WaMessage[]): ChatThread => {
       const sorted = [...msgs].sort(
         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
@@ -660,9 +709,9 @@ export default function WhatsAppHubPage() {
         last.isGroup ||
         String(key).endsWith('@g.us') ||
         sorted.some((m) => m.isGroup);
-      const groupName = groups.find((g) => g.jid === key)?.name;
+      const groupName = groups.find((g) => threadKeyOf(g.jid) === key || g.jid === key)?.name;
+      const waChat = waChats.find((c) => threadKeyOf(c.jid) === key || c.jid === key);
       const contactName = !isGroup ? lookupContactName(contacts, key) : null;
-      // Prefer any inbound message name in the thread (last may be "You")
       let inboundName: string | null = null;
       for (let i = sorted.length - 1; i >= 0; i--) {
         const m = sorted[i];
@@ -674,30 +723,87 @@ export default function WhatsAppHubPage() {
         }
       }
       const label =
+        waChat?.name ||
         groupName ||
         contactName ||
         inboundName ||
         (isGroup ? key.replace(/@g\.us$/, '') : null) ||
-        (!isGroup
-          ? key.replace(/@s\.whatsapp\.net$/i, '').replace(/@lid$/i, '')
-          : null) ||
+        (!isGroup ? key : null) ||
         last.senderName ||
         key;
-      result.push({
+      return {
         key,
         label,
-        isGroup,
+        isGroup: waChat?.isGroup ?? isGroup,
         lastMessage: last,
         messages: sorted,
         preview: last.message,
-      });
+      };
+    };
+
+    const result: ChatThread[] = [];
+    const used = new Set<string>();
+
+    // Prefer WhatsApp's own chat directory order when available
+    if (waChats.length) {
+      for (const chat of waChats) {
+        const key = threadKeyOf(chat.jid);
+        if (used.has(key)) continue;
+        used.add(key);
+        const msgs = map.get(key) || map.get(chat.jid) || [];
+        if (msgs.length) {
+          result.push(buildFromMessages(key, msgs));
+        } else {
+          // Chat known to WA but no messages ingested yet — still show in list
+          result.push({
+            key,
+            label:
+              chat.name ||
+              lookupContactName(contacts, key) ||
+              groups.find((g) => g.jid === chat.jid)?.name ||
+              key.replace(/@g\.us$/, '').replace(/@s\.whatsapp\.net$/i, ''),
+            isGroup: chat.isGroup,
+            lastMessage: {
+              id: `placeholder_${key}`,
+              createdAt: new Date((chat.lastMessageAt || 0) * 1000).toISOString(),
+              direction: 'INBOUND',
+              status: 'SENT',
+              message: chat.preview || '',
+              chatJid: chat.jid,
+              isGroup: chat.isGroup,
+            },
+            messages: [],
+            preview: chat.preview || '',
+          });
+        }
+      }
     }
+
+    for (const [key, msgs] of Array.from(map.entries())) {
+      if (used.has(key)) continue;
+      result.push(buildFromMessages(key, msgs));
+    }
+
+    if (waChats.length) {
+      // Keep WA directory order for known chats; append unknowns by last msg
+      const known = new Set(waChats.map((c) => threadKeyOf(c.jid)));
+      const head = result.filter((t) => known.has(t.key));
+      const tail = result
+        .filter((t) => !known.has(t.key))
+        .sort(
+          (a, b) =>
+            new Date(b.lastMessage.createdAt).getTime() -
+            new Date(a.lastMessage.createdAt).getTime()
+        );
+      return [...head, ...tail];
+    }
+
     return result.sort(
       (a, b) =>
         new Date(b.lastMessage.createdAt).getTime() -
         new Date(a.lastMessage.createdAt).getTime()
     );
-  }, [messages, groups, contacts]);
+  }, [messages, groups, contacts, waChats]);
 
   const filteredThreads = useMemo(() => {
     const q = chatSearch.trim().toLowerCase();
