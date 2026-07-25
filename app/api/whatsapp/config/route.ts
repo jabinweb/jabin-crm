@@ -71,24 +71,26 @@ export const POST = withSessionRoute(async (req, { userId }) => {
     where: { userId },
   });
 
+  const storeSecret = (plain: string) => JSON.stringify(encrypt(plain));
+
   const twilioAuthToken =
     body.twilioAuthToken && !isMasked(body.twilioAuthToken)
-      ? encrypt(body.twilioAuthToken)
+      ? storeSecret(body.twilioAuthToken)
       : existing?.twilioAuthToken;
 
   const metaAccessToken =
     body.metaAccessToken && !isMasked(body.metaAccessToken)
-      ? encrypt(body.metaAccessToken)
+      ? storeSecret(body.metaAccessToken)
       : existing?.metaAccessToken;
 
   const webhookVerifyToken =
     body.webhookVerifyToken && !isMasked(body.webhookVerifyToken)
-      ? encrypt(body.webhookVerifyToken)
+      ? storeSecret(body.webhookVerifyToken)
       : existing?.webhookVerifyToken;
 
   const summoraApiKey =
     body.summoraApiKey && !isMasked(body.summoraApiKey)
-      ? encrypt(body.summoraApiKey)
+      ? storeSecret(body.summoraApiKey)
       : existing?.summoraApiKey;
 
   const config = await prisma.whatsAppProviderConfig.upsert({

@@ -128,8 +128,20 @@ export default function WhatsAppHubPage() {
       if (channel !== 'ALL') params.append('channel', channel);
       const res = await fetch(`/api/whatsapp/messages?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load messages');
-      setMessages(await res.json());
-    } catch (error) {
+      const data = await res.json();
+      // New shape: { messages, inboxFilter }; legacy: bare array
+      const list = Array.isArray(data) ? data : data.messages ?? [];
+      setMessages(list);
+      if (data?.inboxFilter?.filterType) {
+        const next = String(data.inboxFilter.filterType).toUpperCase();
+        setFilterType(
+          next === 'GROUPS_ONLY' || next === 'CUSTOM' ? next : 'ALL'
+        );
+        if (Array.isArray(data.inboxFilter.allowedJids)) {
+          setAllowedJids(data.inboxFilter.allowedJids);
+        }
+      }
+    } catch {
       toast.error('Failed to load WhatsApp history');
     } finally {
       setLoading(false);
@@ -213,13 +225,18 @@ export default function WhatsAppHubPage() {
     setGroupsError(null);
     const res = await fetch('/api/whatsapp/summora/groups', { cache: 'no-store' });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 429) {
+      setGroupsError('Too many requests — wait a few seconds and refresh groups');
+      setGroups([]);
+      return;
+    }
     if (!res.ok) {
       setGroupsError(data.error || 'Failed to load groups');
       setGroups([]);
       return;
     }
     if (data.error === 'WHATSAPP_NOT_CONNECTED') {
-      setGroupsError('Connect WhatsApp first to list groups');
+      setGroupsError('WhatsApp is still connecting — refresh groups once sync settles');
       setGroups([]);
       return;
     }
@@ -245,7 +262,8 @@ export default function WhatsAppHubPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to save filters');
       setFilterType(nextType);
       setAllowedJids(nextType === 'CUSTOM' ? nextJids : []);
-      toast.success('Inbox filter saved');
+      toast.success('Inbox filter saved — only matching chats will appear below');
+      await loadMessages();
     } catch (error: any) {
       toast.error(error?.message || 'Could not save filter');
     } finally {
@@ -287,12 +305,21 @@ export default function WhatsAppHubPage() {
       }
     };
     void tick();
-    const id = setInterval(tick, 2500);
+
+    const status = summoraSession?.status;
+    // Poll faster only while waiting for QR / link; back off once linked.
+    const intervalMs =
+      status === 'CONNECTING' || status === 'UNKNOWN' || !status
+        ? 4000
+        : status === 'SYNCING'
+          ? 8000
+          : 15000;
+    const id = setInterval(tick, intervalMs);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [config.provider, config.isActive]);
+  }, [config.provider, config.isActive, summoraSession?.status]);
 
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) return;
@@ -304,7 +331,11 @@ export default function WhatsAppHubPage() {
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) return;
     if (filterType !== 'CUSTOM') return;
-    if (summoraSession?.status !== 'ACTIVE' && summoraSession?.status !== 'SYNCING') return;
+    // Groups are available once the socket is up (ACTIVE or still SYNCING history).
+    const ready =
+      summoraSession?.status === 'ACTIVE' ||
+      summoraSession?.status === 'SYNCING';
+    if (!ready) return;
     void loadSummoraGroups();
   }, [config.provider, config.isActive, filterType, summoraSession?.status]);
 
@@ -711,21 +742,38 @@ export default function WhatsAppHubPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <CardTitle className="text-base font-semibold">Conversations</CardTitle>
+              <CardDescription className="mt-1">
+                {filterType === 'CUSTOM'
+                  ? `Showing only ${allowedJids.length} selected group${allowedJids.length === 1 ? '' : 's'} (inbox filter). New messages outside the selection are never forwarded from Summora.`
+                  : filterType === 'GROUPS_ONLY'
+                    ? 'Showing group chats only — DMs are blocked at Summora before they reach Opslane.'
+                    : 'Showing all forwarded chats. Change Inbox filter above to limit which chats arrive.'}
+              </CardDescription>
             </div>
-            <Select
-              value={channelFilter}
-              onValueChange={(value) => {
-                setChannelFilter(value);
-                loadMessages(value);
-              }}
-            >
-              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Channels</SelectItem>
-                <SelectItem value="SALES">Sales</SelectItem>
-                <SelectItem value="SERVICE">Service</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => void loadMessages()}
+              >
+                Refresh
+              </Button>
+              <Select
+                value={channelFilter}
+                onValueChange={(value) => {
+                  setChannelFilter(value);
+                  loadMessages(value);
+                }}
+              >
+                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Channels</SelectItem>
+                  <SelectItem value="SALES">Sales</SelectItem>
+                  <SelectItem value="SERVICE">Service</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -737,31 +785,57 @@ export default function WhatsAppHubPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Time</TableHead>
-                  <TableHead>Channel</TableHead>
+                  <TableHead>Chat</TableHead>
                   <TableHead>Direction</TableHead>
-                  <TableHead>To</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Message</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {messages.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No WhatsApp messages found.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No messages for the current inbox filter yet. After you save Selected groups,
+                      only new matching WhatsApp traffic appears here.
+                    </TableCell>
+                  </TableRow>
                 ) : (
-                  messages.map((msg: any) => (
-                    <TableRow key={msg.id}>
-                      <TableCell>{new Date(msg.createdAt).toLocaleString()}</TableCell>
-                      <TableCell><Badge variant="outline">{msg.channel}</Badge></TableCell>
-                      <TableCell>{msg.direction}</TableCell>
-                      <TableCell>{msg.toPhone}</TableCell>
-                      <TableCell>
-                        <span className={cn("text-[10px] font-bold uppercase", statusColor[msg.status] || 'text-muted-foreground')}>
-                          {msg.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="max-w-[380px] truncate">{msg.message}</TableCell>
-                    </TableRow>
-                  ))
+                  messages.map((msg: any) => {
+                    const chatLabel =
+                      (msg.isGroup || String(msg.chatJid || '').endsWith('@g.us')
+                        ? groups.find((g) => g.jid === msg.chatJid)?.name
+                        : null) ||
+                      msg.chatJid ||
+                      msg.fromPhone ||
+                      msg.toPhone ||
+                      '—';
+                    return (
+                      <TableRow key={msg.id}>
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {new Date(msg.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-sm font-medium truncate max-w-[220px]">
+                              {chatLabel}
+                            </span>
+                            {(msg.isGroup || String(msg.chatJid || '').endsWith('@g.us')) && (
+                              <Badge variant="secondary" className="w-fit text-[10px]">
+                                Group
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>{msg.direction}</TableCell>
+                        <TableCell>
+                          <span className={cn("text-[10px] font-bold uppercase", statusColor[msg.status] || 'text-muted-foreground')}>
+                            {msg.status}
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-w-[380px] truncate">{msg.message}</TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>

@@ -196,18 +196,31 @@ export async function proxy(req: NextRequest) {
   }
 
   // --- Rate limit APIs in production ---
+  // Inbound provider webhooks must never share the generic API budget —
+  // Summora sync alone can exceed 100 POSTs in minutes from one VPS IP.
+  const rateLimitExempt =
+    pathname.startsWith('/api/auth') ||
+    pathname.startsWith('/api/whatsapp/webhook') ||
+    pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/payment/callback') ||
+    pathname.startsWith('/api/uploadthing');
 
   if (
     pathname.startsWith('/api') &&
-    !pathname.startsWith('/api/auth') &&
+    !rateLimitExempt &&
     process.env.NODE_ENV === 'production'
   ) {
-    let rateLimitConfig = { windowMs: 15 * 60 * 1000, maxRequests: 100 };
+    // Default: enough headroom for dashboard polling + normal CRM usage.
+    let rateLimitConfig = { windowMs: 15 * 60 * 1000, maxRequests: 900 };
     if (pathname.includes('/email/send') || pathname.includes('/campaigns')) {
       rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 50 };
     }
     if (pathname.includes('/payment') || pathname.includes('/subscription')) {
-      rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 10 };
+      rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 30 };
+    }
+    // Session status poll is cheap but frequent — isolate a higher bucket.
+    if (pathname.startsWith('/api/whatsapp/summora/session')) {
+      rateLimitConfig = { windowMs: 15 * 60 * 1000, maxRequests: 400 };
     }
     try {
       await rateLimit(req as NextRequest, rateLimitConfig);

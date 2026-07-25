@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import type { WhatsAppChannel } from '@prisma/client';
+import { fetchSummoraBridge, getSummoraCreds } from '@/lib/crm/summora-bridge';
+import {
+  extractWhatsAppChatJid,
+  isWhatsAppGroupJid,
+  messageMatchesInboxFilter,
+  normalizeWhatsAppChatJid,
+} from '@/lib/crm/whatsapp-chat';
 
 interface SendWhatsAppInput {
   userId: string;
@@ -281,6 +288,8 @@ export class WhatsAppService {
       leadId?: string;
       customerId?: string;
       ticketId?: string;
+      /** When true (default), hide chats outside the Summora inbox filter. */
+      respectInboxFilter?: boolean;
     }
   ) {
     const where: any = { userId };
@@ -289,7 +298,7 @@ export class WhatsAppService {
     if (filters?.customerId) where.customerId = filters.customerId;
     if (filters?.ticketId) where.ticketId = filters.ticketId;
 
-    return prisma.whatsAppMessage.findMany({
+    const rows = await prisma.whatsAppMessage.findMany({
       where,
       include: {
         lead: { select: { id: true, companyName: true, contactName: true } },
@@ -297,8 +306,48 @@ export class WhatsAppService {
         ticket: { select: { id: true, subject: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 200,
+      take: 400,
     });
+
+    const respect = filters?.respectInboxFilter !== false;
+    let filterType = 'ALL';
+    let allowedJids: string[] = [];
+
+    if (respect) {
+      const creds = await getSummoraCreds(userId);
+      if (!('error' in creds)) {
+        const result = await fetchSummoraBridge(creds, '/api/v1/bridge/filters', {
+          timeoutMs: 8_000,
+        });
+        if (result.ok) {
+          filterType = String(result.body.filterType || 'ALL').toUpperCase();
+          allowedJids = Array.isArray(result.body.allowedJids)
+            ? (result.body.allowedJids as string[])
+            : [];
+        }
+      }
+    }
+
+    const enriched = rows
+      .map((msg) => {
+        const chatJid = extractWhatsAppChatJid(msg);
+        return {
+          ...msg,
+          chatJid,
+          isGroup: isWhatsAppGroupJid(chatJid),
+        };
+      })
+      .filter((msg) =>
+        respect
+          ? messageMatchesInboxFilter(msg.chatJid, filterType, allowedJids)
+          : true
+      )
+      .slice(0, 200);
+
+    return {
+      messages: enriched,
+      inboxFilter: { filterType, allowedJids },
+    };
   }
 
   async handleTwilioWebhook(formData: URLSearchParams, userId?: string) {
@@ -460,10 +509,11 @@ export class WhatsAppService {
         if (existing) return existing;
       }
 
-      const fromPhone = String(data.remoteJid || data.sender || '').replace(
-        /@s\.whatsapp\.net$/,
-        ''
+      const chatJid = normalizeWhatsAppChatJid(
+        String(data.remoteJid || data.sender || '')
       );
+      // Store DM as bare number; keep full group JID (@g.us)
+      const fromPhone = chatJid.replace(/@s\.whatsapp\.net$/, '');
       const body = String(data.content || '');
       const created = await prisma.whatsAppMessage.create({
         data: {
@@ -475,11 +525,17 @@ export class WhatsAppService {
           message: body,
           status: 'SENT',
           externalMessageId: externalId ? String(externalId) : null,
-          metadata: payload,
+          metadata: {
+            ...payload,
+            remoteJid: chatJid,
+            isGroup: isWhatsAppGroupJid(chatJid),
+            participant: data.participant || null,
+          },
         },
       });
 
-      if (body.trim()) {
+      // Support tickets are for 1:1 DMs only — skip group noise
+      if (body.trim() && !isWhatsAppGroupJid(chatJid)) {
         const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
         ensureWhatsAppTicket({
           userId,
