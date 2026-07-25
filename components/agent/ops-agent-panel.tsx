@@ -508,7 +508,7 @@ export function OpsAgentPanel() {
           id: `e-${Date.now()}`,
           role: 'assistant',
           text: err.includes('API key')
-            ? 'Sorry — I could not complete that. Check your Gemini API key in Settings.'
+            ? 'Sorry — I could not complete that. Check your OPS / AI API key in Settings.'
             : `Sorry — I could not complete that.\n\n${err}`,
         },
       ]);

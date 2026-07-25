@@ -13,10 +13,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -30,6 +34,8 @@ import {
   Ticket,
   ChevronLeft,
   User,
+  Pencil,
+  Upload,
 } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -41,6 +47,16 @@ import { cn } from '@/lib/utils';
 import { CustomerPeopleTab } from '@/components/customers/customer-people-tab';
 import { CustomerDepartmentsTab } from '@/components/customers/customer-departments-tab';
 import { CustomerVisitsTab } from '@/components/customers/customer-visits-tab';
+import { EmailComposeDialog } from '@/components/email/email-compose-dialog';
+
+const CUSTOMER_TABS = [
+  { value: 'people', label: 'People' },
+  { value: 'departments', label: 'Departments' },
+  { value: 'visits', label: 'Visits' },
+  { value: 'equipment', label: 'Equipment' },
+  { value: 'tickets', label: 'Tickets' },
+  { value: 'timeline', label: 'Activity' },
+] as const;
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
@@ -65,9 +81,93 @@ export default function CustomerDetailPage() {
   } | null>(null);
   const [billingCurrencyDraft, setBillingCurrencyDraft] = useState<string | null>(null);
   const [savingCurrency, setSavingCurrency] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    organizationName: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    industry: '',
+    notes: '',
+  });
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeTarget, setComposeTarget] = useState<{ to: string; subject: string }>({
+    to: '',
+    subject: '',
+  });
 
   const billingCurrencyValue =
     billingCurrencyDraft ?? customer?.billingCurrency ?? '';
+
+  const openEdit = () => {
+    if (!customer) return;
+    setEditForm({
+      organizationName: customer.organizationName || '',
+      contactPerson: customer.contactPerson || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      city: customer.city || '',
+      state: customer.state || '',
+      industry: customer.industry || '',
+      notes: customer.notes || '',
+    });
+    setEditOpen(true);
+  };
+
+  const openEmail = (to: string, name?: string) => {
+    if (!to) {
+      toast.error('No email address');
+      return;
+    }
+    setComposeTarget({
+      to,
+      subject: `Regarding ${customer?.organizationName || 'your account'}${
+        name ? ` — ${name}` : ''
+      }`,
+    });
+    setComposeOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.organizationName.trim() || !editForm.contactPerson.trim()) {
+      toast.error('Organization and contact person are required');
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const response = await workspaceFetch(`/api/customers/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationName: editForm.organizationName.trim(),
+          contactPerson: editForm.contactPerson.trim(),
+          email: editForm.email.trim() || null,
+          phone: editForm.phone.trim() || null,
+          address: editForm.address.trim() || null,
+          city: editForm.city.trim() || null,
+          state: editForm.state.trim() || null,
+          industry: editForm.industry.trim() || null,
+          notes: editForm.notes.trim() || null,
+        }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || 'Failed to update');
+      }
+      toast.success('Client updated');
+      setEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['customer', slug, id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update client');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const handleSaveBillingCurrency = async () => {
     setSavingCurrency(true);
@@ -126,10 +226,49 @@ export default function CustomerDetailPage() {
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      toast.success('History exported successfully', { id: 'export' });
+      toast.success('History exported', { id: 'export' });
     } catch {
       toast.error('Failed to export history', { id: 'export' });
     }
+  };
+
+  const handleExportFull = () => {
+    if (!customer) return;
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        organizationName: customer.organizationName,
+        contactPerson: customer.contactPerson,
+        email: customer.email,
+        phone: customer.phone,
+        address: customer.address,
+        city: customer.city,
+        state: customer.state,
+        industry: customer.industry,
+        notes: customer.notes,
+        billingCurrency: customer.billingCurrency,
+      },
+      contacts: customer.contacts || [],
+      departments: customer.departments || [],
+      visits: customer.visits || [],
+      equipment: customer.equipmentInstallations || [],
+      tickets: customer.supportTickets || [],
+      activities: customer.activities || [],
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `client_${String(customer.organizationName || 'export')
+      .replace(/\s+/g, '_')
+      .replace(/[^\w.-]/g, '')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success('Client data exported');
   };
 
   if (isLoading) {
@@ -171,7 +310,11 @@ export default function CustomerDetailPage() {
             <span>{customer.address || 'No address'}</span>
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center w-full sm:w-auto">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="h-11" onClick={openEdit}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
           <Button
             variant="outline"
             className="h-11"
@@ -181,11 +324,21 @@ export default function CustomerDetailPage() {
             <User className="mr-2 h-4 w-4" />
             {isInviting ? '…' : 'Invite'}
           </Button>
+          <Button variant="outline" className="h-11" onClick={handleExportFull}>
+            <Download className="mr-2 h-4 w-4" />
+            Export data
+          </Button>
           <Button variant="outline" className="h-11" onClick={handleExportHistory}>
             <Download className="mr-2 h-4 w-4" />
-            Export
+            History CSV
           </Button>
-          <Button asChild className="h-11 col-span-2 sm:col-span-1">
+          <Button variant="outline" className="h-11" asChild>
+            <Link href={path('/dashboard/settings/migration')}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Link>
+          </Button>
+          <Button asChild className="h-11">
             <Link href={path(`/dashboard/tickets/new?customerId=${id}`)}>
               <Ticket className="mr-2 h-4 w-4" />
               New ticket
@@ -226,25 +379,20 @@ export default function CustomerDetailPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Main first on mobile */}
         <div className="lg:col-span-3 order-1 lg:order-2 min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <div className="sticky top-0 z-10 -mx-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-2 pt-1">
-              <TabsList className="w-full h-auto justify-start gap-1 overflow-x-auto flex-nowrap rounded-xl bg-muted/60 p-1 scrollbar-none">
-                {[
-                  ['people', 'People'],
-                  ['departments', 'Depts'],
-                  ['visits', 'Visits'],
-                  ['equipment', 'Gear'],
-                  ['tickets', 'Tickets'],
-                  ['timeline', 'Activity'],
-                ].map(([value, label]) => (
+            <div className="sticky top-0 z-10 -mx-1 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-0 pt-1">
+              <TabsList className="h-auto w-full justify-start gap-0 rounded-none bg-transparent p-0">
+                {CUSTOMER_TABS.map((tab) => (
                   <TabsTrigger
-                    key={value}
-                    value={value}
-                    className="shrink-0 rounded-lg px-3.5 py-2.5 text-sm data-[state=active]:shadow-sm"
+                    key={tab.value}
+                    value={tab.value}
+                    className={cn(
+                      'relative shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium text-muted-foreground shadow-none',
+                      'hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none'
+                    )}
                   >
-                    {label}
+                    {tab.label}
                   </TabsTrigger>
                 ))}
               </TabsList>
@@ -257,6 +405,7 @@ export default function CustomerDetailPage() {
                 contacts={customer.contacts || []}
                 departments={customer.departments || []}
                 workspaceFetch={workspaceFetch}
+                onEmail={(email, name) => openEmail(email, name)}
               />
             </TabsContent>
 
@@ -445,11 +594,14 @@ export default function CustomerDetailPage() {
                 </Button>
               ) : null}
               {customer.email ? (
-                <Button asChild variant="outline" className="h-11 w-full justify-start">
-                  <a href={`mailto:${customer.email}`}>
-                    <Mail className="mr-2 h-4 w-4 break-all" />
-                    <span className="truncate">{customer.email}</span>
-                  </a>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 w-full justify-start"
+                  onClick={() => openEmail(customer.email)}
+                >
+                  <Mail className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">{customer.email}</span>
                 </Button>
               ) : null}
             </CardContent>
@@ -463,9 +615,9 @@ export default function CustomerDetailPage() {
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-1">
                 {[
                   ['People', customer._count?.contacts ?? customer.contacts?.length ?? 0],
-                  ['Depts', customer._count?.departments ?? customer.departments?.length ?? 0],
+                  ['Departments', customer._count?.departments ?? customer.departments?.length ?? 0],
                   ['Visits', customer._count?.visits ?? customer.visits?.length ?? 0],
-                  ['Gear', customer.equipmentInstallations?.length || 0],
+                  ['Equipment', customer.equipmentInstallations?.length || 0],
                   [
                     'Open tickets',
                     customer.supportTickets?.filter(
@@ -512,6 +664,111 @@ export default function CustomerDetailPage() {
           </Card>
         </aside>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit client</DialogTitle>
+            <DialogDescription>Update organization and primary contact details.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-1.5">
+              <Label>Organization *</Label>
+              <Input
+                value={editForm.organizationName}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, organizationName: e.target.value })
+                }
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Contact person *</Label>
+              <Input
+                value={editForm.contactPerson}
+                onChange={(e) => setEditForm({ ...editForm, contactPerson: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Phone</Label>
+                <Input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Address</Label>
+              <Input
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>City</Label>
+                <Input
+                  value={editForm.city}
+                  onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>State</Label>
+                <Input
+                  value={editForm.state}
+                  onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Industry</Label>
+              <Input
+                value={editForm.industry}
+                onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                rows={3}
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleSaveEdit()} disabled={savingEdit}>
+              {savingEdit ? 'Saving…' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <EmailComposeDialog
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        replyTo={composeTarget}
+        leadData={{
+          companyName: customer.organizationName,
+          contactName: customer.contactPerson,
+          email: composeTarget.to || customer.email || undefined,
+          phone: customer.phone || undefined,
+          city: customer.city || undefined,
+          state: customer.state || undefined,
+          industry: customer.industry || undefined,
+        }}
+      />
     </div>
   );
 }

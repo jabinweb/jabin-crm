@@ -48,12 +48,14 @@ export function CustomerPeopleTab({
   contacts,
   departments,
   workspaceFetch,
+  onEmail,
 }: {
   customerId: string;
   slug?: string;
   contacts: Contact[];
   departments: Department[];
   workspaceFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  onEmail?: (email: string, name: string) => void;
 }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -218,11 +220,18 @@ export function CustomerPeopleTab({
                     </Button>
                   ) : null}
                   {c.email ? (
-                    <Button asChild variant="outline" size="sm" className="h-10 flex-1">
-                      <a href={`mailto:${c.email}`}>
-                        <Mail className="mr-1.5 h-3.5 w-3.5" />
-                        Email
-                      </a>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 flex-1"
+                      onClick={() => {
+                        if (onEmail) onEmail(c.email!, c.name);
+                        else toast.error('Email composer unavailable');
+                      }}
+                    >
+                      <Mail className="mr-1.5 h-3.5 w-3.5" />
+                      Email
                     </Button>
                   ) : null}
                 </div>
