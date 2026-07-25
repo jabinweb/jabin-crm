@@ -92,6 +92,8 @@ model User {
   whatsappConfig      WhatsAppProviderConfig?
   whatsappMessages    WhatsAppMessage[]
   featureModules      FeatureModuleSetting[]
+  assignedVisits      CustomerVisit[]         @relation("VisitTechnician")
+  createdVisits       CustomerVisit[]         @relation("VisitCreator")
 
   // ── Company Management Integration ──
   password         String?
@@ -926,6 +928,8 @@ model Customer {
   updatedAt              DateTime                @updatedAt
   activities             CustomerActivity[]
   contacts               CustomerContact[]
+  departments            CustomerDepartment[]
+  visits                 CustomerVisit[]
   equipmentInstallations EquipmentInstallation[]
   serviceContracts       ServiceContract[]
   invoices               Invoice[]
@@ -944,18 +948,120 @@ model Customer {
   @@index([createdAt])
 }
 
-model CustomerContact {
-  id         String   @id @default(cuid())
+model CustomerDepartment {
+  id        String            @id @default(cuid())
   customerId String
-  name       String
-  role       String?
-  email      String?
-  phone      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name      String
+  notes     String?
+  sortOrder Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  customer  Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  contacts  CustomerContact[]
+  visits    CustomerVisit[]
 
   @@index([customerId])
+  @@unique([customerId, name])
+}
+
+model CustomerContact {
+  id           String              @id @default(cuid())
+  customerId   String
+  departmentId String?
+  name         String
+  role         String?
+  title        String?
+  specialty    String?
+  email        String?
+  phone        String?
+  isPrimary    Boolean             @default(false)
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  customer     Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  department   CustomerDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  visitLinks   CustomerVisitContact[]
+
+  @@index([customerId])
+  @@index([departmentId])
+}
+
+model VisitTag {
+  id        String            @id @default(cuid())
+  companyId String
+  name      String
+  color     String?
+  isSystem  Boolean           @default(false)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  company   Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  visits    CustomerVisitTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+enum CustomerVisitStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum VisitRecurrenceRule {
+  NONE
+  WEEKLY
+  MONTHLY
+}
+
+model CustomerVisit {
+  id                    String              @id @default(cuid())
+  customerId            String
+  companyId             String
+  scheduledAt           DateTime
+  status                CustomerVisitStatus @default(SCHEDULED)
+  notes                 String?
+  assignedTechnicianId  String?
+  departmentId          String?
+  recurrenceRule        VisitRecurrenceRule @default(NONE)
+  recurrenceUntil       DateTime?
+  createdById           String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  customer              Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTechnician    User?               @relation("VisitTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+  department            CustomerDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy             User?               @relation("VisitCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  tags                  CustomerVisitTag[]
+  contacts              CustomerVisitContact[]
+
+  @@index([customerId])
+  @@index([companyId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([assignedTechnicianId])
+  @@index([departmentId])
+}
+
+model CustomerVisitTag {
+  visitId String
+  tagId   String
+  visit   CustomerVisit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  tag     VisitTag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([visitId, tagId])
+  @@index([tagId])
+}
+
+model CustomerVisitContact {
+  visitId   String
+  contactId String
+  visit     CustomerVisit   @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  contact   CustomerContact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([visitId, contactId])
+  @@index([contactId])
 }
 
 model CustomerActivity {
@@ -1898,6 +2004,8 @@ model Company {
   liveChatSessions  LiveChatSession[]
   serviceContracts  ServiceContract[]
   companyAgent      CompanyAgent?
+  visitTags         VisitTag[]
+  customerVisits    CustomerVisit[]
 
   @@index([slug])
   @@index([status])

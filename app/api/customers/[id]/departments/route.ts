@@ -10,15 +10,8 @@ export const GET = withStaffRoute(async (request, ctx, routeContext) => {
     return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
   }
 
-  const customer = await customerService.getCustomerById(id);
-  if (!customer) {
-    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-  }
-
-  return jsonOk({
-    contacts: customer.contacts,
-    departments: customer.departments,
-  });
+  const departments = await customerService.listDepartments(id);
+  return jsonOk({ departments });
 });
 
 export const POST = withStaffRoute(async (request, ctx, routeContext) => {
@@ -30,20 +23,23 @@ export const POST = withStaffRoute(async (request, ctx, routeContext) => {
 
   const data = await request.json();
   if (!data.name?.trim()) {
-    return NextResponse.json({ error: 'Contact name is required' }, { status: 400 });
+    return NextResponse.json({ error: 'Department name is required' }, { status: 400 });
   }
 
-  const contact = await customerService.addContact(id, {
-    name: data.name.trim(),
-    role: data.role,
-    title: data.title,
-    specialty: data.specialty,
-    email: data.email,
-    phone: data.phone,
-    departmentId: data.departmentId,
-    isPrimary: !!data.isPrimary,
-    isActive: data.isActive !== false,
-  });
-
-  return jsonOk(contact, { status: 201 });
+  try {
+    const department = await customerService.createDepartment(id, {
+      name: data.name,
+      notes: data.notes,
+      sortOrder: data.sortOrder,
+    });
+    return jsonOk(department, { status: 201 });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'A department with this name already exists' },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
 });

@@ -14,6 +14,7 @@ import { PaymentSection } from "./sections/payment"
 import { SecuritySection } from "./sections/security"
 import { WorkspaceSection } from "./sections/workspace"
 import { SupportTicketTypesSection } from "./sections/support-ticket-types"
+import { VisitTagsSection } from "./sections/visit-tags"
 import { TerminologySection } from "./sections/terminology"
 import { SettingsProvider } from "@/contexts/settings-context"
 import { SettingsLayout } from "../settings-layout"
@@ -111,6 +112,7 @@ function CompanySettingsContent() {
           <WorkspaceSection onChange={handleSettingsChange} />
           <TerminologySection onChange={handleSettingsChange} />
           <SupportTicketTypesSection onChange={handleSettingsChange} />
+          <VisitTagsSection />
         </TabsContent>
         <TabsContent value="customization">
           <CustomizationSection onChange={handleSettingsChange} />
