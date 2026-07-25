@@ -18,6 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
     Select,
     SelectContent,
@@ -32,7 +34,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import {
     ChevronLeft,
@@ -49,6 +50,8 @@ import {
     Building,
     GitMerge,
     SplitSquareHorizontal,
+    Search,
+    Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -88,7 +91,8 @@ export default function TicketDetailPage() {
     });
 
     const [showMergeDialog, setShowMergeDialog] = useState(false);
-    const [mergeTicketIds, setMergeTicketIds] = useState('');
+    const [mergeSelectedIds, setMergeSelectedIds] = useState<string[]>([]);
+    const [mergeSearch, setMergeSearch] = useState('');
     const [isMerging, setIsMerging] = useState(false);
     const [showSplitDialog, setShowSplitDialog] = useState(false);
     const [isSplitting, setIsSplitting] = useState(false);
@@ -102,6 +106,27 @@ export default function TicketDetailPage() {
             return response.json();
         },
         staleTime: 30_000,
+    });
+
+    const { data: mergeCandidates = [], isFetching: mergeLoading } = useQuery({
+        queryKey: ['tickets-merge-picker', mergeSearch, id],
+        enabled: showMergeDialog,
+        queryFn: async () => {
+            const params = new URLSearchParams({ limit: '40' });
+            if (mergeSearch.trim()) params.set('q', mergeSearch.trim());
+            const response = await workspaceFetch(`/api/tickets?${params}`);
+            if (!response.ok) return [];
+            const tickets = await response.json();
+            return (Array.isArray(tickets) ? tickets : []).filter(
+                (t: { id: string }) => t.id !== id
+            ) as Array<{
+                id: string;
+                subject: string;
+                status: string;
+                customer?: { organizationName?: string };
+            }>;
+        },
+        staleTime: 15_000,
     });
 
     const { data: cannedResponses } = useQuery({
@@ -222,9 +247,8 @@ export default function TicketDetailPage() {
     };
 
     const handleMerge = async () => {
-        const ids = mergeTicketIds.split(/[\s,]+/).filter(Boolean);
-        if (ids.length === 0) {
-            toast.error('Enter ticket IDs to merge');
+        if (mergeSelectedIds.length === 0) {
+            toast.error('Select at least one ticket to merge');
             return;
         }
         setIsMerging(true);
@@ -232,18 +256,25 @@ export default function TicketDetailPage() {
             const response = await workspaceFetch(`/api/tickets/${id}/merge`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ticketIds: ids }),
+                body: JSON.stringify({ ticketIds: mergeSelectedIds }),
             });
             if (!response.ok) throw new Error('Merge failed');
-            toast.success(`Merged ${ids.length} ticket(s)`);
+            toast.success(`Merged ${mergeSelectedIds.length} ticket(s)`);
             setShowMergeDialog(false);
-            setMergeTicketIds('');
+            setMergeSelectedIds([]);
+            setMergeSearch('');
             queryClient.invalidateQueries({ queryKey: ['ticket', id] });
         } catch {
             toast.error('Failed to merge tickets');
         } finally {
             setIsMerging(false);
         }
+    };
+
+    const toggleMergeId = (ticketId: string) => {
+        setMergeSelectedIds((prev) =>
+            prev.includes(ticketId) ? prev.filter((x) => x !== ticketId) : [...prev, ticketId]
+        );
     };
 
     const handleSplit = async () => {
@@ -628,28 +659,94 @@ export default function TicketDetailPage() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={showMergeDialog} onOpenChange={setShowMergeDialog}>
-                <DialogContent>
+            <Dialog
+                open={showMergeDialog}
+                onOpenChange={(open) => {
+                    setShowMergeDialog(open);
+                    if (!open) {
+                        setMergeSelectedIds([]);
+                        setMergeSearch('');
+                    }
+                }}
+            >
+                <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle>Merge tickets</DialogTitle>
                         <DialogDescription>
-                            Combine other tickets into this one. Enter comma-separated ticket IDs to merge in.
+                            Select other open tickets to combine into this one.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="merge-ids">Ticket IDs to merge</Label>
-                        <Input
-                            id="merge-ids"
-                            placeholder="clxxx, clyyy"
-                            value={mergeTicketIds}
-                            onChange={(e) => setMergeTicketIds(e.target.value)}
-                            className="mt-2"
-                        />
+                    <div className="space-y-3 py-2">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                value={mergeSearch}
+                                onChange={(e) => setMergeSearch(e.target.value)}
+                                placeholder="Search by subject, customer, or ID…"
+                                className="pl-8"
+                            />
+                        </div>
+                        {mergeSelectedIds.length > 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                                {mergeSelectedIds.length} selected
+                            </p>
+                        ) : null}
+                        <ScrollArea className="h-64 rounded-md border">
+                            {mergeLoading ? (
+                                <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Loading…
+                                </div>
+                            ) : mergeCandidates.length === 0 ? (
+                                <p className="py-10 text-center text-sm text-muted-foreground">
+                                    No matching tickets
+                                </p>
+                            ) : (
+                                <ul className="divide-y">
+                                    {mergeCandidates.map((t) => {
+                                        const checked = mergeSelectedIds.includes(t.id);
+                                        return (
+                                            <li key={t.id}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => toggleMergeId(t.id)}
+                                                    className={cn(
+                                                        'flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-muted/50',
+                                                        checked && 'bg-muted/40'
+                                                    )}
+                                                >
+                                                    <Checkbox
+                                                        checked={checked}
+                                                        className="mt-1"
+                                                        onCheckedChange={() => toggleMergeId(t.id)}
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-sm font-medium">
+                                                            {t.subject}
+                                                        </p>
+                                                        <p className="truncate text-xs text-muted-foreground">
+                                                            {t.customer?.organizationName || '—'} · {t.status}
+                                                        </p>
+                                                    </div>
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </ScrollArea>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowMergeDialog(false)}>Cancel</Button>
-                        <Button onClick={handleMerge} disabled={isMerging}>
-                            {isMerging ? 'Merging…' : 'Merge into this ticket'}
+                        <Button variant="outline" onClick={() => setShowMergeDialog(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleMerge}
+                            disabled={isMerging || mergeSelectedIds.length === 0}
+                        >
+                            {isMerging
+                                ? 'Merging…'
+                                : `Merge ${mergeSelectedIds.length || ''} into this`.trim()}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

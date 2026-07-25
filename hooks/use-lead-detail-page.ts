@@ -41,6 +41,7 @@ export function useLeadDetailPage() {
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [aiScoring, setAiScoring] = useState(false);
   const [aiScore, setAiScore] = useState<AiQualification | null>(null);
+  const [enriching, setEnriching] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [showEnrollSequenceDialog, setShowEnrollSequenceDialog] = useState(false);
   const [showCreateTaskDialog, setShowCreateTaskDialog] = useState(false);
@@ -287,6 +288,22 @@ export function useLeadDetailPage() {
     }
   };
 
+  const handleEnrichLead = async () => {
+    setEnriching(true);
+    try {
+      const response = await fetch(`/api/leads/${leadId}/enrich`, { method: 'POST' });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Enrichment failed');
+      toast.success('Lead enriched');
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['lead-activities', leadId] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to enrich lead');
+    } finally {
+      setEnriching(false);
+    }
+  };
+
   const handleConvertLead = async () => {
     try {
       const res = await fetch(`/api/leads/${leadId}/convert`, { method: 'POST' });
@@ -330,6 +347,7 @@ export function useLeadDetailPage() {
     setIsAddingNote,
     aiScoring,
     aiScore,
+    enriching,
     composeOpen,
     setComposeOpen,
     showEnrollSequenceDialog,
@@ -355,6 +373,7 @@ export function useLeadDetailPage() {
     handleGetAISuggestions,
     handleCreateTaskFromAI,
     handleAIScoring,
+    handleEnrichLead,
     handleConvertLead,
     handleCancelEnrollSequence,
     handleCancelCreateTask,

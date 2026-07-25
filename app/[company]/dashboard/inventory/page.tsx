@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from 'next/link'
-import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp, ArrowLeftRight, ClipboardList, Box } from "lucide-react"
+import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp, ArrowLeftRight, ClipboardList, Box, Truck } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StockAdjustmentDialog } from "@/components/inventory/stock-adjustment-dialog"
 import { TransactionHistoryDialog } from "@/components/inventory/transaction-history-dialog"
@@ -205,6 +205,12 @@ export default function InventoryPage() {
             <Link href={path('/dashboard/inventory/transfers')}>
               <ArrowLeftRight className="h-4 w-4 mr-2" />
               Transfers
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/demo-equipment')}>
+              <Truck className="h-4 w-4 mr-2" />
+              Demo fleet
             </Link>
           </Button>
           <Button variant="outline" asChild>

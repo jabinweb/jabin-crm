@@ -80,6 +80,7 @@ const crmNav: NavigationItem[] = [
   { name: 'Clients', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
   { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY' },
   { name: 'Equipment', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
+  { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
   { name: 'Client insights', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customerAnalytics' },
 ];
 

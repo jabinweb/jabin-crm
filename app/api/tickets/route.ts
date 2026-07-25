@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
         const customerId = searchParams.get('customerId') || undefined;
         const technicianId = searchParams.get('technicianId') || undefined;
         const includeMerged = searchParams.get('includeMerged') === 'true';
+        const q = searchParams.get('q')?.trim() || undefined;
         const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10), 500);
 
         if (session.user.role !== 'CUSTOMER') {
@@ -68,6 +69,13 @@ export async function GET(request: NextRequest) {
             if (channel) where.channel = channel;
             if (customerId) where.customerId = customerId;
             if (technicianId) where.assignedTechnicianId = technicianId;
+            if (q) {
+              where.OR = [
+                { id: { contains: q, mode: 'insensitive' } },
+                { subject: { contains: q, mode: 'insensitive' } },
+                { customer: { organizationName: { contains: q, mode: 'insensitive' } } },
+              ];
+            }
         }
 
         const tickets = await prisma.supportTicket.findMany({
@@ -195,6 +203,11 @@ export async function POST(request: NextRequest) {
                 companyId: ticket.customer.companyId,
                 title: 'New ticket',
                 summary: ticket.subject,
+                metadata: {
+                  status: ticket.status,
+                  priority: ticket.priority,
+                  channel: ticket.channel,
+                },
             });
             if (ticket.assignedTechnicianId) {
                 await notificationService.create({

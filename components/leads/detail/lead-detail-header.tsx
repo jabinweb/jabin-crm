@@ -13,6 +13,8 @@ import {
   User,
   ListChecks,
   Target,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { LeadScoreBadge } from '@/components/crm/lead-score-badge';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
@@ -29,6 +31,8 @@ interface LeadDetailHeaderProps extends Pick<
   | 'setShowCreateTaskDialog'
   | 'setShowCreateDealDialog'
   | 'handleConvertLead'
+  | 'handleEnrichLead'
+  | 'enriching'
 > {}
 
 function getStatusVariant(status: LeadStatus) {
@@ -45,6 +49,8 @@ export function LeadDetailHeader({
   setShowCreateTaskDialog,
   setShowCreateDealDialog,
   handleConvertLead,
+  handleEnrichLead,
+  enriching,
 }: LeadDetailHeaderProps) {
   if (!lead) return null;
 
@@ -124,6 +130,20 @@ export function LeadDetailHeader({
             <Button size="sm" variant="outline" onClick={() => setComposeOpen(true)} className="gap-2">
               <Mail className="h-4 w-4" />
               Send Email
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void handleEnrichLead()}
+              disabled={enriching}
+              className="gap-2"
+            >
+              {enriching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {enriching ? 'Enriching…' : 'Enrich'}
             </Button>
             {lead.phone && (
               <Button size="sm" variant="outline" asChild className="gap-2">

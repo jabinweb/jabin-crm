@@ -149,6 +149,48 @@ export function LeadsTable({
               >
                 Open
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-10 w-10 shrink-0 px-0">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    onClick={() => handleContactLead(lead.id)}
+                    disabled={isGeneratingEmail}
+                  >
+                    {isGeneratingEmail ? 'Generating...' : 'Contact Lead'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push(path(`/dashboard/leads/${lead.id}`))}>
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'NEW')}>
+                    New
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'CONTACTED')}>
+                    Contacted
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'RESPONDED')}>
+                    Responded
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'QUALIFIED')}>
+                    Qualified
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleConvertLead(lead.id)}>
+                    Convert to Customer
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'LOST')}>
+                    Lost
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'UNSUBSCRIBED')}>
+                    Unsubscribed
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         ))}

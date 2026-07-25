@@ -14,6 +14,10 @@ export interface UnifiedInboxItem {
   priority?: string;
   agentName?: string;
   ticketId?: string;
+  /** Live chat session id (for desk deep-link when no ticket) */
+  sessionId?: string;
+  /** WhatsApp phone / chat key for inbox deep-link when no ticket */
+  chatKey?: string;
   updatedAt: string;
   unread?: boolean;
 }
@@ -119,6 +123,7 @@ export async function buildUnifiedInbox(options: {
       customerName: s.visitorName ?? s.visitorEmail ?? 'Visitor',
       status: s.status,
       ticketId: s.ticket?.id,
+      sessionId: s.id,
       updatedAt: s.updatedAt.toISOString(),
       unread: s.status === 'WAITING',
     });
@@ -126,6 +131,7 @@ export async function buildUnifiedInbox(options: {
 
   for (const m of whatsappMessages) {
     if (items.some((i) => i.ticketId && i.ticketId === m.ticketId)) continue;
+    const chatKey = (m.fromPhone || m.toPhone || '').trim() || undefined;
     if (m.ticket) {
       items.push({
         id: m.id,
@@ -139,6 +145,7 @@ export async function buildUnifiedInbox(options: {
         priority: m.ticket.priority,
         agentName: m.ticket.assignedTechnician?.name,
         ticketId: m.ticket.id,
+        chatKey,
         updatedAt: m.createdAt.toISOString(),
       });
     } else {
@@ -150,6 +157,7 @@ export async function buildUnifiedInbox(options: {
         preview: m.message.slice(0, 120),
         customerName: m.fromPhone ?? 'WhatsApp',
         status: 'OPEN',
+        chatKey,
         updatedAt: m.createdAt.toISOString(),
         unread: true,
       });

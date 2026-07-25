@@ -10,10 +10,20 @@ export type WorkflowEvent =
   | 'deal.won'
   | 'manual';
 
-type WorkflowAction =
+export type WorkflowAction =
   | { type: 'notify'; message?: string; title?: string }
   | { type: 'log'; message?: string }
   | Record<string, unknown>;
+
+/** Simple equality filters against event metadata / payload. Empty values are ignored. */
+export type WorkflowConditions = {
+  status?: string;
+  priority?: string;
+  channel?: string;
+  source?: string;
+  /** Lead status after update */
+  newStatus?: string;
+};
 
 export type WorkflowEventPayload = {
   userId: string;
@@ -30,6 +40,44 @@ function asActions(raw: unknown): WorkflowAction[] {
   if (Array.isArray(raw)) return raw as WorkflowAction[];
   if (raw && typeof raw === 'object') return [raw as WorkflowAction];
   return [];
+}
+
+export function parseConditions(raw: unknown): WorkflowConditions {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const c = raw as Record<string, unknown>;
+  const out: WorkflowConditions = {};
+  for (const key of ['status', 'priority', 'channel', 'source', 'newStatus'] as const) {
+    if (typeof c[key] === 'string' && c[key].trim()) {
+      out[key] = c[key].trim();
+    }
+  }
+  return out;
+}
+
+export function matchesWorkflowConditions(
+  conditions: unknown,
+  payload: WorkflowEventPayload
+): boolean {
+  const c = parseConditions(conditions);
+  const keys = Object.keys(c) as (keyof WorkflowConditions)[];
+  if (keys.length === 0) return true;
+
+  const meta = payload.metadata || {};
+  const status =
+    (typeof meta.status === 'string' && meta.status) ||
+    (typeof meta.newStatus === 'string' && meta.newStatus) ||
+    undefined;
+  const priority = typeof meta.priority === 'string' ? meta.priority : undefined;
+  const channel = typeof meta.channel === 'string' ? meta.channel : undefined;
+  const source = typeof meta.source === 'string' ? meta.source : undefined;
+  const newStatus = typeof meta.newStatus === 'string' ? meta.newStatus : status;
+
+  if (c.status && c.status !== status) return false;
+  if (c.newStatus && c.newStatus !== newStatus) return false;
+  if (c.priority && c.priority !== priority) return false;
+  if (c.channel && c.channel !== channel) return false;
+  if (c.source && c.source !== source) return false;
+  return true;
 }
 
 async function runAction(
@@ -63,7 +111,12 @@ async function runAction(
     return { type, ok: true };
   }
 
-  return { type, ok: true, logged: true };
+  return {
+    type,
+    ok: true,
+    logged: true,
+    message: (action as { message?: string }).message || payload.summary || event,
+  };
 }
 
 /**
@@ -79,14 +132,15 @@ export async function dispatchWorkflowEvent(
       where: {
         userId: payload.userId,
         isActive: true,
-        OR: [{ trigger: event }, { trigger: 'manual' }],
+        trigger: event,
       },
     });
 
-    // Only run workflows whose trigger exactly matches (manual only via explicit call)
-    const matched = workflows.filter((w) => w.trigger === event);
+    for (const workflow of workflows) {
+      if (!matchesWorkflowConditions(workflow.conditions, payload)) {
+        continue;
+      }
 
-    for (const workflow of matched) {
       const actions = asActions(workflow.actions);
       const results: unknown[] = [];
       let status = 'SUCCESS';

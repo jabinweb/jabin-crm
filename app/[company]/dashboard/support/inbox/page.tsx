@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -24,6 +25,7 @@ import {
   Circle,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { InboxReplySheet } from '@/components/support/inbox-reply-sheet';
 import { SupportBackLink } from '@/components/support/support-back-link';
@@ -52,6 +54,7 @@ const channelBadge = (ch: string) => {
 };
 
 export default function OmnichannelInboxPage() {
+  const router = useRouter();
   const { path, workspaceFetch } = useWorkspacePaths();
   const [channel, setChannel] = useState('all');
   const [search, setSearch] = useState('');
@@ -81,8 +84,17 @@ export default function OmnichannelInboxPage() {
       return;
     }
     if (item.type === 'chat') {
-      window.location.href = `${path('/dashboard/support/inbox')}?chat=${item.id}`;
+      const sessionId = item.sessionId || item.id;
+      router.push(`${path('/dashboard/support/live-chat')}?session=${encodeURIComponent(sessionId)}`);
+      return;
     }
+    if (item.type === 'whatsapp' && item.chatKey) {
+      router.push(
+        `${path('/dashboard/whatsapp')}?chat=${encodeURIComponent(item.chatKey)}`
+      );
+      return;
+    }
+    toast.info('Open the WhatsApp or Live chat desk to continue this conversation.');
   };
 
   return (
@@ -93,7 +105,8 @@ export default function OmnichannelInboxPage() {
             <SupportBackLink />
             <h1 className="text-3xl font-bold tracking-tight">Omnichannel inbox</h1>
             <p className="text-muted-foreground mt-1">
-              One queue for tickets, live chat, and WhatsApp — click a ticket to reply inline.
+              One queue for tickets, live chat, and WhatsApp — tickets open inline; unticketed
+              chats go to Live chat or WhatsApp.
             </p>
           </div>
           <div className="flex gap-2">

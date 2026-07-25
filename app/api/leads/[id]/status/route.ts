@@ -64,7 +64,7 @@ export async function PATCH(
       companyId: lead.companyId,
       title: 'Lead updated',
       summary: `Lead status → ${data.status}`,
-      metadata: { oldStatus: lead.status, newStatus: data.status },
+      metadata: { oldStatus: lead.status, newStatus: data.status, status: data.status },
     });
 
     return NextResponse.json(updatedLead);

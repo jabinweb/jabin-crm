@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,8 +47,14 @@ export default function LiveChatDeskPage() {
 function LiveChatDesk() {
   const { workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const sessionFromUrl = searchParams.get('session');
+  const [selectedId, setSelectedId] = useState<string | null>(sessionFromUrl);
   const [reply, setReply] = useState('');
+
+  useEffect(() => {
+    if (sessionFromUrl) setSelectedId(sessionFromUrl);
+  }, [sessionFromUrl]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['live-chat-sessions'],

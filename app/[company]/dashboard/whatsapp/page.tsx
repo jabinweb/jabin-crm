@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,14 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
@@ -30,6 +39,7 @@ import {
   Link2,
   Loader2,
   MessageSquare,
+  MessageSquarePlus,
   Paperclip,
   Phone,
   QrCode,
@@ -54,6 +64,7 @@ import {
   normalizeWhatsAppChatJid,
   resolveWhatsAppSenderName,
 } from '@/lib/crm/whatsapp-chat';
+import { CrmLinkFields } from '@/components/whatsapp/crm-link-fields';
 
 type WaMessage = {
   id: string;
@@ -201,6 +212,7 @@ function statusLabel(status?: string) {
 
 export default function WhatsAppHubPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [messages, setMessages] = useState<WaMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -212,6 +224,9 @@ export default function WhatsAppHubPage() {
   const [mainTab, setMainTab] = useState('inbox');
   const [chatSearch, setChatSearch] = useState('');
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
+  const [draftChatKey, setDraftChatKey] = useState<string | null>(null);
+  const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newChatPhone, setNewChatPhone] = useState('');
   const [linkIdsOpen, setLinkIdsOpen] = useState(false);
   const threadEndRef = useRef<HTMLDivElement>(null);
   const skipThreadAutoScrollRef = useRef(false);
@@ -901,16 +916,65 @@ export default function WhatsAppHubPage() {
     );
   }, [messages, groups, contacts, waChats]);
 
+  const threadsWithDraft = useMemo(() => {
+    if (!draftChatKey) return threads;
+    const key = draftChatKey;
+    if (threads.some((t) => t.key === key)) return threads;
+    const contactName = lookupContactName(contacts, key);
+    return [
+      {
+        key,
+        label: contactName || key,
+        isGroup: key.endsWith('@g.us'),
+        lastMessage: {
+          id: `draft_${key}`,
+          createdAt: new Date().toISOString(),
+          direction: 'OUTBOUND',
+          status: 'QUEUED',
+          message: '',
+          chatJid: key,
+        },
+        messages: [],
+        preview: 'New chat',
+      } satisfies ChatThread,
+      ...threads,
+    ];
+  }, [threads, draftChatKey, contacts]);
+
   const filteredThreads = useMemo(() => {
     const q = chatSearch.trim().toLowerCase();
-    if (!q) return threads;
-    return threads.filter(
+    if (!q) return threadsWithDraft;
+    return threadsWithDraft.filter(
       (t) =>
         t.label.toLowerCase().includes(q) ||
         t.preview.toLowerCase().includes(q) ||
         t.key.toLowerCase().includes(q)
     );
-  }, [threads, chatSearch]);
+  }, [threadsWithDraft, chatSearch]);
+
+  const openChatByKey = (raw: string) => {
+    const normalized = normalizeWhatsAppChatJid(raw);
+    if (!normalized) return;
+    const key = normalized.endsWith('@g.us')
+      ? normalized
+      : normalized.replace(/@s\.whatsapp\.net$/i, '').replace(/@lid$/i, '');
+    const digitsOrJid = key.replace(/^\+/, '');
+    setDraftChatKey(digitsOrJid);
+    setSelectedChatKey(digitsOrJid);
+    setMainTab('inbox');
+    setForm((f) => ({
+      ...f,
+      toPhone: digitsOrJid.endsWith('@g.us') ? digitsOrJid : digitsOrJid,
+    }));
+  };
+
+  useEffect(() => {
+    const chatParam = searchParams.get('chat');
+    if (!chatParam) return;
+    openChatByKey(chatParam);
+    // Only apply deep-link once when param appears
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     // Mobile: keep list-first (don't auto-open a chat). Desktop: select first thread.
@@ -922,7 +986,8 @@ export default function WhatsAppHubPage() {
       if (
         selectedChatKey &&
         filteredThreads.length > 0 &&
-        !filteredThreads.some((t) => t.key === selectedChatKey)
+        !filteredThreads.some((t) => t.key === selectedChatKey) &&
+        selectedChatKey !== draftChatKey
       ) {
         setSelectedChatKey(null);
       }
@@ -934,11 +999,24 @@ export default function WhatsAppHubPage() {
     } else if (
       selectedChatKey &&
       filteredThreads.length > 0 &&
-      !filteredThreads.some((t) => t.key === selectedChatKey)
+      !filteredThreads.some((t) => t.key === selectedChatKey) &&
+      selectedChatKey !== draftChatKey
     ) {
       setSelectedChatKey(filteredThreads[0].key);
     }
-  }, [filteredThreads, selectedChatKey]);
+  }, [filteredThreads, selectedChatKey, draftChatKey]);
+
+  const startNewChat = () => {
+    const raw = newChatPhone.trim();
+    if (!raw) {
+      toast.error('Enter a phone number with country code');
+      return;
+    }
+    openChatByKey(raw);
+    setNewChatOpen(false);
+    setNewChatPhone('');
+    toast.success('Chat ready — type a message to send');
+  };
 
   const activeThread = filteredThreads.find((t) => t.key === selectedChatKey) || null;
   const activeLastMessageId =
@@ -1229,14 +1307,26 @@ export default function WhatsAppHubPage() {
               )}
             >
               <div className="space-y-2 border-b p-3">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    value={chatSearch}
-                    onChange={(e) => setChatSearch(e.target.value)}
-                    placeholder="Search chats…"
-                    className="h-9 pl-8"
-                  />
+                <div className="flex items-center gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={chatSearch}
+                      onChange={(e) => setChatSearch(e.target.value)}
+                      placeholder="Search chats…"
+                      className="h-9 pl-8"
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-9 w-9 shrink-0"
+                    title="New chat"
+                    onClick={() => setNewChatOpen(true)}
+                  >
+                    <MessageSquarePlus className="h-4 w-4" />
+                  </Button>
                 </div>
                 <div className="flex items-center gap-2">
                   <Select
@@ -1272,10 +1362,14 @@ export default function WhatsAppHubPage() {
                     <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
                     <p className="text-sm font-medium">No conversations yet</p>
                     <p className="text-xs text-muted-foreground">
-                      Connect WhatsApp and set an inbox filter — matching messages appear here.
+                      Connect WhatsApp and set an inbox filter — or start a new chat.
                     </p>
+                    <Button size="sm" className="mt-2" onClick={() => setNewChatOpen(true)}>
+                      <MessageSquarePlus className="mr-1.5 h-3.5 w-3.5" />
+                      New chat
+                    </Button>
                     {isSummoraLive && !connected && (
-                      <Button size="sm" className="mt-2" onClick={() => setMainTab('setup')}>
+                      <Button size="sm" variant="outline" className="mt-1" onClick={() => setMainTab('setup')}>
                         Open connection
                       </Button>
                     )}
@@ -1525,12 +1619,12 @@ export default function WhatsAppHubPage() {
                                   </div>
                                 )}
                               </div>
-                              <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                              <div className="flex flex-wrap gap-0.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 px-1.5 text-[10px]"
+                                  className="h-8 min-w-8 px-2 text-[10px] md:h-6 md:px-1.5"
                                   onClick={() => setReplyTo(msg)}
                                 >
                                   <CornerUpLeft className="mr-0.5 h-3 w-3" />
@@ -1542,7 +1636,7 @@ export default function WhatsAppHubPage() {
                                     type="button"
                                     size="sm"
                                     variant="ghost"
-                                    className="h-6 w-6 px-0 text-xs"
+                                    className="h-8 w-8 px-0 text-xs md:h-6 md:w-6"
                                     onClick={() => void sendReaction(msg, emoji)}
                                   >
                                     {emoji}
@@ -1659,7 +1753,7 @@ export default function WhatsAppHubPage() {
                         </Button>
                       </div>
                       <p className="px-1 text-[10px] text-muted-foreground">
-                        Hover a message to reply or react · Attach images, video, audio, docs
+                        Reply or react under a message · Attach images, video, audio, docs
                       </p>
                       <div className="flex flex-wrap items-center gap-2 px-1">
                         <Input
@@ -1687,26 +1781,12 @@ export default function WhatsAppHubPage() {
                               />
                             </Button>
                           </CollapsibleTrigger>
-                          <CollapsibleContent className="grid gap-1.5 pt-1 sm:grid-cols-3">
-                            <Input
-                              placeholder="Lead ID"
-                              value={form.leadId}
-                              onChange={(e) => setForm({ ...form, leadId: e.target.value })}
-                              className="h-7 text-xs"
-                            />
-                            <Input
-                              placeholder="Customer ID"
-                              value={form.customerId}
-                              onChange={(e) =>
-                                setForm({ ...form, customerId: e.target.value })
-                              }
-                              className="h-7 text-xs"
-                            />
-                            <Input
-                              placeholder="Ticket ID"
-                              value={form.ticketId}
-                              onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
-                              className="h-7 text-xs"
+                          <CollapsibleContent>
+                            <CrmLinkFields
+                              leadId={form.leadId}
+                              customerId={form.customerId}
+                              ticketId={form.ticketId}
+                              onChange={(next) => setForm((f) => ({ ...f, ...next }))}
                             />
                           </CollapsibleContent>
                         </Collapsible>
@@ -1728,6 +1808,41 @@ export default function WhatsAppHubPage() {
               )}
             </div>
           </div>
+
+          <Dialog open={newChatOpen} onOpenChange={setNewChatOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>New chat</DialogTitle>
+                <DialogDescription>
+                  Start a conversation with a phone number (include country code).
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2 py-2">
+                <Label htmlFor="wa-new-phone">Phone</Label>
+                <Input
+                  id="wa-new-phone"
+                  value={newChatPhone}
+                  onChange={(e) => setNewChatPhone(e.target.value)}
+                  placeholder="+919876543210"
+                  className="h-11"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      startNewChat();
+                    }
+                  }}
+                />
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button type="button" variant="outline" onClick={() => setNewChatOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={startNewChat}>
+                  Open chat
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* ——— Connection & filter ——— */}

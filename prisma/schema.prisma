@@ -94,6 +94,10 @@ model User {
   featureModules      FeatureModuleSetting[]
   assignedVisits      CustomerVisit[]         @relation("VisitTechnician")
   createdVisits       CustomerVisit[]         @relation("VisitCreator")
+  demoUnitsCustodian  DemoEquipmentUnit[]     @relation("DemoUnitCustodian")
+  demoMovementsCreated DemoEquipmentMovement[] @relation("DemoMovementCreator")
+  demoMovementsFrom   DemoEquipmentMovement[] @relation("DemoMovementFromCustodian")
+  demoMovementsTo     DemoEquipmentMovement[] @relation("DemoMovementToCustodian")
 
   // ── Company Management Integration ──
   password         String?
@@ -931,6 +935,9 @@ model Customer {
   departments            CustomerDepartment[]
   visits                 CustomerVisit[]
   equipmentInstallations EquipmentInstallation[]
+  demoEquipmentUnits     DemoEquipmentUnit[]
+  demoMovementsFrom      DemoEquipmentMovement[] @relation("DemoMoveFromCustomer")
+  demoMovementsTo        DemoEquipmentMovement[] @relation("DemoMoveToCustomer")
   serviceContracts       ServiceContract[]
   invoices               Invoice[]
   quotations             Quotation[]
@@ -1088,6 +1095,7 @@ model Product {
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
   installations EquipmentInstallation[]
+  demoUnits     DemoEquipmentUnit[]
 
   // ── Inventory & Stock Management (from Company Manager) ──
   sku              String?           @unique
@@ -1140,6 +1148,97 @@ model EquipmentInstallation {
   @@index([customerId])
   @@index([serialNumber])
   @@index([status])
+}
+
+/// Loanable / movable demo machines, equipment, and instruments (serial custody).
+enum DemoUnitKind {
+  DEMO_MACHINE
+  EQUIPMENT
+  INSTRUMENT
+}
+
+enum DemoUnitStatus {
+  IN_STOCK
+  ON_DEMO
+  AT_CUSTOMER
+  IN_TRANSIT
+  MAINTENANCE
+  RETIRED
+}
+
+enum DemoMovementType {
+  CHECKOUT
+  TRANSFER
+  RETURN
+  RELOCATE
+  MAINTENANCE
+  RETIRE
+}
+
+model DemoEquipmentUnit {
+  id                 String           @id @default(cuid())
+  companyId          String
+  productId          String?
+  name               String
+  kind               DemoUnitKind     @default(DEMO_MACHINE)
+  serialNumber       String?
+  assetTag           String?
+  status             DemoUnitStatus   @default(IN_STOCK)
+  currentLocationId  String?
+  currentCustomerId  String?
+  custodianUserId    String?
+  notes              String?
+  expectedReturnAt   DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  company            Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  product            Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  currentLocation    Location?        @relation("DemoUnitLocation", fields: [currentLocationId], references: [id], onDelete: SetNull)
+  currentCustomer    Customer?        @relation(fields: [currentCustomerId], references: [id], onDelete: SetNull)
+  custodian          User?            @relation("DemoUnitCustodian", fields: [custodianUserId], references: [id], onDelete: SetNull)
+  movements          DemoEquipmentMovement[]
+
+  @@index([companyId])
+  @@index([productId])
+  @@index([status])
+  @@index([kind])
+  @@index([serialNumber])
+  @@index([currentLocationId])
+  @@index([currentCustomerId])
+  @@index([custodianUserId])
+}
+
+model DemoEquipmentMovement {
+  id               String           @id @default(cuid())
+  companyId        String
+  unitId           String
+  type             DemoMovementType
+  fromLocationId   String?
+  toLocationId     String?
+  fromCustomerId   String?
+  toCustomerId     String?
+  fromCustodianId  String?
+  toCustodianId    String?
+  purpose          String?
+  notes            String?
+  movedAt          DateTime         @default(now())
+  expectedReturnAt DateTime?
+  createdById      String?
+  createdAt        DateTime         @default(now())
+  company          Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  unit             DemoEquipmentUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  fromLocation     Location?        @relation("DemoMoveFromLocation", fields: [fromLocationId], references: [id], onDelete: SetNull)
+  toLocation       Location?        @relation("DemoMoveToLocation", fields: [toLocationId], references: [id], onDelete: SetNull)
+  fromCustomer     Customer?        @relation("DemoMoveFromCustomer", fields: [fromCustomerId], references: [id], onDelete: SetNull)
+  toCustomer       Customer?        @relation("DemoMoveToCustomer", fields: [toCustomerId], references: [id], onDelete: SetNull)
+  fromCustodian    User?            @relation("DemoMovementFromCustodian", fields: [fromCustodianId], references: [id], onDelete: SetNull)
+  toCustodian      User?            @relation("DemoMovementToCustodian", fields: [toCustodianId], references: [id], onDelete: SetNull)
+  createdBy        User?            @relation("DemoMovementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([unitId])
+  @@index([type])
+  @@index([movedAt])
 }
 
 /// Annual / Comprehensive Maintenance Contracts (AMC / CMC) for service customers.
@@ -2006,6 +2105,8 @@ model Company {
   companyAgent      CompanyAgent?
   visitTags         VisitTag[]
   customerVisits    CustomerVisit[]
+  demoEquipmentUnits DemoEquipmentUnit[]
+  demoEquipmentMovements DemoEquipmentMovement[]
 
   @@index([slug])
   @@index([status])
@@ -2408,6 +2509,9 @@ model Location {
   products         Product[]         @relation("ProductLocations")
   transfersFrom    StockTransfer[]   @relation("TransferSource")
   transfersTo      StockTransfer[]   @relation("TransferTarget")
+  demoUnitsHere    DemoEquipmentUnit[] @relation("DemoUnitLocation")
+  demoMovesFrom    DemoEquipmentMovement[] @relation("DemoMoveFromLocation")
+  demoMovesTo      DemoEquipmentMovement[] @relation("DemoMoveToLocation")
 
   @@index([companyId])
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CalendarClock, Check, X } from 'lucide-react';
+import { CalendarClock, Check, Pencil, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { EasyBottomSheet, EasyFab } from '@/components/customers/easy-bottom-sheet';
 import { cn } from '@/lib/utils';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 type Tag = { id: string; name: string; color?: string | null };
 type Contact = { id: string; name: string };
@@ -28,17 +30,26 @@ type Visit = {
   status: string;
   notes?: string | null;
   recurrenceRule?: string;
+  recurrenceUntil?: string | null;
   department?: Department | null;
   assignedTechnician?: { id: string; name?: string | null } | null;
   tags?: Array<{ tag: Tag }>;
   contacts?: Array<{ contact: Contact }>;
 };
 
-function toLocalInputValue(iso?: string) {
+function toLocalInputValue(iso?: string | null) {
   const d = iso ? new Date(iso) : new Date();
   if (Number.isNaN(d.getTime())) return '';
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toLocalDateValue(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 function formatWhen(iso: string) {
@@ -81,8 +92,10 @@ export function CustomerVisitsTab({
   departments: Department[];
   workspaceFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }) {
+  const { path } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [scheduledAt, setScheduledAt] = useState(toLocalInputValue());
@@ -90,10 +103,11 @@ export function CustomerVisitsTab({
   const [departmentId, setDepartmentId] = useState('');
   const [technicianId, setTechnicianId] = useState('');
   const [recurrenceRule, setRecurrenceRule] = useState('NONE');
+  const [recurrenceUntil, setRecurrenceUntil] = useState('');
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [contactIds, setContactIds] = useState<string[]>([]);
 
-  const { data: tagsData } = useQuery({
+  const { data: tagsData, isLoading: tagsLoading } = useQuery({
     queryKey: ['visit-tags', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/visit-tags');
@@ -133,44 +147,75 @@ export function CustomerVisitsTab({
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
 
   const resetForm = () => {
+    setEditingId(null);
     setScheduledAt(toLocalInputValue());
     setNotes('');
     setDepartmentId('');
     setTechnicianId('');
     setRecurrenceRule('NONE');
+    setRecurrenceUntil('');
     setTagIds([]);
     setContactIds([]);
     setStep(1);
   };
 
-  const createVisit = async () => {
+  const openCreate = () => {
+    resetForm();
+    setOpen(true);
+  };
+
+  const openEdit = (visit: Visit) => {
+    setEditingId(visit.id);
+    setScheduledAt(toLocalInputValue(visit.scheduledAt));
+    setNotes(visit.notes || '');
+    setDepartmentId(visit.department?.id || '');
+    setTechnicianId(visit.assignedTechnician?.id || '');
+    setRecurrenceRule(visit.recurrenceRule || 'NONE');
+    setRecurrenceUntil(toLocalDateValue(visit.recurrenceUntil));
+    setTagIds(visit.tags?.map((t) => t.tag.id) || []);
+    setContactIds(visit.contacts?.map((c) => c.contact.id) || []);
+    setStep(1);
+    setOpen(true);
+  };
+
+  const saveVisit = async () => {
     if (!scheduledAt) {
       toast.error('Pick a date & time');
       return;
     }
     setBusy(true);
     try {
-      const res = await workspaceFetch(`/api/customers/${customerId}/visits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scheduledAt: new Date(scheduledAt).toISOString(),
-          notes: notes.trim() || null,
-          departmentId: departmentId || null,
-          assignedTechnicianId: technicianId || null,
-          recurrenceRule,
-          tagIds,
-          contactIds,
-        }),
-      });
+      const payload = {
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        notes: notes.trim() || null,
+        departmentId: departmentId || null,
+        assignedTechnicianId: technicianId || null,
+        recurrenceRule,
+        recurrenceUntil:
+          recurrenceRule !== 'NONE' && recurrenceUntil
+            ? new Date(`${recurrenceUntil}T23:59:59`).toISOString()
+            : null,
+        tagIds,
+        contactIds,
+      };
+      const res = await workspaceFetch(
+        editingId
+          ? `/api/customers/${customerId}/visits/${editingId}`
+          : `/api/customers/${customerId}/visits`,
+        {
+          method: editingId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      );
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Could not schedule');
-      toast.success('Visit scheduled');
+      if (!res.ok) throw new Error(body.error || 'Could not save visit');
+      toast.success(editingId ? 'Visit updated' : 'Visit scheduled');
       setOpen(false);
       resetForm();
       invalidate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not schedule');
+      toast.error(e instanceof Error ? e.message : 'Could not save');
     } finally {
       setBusy(false);
     }
@@ -188,6 +233,20 @@ export function CustomerVisitsTab({
       invalidate();
     } catch {
       toast.error('Could not update');
+    }
+  };
+
+  const deleteVisit = async (visitId: string) => {
+    if (!window.confirm('Delete this visit?')) return;
+    try {
+      const res = await workspaceFetch(`/api/customers/${customerId}/visits/${visitId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed');
+      toast.success('Visit deleted');
+      invalidate();
+    } catch {
+      toast.error('Could not delete');
     }
   };
 
@@ -239,6 +298,24 @@ export function CustomerVisitsTab({
               Cancel
             </Button>
           </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <Button
+              variant="secondary"
+              className="h-10"
+              onClick={() => openEdit(upcoming[0])}
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button
+              variant="ghost"
+              className="h-10 text-destructive"
+              onClick={() => void deleteVisit(upcoming[0].id)}
+            >
+              <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </div>
         </div>
       ) : null}
 
@@ -281,6 +358,9 @@ export function CustomerVisitsTab({
                 {v.recurrenceRule && v.recurrenceRule !== 'NONE' ? (
                   <Badge variant="outline" className="font-normal">
                     {v.recurrenceRule === 'WEEKLY' ? 'Weekly' : 'Monthly'}
+                    {v.recurrenceUntil
+                      ? ` · until ${new Date(v.recurrenceUntil).toLocaleDateString()}`
+                      : ''}
                   </Badge>
                 ) : null}
               </div>
@@ -296,36 +376,65 @@ export function CustomerVisitsTab({
                   .join(' · ') || (v.notes ? null : 'No extras')}
               </p>
               {v.notes ? <p className="text-sm">{v.notes}</p> : null}
-              {v.status === 'SCHEDULED' && upcoming[0]?.id !== v.id ? (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button
-                    variant="secondary"
-                    className="h-11"
-                    onClick={() => setStatus(v.id, 'COMPLETED')}
-                  >
-                    Done
-                  </Button>
+              {v.status === 'SCHEDULED' ? (
+                <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4">
+                  {upcoming[0]?.id !== v.id ? (
+                    <>
+                      <Button
+                        variant="secondary"
+                        className="h-11"
+                        onClick={() => setStatus(v.id, 'COMPLETED')}
+                      >
+                        Done
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-11"
+                        onClick={() => setStatus(v.id, 'CANCELLED')}
+                      >
+                        Cancel
+                      </Button>
+                    </>
+                  ) : null}
                   <Button
                     variant="outline"
                     className="h-11"
-                    onClick={() => setStatus(v.id, 'CANCELLED')}
+                    onClick={() => openEdit(v)}
                   >
-                    Cancel
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-11 text-destructive"
+                    onClick={() => void deleteVisit(v.id)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete
                   </Button>
                 </div>
-              ) : null}
+              ) : (
+                <div className="flex gap-2 pt-1">
+                  <Button variant="outline" className="h-10" onClick={() => openEdit(v)}>
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="h-10 text-destructive"
+                    onClick={() => void deleteVisit(v.id)}
+                  >
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                    Delete
+                  </Button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      <EasyFab
-        label="+ Schedule visit"
-        onClick={() => {
-          resetForm();
-          setOpen(true);
-        }}
-      />
+      <EasyFab label="+ Schedule visit" onClick={openCreate} />
 
       <EasyBottomSheet
         open={open}
@@ -333,7 +442,7 @@ export function CustomerVisitsTab({
           setOpen(v);
           if (!v) resetForm();
         }}
-        title="Schedule visit"
+        title={editingId ? 'Edit visit' : 'Schedule visit'}
         description={step === 1 ? 'When & what kind?' : 'Who & extras (optional)'}
         footer={
           step === 1 ? (
@@ -363,10 +472,10 @@ export function CustomerVisitsTab({
               <Button
                 size="lg"
                 className="h-12 text-base font-semibold"
-                onClick={createVisit}
+                onClick={() => void saveVisit()}
                 disabled={busy}
               >
-                {busy ? 'Saving…' : 'Schedule'}
+                {busy ? 'Saving…' : editingId ? 'Save' : 'Schedule'}
               </Button>
             </div>
           )
@@ -387,8 +496,19 @@ export function CustomerVisitsTab({
             <div className="grid gap-2">
               <Label>Type (tap to select)</Label>
               <div className="flex flex-wrap gap-2">
-                {tags.length === 0 ? (
+                {tagsLoading ? (
                   <p className="text-sm text-muted-foreground">Loading tags…</p>
+                ) : tags.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No visit tags yet.{' '}
+                    <Link
+                      href={path('/dashboard/settings')}
+                      className="underline underline-offset-2"
+                    >
+                      Add them under Settings → Business
+                    </Link>
+                    .
+                  </p>
                 ) : (
                   tags.map((t) => {
                     const on = tagIds.includes(t.id);
@@ -444,6 +564,18 @@ export function CustomerVisitsTab({
                 ))}
               </div>
             </div>
+            {recurrenceRule !== 'NONE' ? (
+              <div className="grid gap-2">
+                <Label htmlFor="v-until">Repeat until (optional)</Label>
+                <Input
+                  id="v-until"
+                  type="date"
+                  className="h-12 text-base"
+                  value={recurrenceUntil}
+                  onChange={(e) => setRecurrenceUntil(e.target.value)}
+                />
+              </div>
+            ) : null}
           </div>
         ) : (
           <div className="grid gap-4 pb-2">
