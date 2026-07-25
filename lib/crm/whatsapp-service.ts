@@ -589,16 +589,7 @@ export class WhatsAppService {
       },
     });
 
-    if (body.trim()) {
-      const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
-      ensureWhatsAppTicket({
-        userId,
-        fromPhone: from,
-        message: body,
-        messageLogId: created.id,
-      }).catch((err) => console.error('[whatsapp-ticket]', err));
-    }
-
+    // Do not auto-create support tickets from WhatsApp — inbox is chat-only.
     return created;
   }
 
@@ -649,16 +640,6 @@ export class WhatsAppService {
           metadata: msg,
         },
       });
-      const body = msg?.text?.body || '';
-      if (body.trim()) {
-        const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
-        ensureWhatsAppTicket({
-          userId,
-          fromPhone: msg.from || '',
-          message: body,
-          messageLogId: created.id,
-        }).catch((err) => console.error('[whatsapp-ticket]', err));
-      }
     }
 
     return { ok: true };
@@ -854,21 +835,7 @@ export class WhatsAppService {
         },
       });
 
-      // Support tickets are for 1:1 inbound DMs only
-      if (
-        !fromMe &&
-        body.trim() &&
-        data.kind !== 'reaction' &&
-        !isWhatsAppGroupJid(chatJid)
-      ) {
-        const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
-        ensureWhatsAppTicket({
-          userId,
-          fromPhone: peer,
-          message: body,
-          messageLogId: created.id,
-        }).catch((err) => console.error('[whatsapp-ticket]', err));
-      }
+      // WhatsApp stays in the inbox — do not auto-create support tickets.
       return created;
     }
 
