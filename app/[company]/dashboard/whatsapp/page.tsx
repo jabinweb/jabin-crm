@@ -415,7 +415,7 @@ export default function WhatsAppHubPage() {
       map.set(key, list);
     }
     const result: ChatThread[] = [];
-    for (const [key, msgs] of map.entries()) {
+    for (const [key, msgs] of Array.from(map.entries())) {
       const sorted = [...msgs].sort(
         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
