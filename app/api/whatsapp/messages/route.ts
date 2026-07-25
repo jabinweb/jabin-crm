@@ -6,6 +6,10 @@ export const GET = withSessionRoute(async (req, { userId }) => {
   await ensureFeatureEnabled(userId, 'WHATSAPP');
   const { searchParams } = req.nextUrl;
   const respectInboxFilter = searchParams.get('respectInboxFilter') !== '0';
+  const before = searchParams.get('before') || undefined;
+  const chatJid = searchParams.get('chatJid') || undefined;
+  const limitRaw = Number(searchParams.get('limit') || 100);
+  const limit = Number.isFinite(limitRaw) ? limitRaw : 100;
 
   const result = await whatsAppService.listMessages(userId, {
     channel: (searchParams.get('channel') as any) || undefined,
@@ -13,11 +17,10 @@ export const GET = withSessionRoute(async (req, { userId }) => {
     customerId: searchParams.get('customerId') || undefined,
     ticketId: searchParams.get('ticketId') || undefined,
     respectInboxFilter,
+    before,
+    chatJid,
+    limit,
   });
 
-  // Backward compatible: array at top level was previous shape; keep messages key + array alias
-  return jsonOk({
-    ...result,
-    // legacy consumers that expected a bare array still get messages
-  });
+  return jsonOk(result);
 });

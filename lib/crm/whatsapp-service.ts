@@ -7,6 +7,7 @@ import {
   isWhatsAppGroupJid,
   messageMatchesInboxFilter,
   normalizeWhatsAppChatJid,
+  resolveWhatsAppSenderName,
 } from '@/lib/crm/whatsapp-chat';
 
 interface SendWhatsAppInput {
@@ -39,6 +40,7 @@ export class WhatsAppService {
   async sendMessage(input: SendWhatsAppInput) {
     const config = await this.getProviderConfig(input.userId);
     const toPhone = normalizeWhatsAppNumber(input.toPhone);
+    const chatJid = normalizeWhatsAppChatJid(input.toPhone);
 
     const messageLog = await prisma.whatsAppMessage.create({
       data: {
@@ -49,8 +51,15 @@ export class WhatsAppService {
         channel: input.channel,
         direction: 'OUTBOUND',
         toPhone,
+        fromPhone: chatJid,
         message: input.message,
         status: 'QUEUED',
+        metadata: {
+          remoteJid: chatJid,
+          isGroup: isWhatsAppGroupJid(chatJid),
+          senderName: 'You',
+          fromMe: true,
+        },
       },
     });
 
@@ -267,7 +276,13 @@ export class WhatsAppService {
           status: 'SENT',
           sentAt: new Date(),
           externalMessageId: result?.id || null,
-          metadata: result,
+          metadata: {
+            remoteJid: normalizeWhatsAppChatJid(input.toPhone),
+            isGroup: isWhatsAppGroupJid(input.toPhone),
+            senderName: 'You',
+            fromMe: true,
+            summora: result,
+          },
         },
       });
     } catch (error: any) {
@@ -290,14 +305,26 @@ export class WhatsAppService {
       ticketId?: string;
       /** When true (default), hide chats outside the Summora inbox filter. */
       respectInboxFilter?: boolean;
+      /** Load messages older than this ISO timestamp (for Load more). */
+      before?: string;
+      limit?: number;
+      chatJid?: string;
     }
   ) {
-    const where: any = { userId };
+    const limit = Math.min(Math.max(filters?.limit ?? 100, 1), 200);
+    const where: Record<string, unknown> = { userId };
     if (filters?.channel) where.channel = filters.channel;
     if (filters?.leadId) where.leadId = filters.leadId;
     if (filters?.customerId) where.customerId = filters.customerId;
     if (filters?.ticketId) where.ticketId = filters.ticketId;
+    if (filters?.before) {
+      const beforeDate = new Date(filters.before);
+      if (!Number.isNaN(beforeDate.getTime())) {
+        where.createdAt = { lt: beforeDate };
+      }
+    }
 
+    // Over-fetch so inbox filter / chat filter still yield a full page
     const rows = await prisma.whatsAppMessage.findMany({
       where,
       include: {
@@ -306,7 +333,7 @@ export class WhatsAppService {
         ticket: { select: { id: true, subject: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: 400,
+      take: Math.min(limit * 4, 500),
     });
 
     const respect = filters?.respectInboxFilter !== false;
@@ -328,35 +355,59 @@ export class WhatsAppService {
       }
     }
 
+    const wantChat = filters?.chatJid
+      ? normalizeWhatsAppChatJid(filters.chatJid)
+      : null;
+
     const enriched = rows
       .map((msg) => {
         const chatJid = extractWhatsAppChatJid(msg);
         const meta = (msg.metadata || {}) as Record<string, unknown>;
         const data = (meta.data || {}) as Record<string, unknown>;
-        const senderName = String(
-          meta.senderName ||
-            meta.pushName ||
-            data.sender ||
-            data.pushName ||
-            ''
-        ).trim();
+        const fromMe =
+          msg.direction === 'OUTBOUND' ||
+          meta.fromMe === true ||
+          data.fromMe === true;
+        const senderName = resolveWhatsAppSenderName({
+          fromMe,
+          chatJid,
+          sender: data.sender ?? meta.sender,
+          pushName: data.pushName ?? meta.pushName,
+          participant: data.participant ?? meta.participant,
+          senderName: meta.senderName,
+        });
         return {
           ...msg,
           chatJid,
           isGroup: isWhatsAppGroupJid(chatJid),
-          senderName: senderName || null,
+          senderName,
         };
       })
-      .filter((msg) =>
-        respect
-          ? messageMatchesInboxFilter(msg.chatJid, filterType, allowedJids)
-          : true
-      )
-      .slice(0, 200);
+      .filter((msg) => {
+        if (
+          respect &&
+          !messageMatchesInboxFilter(msg.chatJid, filterType, allowedJids)
+        ) {
+          return false;
+        }
+        if (wantChat && normalizeWhatsAppChatJid(msg.chatJid) !== wantChat) {
+          return false;
+        }
+        return true;
+      });
+
+    const page = enriched.slice(0, limit);
+    const hasMore = enriched.length > limit;
+    const nextCursor = page.length
+      ? page[page.length - 1].createdAt.toISOString?.() ||
+        String(page[page.length - 1].createdAt)
+      : null;
 
     return {
-      messages: enriched,
+      messages: page,
       inboxFilter: { filterType, allowedJids },
+      hasMore,
+      nextCursor,
     };
   }
 
@@ -510,7 +561,7 @@ export class WhatsAppService {
     const type = payload?.type as string | undefined;
     const data = payload?.data || {};
 
-    if (type === 'message.created' && userId && !data.fromMe) {
+    if (type === 'message.created' && userId) {
       const externalId = data.externalId || data.id || null;
       if (externalId) {
         const existing = await prisma.whatsAppMessage.findFirst({
@@ -519,42 +570,52 @@ export class WhatsAppService {
         if (existing) return existing;
       }
 
+      const fromMe = data.fromMe === true;
       const chatJid = normalizeWhatsAppChatJid(
-        String(data.remoteJid || data.sender || '')
+        String(data.remoteJid || (!fromMe ? data.sender : '') || '')
       );
-      // Store DM as bare number; keep full group JID (@g.us)
-      const fromPhone = chatJid.replace(/@s\.whatsapp\.net$/, '');
-      const senderName = String(
-        data.sender || data.pushName || data.participant || ''
-      ).trim();
+      if (!chatJid) {
+        return { ok: true, type, skipped: 'missing_remote_jid' };
+      }
+
+      const peer = chatJid.replace(/@s\.whatsapp\.net$/, '');
+      const senderName = resolveWhatsAppSenderName({
+        fromMe,
+        chatJid,
+        sender: data.sender,
+        pushName: data.pushName,
+        participant: data.participant,
+      });
       const body = String(data.content || '');
       const created = await prisma.whatsAppMessage.create({
         data: {
           userId,
           channel: 'SERVICE',
-          direction: 'INBOUND',
-          toPhone: fromPhone,
-          fromPhone,
+          direction: fromMe ? 'OUTBOUND' : 'INBOUND',
+          toPhone: peer,
+          fromPhone: peer,
           message: body,
           status: 'SENT',
+          sentAt: fromMe ? new Date() : undefined,
           externalMessageId: externalId ? String(externalId) : null,
           metadata: {
             ...payload,
             remoteJid: chatJid,
             isGroup: isWhatsAppGroupJid(chatJid),
             participant: data.participant || null,
-            senderName: senderName || null,
-            pushName: data.pushName || data.sender || null,
+            senderName,
+            pushName: data.pushName || null,
+            fromMe,
           },
         },
       });
 
-      // Support tickets are for 1:1 DMs only — skip group noise
-      if (body.trim() && !isWhatsAppGroupJid(chatJid)) {
+      // Support tickets are for 1:1 inbound DMs only
+      if (!fromMe && body.trim() && !isWhatsAppGroupJid(chatJid)) {
         const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
         ensureWhatsAppTicket({
           userId,
-          fromPhone,
+          fromPhone: peer,
           message: body,
           messageLogId: created.id,
         }).catch((err) => console.error('[whatsapp-ticket]', err));

@@ -38,6 +38,13 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react';
+import {
+  cacheWhatsAppMessages,
+  mergeCachedWithServer,
+  readCachedWhatsAppMessages,
+  type CachedWaMessage,
+} from '@/lib/whatsapp/local-store';
+import { normalizeWhatsAppChatJid } from '@/lib/crm/whatsapp-chat';
 
 type WaMessage = {
   id: string;
@@ -98,6 +105,8 @@ export default function WhatsAppHubPage() {
   const [savingConfig, setSavingConfig] = useState(false);
   const [channelFilter, setChannelFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [chatHasMore, setChatHasMore] = useState(false);
   const [mainTab, setMainTab] = useState('inbox');
   const [chatSearch, setChatSearch] = useState('');
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
@@ -193,29 +202,101 @@ export default function WhatsAppHubPage() {
     }
   };
 
-  const loadMessages = async (channel = channelFilter) => {
-    setLoading(true);
+  const mergeMessageLists = (a: WaMessage[], b: WaMessage[]) => {
+    const byId = new Map<string, WaMessage>();
+    for (const m of a) byId.set(m.id, m);
+    for (const m of b) byId.set(m.id, m);
+    return Array.from(byId.values()).sort(
+      (x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime()
+    );
+  };
+
+  const applyInboxMeta = (data: {
+    inboxFilter?: { filterType?: string; allowedJids?: string[] };
+  }) => {
+    if (!data?.inboxFilter?.filterType) return;
+    const next = String(data.inboxFilter.filterType).toUpperCase();
+    setFilterType(next === 'GROUPS_ONLY' || next === 'CUSTOM' ? next : 'ALL');
+    if (Array.isArray(data.inboxFilter.allowedJids)) {
+      setAllowedJids(data.inboxFilter.allowedJids);
+    }
+  };
+
+  const loadMessages = async (channel = channelFilter, opts?: { silent?: boolean }) => {
+    if (!opts?.silent) setLoading(true);
+    const userId = session?.user?.id;
     try {
+      if (userId && !opts?.silent) {
+        const cached = await readCachedWhatsAppMessages(userId, { limit: 500 });
+        if (cached.length) setMessages(cached as WaMessage[]);
+      }
+
       const params = new URLSearchParams();
       if (channel !== 'ALL') params.append('channel', channel);
+      params.set('limit', '150');
       const res = await fetch(`/api/whatsapp/messages?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load messages');
       const data = await res.json();
-      const list = Array.isArray(data) ? data : data.messages ?? [];
-      setMessages(list);
-      if (data?.inboxFilter?.filterType) {
-        const next = String(data.inboxFilter.filterType).toUpperCase();
-        setFilterType(
-          next === 'GROUPS_ONLY' || next === 'CUSTOM' ? next : 'ALL'
+      const list = (Array.isArray(data) ? data : data.messages ?? []) as WaMessage[];
+      applyInboxMeta(data);
+      setChatHasMore(!!data.hasMore);
+
+      if (userId) {
+        const merged = await mergeCachedWithServer(
+          userId,
+          list.map((m) => ({ ...m, userId })) as CachedWaMessage[]
         );
-        if (Array.isArray(data.inboxFilter.allowedJids)) {
-          setAllowedJids(data.inboxFilter.allowedJids);
-        }
+        setMessages(merged as WaMessage[]);
+      } else {
+        setMessages(list);
       }
     } catch {
-      toast.error('Failed to load WhatsApp history');
+      if (!opts?.silent) toast.error('Failed to load WhatsApp history');
     } finally {
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
+    }
+  };
+
+  const loadOlderForChat = async (chatKey: string) => {
+    const key = normalizeWhatsAppChatJid(chatKey);
+    const threadMsgs = messages.filter(
+      (m) =>
+        normalizeWhatsAppChatJid(m.chatJid || m.fromPhone || m.toPhone || '') === key
+    );
+    if (!threadMsgs.length) return;
+    const oldest = threadMsgs.reduce((a, b) =>
+      new Date(a.createdAt) < new Date(b.createdAt) ? a : b
+    );
+    setLoadingOlder(true);
+    try {
+      const params = new URLSearchParams({
+        chatJid: chatKey,
+        before: oldest.createdAt,
+        limit: '50',
+      });
+      if (channelFilter !== 'ALL') params.set('channel', channelFilter);
+      const res = await fetch(`/api/whatsapp/messages?${params}`);
+      if (!res.ok) throw new Error('Failed to load older messages');
+      const data = await res.json();
+      const list = (data.messages ?? []) as WaMessage[];
+      setChatHasMore(!!data.hasMore);
+      if (!list.length) {
+        setChatHasMore(false);
+        return;
+      }
+      const merged = mergeMessageLists(messages, list);
+      setMessages(merged);
+      const userId = session?.user?.id;
+      if (userId) {
+        await cacheWhatsAppMessages(
+          userId,
+          list.map((m) => ({ ...m, userId })) as CachedWaMessage[]
+        );
+      }
+    } catch {
+      toast.error('Could not load older messages');
+    } finally {
+      setLoadingOlder(false);
     }
   };
 
@@ -360,6 +441,19 @@ export default function WhatsAppHubPage() {
     init();
   }, []);
 
+  // Keep inbox fresh like WhatsApp Web
+  useEffect(() => {
+    if (mainTab !== 'inbox' || !featureEnabled) return;
+    const id = setInterval(() => {
+      void loadMessages(channelFilter, { silent: true });
+    }, 8000);
+    return () => clearInterval(id);
+  }, [mainTab, featureEnabled, channelFilter, session?.user?.id]);
+
+  useEffect(() => {
+    setChatHasMore(true);
+  }, [selectedChatKey]);
+
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) {
       setSummoraSession(null);
@@ -486,6 +580,24 @@ export default function WhatsAppHubPage() {
       toast.error('Recipient and message are required');
       return;
     }
+    const text = form.message;
+    const optimisticId = `local_${Date.now()}`;
+    const chatJid = normalizeWhatsAppChatJid(form.toPhone);
+    const optimistic: WaMessage = {
+      id: optimisticId,
+      createdAt: new Date().toISOString(),
+      direction: 'OUTBOUND',
+      status: 'QUEUED',
+      message: text,
+      channel: form.channel,
+      chatJid,
+      isGroup: chatJid.endsWith('@g.us'),
+      senderName: 'You',
+      toPhone: form.toPhone,
+      fromPhone: chatJid,
+    };
+    setMessages((prev) => mergeMessageLists(prev, [optimistic]));
+    setForm((f) => ({ ...f, message: '', leadId: '', customerId: '', ticketId: '' }));
     setSending(true);
     try {
       const res = await fetch('/api/whatsapp/send', {
@@ -493,7 +605,7 @@ export default function WhatsAppHubPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           toPhone: form.toPhone,
-          message: form.message,
+          message: text,
           channel: form.channel,
           leadId: form.leadId || undefined,
           customerId: form.customerId || undefined,
@@ -504,19 +616,36 @@ export default function WhatsAppHubPage() {
       const response = await res.json();
       if (response.status === 'FAILED') {
         toast.error(response.errorMessage || 'Message logged but failed to send');
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       } else {
         toast.success('Message sent');
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === optimisticId
+              ? {
+                  ...m,
+                  id: response.id || m.id,
+                  status: response.status || 'SENT',
+                }
+              : m
+          )
+        );
+        const userId = session?.user?.id;
+        if (userId && response.id) {
+          await cacheWhatsAppMessages(userId, [
+            {
+              ...optimistic,
+              id: response.id,
+              userId,
+              status: response.status || 'SENT',
+            },
+          ]);
+        }
       }
-      setForm((f) => ({
-        ...f,
-        message: '',
-        leadId: '',
-        customerId: '',
-        ticketId: '',
-      }));
-      await loadMessages();
+      await loadMessages(channelFilter, { silent: true });
     } catch {
       toast.error('Failed to send WhatsApp message');
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
     } finally {
       setSending(false);
     }
@@ -548,7 +677,7 @@ export default function WhatsAppHubPage() {
         : 'All chats';
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] min-h-[560px] flex-col gap-4">
+    <div className="flex h-[calc(100dvh-5.5rem)] min-h-[520px] flex-col gap-2">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div>
@@ -713,14 +842,14 @@ export default function WhatsAppHubPage() {
             </div>
 
             {/* Thread + composer */}
-            <div className="flex min-h-0 min-w-0 flex-col bg-muted/20">
+            <div className="flex min-h-0 min-w-0 flex-col bg-[#f0f2f5] dark:bg-muted/30">
               {activeThread ? (
                 <>
-                  <div className="flex items-center gap-3 border-b bg-background px-4 py-3">
-                    <Avatar className="h-9 w-9">
+                  <div className="flex items-center gap-3 border-b bg-background px-3 py-2.5">
+                    <Avatar className="h-8 w-8">
                       <AvatarFallback className="text-xs">
                         {activeThread.isGroup ? (
-                          <Users className="h-4 w-4" />
+                          <Users className="h-3.5 w-3.5" />
                         ) : (
                           initials(activeThread.label)
                         )}
@@ -728,66 +857,97 @@ export default function WhatsAppHubPage() {
                     </Avatar>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{activeThread.label}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {activeThread.isGroup ? 'Group chat' : 'Direct message'} ·{' '}
-                        {activeThread.messages.length} message
-                        {activeThread.messages.length === 1 ? '' : 's'}
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {activeThread.isGroup ? 'Group' : 'Chat'} ·{' '}
+                        {activeThread.messages.length} messages · cached locally
                       </p>
                     </div>
                   </div>
 
-                  <ScrollArea className="flex-1 px-4 py-4">
-                    <div className="mx-auto flex max-w-2xl flex-col gap-3">
-                      {activeThread.messages.map((msg) => {
-                        const outbound = msg.direction === 'OUTBOUND';
-                        const from =
-                          msg.senderName ||
-                          (outbound ? 'You' : activeThread.isGroup ? 'Member' : activeThread.label);
-                        return (
-                          <div
-                            key={msg.id}
-                            className={cn(
-                              'flex flex-col gap-1',
-                              outbound ? 'items-end' : 'items-start'
-                            )}
+                  <ScrollArea className="flex-1">
+                    <div className="flex min-h-full flex-col justify-end px-3 py-3 sm:px-4">
+                      <div className="mx-auto flex w-full max-w-3xl flex-col gap-1.5">
+                        <div className="mb-2 flex justify-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            className="h-7 text-xs shadow-sm"
+                            disabled={loadingOlder || !chatHasMore}
+                            onClick={() => void loadOlderForChat(activeThread.key)}
                           >
-                            {!outbound && activeThread.isGroup && (
-                              <span className="px-1 text-[10px] font-medium text-muted-foreground">
-                                {from}
-                              </span>
+                            {loadingOlder ? (
+                              <>
+                                <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                                Loading…
+                              </>
+                            ) : chatHasMore ? (
+                              'Load earlier messages'
+                            ) : (
+                              'No older messages'
                             )}
+                          </Button>
+                        </div>
+
+                        {activeThread.messages.map((msg) => {
+                          const outbound = msg.direction === 'OUTBOUND';
+                          const rawFrom =
+                            msg.senderName ||
+                            (outbound ? 'You' : activeThread.isGroup ? 'Member' : activeThread.label);
+                          const from =
+                            rawFrom &&
+                            !rawFrom.endsWith('@g.us') &&
+                            rawFrom !== activeThread.key.replace(/@g\.us$/, '')
+                              ? rawFrom
+                              : outbound
+                                ? 'You'
+                                : 'Member';
+                          return (
                             <div
+                              key={msg.id}
                               className={cn(
-                                'max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
-                                outbound
-                                  ? 'rounded-br-md bg-foreground text-background'
-                                  : 'rounded-bl-md border bg-background'
+                                'flex flex-col gap-0.5',
+                                outbound ? 'items-end' : 'items-start'
                               )}
                             >
-                              <p className="whitespace-pre-wrap break-words">{msg.message}</p>
-                            </div>
-                            <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
-                              <span>{formatMsgTime(msg.createdAt)}</span>
-                              {outbound && (
-                                <span className="uppercase tracking-wide opacity-70">
-                                  {msg.status}
+                              {!outbound && activeThread.isGroup && (
+                                <span className="px-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                                  {from}
                                 </span>
                               )}
+                              <div
+                                className={cn(
+                                  'max-w-[min(92%,36rem)] rounded-lg px-2.5 py-1.5 text-[13px] leading-snug shadow-sm',
+                                  outbound
+                                    ? 'rounded-br-sm bg-[#d9fdd3] text-foreground dark:bg-emerald-950'
+                                    : 'rounded-bl-sm bg-background'
+                                )}
+                              >
+                                <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                                <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
+                                  <span>{formatMsgTime(msg.createdAt)}</span>
+                                  {outbound && (
+                                    <span className="uppercase tracking-wide opacity-70">
+                                      {msg.status === 'QUEUED' ? '…' : '✓'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </ScrollArea>
 
-                  <div className="border-t bg-background p-3">
-                    <div className="mx-auto max-w-2xl space-y-2">
-                      <div className="flex gap-2">
+                  <div className="border-t bg-background p-2 sm:p-2.5">
+                    <div className="mx-auto flex w-full max-w-3xl flex-col gap-1.5">
+                      <div className="flex items-end gap-2">
                         <Select
                           value={form.channel}
                           onValueChange={(value) => setForm({ ...form, channel: value })}
                         >
-                          <SelectTrigger className="h-9 w-[110px] shrink-0 text-xs">
+                          <SelectTrigger className="h-9 w-[96px] shrink-0 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -795,33 +955,21 @@ export default function WhatsAppHubPage() {
                             <SelectItem value="SERVICE">Service</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Input
-                          value={form.toPhone}
-                          onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
-                          placeholder={
-                            activeThread.isGroup
-                              ? 'Group JID (auto-filled)'
-                              : 'Phone e.g. +919999999999'
-                          }
-                          className="h-9"
-                        />
-                      </div>
-                      <div className="flex gap-2">
                         <Textarea
                           value={form.message}
                           onChange={(e) => setForm({ ...form, message: e.target.value })}
                           placeholder="Type a message…"
-                          rows={2}
-                          className="min-h-[72px] resize-none"
+                          rows={1}
+                          className="min-h-[40px] max-h-28 flex-1 resize-none py-2.5"
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
                               void sendWhatsApp();
                             }
                           }}
                         />
                         <Button
-                          className="h-auto shrink-0 px-4"
+                          className="h-10 w-10 shrink-0 rounded-full p-0"
                           onClick={() => void sendWhatsApp()}
                           disabled={sending || !form.message.trim()}
                         >
@@ -832,43 +980,59 @@ export default function WhatsAppHubPage() {
                           )}
                         </Button>
                       </div>
-                      <Collapsible open={linkIdsOpen} onOpenChange={setLinkIdsOpen}>
-                        <CollapsibleTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
-                            <Link2 className="mr-1.5 h-3 w-3" />
-                            Link CRM records
-                            <ChevronDown
-                              className={cn(
-                                'ml-1 h-3 w-3 transition-transform',
-                                linkIdsOpen && 'rotate-180'
-                              )}
+                      <div className="flex flex-wrap items-center gap-2 px-1">
+                        <Input
+                          value={form.toPhone}
+                          onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
+                          placeholder={
+                            activeThread.isGroup ? 'Group JID' : 'Phone +91…'
+                          }
+                          className="h-7 max-w-xs text-[11px]"
+                        />
+                        <Collapsible open={linkIdsOpen} onOpenChange={setLinkIdsOpen}>
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-[11px] text-muted-foreground"
+                            >
+                              <Link2 className="mr-1 h-3 w-3" />
+                              Link CRM
+                              <ChevronDown
+                                className={cn(
+                                  'ml-1 h-3 w-3 transition-transform',
+                                  linkIdsOpen && 'rotate-180'
+                                )}
+                              />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="grid gap-1.5 pt-1 sm:grid-cols-3">
+                            <Input
+                              placeholder="Lead ID"
+                              value={form.leadId}
+                              onChange={(e) => setForm({ ...form, leadId: e.target.value })}
+                              className="h-7 text-xs"
                             />
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="grid gap-2 pt-2 sm:grid-cols-3">
-                          <Input
-                            placeholder="Lead ID"
-                            value={form.leadId}
-                            onChange={(e) => setForm({ ...form, leadId: e.target.value })}
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            placeholder="Customer ID"
-                            value={form.customerId}
-                            onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            placeholder="Ticket ID"
-                            value={form.ticketId}
-                            onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
-                            className="h-8 text-xs"
-                          />
-                        </CollapsibleContent>
-                      </Collapsible>
-                      <p className="text-[10px] text-muted-foreground">
-                        ⌘/Ctrl + Enter to send
-                      </p>
+                            <Input
+                              placeholder="Customer ID"
+                              value={form.customerId}
+                              onChange={(e) =>
+                                setForm({ ...form, customerId: e.target.value })
+                              }
+                              className="h-7 text-xs"
+                            />
+                            <Input
+                              placeholder="Ticket ID"
+                              value={form.ticketId}
+                              onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
+                              className="h-7 text-xs"
+                            />
+                          </CollapsibleContent>
+                        </Collapsible>
+                        <span className="text-[10px] text-muted-foreground">
+                          Enter to send · Shift+Enter newline
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </>
