@@ -122,9 +122,20 @@ export default function EmployeesPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Employees</h1>
         <div className="flex gap-2">
-          <Button variant="outline" type="button">
-            <Upload className="h-4 w-4 mr-2" />
-            Import
+          <Button variant="outline" asChild>
+            <DashboardLink
+              href="/dashboard/settings/migration"
+              className="inline-flex items-center"
+              onClick={() => {
+                toast({
+                  title: 'CSV imports',
+                  description: 'Use Data migration for CSV imports',
+                })
+              }}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import
+            </DashboardLink>
           </Button>
           <Button asChild>
             <DashboardLink href="/dashboard/employees/new" className="inline-flex items-center">

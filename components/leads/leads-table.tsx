@@ -134,11 +134,14 @@ export function LeadsTable({
                 </Button>
               ) : null}
               {lead.email ? (
-                <Button asChild variant="outline" size="sm" className="h-10 flex-1">
-                  <a href={`mailto:${lead.email}`}>
-                    <Mail className="mr-1.5 h-3.5 w-3.5" />
-                    Email
-                  </a>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 flex-1"
+                  onClick={() => router.push(path(`/dashboard/leads/${lead.id}?compose=1`))}
+                >
+                  <Mail className="mr-1.5 h-3.5 w-3.5" />
+                  Email
                 </Button>
               ) : null}
               <Button
@@ -271,13 +274,16 @@ export function LeadsTable({
                 <TableCell>
                   <div className="space-y-1">
                     {lead.email && (
-                      <a
-                        href={`mailto:${lead.email}`}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          router.push(path(`/dashboard/leads/${lead.id}?compose=1`))
+                        }
                         className="flex items-center text-xs text-blue-600 hover:underline"
                       >
                         <Mail className="h-3 w-3 mr-1 flex-shrink-0" />
                         <span className="truncate">{lead.email}</span>
-                      </a>
+                      </button>
                     )}
                     {lead.phone && (
                       <a

@@ -60,3 +60,33 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 
   return jsonOk(order);
 });
+
+export const DELETE = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
+  const allowed = await hasPermissionOrRole(
+    session,
+    'inventory:write',
+    'SUPER_ADMIN',
+    'ADMIN'
+  );
+  if (!allowed) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const id = (await routeContext!.params).id;
+  const existing = await prisma.salesOrder.findFirst({
+    where: { id, companyId },
+    select: { id: true, status: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+  if (existing.status !== 'PENDING' && existing.status !== 'CANCELLED') {
+    return NextResponse.json(
+      { error: 'Only pending or cancelled orders can be deleted' },
+      { status: 400 }
+    );
+  }
+
+  await prisma.salesOrder.delete({ where: { id } });
+  return jsonOk({ success: true });
+});

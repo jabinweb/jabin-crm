@@ -1,4 +1,18 @@
-export type MigrationObject = 'leads' | 'customers' | 'tickets';
+export type MigrationObject =
+  | 'leads'
+  | 'customers'
+  | 'contacts'
+  | 'departments'
+  | 'visits'
+  | 'tickets'
+  | 'products'
+  | 'equipment'
+  | 'demo-equipment'
+  | 'suppliers'
+  | 'locations'
+  | 'deals'
+  | 'canned-responses'
+  | 'knowledge';
 
 export type CsvRow = Record<string, string>;
 
@@ -61,3 +75,20 @@ export type RunImportContext = {
   userId: string;
   employeeId?: string;
 };
+
+export const ALL_MIGRATION_OBJECTS: MigrationObject[] = [
+  'leads',
+  'customers',
+  'contacts',
+  'departments',
+  'visits',
+  'tickets',
+  'products',
+  'equipment',
+  'demo-equipment',
+  'suppliers',
+  'locations',
+  'deals',
+  'canned-responses',
+  'knowledge',
+];

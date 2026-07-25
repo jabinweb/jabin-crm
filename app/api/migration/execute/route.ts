@@ -25,7 +25,10 @@ export const POST = withTenantRoute(async (request, { session, companyId, userId
 
   if (!isMigrationObject(objectRaw)) {
     return NextResponse.json(
-      { error: 'object must be leads, customers, or tickets' },
+      {
+        error:
+          'object must be one of: leads, customers, contacts, departments, visits, tickets, products, equipment, demo-equipment, suppliers, locations, deals, canned-responses, knowledge',
+      },
       { status: 400 }
     );
   }

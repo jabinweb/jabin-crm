@@ -16,9 +16,9 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Users, Mail, TrendingUp, Play, Pause, Edit } from 'lucide-react';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { DetailSkeleton } from '@/components/loading';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 interface SequenceStats {
   id: string;
@@ -42,6 +42,7 @@ interface SequenceStats {
 
 export default function SequenceDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { path } = useWorkspacePaths();
   const [stats, setStats] = useState<SequenceStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
@@ -162,6 +163,28 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
               </>
             )}
           </Button>
+          {!stats.isActive && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!confirm(`Delete sequence "${stats.name}"?`)) return;
+                try {
+                  const res = await fetch(`/api/sequences/${params.id}`, {
+                    method: 'DELETE',
+                  });
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.error || 'Failed to delete');
+                  }
+                  router.push(path('/dashboard/sequences'));
+                } catch (error) {
+                  alert(error instanceof Error ? error.message : 'Failed to delete');
+                }
+              }}
+            >
+              Delete
+            </Button>
+          )}
         </div>
       </div>
 

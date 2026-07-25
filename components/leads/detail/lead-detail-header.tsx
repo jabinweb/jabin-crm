@@ -86,13 +86,14 @@ export function LeadDetailHeader({
 
             <div className="flex flex-wrap items-center gap-3 text-sm">
               {lead.email && (
-                <a
-                  href={`mailto:${lead.email}`}
+                <button
+                  type="button"
+                  onClick={() => setComposeOpen(true)}
                   className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline font-medium"
                 >
                   <Mail className="h-4 w-4" />
                   {lead.email}
-                </a>
+                </button>
               )}
               {lead.phone && (
                 <a

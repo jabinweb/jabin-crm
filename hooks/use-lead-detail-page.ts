@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { toast } from 'sonner';
 import type {
@@ -33,6 +33,7 @@ const EMPTY_DEAL_DATA: LeadDetailDealData = {
 export function useLeadDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { path } = useWorkspacePaths();
   const leadId = params.id as string;
   const queryClient = useQueryClient();
@@ -51,6 +52,12 @@ export function useLeadDetailPage() {
   const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
   const [taskData, setTaskData] = useState<LeadDetailTaskData>(EMPTY_TASK_DATA);
   const [dealData, setDealData] = useState<LeadDetailDealData>(EMPTY_DEAL_DATA);
+
+  useEffect(() => {
+    if (searchParams.get('compose') === '1') {
+      setComposeOpen(true);
+    }
+  }, [searchParams]);
 
   const { data: sequences } = useQuery({
     queryKey: ['sequences'],

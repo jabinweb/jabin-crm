@@ -213,6 +213,7 @@ export default function SalesOrdersPage() {
       toast.success('Sales order created');
       setStatus('PENDING');
       setLineItems([emptyLine()]);
+      setView('list');
       queryClient.invalidateQueries({ queryKey: ['sales-orders', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -471,7 +472,7 @@ export default function SalesOrdersPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <FullTableSkeleton columnCount={5} rowCount={5} />
+              <FullTableSkeleton columnCount={6} rowCount={5} />
             ) : orders.length === 0 ? (
               <EmptyState
                 icon={ShoppingCart}
@@ -487,20 +488,47 @@ export default function SalesOrdersPage() {
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Lines</TableHead>
                     <TableHead>Created</TableHead>
+                    <TableHead className="w-[200px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orders.map((o) => (
-                    <TableRow key={o.id}>
-                      <TableCell className="font-medium">{o.orderNumber}</TableCell>
-                      <TableCell>{o.status}</TableCell>
-                      <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
-                      <TableCell>
-                        {Array.isArray(o.lineItems) ? o.lineItems.length : '—'}
-                      </TableCell>
-                      <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
-                    </TableRow>
-                  ))}
+                  {orders.map((o) => {
+                    const currentStatus = optimistic[o.id] ?? o.status;
+                    const statusOptions = baseColumns.length
+                      ? baseColumns.map((c) => c.id)
+                      : ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+                    return (
+                      <TableRow key={o.id}>
+                        <TableCell className="font-medium">{o.orderNumber}</TableCell>
+                        <TableCell>{currentStatus}</TableCell>
+                        <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
+                        <TableCell>
+                          {Array.isArray(o.lineItems) ? o.lineItems.length : '—'}
+                        </TableCell>
+                        <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={currentStatus}
+                            disabled={o.status === 'DELIVERED'}
+                            onValueChange={(next) => {
+                              void onBoardMove(o.id, next, currentStatus);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 w-[140px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {statusOptions.map((s) => (
+                                <SelectItem key={s} value={s}>
+                                  {s}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}

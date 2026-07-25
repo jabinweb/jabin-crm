@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,14 +38,20 @@ type Project = {
   endDate: string;
 };
 
+function toDateInput(value?: string | null) {
+  if (!value) return '';
+  return value.slice(0, 10);
+}
+
 export default function ProjectsPage() {
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState('ACTIVE');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [editing, setEditing] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects', slug],
@@ -56,18 +63,40 @@ export default function ProjectsPage() {
     enabled: !!slug,
   });
 
-  const createMutation = useMutation({
+  const resetForm = () => {
+    setName('');
+    setDescription('');
+    setStatus('ACTIVE');
+    setStartDate('');
+    setEndDate('');
+    setEditing(null);
+  };
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = {
+        name,
+        description,
+        status,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      };
+      if (editing) {
+        const res = await workspaceFetch(`/api/projects/${editing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update');
+        }
+        return res.json();
+      }
       const res = await workspaceFetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          description,
-          status,
-          startDate: startDate || undefined,
-          endDate: endDate || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -76,12 +105,8 @@ export default function ProjectsPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success('Project created');
-      setName('');
-      setDescription('');
-      setStatus('ACTIVE');
-      setStartDate('');
-      setEndDate('');
+      toast.success(editing ? 'Project updated' : 'Project created');
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['projects', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -97,21 +122,38 @@ export default function ProjectsPage() {
     },
     onSuccess: () => {
       toast.success('Project deleted');
+      if (editing) resetForm();
       queryClient.invalidateQueries({ queryKey: ['projects', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const startEdit = (p: Project) => {
+    setEditing(p);
+    setName(p.name);
+    setDescription(p.description || '');
+    setStatus(p.status || 'ACTIVE');
+    setStartDate(toDateInput(p.startDate));
+    setEndDate(toDateInput(p.endDate));
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-        <p className="text-sm text-muted-foreground">Track company projects and timelines.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <p className="text-sm text-muted-foreground">Track company projects and timelines.</p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">New project</CardTitle>
+          <CardTitle className="text-base">
+            {editing ? `Edit ${editing.name}` : 'New project'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -160,14 +202,19 @@ export default function ProjectsPage() {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-2 flex flex-wrap gap-2">
             <Button
-              disabled={!name.trim() || createMutation.isPending}
-              onClick={() => createMutation.mutate()}
+              disabled={!name.trim() || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
             >
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create project
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Save changes' : 'Create project'}
             </Button>
+            {editing && (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -193,7 +240,7 @@ export default function ProjectsPage() {
                   <TableHead>Status</TableHead>
                   <TableHead>Start</TableHead>
                   <TableHead>End</TableHead>
-                  <TableHead className="w-[80px]" />
+                  <TableHead className="w-[140px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -203,7 +250,10 @@ export default function ProjectsPage() {
                     <TableCell>{p.status}</TableCell>
                     <TableCell>{new Date(p.startDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(p.endDate).toLocaleDateString()}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(p)}>
+                        Edit
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

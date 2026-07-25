@@ -11,7 +11,10 @@ export const GET = withTenantRoute(async (request, { session }) => {
   const object = new URL(request.url).searchParams.get('object');
   if (!isMigrationObject(object)) {
     return NextResponse.json(
-      { error: 'Query object must be leads, customers, or tickets' },
+      {
+        error:
+          'Query object must be one of: leads, customers, contacts, departments, visits, tickets, products, equipment, demo-equipment, suppliers, locations, deals, canned-responses, knowledge',
+      },
       { status: 400 }
     );
   }

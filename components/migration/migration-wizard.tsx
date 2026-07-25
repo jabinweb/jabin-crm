@@ -1,8 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { isMigrationObject } from '@/lib/migration/field-catalog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -44,9 +46,64 @@ const OBJECT_OPTIONS: { id: MigrationObject; label: string; hint: string }[] = [
     hint: 'Accounts / organizations you support',
   },
   {
+    id: 'contacts',
+    label: 'Contacts',
+    hint: 'People under a customer. Match customer by email.',
+  },
+  {
+    id: 'departments',
+    label: 'Departments',
+    hint: 'Customer departments / wards. Match customer by email.',
+  },
+  {
+    id: 'visits',
+    label: 'Visits',
+    hint: 'Scheduled customer visits. Match customer by email.',
+  },
+  {
     id: 'tickets',
     label: 'Tickets',
     hint: 'Support tickets (Freshdesk, Zendesk). Match customers by email.',
+  },
+  {
+    id: 'products',
+    label: 'Products',
+    hint: 'Catalog items (equipment and consumables)',
+  },
+  {
+    id: 'equipment',
+    label: 'Installed equipment',
+    hint: 'Serial installations at customers. Needs product + customer email.',
+  },
+  {
+    id: 'demo-equipment',
+    label: 'Demo fleet',
+    hint: 'Demo machines / instruments for movement tracking',
+  },
+  {
+    id: 'suppliers',
+    label: 'Suppliers',
+    hint: 'Vendors for procurement',
+  },
+  {
+    id: 'locations',
+    label: 'Locations',
+    hint: 'Warehouses, stores, vans',
+  },
+  {
+    id: 'deals',
+    label: 'Deals',
+    hint: 'Opportunities linked to a lead by email',
+  },
+  {
+    id: 'canned-responses',
+    label: 'Canned responses',
+    hint: 'Support reply templates',
+  },
+  {
+    id: 'knowledge',
+    label: 'Knowledge articles',
+    hint: 'Help center / KB articles',
   },
 ];
 
@@ -54,6 +111,7 @@ const STEPS = ['Object', 'Upload', 'Map', 'Preview', 'Import'] as const;
 
 export function MigrationWizard() {
   const { workspaceFetch } = useWorkspacePaths();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [object, setObject] = useState<MigrationObject>('leads');
   const [file, setFile] = useState<File | null>(null);
@@ -62,6 +120,14 @@ export function MigrationWizard() {
   const [createMissingCustomers, setCreateMissingCustomers] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ExecuteResult | null>(null);
+
+  useEffect(() => {
+    const raw = searchParams.get('object');
+    if (isMigrationObject(raw)) {
+      setObject(raw);
+      setStep(0);
+    }
+  }, [searchParams]);
 
   const progress = ((step + 1) / STEPS.length) * 100;
 
@@ -164,7 +230,8 @@ export function MigrationWizard() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Data migration</h1>
         <p className="text-sm text-muted-foreground">
-          Import leads, customers, or tickets from a CSV export (HubSpot, Freshdesk, etc.).
+          Import CRM data from CSV — leads, customers, contacts, tickets, products, equipment,
+          suppliers, deals, knowledge base, and more.
         </p>
       </div>
 

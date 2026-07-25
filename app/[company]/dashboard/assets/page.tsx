@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,14 +30,20 @@ type Asset = {
   depreciation: number;
 };
 
+function toDateInput(value?: string | null) {
+  if (!value) return '';
+  return value.slice(0, 10);
+}
+
 export default function AssetsPage() {
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [type, setType] = useState('');
   const [value, setValue] = useState('');
   const [depreciation, setDepreciation] = useState('0');
   const [purchaseDate, setPurchaseDate] = useState('');
+  const [editing, setEditing] = useState<Asset | null>(null);
 
   const { data: assets = [], isLoading } = useQuery({
     queryKey: ['assets', slug],
@@ -48,18 +55,40 @@ export default function AssetsPage() {
     enabled: !!slug,
   });
 
-  const createMutation = useMutation({
+  const resetForm = () => {
+    setName('');
+    setType('');
+    setValue('');
+    setDepreciation('0');
+    setPurchaseDate('');
+    setEditing(null);
+  };
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = {
+        name,
+        type,
+        value: Number(value),
+        depreciation: Number(depreciation || 0),
+        purchaseDate: purchaseDate || undefined,
+      };
+      if (editing) {
+        const res = await workspaceFetch(`/api/assets/${editing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update');
+        }
+        return res.json();
+      }
       const res = await workspaceFetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          type,
-          value: Number(value),
-          depreciation: Number(depreciation || 0),
-          purchaseDate: purchaseDate || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -68,12 +97,8 @@ export default function AssetsPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success('Asset created');
-      setName('');
-      setType('');
-      setValue('');
-      setDepreciation('0');
-      setPurchaseDate('');
+      toast.success(editing ? 'Asset updated' : 'Asset created');
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['assets', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -89,21 +114,38 @@ export default function AssetsPage() {
     },
     onSuccess: () => {
       toast.success('Asset deleted');
+      if (editing) resetForm();
       queryClient.invalidateQueries({ queryKey: ['assets', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const startEdit = (a: Asset) => {
+    setEditing(a);
+    setName(a.name);
+    setType(a.type);
+    setValue(String(a.value));
+    setDepreciation(String(a.depreciation ?? 0));
+    setPurchaseDate(toDateInput(a.purchaseDate));
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Assets</h1>
-        <p className="text-sm text-muted-foreground">Company fixed assets and depreciation.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Assets</h1>
+          <p className="text-sm text-muted-foreground">Company fixed assets and depreciation.</p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">New asset</CardTitle>
+          <CardTitle className="text-base">
+            {editing ? `Edit ${editing.name}` : 'New asset'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -145,14 +187,19 @@ export default function AssetsPage() {
               onChange={(e) => setPurchaseDate(e.target.value)}
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex flex-wrap items-end gap-2">
             <Button
-              disabled={!name.trim() || !type.trim() || !value || createMutation.isPending}
-              onClick={() => createMutation.mutate()}
+              disabled={!name.trim() || !type.trim() || !value || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
             >
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create asset
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Save changes' : 'Create asset'}
             </Button>
+            {editing && (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -179,7 +226,7 @@ export default function AssetsPage() {
                   <TableHead className="text-right">Value</TableHead>
                   <TableHead className="text-right">Depreciation</TableHead>
                   <TableHead>Purchased</TableHead>
-                  <TableHead className="w-[80px]" />
+                  <TableHead className="w-[140px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -190,7 +237,10 @@ export default function AssetsPage() {
                     <TableCell className="text-right">{a.value.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{a.depreciation.toLocaleString()}</TableCell>
                     <TableCell>{new Date(a.purchaseDate).toLocaleDateString()}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(a)}>
+                        Edit
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

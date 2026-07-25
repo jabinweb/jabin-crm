@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +50,7 @@ import { DetailSkeleton } from '@/components/loading';
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { path } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const campaignId = params.id as string;
 
@@ -84,6 +86,31 @@ export default function CampaignDetailPage() {
   const handleSend = () => {
     if (!confirm('Are you sure you want to send this campaign?')) return;
     sendMutation.mutate();
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/campaigns/${campaignId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Failed to delete campaign');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      toast.success('Campaign deleted');
+      router.push(path('/dashboard/campaigns'));
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || 'Failed to delete campaign');
+    },
+  });
+
+  const handleDelete = () => {
+    if (!confirm('Delete this draft campaign?')) return;
+    deleteMutation.mutate();
   };
 
   if (isLoading) {
@@ -188,14 +215,23 @@ export default function CampaignDetailPage() {
         <div className="flex items-center gap-2">
           {getStatusBadge(campaign.status)}
           {campaign.status === 'DRAFT' && (
-            <Button onClick={handleSend} disabled={sendMutation.isPending}>
-              {sendMutation.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              Send Campaign
-            </Button>
+            <>
+              <Button onClick={handleSend} disabled={sendMutation.isPending}>
+                {sendMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="mr-2 h-4 w-4" />
+                )}
+                Send Campaign
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                Delete
+              </Button>
+            </>
           )}
         </div>
       </div>

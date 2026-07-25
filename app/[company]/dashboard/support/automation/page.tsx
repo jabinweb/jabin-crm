@@ -22,7 +22,7 @@ import type { AutomationRule } from '@/lib/support/automation-rules';
 
 export default function SupportAutomationPage() {
   const queryClient = useQueryClient();
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
   const [localRules, setLocalRules] = useState<AutomationRule[] | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -67,6 +67,14 @@ export default function SupportAutomationPage() {
             <h1 className="text-3xl font-bold tracking-tight">Automation rules</h1>
             <p className="text-muted-foreground mt-1">
               Auto-tag, notify, and route tickets when events occur — no code required.
+              For custom CRM event rules, use{' '}
+              <a
+                href={path('/dashboard/workflows')}
+                className="text-primary underline underline-offset-2"
+              >
+                CRM workflows
+              </a>
+              .
             </p>
           </div>
           <Button

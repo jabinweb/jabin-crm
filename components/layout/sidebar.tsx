@@ -48,6 +48,7 @@ import {
   FolderKanban,
   Landmark,
   LayoutGrid,
+  ArrowLeftRight,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -79,7 +80,22 @@ const mainNav: NavigationItem[] = [
 const crmNav: NavigationItem[] = [
   { name: 'Clients', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
   { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY' },
-  { name: 'Equipment', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
+  {
+    name: 'Installed equipment',
+    href: '/dashboard/inventory',
+    icon: Database,
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
+    workspaceFeature: 'equipment',
+    module: 'EQUIPMENT',
+    terminologyKey: 'equipment',
+    children: [
+      { name: 'Stock overview', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Locations', href: '/dashboard/inventory/locations', icon: MapPin, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Transfers', href: '/dashboard/inventory/transfers', icon: ArrowLeftRight, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Batches', href: '/dashboard/inventory/batches', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Stock adjustment', href: '/dashboard/inventory/stock-adjustment', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+    ],
+  },
   { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
   { name: 'Client insights', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customerAnalytics' },
 ];
@@ -91,6 +107,7 @@ const salesNav: NavigationItem[] = [
   { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: CalendarIcon, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   {
     name: 'More sales',
     href: '/dashboard/analytics',
@@ -98,9 +115,8 @@ const salesNav: NavigationItem[] = [
     roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
     children: [
       { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Team', href: '/dashboard/team', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+      { name: 'Team performance', href: '/dashboard/team', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Duplicates', href: '/dashboard/duplicates', icon: Copy, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
     ],
   },
 ];
@@ -124,7 +140,7 @@ const supportNav: NavigationItem[] = [
       { name: 'Knowledge base', href: '/dashboard/support/knowledge', icon: BookOpen, module: 'SUPPORT_KNOWLEDGE', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Canned replies', href: '/dashboard/support/canned-responses', icon: MessageSquare, module: 'SUPPORT_CANNED', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Agent groups', href: '/dashboard/support/groups', icon: Users, module: 'SUPPORT_GROUPS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Automation', href: '/dashboard/support/automation', icon: Zap, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
+      { name: 'Ticket automation', href: '/dashboard/support/automation', icon: Zap, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
       { name: 'Analytics', href: '/dashboard/support/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
     ],
   },
@@ -183,13 +199,16 @@ const opsNav: NavigationItem[] = [
   { name: 'Budgets', href: '/dashboard/budgets', icon: PiggyBank, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'Workflows', href: '/dashboard/workflows', icon: Zap, roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'CRM workflows', href: '/dashboard/workflows', icon: Zap, roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },
 ];
 
-const settingsNav: NavigationItem[] = [
+const workspaceNav: NavigationItem[] = [
   { name: 'Reporting', href: '/dashboard/reports', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
   { name: 'Documentation', href: '/dashboard/docs', icon: BookOpen },
+];
+
+const settingsNav: NavigationItem[] = [
   {
     name: 'Settings',
     href: '/dashboard/settings',
@@ -491,6 +510,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         {renderNavGroup(supportNav, "Service")}
         {['ADMIN', 'SUPER_ADMIN'].includes(userRole) && renderNavGroup(opsNav, "Ops")}
         {userRole !== 'TECHNICIAN' && userRole !== 'CUSTOMER' && renderNavGroup(emailNav, "Outreach")}
+        {renderNavGroup(workspaceNav, "Workspace")}
         {renderNavGroup(settingsNav, "Settings")}
       </div>
     </div>

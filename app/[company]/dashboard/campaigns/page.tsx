@@ -225,6 +225,25 @@ export default function CampaignsPage() {
                                 Send
                               </Button>
                             )}
+                            {campaign.status === 'DRAFT' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={async () => {
+                                  if (!confirm('Delete this draft campaign?')) return;
+                                  const res = await fetch(`/api/campaigns/${campaign.id}`, {
+                                    method: 'DELETE',
+                                  });
+                                  if (!res.ok) {
+                                    alert('Failed to delete campaign');
+                                    return;
+                                  }
+                                  refetch();
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            )}
                             <DashboardLink href={`/dashboard/campaigns/${campaign.id}`}>
                               <Button size="sm" variant="outline">
                                 View

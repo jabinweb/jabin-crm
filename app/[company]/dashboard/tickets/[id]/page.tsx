@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -356,7 +357,16 @@ export default function TicketDetailPage() {
                             <CardTitle className="text-2xl mt-2">{ticket.subject}</CardTitle>
                             <CardDescription className="flex items-center gap-2 mt-1">
                                 <Building className="h-4 w-4" />
-                                {ticket.customer.organizationName}
+                                {ticket.customer?.id ? (
+                                  <Link
+                                    href={path(`/dashboard/customers/${ticket.customer.id}`)}
+                                    className="hover:underline text-primary"
+                                  >
+                                    {ticket.customer.organizationName}
+                                  </Link>
+                                ) : (
+                                  ticket.customer?.organizationName || '—'
+                                )}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>

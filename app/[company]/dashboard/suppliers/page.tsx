@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,13 +31,14 @@ type Supplier = {
 };
 
 export default function SuppliersPage() {
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [rating, setRating] = useState('');
+  const [editing, setEditing] = useState<Supplier | null>(null);
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ['suppliers', slug],
@@ -48,18 +50,40 @@ export default function SuppliersPage() {
     enabled: !!slug,
   });
 
-  const createMutation = useMutation({
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setPhone('');
+    setAddress('');
+    setRating('');
+    setEditing(null);
+  };
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = {
+        name,
+        email,
+        phone,
+        address,
+        rating: rating ? Number(rating) : undefined,
+      };
+      if (editing) {
+        const res = await workspaceFetch(`/api/suppliers/${editing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update');
+        }
+        return res.json();
+      }
       const res = await workspaceFetch('/api/suppliers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          email,
-          phone,
-          address,
-          rating: rating ? Number(rating) : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -68,12 +92,8 @@ export default function SuppliersPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success('Supplier created');
-      setName('');
-      setEmail('');
-      setPhone('');
-      setAddress('');
-      setRating('');
+      toast.success(editing ? 'Supplier updated' : 'Supplier created');
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['suppliers', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -89,21 +109,40 @@ export default function SuppliersPage() {
     },
     onSuccess: () => {
       toast.success('Supplier deleted');
+      if (editing) resetForm();
       queryClient.invalidateQueries({ queryKey: ['suppliers', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const startEdit = (s: Supplier) => {
+    setEditing(s);
+    setName(s.name);
+    setEmail(s.email);
+    setPhone(s.phone);
+    setAddress(s.address);
+    setRating(s.rating != null ? String(s.rating) : '');
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
-        <p className="text-sm text-muted-foreground">Manage procurement vendors.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
+          <p className="text-sm text-muted-foreground">Manage procurement vendors.</p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href={path('/dashboard/settings/migration') + '?object=suppliers'}>
+            Import CSV
+          </Link>
+        </Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">New supplier</CardTitle>
+          <CardTitle className="text-base">
+            {editing ? `Edit ${editing.name}` : 'New supplier'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -143,20 +182,25 @@ export default function SuppliersPage() {
               onChange={(e) => setAddress(e.target.value)}
             />
           </div>
-          <div className="sm:col-span-2">
+          <div className="sm:col-span-2 flex flex-wrap gap-2">
             <Button
               disabled={
                 !name.trim() ||
                 !email.trim() ||
                 !phone.trim() ||
                 !address.trim() ||
-                createMutation.isPending
+                saveMutation.isPending
               }
-              onClick={() => createMutation.mutate()}
+              onClick={() => saveMutation.mutate()}
             >
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create supplier
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Save changes' : 'Create supplier'}
             </Button>
+            {editing && (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -167,12 +211,12 @@ export default function SuppliersPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <FullTableSkeleton columnCount={4} rowCount={5} />
+            <FullTableSkeleton columnCount={5} rowCount={5} />
           ) : suppliers.length === 0 ? (
             <EmptyState
               icon={Truck}
               title="No suppliers yet"
-              description="Add your first supplier above."
+              description="Add your first supplier above, or import a CSV."
             />
           ) : (
             <Table>
@@ -182,7 +226,7 @@ export default function SuppliersPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Rating</TableHead>
-                  <TableHead className="w-[80px]" />
+                  <TableHead className="w-[140px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -192,7 +236,10 @@ export default function SuppliersPage() {
                     <TableCell>{s.email}</TableCell>
                     <TableCell>{s.phone}</TableCell>
                     <TableCell>{s.rating ?? '—'}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(s)}>
+                        Edit
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

@@ -55,6 +55,10 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category')?.trim();
     const slug = searchParams.get('slug')?.trim();
     const ticketType = searchParams.get('ticketType')?.trim();
+    const adminList =
+      searchParams.get('admin') === '1' &&
+      !!session?.user?.role &&
+      session.user.role !== 'CUSTOMER';
 
     const companyFilter = companyId
       ? { OR: [{ companyId }, { companyId: null }] }
@@ -89,10 +93,53 @@ export async function GET(req: NextRequest) {
       ? { tags: { hasSome: [ticketType, `type:${ticketType}`] } }
       : {};
 
+    const isStaff = Boolean(session?.user?.role && session.user.role !== 'CUSTOMER');
+
+    // Staff: all company articles (incl. unpublished) with full fields for admin UI
+    if (isStaff) {
+      const staffWhere = {
+        ...(companyId ? { companyId } : companyFilter),
+        ...tagFilter,
+        ...(category ? { category } : {}),
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: 'insensitive' as const } },
+                { content: { contains: q, mode: 'insensitive' as const } },
+              ],
+            }
+          : {}),
+      };
+      const articles = await prisma.knowledgeArticle.findMany({
+        where: staffWhere,
+        orderBy: { updatedAt: 'desc' },
+        take: 100,
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          content: true,
+          category: true,
+          tags: true,
+          published: true,
+          updatedAt: true,
+        },
+      });
+      const categories = await prisma.knowledgeArticle.groupBy({
+        by: ['category'],
+        where: {
+          ...(companyId ? { companyId } : companyFilter),
+          category: { not: null },
+        },
+        _count: true,
+      });
+      return NextResponse.json({ articles, categories });
+    }
+
     const articles = await prisma.knowledgeArticle.findMany({
       where: {
-        published: true,
-        ...companyFilter,
+        ...(adminList ? {} : { published: true }),
+        ...(adminList && companyId ? { companyId } : companyFilter),
         ...tagFilter,
         ...(category ? { category } : {}),
         ...(q
@@ -106,19 +153,34 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { updatedAt: 'desc' },
       take: 50,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        category: true,
-        tags: true,
-        updatedAt: true,
-      },
+      select: adminList
+        ? {
+            id: true,
+            title: true,
+            slug: true,
+            content: true,
+            category: true,
+            tags: true,
+            published: true,
+            updatedAt: true,
+          }
+        : {
+            id: true,
+            title: true,
+            slug: true,
+            category: true,
+            tags: true,
+            updatedAt: true,
+          },
     });
 
     const categories = await prisma.knowledgeArticle.groupBy({
       by: ['category'],
-      where: { published: true, category: { not: null }, ...companyFilter },
+      where: {
+        ...(adminList ? {} : { published: true }),
+        category: { not: null },
+        ...(adminList && companyId ? { companyId } : companyFilter),
+      },
       _count: true,
     });
 
@@ -206,7 +268,44 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json(article);
   } catch (error) {
     return handleRouteError(error);
-    console.error('[api/support/knowledge PATCH]', error);
-    return NextResponse.json({ error: 'Failed to update article' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await auth();
+    const role = session?.user?.role;
+    if (!session?.user || !role || !['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(role)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    await ensureFeatureEnabled(session.user.id, 'SUPPORT_KNOWLEDGE');
+
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
+
+    let id = req.nextUrl.searchParams.get('id')?.trim() ?? '';
+    if (!id) {
+      try {
+        const body = await req.json();
+        if (typeof body?.id === 'string') id = body.id.trim();
+      } catch {
+        // no body
+      }
+    }
+    if (!id) {
+      return NextResponse.json({ error: 'Article id required' }, { status: 400 });
+    }
+
+    const existing = await prisma.knowledgeArticle.findFirst({
+      where: { id, companyId },
+      select: { id: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Article not found' }, { status: 404 });
+    }
+
+    await prisma.knowledgeArticle.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return handleRouteError(error);
   }
 }

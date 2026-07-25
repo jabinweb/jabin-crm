@@ -132,7 +132,24 @@ export default function StockTransferPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold mb-6">Stock Transfer</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <h1 className="text-2xl font-bold">Stock Transfer</h1>
+        <Button variant="outline" asChild>
+          <a href={`/${params.company}/dashboard/inventory/locations`}>Manage locations</a>
+        </Button>
+      </div>
+      {locations.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No locations yet.{' '}
+          <a
+            className="underline text-primary"
+            href={`/${params.company}/dashboard/inventory/locations`}
+          >
+            Create a warehouse or store
+          </a>{' '}
+          before transferring stock.
+        </p>
+      )}
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-6">
           <form onSubmit={(e) => { e.preventDefault(); handleTransfer(); }} className="space-y-4">

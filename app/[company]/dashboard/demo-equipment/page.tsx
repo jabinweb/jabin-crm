@@ -105,6 +105,7 @@ function DemoEquipmentPageInner() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [kindFilter, setKindFilter] = useState('ALL');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -112,6 +113,17 @@ function DemoEquipmentPageInner() {
   const [form, setForm] = useState({
     name: '',
     kind: 'DEMO_MACHINE',
+    serialNumber: '',
+    assetTag: '',
+    productId: '',
+    currentLocationId: '',
+    notes: '',
+  });
+
+  const [editForm, setEditForm] = useState({
+    name: '',
+    kind: 'DEMO_MACHINE',
+    status: 'IN_STOCK',
     serialNumber: '',
     assetTag: '',
     productId: '',
@@ -147,7 +159,7 @@ function DemoEquipmentPageInner() {
 
   const { data: detail, isLoading: detailLoading } = useQuery({
     queryKey: ['demo-equipment', selectedId],
-    enabled: !!selectedId && (detailOpen || moveOpen),
+    enabled: !!selectedId && (detailOpen || moveOpen || editOpen),
     queryFn: async () => {
       const res = await workspaceFetch(`/api/demo-equipment/${selectedId}`);
       if (!res.ok) throw new Error('Failed to load unit');
@@ -230,6 +242,68 @@ function DemoEquipmentPageInner() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedId) return;
+      const res = await workspaceFetch(`/api/demo-equipment/${selectedId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editForm.name,
+          kind: editForm.kind,
+          status: editForm.status,
+          serialNumber: editForm.serialNumber || null,
+          assetTag: editForm.assetTag || null,
+          productId: editForm.productId || null,
+          currentLocationId: editForm.currentLocationId || null,
+          notes: editForm.notes || null,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Failed to update');
+      return body;
+    },
+    onSuccess: () => {
+      toast.success('Unit updated');
+      setEditOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['demo-equipment'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await workspaceFetch(`/api/demo-equipment/${id}`, { method: 'DELETE' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'Failed to delete');
+      return body;
+    },
+    onSuccess: () => {
+      toast.success('Unit deleted');
+      setDetailOpen(false);
+      setEditOpen(false);
+      setMoveOpen(false);
+      setSelectedId(null);
+      queryClient.invalidateQueries({ queryKey: ['demo-equipment'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const openEdit = (u: DemoUnit) => {
+    setSelectedId(u.id);
+    setEditForm({
+      name: u.name,
+      kind: u.kind,
+      status: u.status,
+      serialNumber: u.serialNumber || '',
+      assetTag: u.assetTag || '',
+      productId: u.product?.id || '',
+      currentLocationId: u.currentLocation?.id || '',
+      notes: u.notes || '',
+    });
+    setEditOpen(true);
+  };
+
   const moveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedId) return;
@@ -286,10 +360,15 @@ function DemoEquipmentPageInner() {
             Track serialized units: checkout for demos, transfer between sites, return to stock.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="gap-2 shrink-0">
-          <Plus className="h-4 w-4" />
-          Register unit
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/inventory/locations')}>Locations</Link>
+          </Button>
+          <Button onClick={() => setCreateOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Register unit
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -389,7 +468,7 @@ function DemoEquipmentPageInner() {
                         .join(' · ') || 'No location yet'}
                     </p>
                   </button>
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex flex-wrap gap-2 shrink-0">
                     <Button
                       size="sm"
                       variant="outline"
@@ -406,6 +485,18 @@ function DemoEquipmentPageInner() {
                     >
                       <Truck className="h-3.5 w-3.5" />
                       Move
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => openEdit(u)}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        if (confirm(`Delete ${u.name}?`)) deleteMutation.mutate(u.id);
+                      }}
+                    >
+                      Delete
                     </Button>
                     <Button
                       size="sm"
@@ -541,6 +632,161 @@ function DemoEquipmentPageInner() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Register
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit unit</DialogTitle>
+            <DialogDescription>
+              Update unit details. Use Move to change custody or location with a log entry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-1.5">
+              <Label>Name *</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Kind</Label>
+                <Select
+                  value={editForm.kind}
+                  onValueChange={(v) => setEditForm({ ...editForm, kind: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {KINDS.map((k) => (
+                      <SelectItem key={k.value} value={k.value}>
+                        {k.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Status</Label>
+                <Select
+                  value={editForm.status}
+                  onValueChange={(v) => setEditForm({ ...editForm, status: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s.replace(/_/g, ' ')}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>Serial number</Label>
+                <Input
+                  value={editForm.serialNumber}
+                  onChange={(e) => setEditForm({ ...editForm, serialNumber: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Asset tag</Label>
+                <Input
+                  value={editForm.assetTag}
+                  onChange={(e) => setEditForm({ ...editForm, assetTag: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Catalog product</Label>
+              <Select
+                value={editForm.productId || '__none__'}
+                onValueChange={(v) =>
+                  setEditForm({ ...editForm, productId: v === '__none__' ? '' : v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Link product" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.sku ? ` (${p.sku})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Location</Label>
+              <Select
+                value={editForm.currentLocationId || '__none__'}
+                onValueChange={(v) =>
+                  setEditForm({
+                    ...editForm,
+                    currentLocationId: v === '__none__' ? '' : v,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Warehouse / store" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unassigned</SelectItem>
+                  {locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Notes</Label>
+              <Textarea
+                rows={2}
+                value={editForm.notes}
+                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="destructive"
+              className="mr-auto"
+              disabled={!selectedId || deleteMutation.isPending}
+              onClick={() => {
+                if (selectedId && confirm('Delete this unit?')) {
+                  deleteMutation.mutate(selectedId);
+                }
+              }}
+            >
+              Delete
+            </Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!editForm.name.trim() || editMutation.isPending}
+              onClick={() => editMutation.mutate()}
+            >
+              {editMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -752,7 +998,16 @@ function DemoEquipmentPageInner() {
               </ScrollArea>
             </div>
           ) : null}
-          <DialogFooter>
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (detail) openEdit(detail);
+                setDetailOpen(false);
+              }}
+            >
+              Edit
+            </Button>
             <Button
               variant="outline"
               onClick={() => {
@@ -761,6 +1016,16 @@ function DemoEquipmentPageInner() {
               }}
             >
               Record move
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                if (selectedId && confirm('Delete this unit?')) {
+                  deleteMutation.mutate(selectedId);
+                }
+              }}
+            >
+              Delete
             </Button>
             <Button onClick={() => setDetailOpen(false)}>Close</Button>
           </DialogFooter>

@@ -29,6 +29,8 @@ import { Loader2, Plus, Trash2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/loading';
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 type WorkflowActionDraft = {
   type: 'notify' | 'log';
@@ -134,6 +136,7 @@ function actionsPayload(actions: WorkflowActionDraft[]) {
 
 export default function WorkflowsPage() {
   const queryClient = useQueryClient();
+  const { path } = useWorkspacePaths();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [trigger, setTrigger] = useState('lead.created');
@@ -404,8 +407,14 @@ export default function WorkflowsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Workflows</h1>
         <p className="text-sm text-muted-foreground">
-          Trigger → conditions → actions for CRM events. Ticket-specific rules also live under
-          Support → Automation.
+          Trigger → conditions → actions for CRM events.{' '}
+          <Link
+            href={path('/dashboard/support/automation')}
+            className="text-primary underline underline-offset-2"
+          >
+            Ticket automation
+          </Link>{' '}
+          lives under Support tools.
         </p>
       </div>
 

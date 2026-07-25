@@ -1,98 +1,103 @@
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
+'use client';
+
+import { useState } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
-import { Lead, LeadStatus } from '@/types/lead'
-import { 
-  MoreHorizontal, 
-  PhoneCall, 
-  Mail, 
-  Calendar, 
-  Edit, 
-  UserPlus, 
-  CheckCircle, 
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Lead, LeadStatus } from '@/types/lead';
+import {
+  MoreHorizontal,
+  PhoneCall,
+  Mail,
+  Calendar,
+  Edit,
+  UserPlus,
+  CheckCircle,
   XCircle,
-  Clock
-} from 'lucide-react'
-import { useRouter, useParams } from 'next/navigation'
-import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
-import { useToast } from '@/hooks/use-toast'
-import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
+  Clock,
+} from 'lucide-react';
+import { useRouter, useParams } from 'next/navigation';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useToast } from '@/hooks/use-toast';
+import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
+import { EmailComposeDialog } from '@/components/email/email-compose-dialog';
 
 interface LeadActionsProps {
-  lead: Lead
+  lead: Lead;
 }
 
 export function LeadActions({ lead }: LeadActionsProps) {
-  const router = useRouter()
-  const params = useParams<{ company?: string }>()
-  const { path } = useWorkspacePaths()
-  const { toast } = useToast()
+  const router = useRouter();
+  const params = useParams<{ company?: string }>();
+  const { path } = useWorkspacePaths();
+  const { toast } = useToast();
+  const [composeOpen, setComposeOpen] = useState(false);
   const tenantHeaders =
-    typeof params?.company === 'string' ? workspaceSlugHeaders(params.company) : {}
+    typeof params?.company === 'string' ? workspaceSlugHeaders(params.company) : {};
 
-  const leadDetailPath = path(`/dashboard/leads/${lead.id}`)
+  const leadDetailPath = path(`/dashboard/leads/${lead.id}`);
 
   const handleStatusChange = async (status: LeadStatus) => {
     try {
-      const response = await fetch(`/api/leads/${lead.id}`, {
+      const response = await fetch(`/api/leads/${lead.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...tenantHeaders },
-        body: JSON.stringify({ status })
-      })
+        body: JSON.stringify({ status }),
+      });
 
-      if (!response.ok) throw new Error('Failed to update status')
+      if (!response.ok) throw new Error('Failed to update status');
 
       toast({
         title: 'Success',
-        description: `Lead marked as ${status.toLowerCase()}`
-      })
+        description: `Lead marked as ${status.toLowerCase()}`,
+      });
 
-      router.refresh()
-    } catch (error) {
+      router.refresh();
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to update lead status',
-        variant: 'destructive'
-      })
+        variant: 'destructive',
+      });
     }
-  }
+  };
 
   const handleConvertToClient = async () => {
     try {
       const response = await fetch(`/api/leads/${lead.id}/convert`, {
         method: 'POST',
         headers: { ...tenantHeaders },
-      })
+      });
 
-      const data = await response.json().catch(() => ({}))
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to convert lead')
+        throw new Error(data.error || 'Failed to convert lead');
       }
 
       toast({
         title: 'Success',
-        description: 'Lead converted to customer account'
-      })
+        description: 'Lead converted to customer account',
+      });
 
-      const customerId = data.customerId ?? data.customer?.id
+      const customerId = data.customerId ?? data.customer?.id;
       if (customerId) {
-        router.push(path(`/dashboard/customers/${customerId}`))
+        router.push(path(`/dashboard/customers/${customerId}`));
       } else {
-        router.push(path('/dashboard/customers'))
+        router.push(path('/dashboard/customers'));
       }
     } catch (error) {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to convert lead',
-        variant: 'destructive'
-      })
+        variant: 'destructive',
+      });
     }
-  }
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -105,11 +110,9 @@ export function LeadActions({ lead }: LeadActionsProps) {
         </Button>
       )}
       {lead.email && (
-        <Button size="sm" variant="outline" asChild>
-          <a href={`mailto:${lead.email}`}>
-            <Mail className="h-4 w-4 mr-2" />
-            Email
-          </a>
+        <Button size="sm" variant="outline" onClick={() => setComposeOpen(true)}>
+          <Mail className="h-4 w-4 mr-2" />
+          Email
         </Button>
       )}
       <Button
@@ -120,7 +123,7 @@ export function LeadActions({ lead }: LeadActionsProps) {
         <Calendar className="h-4 w-4 mr-2" />
         Schedule
       </Button>
-      
+
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm">
@@ -132,32 +135,40 @@ export function LeadActions({ lead }: LeadActionsProps) {
             <Edit className="h-4 w-4 mr-2" />
             View / Edit Lead
           </DropdownMenuItem>
-          
+
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuItem onSelect={() => handleStatusChange(LeadStatus.QUALIFIED)}>
             <Clock className="h-4 w-4 mr-2" />
             Mark as Qualified
           </DropdownMenuItem>
-          
-          <DropdownMenuItem onSelect={() => handleStatusChange(LeadStatus.WON)}>
+
+          <DropdownMenuItem onSelect={() => handleStatusChange(LeadStatus.CONVERTED)}>
             <CheckCircle className="h-4 w-4 mr-2" />
-            Mark as Won
+            Mark as Converted
           </DropdownMenuItem>
-          
+
           <DropdownMenuItem onSelect={() => handleStatusChange(LeadStatus.LOST)}>
             <XCircle className="h-4 w-4 mr-2" />
             Mark as Lost
           </DropdownMenuItem>
-          
+
           <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onSelect={handleConvertToClient} disabled={lead.status === LeadStatus.CONVERTED}>
+
+          <DropdownMenuItem onSelect={() => handleConvertToClient()}>
             <UserPlus className="h-4 w-4 mr-2" />
             Convert to Customer
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {lead.email && (
+        <EmailComposeDialog
+          open={composeOpen}
+          onOpenChange={setComposeOpen}
+          replyTo={{ to: lead.email, subject: `Follow up: ${lead.companyName}` }}
+        />
+      )}
     </div>
-  )
+  );
 }

@@ -35,14 +35,12 @@ import {
     Package,
     Plus,
     Search,
-    Filter,
-    ShieldCheck,
     FileText,
 } from 'lucide-react';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { toast } from 'sonner';
 import { FullTableSkeleton } from '@/components/loading';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 const categories = [
     'HARDWARE',
@@ -54,10 +52,12 @@ const categories = [
 
 export default function ProductsPage() {
     const queryClient = useQueryClient();
+    const { workspaceFetch } = useWorkspacePaths();
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState<string>('all');
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const [newProduct, setNewProduct] = useState({
         name: '',
@@ -112,6 +112,26 @@ export default function ProductsPage() {
             toast.error(error.message || 'Failed to add product');
         } finally {
             setIsAdding(false);
+        }
+    };
+
+    const handleDeleteProduct = async (id: string, name: string) => {
+        if (!confirm(`Delete product "${name}"?`)) return;
+        setDeletingId(id);
+        try {
+            const response = await workspaceFetch(`/api/products/${id}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to delete product');
+            }
+            toast.success('Product deleted');
+            queryClient.invalidateQueries({ queryKey: ['products'] });
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to delete product');
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -278,11 +298,24 @@ export default function ProductsPage() {
                                                 <TableCell className="text-sm font-mono text-muted-foreground">
                                                     {p.modelNumber || 'N/A'}
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right space-x-1">
                                                     <Button variant="ghost" size="sm" asChild>
                                                         <DashboardLink href={`/dashboard/products/${p.id}`}>
                                                             <FileText className="h-4 w-4" />
                                                         </DashboardLink>
+                                                    </Button>
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
+                                                            Edit
+                                                        </DashboardLink>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        disabled={deletingId === p.id}
+                                                        onClick={() => handleDeleteProduct(p.id, p.name)}
+                                                    >
+                                                        Delete
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>

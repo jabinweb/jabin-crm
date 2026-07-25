@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,12 +39,18 @@ type Asset = {
   name: string;
 };
 
+function toDateInput(value?: string | null) {
+  if (!value) return '';
+  return value.slice(0, 10);
+}
+
 export default function ExpensesPage() {
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
+  const [editing, setEditing] = useState<Expense | null>(null);
   const currentYear = new Date().getFullYear();
 
   const { data: expenses = [], isLoading } = useQuery({
@@ -89,16 +96,36 @@ export default function ExpensesPage() {
     [budgets, currentYear]
   );
 
-  const createMutation = useMutation({
+  const resetForm = () => {
+    setDescription('');
+    setAmount('');
+    setDate('');
+    setEditing(null);
+  };
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = {
+        description,
+        amount: Number(amount),
+        date: date || undefined,
+      };
+      if (editing) {
+        const res = await workspaceFetch(`/api/expenses/${editing.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update');
+        }
+        return res.json();
+      }
       const res = await workspaceFetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description,
-          amount: Number(amount),
-          date: date || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -107,10 +134,8 @@ export default function ExpensesPage() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success('Expense recorded');
-      setDescription('');
-      setAmount('');
-      setDate('');
+      toast.success(editing ? 'Expense updated' : 'Expense recorded');
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['expenses', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -126,16 +151,29 @@ export default function ExpensesPage() {
     },
     onSuccess: () => {
       toast.success('Expense deleted');
+      if (editing) resetForm();
       queryClient.invalidateQueries({ queryKey: ['expenses', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const startEdit = (e: Expense) => {
+    setEditing(e);
+    setDescription(e.description);
+    setAmount(String(e.amount));
+    setDate(toDateInput(e.date));
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
-        <p className="text-sm text-muted-foreground">Company operating expenses.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
+          <p className="text-sm text-muted-foreground">Company operating expenses.</p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -181,7 +219,9 @@ export default function ExpensesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">New expense</CardTitle>
+          <CardTitle className="text-base">
+            {editing ? 'Edit expense' : 'New expense'}
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2 sm:col-span-3">
@@ -212,14 +252,19 @@ export default function ExpensesPage() {
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex flex-wrap items-end gap-2">
             <Button
-              disabled={!description.trim() || !amount || createMutation.isPending}
-              onClick={() => createMutation.mutate()}
+              disabled={!description.trim() || !amount || saveMutation.isPending}
+              onClick={() => saveMutation.mutate()}
             >
-              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add expense
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {editing ? 'Save changes' : 'Add expense'}
             </Button>
+            {editing && (
+              <Button type="button" variant="outline" onClick={resetForm}>
+                Cancel
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -244,7 +289,7 @@ export default function ExpensesPage() {
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead className="w-[80px]" />
+                  <TableHead className="w-[140px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -253,7 +298,10 @@ export default function ExpensesPage() {
                     <TableCell className="font-medium">{e.description}</TableCell>
                     <TableCell className="text-right">{e.amount.toLocaleString()}</TableCell>
                     <TableCell>{new Date(e.date).toLocaleDateString()}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1">
+                      <Button variant="ghost" size="sm" onClick={() => startEdit(e)}>
+                        Edit
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

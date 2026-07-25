@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Play, Pause, Users, Mail, TrendingUp } from 'lucide-react';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
+import { toast } from 'sonner';
 
 interface Sequence {
   id: string;
@@ -60,6 +60,21 @@ export default function SequencesPage() {
       }
     } catch (error) {
       console.error('Failed to toggle sequence:', error);
+    }
+  };
+
+  const deleteSequence = async (id: string, name: string) => {
+    if (!confirm(`Delete sequence "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/sequences/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete');
+      }
+      toast.success('Sequence deleted');
+      fetchSequences();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete sequence');
     }
   };
 
@@ -155,6 +170,13 @@ export default function SequencesPage() {
                       ) : (
                         <Play className="h-4 w-4" />
                       )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteSequence(sequence.id, sequence.name)}
+                    >
+                      Delete
                     </Button>
                   </div>
                 </div>

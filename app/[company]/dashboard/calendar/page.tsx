@@ -323,7 +323,16 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2">Calendar</h1>
-          <p className="text-gray-500">Manage your meetings and events</p>
+          <p className="text-gray-500">
+            Manage your meetings and events.{' '}
+            <a
+              href={path('/dashboard/customers')}
+              className="text-primary underline underline-offset-2"
+            >
+              Customer visits
+            </a>{' '}
+            are scheduled on each client&apos;s Visits tab.
+          </p>
         </div>
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />

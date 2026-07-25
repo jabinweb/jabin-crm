@@ -65,6 +65,65 @@ export async function GET(
   }
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
+
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
+    const { id } = await params;
+    const body = await request.json();
+
+    const data: Record<string, unknown> = {};
+    const stringFields = [
+      'companyName',
+      'contactName',
+      'email',
+      'phone',
+      'website',
+      'address',
+      'city',
+      'state',
+      'country',
+      'zipCode',
+      'industry',
+      'jobTitle',
+      'description',
+      'source',
+      'sourceUrl',
+    ] as const;
+    for (const key of stringFields) {
+      if (typeof body[key] === 'string') data[key] = body[key].trim();
+    }
+    if (Array.isArray(body.tags)) data.tags = body.tags;
+
+    if (!Object.keys(data).length) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
+    }
+
+    const updated = await prisma.lead.updateMany({
+      where: { id, companyId },
+      data,
+    });
+    if (updated.count === 0) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    const lead = await prisma.lead.findFirst({ where: { id, companyId } });
+    return NextResponse.json(lead);
+  } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
+    return handleRouteError(error);
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

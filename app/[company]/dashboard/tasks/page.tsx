@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Phone, Mail, Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Plus, Phone, Mail, Calendar, CheckCircle2, Clock, AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
@@ -67,7 +67,10 @@ export default function TasksPage() {
   const [filter, setFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
   const fetchTasks = useCallback(async () => {
@@ -158,6 +161,75 @@ export default function TasksPage() {
     }
   };
 
+  const openEdit = (task: Task) => {
+    setEditingTask(task);
+    setForm({
+      title: task.title,
+      description: task.description || '',
+      type: task.type || 'TODO',
+      priority: task.priority || 'MEDIUM',
+      dueDate: task.dueDate ? task.dueDate.slice(0, 10) : '',
+    });
+    setEditOpen(true);
+  };
+
+  const saveTask = async () => {
+    if (!editingTask) return;
+    if (!form.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await workspaceFetch(`/api/tasks/${editingTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description,
+          type: form.type,
+          priority: form.priority,
+          dueDate: form.dueDate || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update task');
+      }
+      toast.success('Task updated');
+      setEditOpen(false);
+      setEditingTask(null);
+      setForm(EMPTY_FORM);
+      void fetchTasks();
+      void fetchStats();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to update task');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!confirm('Delete this task?')) return;
+    try {
+      const res = await workspaceFetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete task');
+      }
+      toast.success('Task deleted');
+      if (editingTask?.id === taskId) {
+        setEditOpen(false);
+        setEditingTask(null);
+        setForm(EMPTY_FORM);
+      }
+      void fetchTasks();
+      void fetchStats();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to delete task');
+    }
+  };
+
   const getTaskIcon = (type: string) => {
     switch (type) {
       case 'CALL': return <Phone className="h-4 w-4" />;
@@ -198,7 +270,13 @@ export default function TasksPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Tasks</h1>
           <p className="text-sm md:text-base text-muted-foreground">Manage your sales activities</p>
         </div>
-        <Button className="w-full sm:w-auto" onClick={() => setCreateOpen(true)}>
+        <Button
+          className="w-full sm:w-auto"
+          onClick={() => {
+            setForm(EMPTY_FORM);
+            setCreateOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           New Task
         </Button>
@@ -308,6 +386,26 @@ export default function TasksPage() {
                           {format(new Date(task.dueDate), 'MMM dd, yyyy')}
                         </div>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={async () => {
+                          if (!confirm('Delete this task?')) return;
+                          const res = await workspaceFetch(`/api/tasks/${task.id}`, {
+                            method: 'DELETE',
+                          });
+                          if (!res.ok) {
+                            toast.error('Failed to delete task');
+                            return;
+                          }
+                          toast.success('Task deleted');
+                          void fetchTasks();
+                          void fetchStats();
+                        }}
+                      >
+                        Delete
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -390,6 +488,108 @@ export default function TasksPage() {
             </Button>
             <Button onClick={() => void createTask()} disabled={creating}>
               {creating ? 'Creating…' : 'Create task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) {
+            setEditingTask(null);
+            setForm(EMPTY_FORM);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-2">
+              <Label>Title *</Label>
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={(type) => setForm((f) => ({ ...f, type }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TODO">To-do</SelectItem>
+                    <SelectItem value="CALL">Call</SelectItem>
+                    <SelectItem value="EMAIL">Email</SelectItem>
+                    <SelectItem value="MEETING">Meeting</SelectItem>
+                    <SelectItem value="FOLLOW_UP">Follow up</SelectItem>
+                    <SelectItem value="DEMO">Demo</SelectItem>
+                    <SelectItem value="PROPOSAL">Proposal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Priority</Label>
+                <Select
+                  value={form.priority}
+                  onValueChange={(priority) => setForm((f) => ({ ...f, priority }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">Low</SelectItem>
+                    <SelectItem value="MEDIUM">Medium</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Due date</Label>
+              <Input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            {editingTask && (
+              <Button
+                variant="destructive"
+                className="mr-auto"
+                onClick={() => void deleteTask(editingTask.id)}
+              >
+                Delete
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditOpen(false);
+                setEditingTask(null);
+                setForm(EMPTY_FORM);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void saveTask()} disabled={saving}>
+              {saving ? 'Saving…' : 'Save changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
