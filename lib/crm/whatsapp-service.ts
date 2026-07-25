@@ -4,6 +4,7 @@ import type { WhatsAppChannel } from '@prisma/client';
 import { fetchSummoraBridge, getSummoraCreds } from '@/lib/crm/summora-bridge';
 import {
   extractWhatsAppChatJid,
+  extractWhatsAppSenderFields,
   isWhatsAppGroupJid,
   messageMatchesInboxFilter,
   normalizeWhatsAppChatJid,
@@ -362,25 +363,25 @@ export class WhatsAppService {
     const enriched = rows
       .map((msg) => {
         const chatJid = extractWhatsAppChatJid(msg);
-        const meta = (msg.metadata || {}) as Record<string, unknown>;
-        const data = (meta.data || {}) as Record<string, unknown>;
-        const fromMe =
-          msg.direction === 'OUTBOUND' ||
-          meta.fromMe === true ||
-          data.fromMe === true;
-        const senderName = resolveWhatsAppSenderName({
+        const fields = extractWhatsAppSenderFields(msg.metadata);
+        const fromMe = msg.direction === 'OUTBOUND' || fields.fromMe;
+        const resolved = resolveWhatsAppSenderName({
           fromMe,
           chatJid,
-          sender: data.sender ?? meta.sender,
-          pushName: data.pushName ?? meta.pushName,
-          participant: data.participant ?? meta.participant,
-          senderName: meta.senderName,
+          sender: fields.sender,
+          pushName: fields.pushName,
+          participant: fields.participant,
+          participantAlt: fields.participantAlt,
+          senderName: (msg.metadata as Record<string, unknown> | null)?.senderName,
+          senderPhone: fields.senderPhone,
+          senderLid: fields.senderLid,
         });
         return {
           ...msg,
           chatJid,
           isGroup: isWhatsAppGroupJid(chatJid),
-          senderName,
+          senderName: resolved.label,
+          senderPhone: resolved.phone,
         };
       })
       .filter((msg) => {
@@ -578,13 +579,16 @@ export class WhatsAppService {
         return { ok: true, type, skipped: 'missing_remote_jid' };
       }
 
-      const peer = chatJid.replace(/@s\.whatsapp\.net$/, '');
-      const senderName = resolveWhatsAppSenderName({
+      const peer = chatJid.replace(/@s\.whatsapp\.net$/, '').replace(/@lid$/, '');
+      const resolved = resolveWhatsAppSenderName({
         fromMe,
         chatJid,
         sender: data.sender,
         pushName: data.pushName,
         participant: data.participant,
+        participantAlt: data.participantAlt,
+        senderPhone: data.senderPhone,
+        senderLid: data.senderLid,
       });
       const body = String(data.content || '');
       const created = await prisma.whatsAppMessage.create({
@@ -601,9 +605,12 @@ export class WhatsAppService {
           metadata: {
             ...payload,
             remoteJid: chatJid,
+            remoteJidAlt: data.remoteJidAlt || null,
             isGroup: isWhatsAppGroupJid(chatJid),
             participant: data.participant || null,
-            senderName,
+            participantAlt: data.participantAlt || null,
+            senderName: resolved.label,
+            senderPhone: resolved.phone,
             pushName: data.pushName || null,
             fromMe,
           },

@@ -18,6 +18,7 @@ export type CachedWaMessage = {
   chatJid?: string;
   isGroup?: boolean;
   senderName?: string | null;
+  senderPhone?: string | null;
   fromPhone?: string | null;
   toPhone?: string | null;
   metadata?: unknown;

@@ -44,7 +44,11 @@ import {
   readCachedWhatsAppMessages,
   type CachedWaMessage,
 } from '@/lib/whatsapp/local-store';
-import { normalizeWhatsAppChatJid } from '@/lib/crm/whatsapp-chat';
+import {
+  extractWhatsAppSenderFields,
+  normalizeWhatsAppChatJid,
+  resolveWhatsAppSenderName,
+} from '@/lib/crm/whatsapp-chat';
 
 type WaMessage = {
   id: string;
@@ -56,8 +60,10 @@ type WaMessage = {
   chatJid?: string;
   isGroup?: boolean;
   senderName?: string | null;
+  senderPhone?: string | null;
   fromPhone?: string | null;
   toPhone?: string | null;
+  metadata?: unknown;
 };
 
 type ChatThread = {
@@ -80,6 +86,28 @@ function formatMsgTime(iso: string) {
   if (isToday(d)) return format(d, 'HH:mm');
   if (isYesterday(d)) return `Yesterday ${format(d, 'HH:mm')}`;
   return format(d, 'dd MMM HH:mm');
+}
+
+function displaySenderLabel(msg: WaMessage, chatKey: string, isGroup: boolean): string {
+  if (msg.direction === 'OUTBOUND') return 'You';
+  if (msg.senderName && !msg.senderName.endsWith('@g.us')) {
+    const groupLocal = chatKey.replace(/@g\.us$/i, '');
+    if (msg.senderName !== groupLocal) return msg.senderName;
+  }
+  const fields = extractWhatsAppSenderFields(msg.metadata);
+  const resolved = resolveWhatsAppSenderName({
+    fromMe: false,
+    chatJid: chatKey,
+    sender: fields.sender,
+    pushName: fields.pushName,
+    participant: fields.participant,
+    participantAlt: fields.participantAlt,
+    senderPhone: fields.senderPhone || msg.senderPhone,
+    senderLid: fields.senderLid,
+  });
+  if (resolved.label) return resolved.label;
+  if (msg.senderPhone) return msg.senderPhone;
+  return isGroup ? 'Unknown member' : 'Chat';
 }
 
 function connectionTone(status?: string) {
@@ -432,8 +460,15 @@ export default function WhatsAppHubPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to save filters');
       setFilterType(nextType);
       setAllowedJids(nextType === 'CUSTOM' ? nextJids : []);
-      toast.success('Inbox filter saved');
+      toast.success(
+        nextType === 'ALL'
+          ? 'All chats enabled — new DMs and groups will appear as they arrive'
+          : 'Inbox filter saved'
+      );
       await loadMessages();
+      if (nextType !== 'CUSTOM') {
+        void loadSummoraGroups();
+      }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Could not save filter');
     } finally {
@@ -511,12 +546,12 @@ export default function WhatsAppHubPage() {
 
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) return;
-    if (filterType !== 'CUSTOM') return;
     const ready =
       summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING';
     if (!ready) return;
+    // Always load group subjects so chat list shows names (not raw ids)
     void loadSummoraGroups();
-  }, [config.provider, config.isActive, filterType, summoraSession?.status]);
+  }, [config.provider, config.isActive, summoraSession?.status]);
 
   const threads: ChatThread[] = useMemo(() => {
     const map = new Map<string, WaMessage[]>();
@@ -541,9 +576,14 @@ export default function WhatsAppHubPage() {
         String(key).endsWith('@g.us') ||
         sorted.some((m) => m.isGroup);
       const groupName = groups.find((g) => g.jid === key)?.name;
+      const dmLabel = !isGroup ? displaySenderLabel(last, key, false) : null;
       const label =
         groupName ||
+        (dmLabel && dmLabel !== 'You' && dmLabel !== 'Chat' ? dmLabel : null) ||
         (isGroup ? key.replace(/@g\.us$/, '') : null) ||
+        (!isGroup
+          ? key.replace(/@s\.whatsapp\.net$/i, '').replace(/@lid$/i, '')
+          : null) ||
         last.senderName ||
         key;
       result.push({
@@ -934,17 +974,11 @@ export default function WhatsAppHubPage() {
 
                         {activeThread.messages.map((msg) => {
                           const outbound = msg.direction === 'OUTBOUND';
-                          const rawFrom =
-                            msg.senderName ||
-                            (outbound ? 'You' : activeThread.isGroup ? 'Member' : activeThread.label);
-                          const from =
-                            rawFrom &&
-                            !rawFrom.endsWith('@g.us') &&
-                            rawFrom !== activeThread.key.replace(/@g\.us$/, '')
-                              ? rawFrom
-                              : outbound
-                                ? 'You'
-                                : 'Member';
+                          const from = displaySenderLabel(
+                            msg,
+                            activeThread.key,
+                            activeThread.isGroup
+                          );
                           return (
                             <div
                               key={msg.id}
@@ -979,6 +1013,7 @@ export default function WhatsAppHubPage() {
                             </div>
                           );
                         })}
+                        <div ref={threadEndRef} className="h-px w-full shrink-0" aria-hidden />
                       </div>
                     </div>
                   </ScrollArea>

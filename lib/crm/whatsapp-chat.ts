@@ -9,6 +9,15 @@ export function isWhatsAppGroupJid(jid: string): boolean {
   return normalizeWhatsAppChatJid(jid).endsWith('@g.us');
 }
 
+/** Local part of a JID; strips device suffix (`123:0@s.whatsapp.net` → `123`). */
+export function jidLocalPart(jid: string | null | undefined): string {
+  return String(jid || '')
+    .trim()
+    .split('@')[0]
+    .split(':')[0]
+    .trim();
+}
+
 /** Extract chat JID from a stored WhatsAppMessage row. */
 export function extractWhatsAppChatJid(message: {
   fromPhone?: string | null;
@@ -26,36 +35,147 @@ export function extractWhatsAppChatJid(message: {
   );
 }
 
-/** Prefer human name; never show raw group id as the speaker. */
+function pickMetaField(
+  meta: Record<string, unknown>,
+  data: Record<string, unknown>,
+  key: string
+): unknown {
+  if (data[key] != null && data[key] !== '') return data[key];
+  if (meta[key] != null && meta[key] !== '') return meta[key];
+  return null;
+}
+
+/** Pull sender fields from nested Summora webhook metadata. */
+export function extractWhatsAppSenderFields(metadata: unknown): {
+  pushName: string | null;
+  participant: string | null;
+  participantAlt: string | null;
+  sender: string | null;
+  senderPhone: string | null;
+  senderLid: string | null;
+  fromMe: boolean;
+} {
+  const meta = (metadata || {}) as Record<string, unknown>;
+  const data = (meta.data || {}) as Record<string, unknown>;
+  const rawKey = (data.rawKey || meta.rawKey || {}) as Record<string, unknown>;
+
+  const participant =
+    (pickMetaField(meta, data, 'participant') as string | null) ||
+    (typeof rawKey.participant === 'string' ? rawKey.participant : null);
+  const participantAlt =
+    (pickMetaField(meta, data, 'participantAlt') as string | null) ||
+    (typeof rawKey.participantAlt === 'string' ? rawKey.participantAlt : null);
+  const pushName = (pickMetaField(meta, data, 'pushName') as string | null) || null;
+  const sender = (pickMetaField(meta, data, 'sender') as string | null) || null;
+  const senderPhone =
+    (pickMetaField(meta, data, 'senderPhone') as string | null) || null;
+  const senderLid =
+    (pickMetaField(meta, data, 'senderLid') as string | null) || null;
+  const fromMe =
+    meta.fromMe === true ||
+    data.fromMe === true ||
+    rawKey.fromMe === true;
+
+  return {
+    pushName: pushName ? String(pushName).trim() : null,
+    participant: participant ? String(participant) : null,
+    participantAlt: participantAlt ? String(participantAlt) : null,
+    sender: sender ? String(sender).trim() : null,
+    senderPhone: senderPhone ? String(senderPhone).trim() : null,
+    senderLid: senderLid ? String(senderLid).trim() : null,
+    fromMe,
+  };
+}
+
+function looksLikeGroupId(value: string, chatJid: string): boolean {
+  const groupLocal = jidLocalPart(chatJid);
+  const local = jidLocalPart(value);
+  if (!local) return false;
+  if (value.endsWith('@g.us') || local === groupLocal) return true;
+  // WhatsApp group ids are long numeric (typically 15–20 digits)
+  return /^\d{15,}$/.test(local) && local === groupLocal;
+}
+
+/**
+ * Prefer human name; fall back to phone / LID.
+ * Never show the raw group id as the speaker.
+ */
 export function resolveWhatsAppSenderName(opts: {
   fromMe?: boolean;
   chatJid: string;
   sender?: unknown;
   pushName?: unknown;
   participant?: unknown;
+  participantAlt?: unknown;
   senderName?: unknown;
-}): string | null {
-  if (opts.fromMe) return 'You';
-  const push = String(opts.pushName || opts.senderName || '').trim();
-  if (push && push.toLowerCase() !== 'me') return push;
-
-  const sender = String(opts.sender || '').trim();
-  const groupLocal = opts.chatJid.replace(/@g\.us$/i, '');
-  if (
-    sender &&
-    sender.toLowerCase() !== 'me' &&
-    sender !== groupLocal &&
-    !sender.endsWith('@g.us')
-  ) {
-    return sender;
+  senderPhone?: unknown;
+  senderLid?: unknown;
+}): { name: string | null; phone: string | null; label: string | null } {
+  if (opts.fromMe) {
+    return { name: 'You', phone: null, label: 'You' };
   }
 
-  const participant = String(opts.participant || '')
-    .trim()
-    .replace(/@.*$/, '');
-  if (participant && participant !== groupLocal) return participant;
+  const groupLocal = jidLocalPart(opts.chatJid);
+  const push = String(opts.pushName || opts.senderName || '').trim();
+  const pushOk =
+    push &&
+    push.toLowerCase() !== 'me' &&
+    push.toLowerCase() !== 'unknown' &&
+    !looksLikeGroupId(push, opts.chatJid)
+      ? push
+      : null;
 
-  return null;
+  const phoneFromAlt = jidLocalPart(String(opts.participantAlt || ''));
+  const phoneStored = jidLocalPart(String(opts.senderPhone || ''));
+  const participantRaw = String(opts.participant || '').trim();
+  const participantLocal = jidLocalPart(participantRaw);
+  const participantIsLid = participantRaw.includes('@lid');
+
+  const phone =
+    phoneFromAlt ||
+    phoneStored ||
+    (!participantIsLid &&
+    participantLocal &&
+    participantLocal !== groupLocal &&
+    !/^\d{15,}$/.test(participantLocal)
+      ? participantLocal
+      : '') ||
+    null;
+
+  const lid =
+    jidLocalPart(String(opts.senderLid || '')) ||
+    (participantIsLid && participantLocal !== groupLocal ? participantLocal : '') ||
+    null;
+
+  const sender = String(opts.sender || '').trim();
+  const senderOk =
+    sender &&
+    sender.toLowerCase() !== 'me' &&
+    sender.toLowerCase() !== 'unknown' &&
+    !looksLikeGroupId(sender, opts.chatJid) &&
+    sender !== pushOk
+      ? sender
+      : null;
+
+  // If sender looks like a digit id and isn't the push name, treat as phone/lid
+  const senderAsId =
+    senderOk && /^\d{6,}$/.test(jidLocalPart(senderOk))
+      ? jidLocalPart(senderOk)
+      : null;
+
+  const name =
+    pushOk ||
+    (senderOk && !senderAsId ? senderOk : null) ||
+    null;
+
+  const id = phone || senderAsId || lid || null;
+
+  if (name && id && name !== id) {
+    return { name, phone: id, label: `${name} · ${id}` };
+  }
+  if (name) return { name, phone: id, label: name };
+  if (id) return { name: null, phone: id, label: id };
+  return { name: null, phone: null, label: null };
 }
 
 export function messageMatchesInboxFilter(
