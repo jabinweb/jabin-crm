@@ -2,25 +2,16 @@
 
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Pencil, Trash2, Building2 } from 'lucide-react';
+import { Building2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { EasyBottomSheet, EasyFab } from '@/components/customers/easy-bottom-sheet';
 
-type Contact = { id: string; name: string; role?: string | null; specialty?: string | null };
+type Contact = { id: string; name: string; role?: string | null };
 type Department = {
   id: string;
   name: string;
@@ -66,7 +57,7 @@ export function CustomerDepartmentsTab({
 
   const save = async () => {
     if (!name.trim()) {
-      toast.error('Department name is required');
+      toast.error('Name is required');
       return;
     }
     setBusy(true);
@@ -82,136 +73,148 @@ export function CustomerDepartmentsTab({
         }
       );
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'Failed to save department');
-      toast.success(editingId ? 'Department updated' : 'Department added');
+      if (!res.ok) throw new Error(body.error || 'Could not save');
+      toast.success(editingId ? 'Saved' : 'Department added');
       setOpen(false);
       invalidate();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to save');
+      toast.error(e instanceof Error ? e.message : 'Could not save');
     } finally {
       setBusy(false);
     }
   };
 
-  const remove = async (deptId: string) => {
-    if (!confirm('Delete this department? Contacts will be unlinked, not deleted.')) return;
+  const remove = async (deptId: string, deptName: string) => {
+    if (!confirm(`Delete ${deptName}? People stay — they just unlink.`)) return;
     try {
       const res = await workspaceFetch(
         `/api/customers/${customerId}/departments/${deptId}`,
         { method: 'DELETE' }
       );
       if (!res.ok) throw new Error('Failed');
-      toast.success('Department removed');
+      toast.success('Removed');
       invalidate();
     } catch {
-      toast.error('Failed to remove department');
+      toast.error('Could not remove');
     }
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Departments</CardTitle>
-          <CardDescription>
-            Optional — for hospitals and multi-unit sites (Cardiology, ICU, Night OT, etc.).
-          </CardDescription>
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-lg font-semibold tracking-tight">Departments</h3>
+        <p className="text-sm text-muted-foreground">
+          Optional — Cardiology, ICU, Night OT…
+        </p>
+      </div>
+
+      {!departments?.length ? (
+        <div className="rounded-2xl border border-dashed px-4 py-10 text-center">
+          <Building2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
+          <p className="font-medium">Skip if not needed</p>
+          <p className="mt-1 text-sm text-muted-foreground max-w-xs mx-auto">
+            Small clinics can ignore this. Hospitals add units so visits hit the right team.
+          </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline" onClick={openCreate}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add department
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingId ? 'Edit department' : 'Add department'}</DialogTitle>
-              <DialogDescription>
-                Group doctors and staff technicians meet during visits.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-2">
-              <div className="grid gap-2">
-                <Label>Name</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Cardiology"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Notes</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Wing, floor, night coverage…"
-                  rows={3}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={save} disabled={busy}>
-                {busy ? 'Saving…' : 'Save'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent>
-        {!departments?.length ? (
-          <div className="rounded-lg border border-dashed p-8 text-center space-y-2">
-            <Building2 className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="text-sm font-medium">No departments yet</p>
-            <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              Skip this for small clinics. For hospitals, add units so visits can target the right
-              doctors and night teams.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {departments.map((d) => (
-              <div key={d.id} className="rounded-lg border p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold">{d.name}</h4>
-                      <Badge variant="secondary">
-                        {d._count?.contacts ?? d.contacts?.length ?? 0} people
-                      </Badge>
-                    </div>
-                    {d.notes ? (
-                      <p className="text-sm text-muted-foreground mt-1">{d.notes}</p>
-                    ) : null}
+      ) : (
+        <ul className="space-y-2">
+          {departments.map((d) => (
+            <li key={d.id} className="rounded-2xl border bg-card p-3.5 space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => openEdit(d)}
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-semibold text-base">{d.name}</span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {d._count?.contacts ?? d.contacts?.length ?? 0} people
+                    </Badge>
                   </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(d)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={() => remove(d.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {d.notes ? (
+                    <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{d.notes}</p>
+                  ) : null}
+                </button>
+                <div className="flex shrink-0">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-11 w-11"
+                    onClick={() => openEdit(d)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-11 w-11 text-destructive"
+                    onClick={() => remove(d.id, d.name)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                {d.contacts?.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {d.contacts.map((c) => (
-                      <Badge key={c.id} variant="outline" className="font-normal">
-                        {c.name}
-                        {c.role ? ` · ${c.role}` : ''}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">
-                    No contacts linked — assign people from the People tab.
-                  </p>
-                )}
               </div>
-            ))}
+              {d.contacts?.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {d.contacts.map((c) => (
+                    <Badge key={c.id} variant="outline" className="font-normal">
+                      {c.name}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Link people from the People tab.
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <EasyFab label="+ Add department" onClick={openCreate} />
+
+      <EasyBottomSheet
+        open={open}
+        onOpenChange={setOpen}
+        title={editingId ? 'Edit department' : 'Add department'}
+        description="Name only — notes are optional."
+        footer={
+          <Button
+            size="lg"
+            className="h-12 w-full text-base font-semibold"
+            onClick={save}
+            disabled={busy}
+          >
+            {busy ? 'Saving…' : 'Save'}
+          </Button>
+        }
+      >
+        <div className="grid gap-4 pb-2">
+          <div className="grid gap-2">
+            <Label htmlFor="d-name">Name *</Label>
+            <Input
+              id="d-name"
+              className="h-12 text-base"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Cardiology"
+              autoFocus
+            />
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <div className="grid gap-2">
+            <Label htmlFor="d-notes">Notes</Label>
+            <Textarea
+              id="d-notes"
+              className="min-h-[88px] text-base"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Floor, wing, night coverage…"
+            />
+          </div>
+        </div>
+      </EasyBottomSheet>
+    </div>
   );
 }

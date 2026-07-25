@@ -37,15 +37,6 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { ServiceLinkCard } from '@/components/service-request/service-link-card';
 import { DetailSkeleton } from '@/components/loading';
 import { CurrencySelect } from '@/components/ui/currency-select';
-import { CURRENCIES } from '@/lib/currency';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { CustomerPeopleTab } from '@/components/customers/customer-people-tab';
 import { CustomerDepartmentsTab } from '@/components/customers/customer-departments-tab';
@@ -167,30 +158,37 @@ export default function CustomerDetailPage() {
         </Button>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <h2 className="text-3xl font-bold tracking-tight">{customer.organizationName}</h2>
-            <Badge variant="outline">{customer.city || 'Location Pending'}</Badge>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">
+              {customer.organizationName}
+            </h2>
+            <Badge variant="outline">{customer.city || 'No city'}</Badge>
           </div>
-          <p className="text-muted-foreground flex items-center">
-            <MapPin className="h-4 w-4 mr-1 text-primary" />
-            {customer.address || 'No address provided'}
+          <p className="text-sm text-muted-foreground flex items-start gap-1.5">
+            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+            <span>{customer.address || 'No address'}</span>
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={handleInviteToPortal} disabled={isInviting}>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center w-full sm:w-auto">
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={handleInviteToPortal}
+            disabled={isInviting}
+          >
             <User className="mr-2 h-4 w-4" />
-            {isInviting ? 'Inviting…' : 'Invite to portal'}
+            {isInviting ? '…' : 'Invite'}
           </Button>
-          <Button variant="outline" onClick={handleExportHistory}>
+          <Button variant="outline" className="h-11" onClick={handleExportHistory}>
             <Download className="mr-2 h-4 w-4" />
-            Export History
+            Export
           </Button>
-          <Button asChild>
+          <Button asChild className="h-11 col-span-2 sm:col-span-1">
             <Link href={path(`/dashboard/tickets/new?customerId=${id}`)}>
               <Ticket className="mr-2 h-4 w-4" />
-              New Ticket
+              New ticket
             </Link>
           </Button>
         </div>
@@ -228,125 +226,31 @@ export default function CustomerDetailPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Contact Details</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-start space-x-3">
-                <User className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">{customer.contactPerson}</p>
-                  <p className="text-xs text-muted-foreground">Primary Contact</p>
-                </div>
-              </div>
-              {customer.email && (
-                <div className="flex items-start space-x-3">
-                  <Mail className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-sm break-all">{customer.email}</p>
-                </div>
-              )}
-              {customer.phone && (
-                <div className="flex items-start space-x-3">
-                  <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-sm">{customer.phone}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Main first on mobile */}
+        <div className="lg:col-span-3 order-1 lg:order-2 min-w-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <div className="sticky top-0 z-10 -mx-1 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-2 pt-1">
+              <TabsList className="w-full h-auto justify-start gap-1 overflow-x-auto flex-nowrap rounded-xl bg-muted/60 p-1 scrollbar-none">
+                {[
+                  ['people', 'People'],
+                  ['departments', 'Depts'],
+                  ['visits', 'Visits'],
+                  ['equipment', 'Gear'],
+                  ['tickets', 'Tickets'],
+                  ['timeline', 'Activity'],
+                ].map(([value, label]) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="shrink-0 rounded-lg px-3.5 py-2.5 text-sm data-[state=active]:shadow-sm"
+                  >
+                    {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Billing currency</CardTitle>
-              <CardDescription>
-                Overrides company default for this client&apos;s new quotes and invoices.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <CurrencySelect
-                id="customer-billing-currency"
-                label=""
-                allowEmpty
-                emptyLabel="Use company default"
-                value={billingCurrencyValue}
-                onValueChange={(value) => setBillingCurrencyDraft(String(value))}
-              />
-              {customer.billingCurrency ? (
-                <p className="text-xs text-muted-foreground">
-                  Current:{' '}
-                  {CURRENCIES[customer.billingCurrency as keyof typeof CURRENCIES]
-                    ? `${customer.billingCurrency} (${CURRENCIES[customer.billingCurrency as keyof typeof CURRENCIES].symbol})`
-                    : customer.billingCurrency}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Using company default</p>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full"
-                disabled={savingCurrency || billingCurrencyDraft === null}
-                onClick={handleSaveBillingCurrency}
-              >
-                {savingCurrency ? 'Saving…' : 'Save currency'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex justify-between items-center text-muted-foreground">
-                <span>People</span>
-                <span className="font-semibold text-foreground">
-                  {customer._count?.contacts ?? customer.contacts?.length ?? 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-muted-foreground">
-                <span>Departments</span>
-                <span className="font-semibold text-foreground">
-                  {customer._count?.departments ?? customer.departments?.length ?? 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-muted-foreground">
-                <span>Visits</span>
-                <span className="font-semibold text-foreground">
-                  {customer._count?.visits ?? customer.visits?.length ?? 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-muted-foreground">
-                <span>Equipment</span>
-                <span className="font-semibold text-foreground">
-                  {customer.equipmentInstallations?.length || 0}
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-muted-foreground">
-                <span>Open Tickets</span>
-                <span className="font-semibold text-foreground">
-                  {customer.supportTickets?.filter(
-                    (t: { status: string }) => t.status !== 'RESOLVED' && t.status !== 'CLOSED'
-                  ).length || 0}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-3">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="bg-muted/50 p-1 flex flex-wrap h-auto">
-              <TabsTrigger value="people">People</TabsTrigger>
-              <TabsTrigger value="departments">Departments</TabsTrigger>
-              <TabsTrigger value="visits">Visits</TabsTrigger>
-              <TabsTrigger value="equipment">Equipment</TabsTrigger>
-              <TabsTrigger value="tickets">Support Tickets</TabsTrigger>
-              <TabsTrigger value="timeline">Activity</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="people" className="space-y-6">
+            <TabsContent value="people" className="mt-0 space-y-4">
               <CustomerPeopleTab
                 customerId={customerId}
                 slug={slug}
@@ -356,7 +260,7 @@ export default function CustomerDetailPage() {
               />
             </TabsContent>
 
-            <TabsContent value="departments" className="space-y-6">
+            <TabsContent value="departments" className="mt-0 space-y-4">
               <CustomerDepartmentsTab
                 customerId={customerId}
                 slug={slug}
@@ -365,7 +269,7 @@ export default function CustomerDetailPage() {
               />
             </TabsContent>
 
-            <TabsContent value="visits" className="space-y-6">
+            <TabsContent value="visits" className="mt-0 space-y-4">
               <CustomerVisitsTab
                 customerId={customerId}
                 slug={slug}
@@ -376,131 +280,98 @@ export default function CustomerDetailPage() {
               />
             </TabsContent>
 
-            <TabsContent value="equipment" className="space-y-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Installed Equipment</CardTitle>
-                    <CardDescription>Products and assets installed for this client.</CardDescription>
-                  </div>
-                  <Button asChild size="sm">
-                    <Link href={path(`/dashboard/inventory/new?customerId=${id}`)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Equipment
-                    </Link>
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Model</TableHead>
-                        <TableHead>Serial Number</TableHead>
-                        <TableHead>Install Date</TableHead>
-                        <TableHead>Warranty</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">QR</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {customer.equipmentInstallations?.map((eq: any) => (
-                        <TableRow key={eq.id}>
-                          <TableCell className="font-medium">
-                            {eq.product?.name || 'Unknown'}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">{eq.serialNumber}</TableCell>
-                          <TableCell>
-                            {new Date(eq.installationDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {eq.warrantyExpiry
-                              ? new Date(eq.warrantyExpiry).toLocaleDateString()
-                              : '—'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={eq.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                              {eq.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  QR link
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-lg">
-                                <DialogHeader>
-                                  <DialogTitle>Equipment service QR</DialogTitle>
-                                  <DialogDescription>
-                                    Stick this QR on the machine so staff can raise a ticket for
-                                    this unit only.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <ServiceLinkCard
-                                  scope="equipment"
-                                  id={eq.id}
-                                  title={eq.product?.name || 'Equipment'}
-                                  description={
-                                    eq.serialNumber
-                                      ? `S/N ${eq.serialNumber}`
-                                      : 'Equipment-scoped request link'
-                                  }
-                                />
-                              </DialogContent>
-                            </Dialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+            <TabsContent value="equipment" className="mt-0 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold">Equipment</h3>
+                  <p className="text-sm text-muted-foreground">Installed assets</p>
+                </div>
+                <Button asChild className="h-11 shrink-0">
+                  <Link href={path(`/dashboard/inventory/new?customerId=${id}`)}>
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    Add
+                  </Link>
+                </Button>
+              </div>
+              {!customer.equipmentInstallations?.length ? (
+                <p className="text-sm text-muted-foreground italic py-6 text-center border border-dashed rounded-2xl">
+                  No equipment yet.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {customer.equipmentInstallations.map((eq: any) => (
+                    <li key={eq.id} className="rounded-2xl border p-3.5 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-semibold">{eq.product?.name || 'Unknown'}</p>
+                          <p className="text-xs font-mono text-muted-foreground">
+                            {eq.serialNumber || 'No S/N'}
+                          </p>
+                        </div>
+                        <Badge variant={eq.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                          {eq.status}
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Installed {new Date(eq.installationDate).toLocaleDateString()}
+                        {eq.warrantyExpiry
+                          ? ` · Warranty ${new Date(eq.warrantyExpiry).toLocaleDateString()}`
+                          : ''}
+                      </p>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" className="h-10 w-full">
+                            QR link
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Equipment service QR</DialogTitle>
+                            <DialogDescription>
+                              Stick this QR on the machine for unit-scoped tickets.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <ServiceLinkCard
+                            scope="equipment"
+                            id={eq.id}
+                            title={eq.product?.name || 'Equipment'}
+                            description={
+                              eq.serialNumber
+                                ? `S/N ${eq.serialNumber}`
+                                : 'Equipment-scoped request link'
+                            }
+                          />
+                        </DialogContent>
+                      </Dialog>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </TabsContent>
 
-            <TabsContent value="tickets" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Support History</CardTitle>
-                  <CardDescription>
-                    Track all service requests and technical issues.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {!customer.supportTickets?.length ? (
-                      <p className="text-sm text-muted-foreground italic py-4">
-                        No support tickets yet.
-                      </p>
-                    ) : (
-                      customer.supportTickets.map((ticket: any) => (
-                        <div
-                          key={ticket.id}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
-                          onClick={() => router.push(path(`/dashboard/tickets/${ticket.id}`))}
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold">{ticket.subject}</p>
-                              <Badge
-                                variant={
-                                  ticket.priority === 'CRITICAL' ? 'destructive' : 'outline'
-                                }
-                              >
-                                {ticket.priority}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              ID: {ticket.id} • Created on{' '}
-                              {new Date(ticket.createdAt).toLocaleDateString()}
-                            </p>
-                          </div>
+            <TabsContent value="tickets" className="mt-0 space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold">Tickets</h3>
+                <p className="text-sm text-muted-foreground">Service / break-fix history</p>
+              </div>
+              {!customer.supportTickets?.length ? (
+                <p className="text-sm text-muted-foreground italic py-6 text-center border border-dashed rounded-2xl">
+                  No tickets yet.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {customer.supportTickets.map((ticket: any) => (
+                    <li key={ticket.id}>
+                      <button
+                        type="button"
+                        className="w-full rounded-2xl border p-3.5 text-left active:bg-muted/40"
+                        onClick={() => router.push(path(`/dashboard/tickets/${ticket.id}`))}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="font-semibold leading-snug">{ticket.subject}</p>
                           <Badge
                             className={cn(
+                              'shrink-0',
                               ticket.status === 'RESOLVED'
                                 ? 'bg-green-500 hover:bg-green-600'
                                 : ticket.status === 'OPEN'
@@ -511,45 +382,135 @@ export default function CustomerDetailPage() {
                             {ticket.status}
                           </Badge>
                         </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {ticket.priority} · {new Date(ticket.createdAt).toLocaleDateString()}
+                        </p>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="timeline" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Activity</CardTitle>
+                  <CardDescription>Recent updates for this client.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="relative space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
+                    {!customer.activities?.length ? (
+                      <p className="text-sm text-muted-foreground italic pl-8">No activity yet.</p>
+                    ) : (
+                      customer.activities.map((activity: any) => (
+                        <div key={activity.id} className="relative pl-8">
+                          <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-primary bg-background flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">
+                              {String(activity.eventType).replace(/_/g, ' ')}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{activity.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(activity.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
                       ))
                     )}
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
-
-            <TabsContent value="timeline" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Customer Timeline</CardTitle>
-                  <CardDescription>
-                    Full history of interactions, visits, and installations.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="relative space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
-                    {customer.activities?.map((activity: any) => (
-                      <div key={activity.id} className="relative pl-8">
-                        <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-primary bg-background flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">
-                            {String(activity.eventType).replace(/_/g, ' ')}
-                          </p>
-                          <p className="text-sm text-muted-foreground">{activity.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(activity.createdAt).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </div>
+
+        <aside className="lg:col-span-1 order-2 lg:order-1 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Primary contact</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-sm font-medium">{customer.contactPerson}</p>
+              </div>
+              {customer.phone ? (
+                <Button asChild variant="outline" className="h-11 w-full justify-start">
+                  <a href={`tel:${customer.phone}`}>
+                    <Phone className="mr-2 h-4 w-4" />
+                    {customer.phone}
+                  </a>
+                </Button>
+              ) : null}
+              {customer.email ? (
+                <Button asChild variant="outline" className="h-11 w-full justify-start">
+                  <a href={`mailto:${customer.email}`}>
+                    <Mail className="mr-2 h-4 w-4 break-all" />
+                    <span className="truncate">{customer.email}</span>
+                  </a>
+                </Button>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">At a glance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-1">
+                {[
+                  ['People', customer._count?.contacts ?? customer.contacts?.length ?? 0],
+                  ['Depts', customer._count?.departments ?? customer.departments?.length ?? 0],
+                  ['Visits', customer._count?.visits ?? customer.visits?.length ?? 0],
+                  ['Gear', customer.equipmentInstallations?.length || 0],
+                  [
+                    'Open tickets',
+                    customer.supportTickets?.filter(
+                      (t: { status: string }) =>
+                        t.status !== 'RESOLVED' && t.status !== 'CLOSED'
+                    ).length || 0,
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    key={String(label)}
+                    className="rounded-xl border px-3 py-2.5 flex items-center justify-between gap-2"
+                  >
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                    <span className="text-sm font-semibold">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">Billing currency</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <CurrencySelect
+                id="customer-billing-currency"
+                label=""
+                allowEmpty
+                emptyLabel="Company default"
+                value={billingCurrencyValue}
+                onValueChange={(value) => setBillingCurrencyDraft(String(value))}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-10 w-full"
+                disabled={savingCurrency || billingCurrencyDraft === null}
+                onClick={handleSaveBillingCurrency}
+              >
+                {savingCurrency ? 'Saving…' : 'Save'}
+              </Button>
+            </CardContent>
+          </Card>
+        </aside>
       </div>
     </div>
   );
