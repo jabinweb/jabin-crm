@@ -24,6 +24,7 @@ import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import {
   Check,
   ChevronDown,
+  ChevronLeft,
   CornerUpLeft,
   Filter,
   Link2,
@@ -912,6 +913,22 @@ export default function WhatsAppHubPage() {
   }, [threads, chatSearch]);
 
   useEffect(() => {
+    // Mobile: keep list-first (don't auto-open a chat). Desktop: select first thread.
+    const isMobile =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 767px)').matches;
+
+    if (isMobile) {
+      if (
+        selectedChatKey &&
+        filteredThreads.length > 0 &&
+        !filteredThreads.some((t) => t.key === selectedChatKey)
+      ) {
+        setSelectedChatKey(null);
+      }
+      return;
+    }
+
     if (!selectedChatKey && filteredThreads[0]) {
       setSelectedChatKey(filteredThreads[0].key);
     } else if (
@@ -1150,12 +1167,12 @@ export default function WhatsAppHubPage() {
         : 'All chats';
 
   return (
-    <div className="flex h-[calc(100dvh-5.5rem)] min-h-[520px] flex-col gap-2">
+    <div className="flex h-[calc(100dvh-7.5rem)] min-h-0 flex-col gap-2 sm:h-[calc(100dvh-5.5rem)] sm:min-h-[480px]">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">WhatsApp</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">WhatsApp</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 line-clamp-2">
             Inbox for linked chats — filter at the source, reply from Opslane.
           </p>
         </div>
@@ -1171,6 +1188,7 @@ export default function WhatsAppHubPage() {
           <Button
             variant="outline"
             size="sm"
+            className="h-9"
             onClick={() => void loadMessages()}
             disabled={loading}
           >
@@ -1185,16 +1203,16 @@ export default function WhatsAppHubPage() {
       </div>
 
       <Tabs value={mainTab} onValueChange={setMainTab} className="flex min-h-0 flex-1 flex-col">
-        <TabsList className="w-fit shrink-0">
-          <TabsTrigger value="inbox" className="gap-1.5">
+        <TabsList className="w-full sm:w-fit shrink-0 h-auto flex-wrap justify-start gap-1 p-1">
+          <TabsTrigger value="inbox" className="gap-1.5 flex-1 sm:flex-none min-h-10">
             <MessageSquare className="h-3.5 w-3.5" />
             Inbox
           </TabsTrigger>
-          <TabsTrigger value="setup" className="gap-1.5">
+          <TabsTrigger value="setup" className="gap-1.5 flex-1 sm:flex-none min-h-10">
             <QrCode className="h-3.5 w-3.5" />
             Connection
           </TabsTrigger>
-          <TabsTrigger value="provider" className="gap-1.5">
+          <TabsTrigger value="provider" className="gap-1.5 flex-1 sm:flex-none min-h-10">
             <Settings2 className="h-3.5 w-3.5" />
             Provider
           </TabsTrigger>
@@ -1203,8 +1221,13 @@ export default function WhatsAppHubPage() {
         {/* ——— Inbox ——— */}
         <TabsContent value="inbox" className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
           <div className="grid h-full min-h-0 overflow-hidden rounded-xl border bg-card md:grid-cols-[minmax(260px,320px)_1fr]">
-            {/* Chat list */}
-            <div className="flex min-h-0 flex-col border-b md:border-b-0 md:border-r">
+            {/* Chat list — full screen on mobile until a chat is opened */}
+            <div
+              className={cn(
+                'min-h-0 flex-col border-b md:border-b-0 md:border-r',
+                selectedChatKey ? 'hidden md:flex' : 'flex'
+              )}
+            >
               <div className="space-y-2 border-b p-3">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -1267,8 +1290,8 @@ export default function WhatsAppHubPage() {
                           type="button"
                           onClick={() => setSelectedChatKey(thread.key)}
                           className={cn(
-                            'flex w-full gap-3 px-3 py-3 text-left transition-colors',
-                            active ? 'bg-muted' : 'hover:bg-muted/50'
+                            'flex w-full gap-3 px-3 py-3.5 text-left transition-colors min-h-[64px]',
+                            active ? 'bg-muted' : 'hover:bg-muted/50 active:bg-muted'
                           )}
                         >
                           <Avatar className="h-10 w-10 shrink-0">
@@ -1314,12 +1337,27 @@ export default function WhatsAppHubPage() {
               </ScrollArea>
             </div>
 
-            {/* Thread + composer */}
-            <div className="flex min-h-0 min-w-0 flex-col bg-[#f0f2f5] dark:bg-muted/30">
+            {/* Thread + composer — full screen on mobile when a chat is open */}
+            <div
+              className={cn(
+                'min-h-0 min-w-0 flex-col bg-[#f0f2f5] dark:bg-muted/30',
+                selectedChatKey ? 'flex' : 'hidden md:flex'
+              )}
+            >
               {activeThread ? (
                 <>
-                  <div className="flex items-center gap-3 border-b bg-background px-3 py-2.5">
-                    <Avatar className="h-8 w-8">
+                  <div className="flex items-center gap-2 border-b bg-background px-2 py-2 sm:gap-3 sm:px-3 sm:py-2.5">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 shrink-0 md:hidden"
+                      onClick={() => setSelectedChatKey(null)}
+                      aria-label="Back to chats"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarFallback className="text-xs">
                         {activeThread.isGroup ? (
                           <Users className="h-3.5 w-3.5" />
@@ -1340,7 +1378,7 @@ export default function WhatsAppHubPage() {
                               .replace(/@lid$/i, '')}`
                           : ''}
                         {' · '}
-                        {activeThread.messages.length} messages · cached locally
+                        {activeThread.messages.length} messages
                       </p>
                     </div>
                   </div>

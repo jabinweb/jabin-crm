@@ -114,6 +114,43 @@ function CustomerTicketQueue() {
 
             <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
                 <CardContent className="p-0">
+                    {/* Mobile cards */}
+                    <div className="md:hidden divide-y">
+                        {filteredTickets?.length === 0 ? (
+                            <p className="text-center py-16 text-slate-400 italic px-4">
+                                No support tickets matching your search.
+                            </p>
+                        ) : (
+                            filteredTickets?.map((ticket: any) => (
+                                <button
+                                    key={ticket.id}
+                                    type="button"
+                                    className="flex w-full flex-col gap-2 p-4 text-left active:bg-slate-50 dark:active:bg-slate-800/50"
+                                    onClick={() => router.push(`/portal/tickets/${ticket.id}`)}
+                                >
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className="font-semibold text-sm leading-snug">{ticket.subject}</p>
+                                        <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${ticket.status === 'RESOLVED' ? 'bg-green-50 text-green-700 border-green-100' :
+                                            ticket.status === 'OPEN' ? 'bg-red-50 text-red-700 border-red-100' :
+                                                'bg-blue-50 text-blue-700 border-blue-100'
+                                            }`}>
+                                            {ticket.status}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        #{ticket.id.slice(-6).toUpperCase()} · {ticket.priority} ·{' '}
+                                        {new Date(ticket.createdAt).toLocaleDateString()}
+                                    </p>
+                                    <p className="text-xs text-slate-600">
+                                        {ticket.assignedTechnician?.name || 'In Triage'}
+                                    </p>
+                                </button>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Desktop table */}
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
                             <TableRow className="hover:bg-transparent border-none">
@@ -185,6 +222,7 @@ function CustomerTicketQueue() {
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

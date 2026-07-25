@@ -16,6 +16,7 @@ import {
   Trash2,
   TrendingDown,
   TrendingUp,
+  ChevronLeft,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ interface EmailDetailPanelProps {
   loadingReplies: boolean;
   analyzingSentiment: string | null;
   sentimentResults: Record<string, SentimentAnalysis>;
+  onBack?: () => void;
   onReply: () => void;
   onForward: () => void;
   onDelete: () => void;
@@ -49,6 +51,7 @@ export function EmailDetailPanel({
   loadingReplies,
   analyzingSentiment,
   sentimentResults,
+  onBack,
   onReply,
   onForward,
   onDelete,
@@ -59,7 +62,7 @@ export function EmailDetailPanel({
 }: EmailDetailPanelProps) {
   if (!selectedEmail) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center p-6">
         <div className="text-center">
           <Mail className="mx-auto h-16 w-16 text-muted-foreground" />
           <p className="mt-4 text-lg font-medium">No email selected</p>
@@ -73,12 +76,25 @@ export function EmailDetailPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h2 className="text-2xl font-semibold">
-              {selectedEmail.subject || '(No subject)'}
-            </h2>
+      <div className="border-b p-4 sm:p-6">
+        <div className="flex items-start gap-2">
+          {onBack ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 shrink-0 md:hidden -ml-1"
+              onClick={onBack}
+              aria-label="Back to inbox"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          ) : null}
+          <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg sm:text-2xl font-semibold break-words">
+                {selectedEmail.subject || '(No subject)'}
+              </h2>
             <div className="mt-4 space-y-2">
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium">From:</span>
@@ -98,25 +114,25 @@ export function EmailDetailPanel({
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 shrink-0">
             {selectedFolder === 'drafts' ? (
               <>
-                <Button variant="outline" size="sm" onClick={onEditDraft}>
-                  <Pencil className="mr-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="h-9" onClick={onEditDraft}>
+                  <Pencil className="mr-1.5 h-4 w-4" />
                   Edit
                 </Button>
-                <Button variant="default" size="sm" onClick={onSendDraft}>
-                  <Send className="mr-2 h-4 w-4" />
+                <Button variant="default" size="sm" className="h-9" onClick={onSendDraft}>
+                  <Send className="mr-1.5 h-4 w-4" />
                   Send
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-9 text-destructive hover:text-destructive"
                   onClick={onDelete}
-                  className="text-destructive hover:text-destructive"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  <Trash2 className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Delete</span>
                 </Button>
               </>
             ) : (
@@ -125,42 +141,48 @@ export function EmailDetailPanel({
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-9"
                     onClick={onToggleStar}
                     aria-label={selectedEmail.isStarred ? 'Unstar' : 'Star'}
                   >
                     <Star
                       className={cn(
-                        'mr-2 h-4 w-4',
+                        'h-4 w-4 sm:mr-1.5',
                         selectedEmail.isStarred && 'fill-amber-400 text-amber-500'
                       )}
                     />
-                    {selectedEmail.isStarred ? 'Starred' : 'Star'}
+                    <span className="hidden sm:inline">
+                      {selectedEmail.isStarred ? 'Starred' : 'Star'}
+                    </span>
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={onReply}>
-                  <ReplyIcon className="mr-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="h-9" onClick={onReply}>
+                  <ReplyIcon className="mr-1.5 h-4 w-4" />
                   Reply
                 </Button>
-                <Button variant="outline" size="sm" onClick={onForward}>
-                  <Forward className="mr-2 h-4 w-4" />
+                <Button variant="outline" size="sm" className="h-9 hidden sm:inline-flex" onClick={onForward}>
+                  <Forward className="mr-1.5 h-4 w-4" />
                   Forward
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={onDelete}
-                  className="text-destructive hover:text-destructive"
+                  className="h-9 text-destructive hover:text-destructive"
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  {selectedFolder === 'trash' ? 'Delete forever' : 'Trash'}
+                  <Trash2 className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">
+                    {selectedFolder === 'trash' ? 'Delete forever' : 'Trash'}
+                  </span>
                 </Button>
               </>
             )}
           </div>
+          </div>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-6">
+      <ScrollArea className="flex-1 p-4 sm:p-6">
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3 pb-3 border-b">
             <div className="flex items-center gap-3">

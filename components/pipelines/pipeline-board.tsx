@@ -47,12 +47,12 @@ export function PipelineBoard<T extends PipelineBoardCard>({
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className={cn('flex gap-4 overflow-x-auto pb-4', className)}>
+      <div className={cn('flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory touch-pan-x', className)}>
         {columns.map((stage) => {
           const items = itemsByStage[stage.id] || [];
           const isUnmapped = stage.id === UNMAPPED_STAGE_ID;
           return (
-            <div key={stage.id} className="flex-shrink-0 w-72 sm:w-80">
+            <div key={stage.id} className="w-[85vw] max-w-80 flex-shrink-0 snap-start sm:w-72 md:w-80">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h3 className="font-semibold flex items-center gap-2 text-sm">
                   <span className={cn('h-2.5 w-2.5 rounded-full', stage.color)} />
@@ -67,7 +67,7 @@ export function PipelineBoard<T extends PipelineBoardCard>({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      'min-h-[420px] space-y-2 rounded-md border bg-muted/40 p-2 transition-colors',
+                      'min-h-[280px] space-y-2 rounded-md border bg-muted/40 p-2 transition-colors sm:min-h-[420px]',
                       snapshot.isDraggingOver && 'bg-accent/60',
                       isUnmapped && 'border-dashed opacity-90'
                     )}

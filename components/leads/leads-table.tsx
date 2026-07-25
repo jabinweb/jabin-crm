@@ -81,7 +81,83 @@ export function LeadsTable({
 
   return (
     <>
-      <div className="rounded-none border overflow-x-auto">
+      {/* Mobile card list */}
+      <div className="space-y-2 md:hidden">
+        {data?.leads?.map((lead: any) => (
+          <div
+            key={lead.id}
+            className="rounded-2xl border bg-card p-3.5 space-y-2 active:bg-muted/40"
+          >
+            <div className="flex items-start gap-3">
+              <Checkbox
+                className="mt-1"
+                checked={selectedLeads.includes(lead.id)}
+                onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
+              />
+              <button
+                type="button"
+                className="min-w-0 flex-1 text-left"
+                onClick={() => router.push(path(`/dashboard/leads/${lead.id}`))}
+              >
+                <p className="font-semibold leading-snug">{lead.companyName}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+                  {[lead.industry, lead.source].filter(Boolean).join(' · ') || 'Lead'}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge
+                    variant={
+                      lead.status === 'CONVERTED' || lead.status === 'QUALIFIED'
+                        ? 'default'
+                        : lead.status === 'LOST' || lead.status === 'UNSUBSCRIBED'
+                          ? 'destructive'
+                          : 'secondary'
+                    }
+                    className="text-[10px]"
+                  >
+                    {lead.status}
+                  </Badge>
+                  <LeadScoreBadge
+                    score={lead.leadScore?.score || 0}
+                    showNumber={true}
+                    size="sm"
+                  />
+                </div>
+              </button>
+            </div>
+            <div className="flex gap-2 pl-8">
+              {lead.phone ? (
+                <Button asChild variant="outline" size="sm" className="h-10 flex-1">
+                  <a href={`tel:${lead.phone}`}>
+                    <Phone className="mr-1.5 h-3.5 w-3.5" />
+                    Call
+                  </a>
+                </Button>
+              ) : null}
+              {lead.email ? (
+                <Button asChild variant="outline" size="sm" className="h-10 flex-1">
+                  <a href={`mailto:${lead.email}`}>
+                    <Mail className="mr-1.5 h-3.5 w-3.5" />
+                    Email
+                  </a>
+                </Button>
+              ) : null}
+              <Button
+                variant="secondary"
+                size="sm"
+                className="h-10 flex-1"
+                onClick={() => router.push(path(`/dashboard/leads/${lead.id}`))}
+              >
+                Open
+              </Button>
+            </div>
+          </div>
+        ))}
+        {!data?.leads?.length ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">No leads found</p>
+        ) : null}
+      </div>
+
+      <div className="hidden md:block rounded-none border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -269,17 +345,18 @@ export function LeadsTable({
       </div>
 
       {data?.pagination && (
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-muted-foreground">
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}
             {Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)}{' '}
             of {data.pagination.total} leads
           </p>
-          <div className="flex items-center space-x-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="h-10"
               onClick={() => setPage(page - 1)}
               disabled={page <= 1}
             >
@@ -289,6 +366,7 @@ export function LeadsTable({
               type="button"
               variant="outline"
               size="sm"
+              className="h-10"
               onClick={() => setPage(page + 1)}
               disabled={page >= data.pagination.pages}
             >

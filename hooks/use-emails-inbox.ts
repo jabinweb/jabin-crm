@@ -474,6 +474,11 @@ export function useEmailsInbox() {
     }
   };
 
+  const clearSelectedEmail = () => {
+    setSelectedEmail(null);
+    setEmailReplies([]);
+  };
+
   const getCurrentFolderIcon = () => {
     const folder = folders.find((f) => f.id === selectedFolder);
     return folder ? folder.icon : Mail;
@@ -516,6 +521,7 @@ export function useEmailsInbox() {
     handleRefresh,
     handleAnalyzeSentiment,
     handleEmailClick,
+    clearSelectedEmail,
     getCurrentFolderIcon,
     getCurrentFolderName,
   };

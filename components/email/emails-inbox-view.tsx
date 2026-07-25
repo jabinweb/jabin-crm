@@ -69,6 +69,7 @@ export function EmailsInboxView({
   handleRefresh,
   handleAnalyzeSentiment,
   handleEmailClick,
+  clearSelectedEmail,
   getCurrentFolderIcon,
   getCurrentFolderName,
 }: EmailsInboxViewProps) {
@@ -77,7 +78,12 @@ export function EmailsInboxView({
 
   return (
     <div className="flex h-full min-h-0">
-      <div className="w-[420px] border-r flex flex-col bg-background">
+      <div
+        className={cn(
+          'w-full border-r flex flex-col bg-background md:w-[380px] lg:w-[420px] shrink-0',
+          selectedEmail ? 'hidden md:flex' : 'flex'
+        )}
+      >
         <div className="border-b">
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
@@ -175,7 +181,7 @@ export function EmailsInboxView({
                   onClick={() => handleEmailClick(email)}
                 >
                   <div className="flex items-start gap-2">
-                    <div className="flex-1 space-y-0.5 pr-2 max-w-[340px]">
+                    <div className="flex-1 space-y-0.5 pr-2 min-w-0 max-w-none md:max-w-[340px]">
                       <div className="flex items-center gap-1.5">
                         <div className="flex-shrink-0">{getStatusIcon(email.status)}</div>
                         <p
@@ -245,7 +251,12 @@ export function EmailsInboxView({
         </ScrollArea>
       </div>
 
-      <div className="flex-1">
+      <div
+        className={cn(
+          'min-w-0 flex-1',
+          selectedEmail ? 'flex' : 'hidden md:flex'
+        )}
+      >
         <EmailDetailPanel
           selectedEmail={selectedEmail}
           selectedFolder={selectedFolder}
@@ -253,6 +264,7 @@ export function EmailsInboxView({
           loadingReplies={loadingReplies}
           analyzingSentiment={analyzingSentiment}
           sentimentResults={sentimentResults}
+          onBack={clearSelectedEmail}
           onReply={handleReply}
           onForward={handleForward}
           onDelete={handleDelete}
