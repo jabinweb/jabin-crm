@@ -375,6 +375,7 @@ export class WhatsAppService {
           senderName: (msg.metadata as Record<string, unknown> | null)?.senderName,
           senderPhone: fields.senderPhone,
           senderLid: fields.senderLid,
+          contactName: fields.contactName,
         });
         return {
           ...msg,
@@ -589,6 +590,7 @@ export class WhatsAppService {
         participantAlt: data.participantAlt,
         senderPhone: data.senderPhone,
         senderLid: data.senderLid,
+        contactName: data.contactName,
       });
       const body = String(data.content || '');
       const created = await prisma.whatsAppMessage.create({
@@ -611,6 +613,7 @@ export class WhatsAppService {
             participantAlt: data.participantAlt || null,
             senderName: resolved.label,
             senderPhone: resolved.phone,
+            contactName: data.contactName || resolved.name,
             pushName: data.pushName || null,
             fromMe,
           },

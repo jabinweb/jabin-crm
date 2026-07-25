@@ -88,11 +88,19 @@ function formatMsgTime(iso: string) {
   return format(d, 'dd MMM HH:mm');
 }
 
-function displaySenderLabel(msg: WaMessage, chatKey: string, isGroup: boolean): string {
+function displaySenderLabel(
+  msg: WaMessage,
+  chatKey: string,
+  isGroup: boolean,
+  contactName?: string | null
+): string {
   if (msg.direction === 'OUTBOUND') return 'You';
+  if (contactName) return contactName;
   if (msg.senderName && !msg.senderName.endsWith('@g.us')) {
     const groupLocal = chatKey.replace(/@g\.us$/i, '');
-    if (msg.senderName !== groupLocal) return msg.senderName;
+    if (msg.senderName !== groupLocal && !/^\d{10,}$/.test(msg.senderName)) {
+      return msg.senderName;
+    }
   }
   const fields = extractWhatsAppSenderFields(msg.metadata);
   const resolved = resolveWhatsAppSenderName({
@@ -104,10 +112,28 @@ function displaySenderLabel(msg: WaMessage, chatKey: string, isGroup: boolean): 
     participantAlt: fields.participantAlt,
     senderPhone: fields.senderPhone || msg.senderPhone,
     senderLid: fields.senderLid,
+    contactName: fields.contactName || contactName,
   });
-  if (resolved.label) return resolved.label;
+  if (resolved.name) return resolved.name;
+  if (resolved.label && !/^\d{10,}$/.test(resolved.label)) return resolved.label;
   if (msg.senderPhone) return msg.senderPhone;
   return isGroup ? 'Unknown member' : 'Chat';
+}
+
+function lookupContactName(
+  contacts: { jid: string; name: string; phone?: string }[],
+  chatKey: string
+): string | null {
+  const key = normalizeWhatsAppChatJid(chatKey);
+  const local = key.split('@')[0]?.split(':')[0] || '';
+  const hit = contacts.find(
+    (c) =>
+      c.jid === key ||
+      c.phone === local ||
+      c.jid.split('@')[0]?.split(':')[0] === local ||
+      (c.phone && key.includes(c.phone))
+  );
+  return hit?.name || null;
 }
 
 function connectionTone(status?: string) {
@@ -161,6 +187,9 @@ export default function WhatsAppHubPage() {
   const [filterType, setFilterType] = useState<'ALL' | 'GROUPS_ONLY' | 'CUSTOM'>('ALL');
   const [allowedJids, setAllowedJids] = useState<string[]>([]);
   const [groups, setGroups] = useState<{ jid: string; name: string }[]>([]);
+  const [contacts, setContacts] = useState<
+    { jid: string; name: string; phone?: string }[]
+  >([]);
   const [filterBusy, setFilterBusy] = useState(false);
   const [groupsError, setGroupsError] = useState<string | null>(null);
   const [config, setConfig] = useState({
@@ -441,6 +470,17 @@ export default function WhatsAppHubPage() {
     setGroups(Array.isArray(data.groups) ? data.groups : []);
   };
 
+  const loadSummoraContacts = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/summora/contacts', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      setContacts(Array.isArray(data.contacts) ? data.contacts : []);
+    } catch {
+      /* ignore — labels fall back to numbers */
+    }
+  };
+
   const saveSummoraFilters = async (
     nextType: 'ALL' | 'GROUPS_ONLY' | 'CUSTOM',
     nextJids = allowedJids
@@ -549,8 +589,13 @@ export default function WhatsAppHubPage() {
     const ready =
       summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING';
     if (!ready) return;
-    // Always load group subjects so chat list shows names (not raw ids)
+    // Always load group subjects + contact names so chat list shows names (not raw ids)
     void loadSummoraGroups();
+    void loadSummoraContacts();
+    const id = setInterval(() => {
+      void loadSummoraContacts();
+    }, 60_000);
+    return () => clearInterval(id);
   }, [config.provider, config.isActive, summoraSession?.status]);
 
   const threads: ChatThread[] = useMemo(() => {
@@ -576,10 +621,22 @@ export default function WhatsAppHubPage() {
         String(key).endsWith('@g.us') ||
         sorted.some((m) => m.isGroup);
       const groupName = groups.find((g) => g.jid === key)?.name;
-      const dmLabel = !isGroup ? displaySenderLabel(last, key, false) : null;
+      const contactName = !isGroup ? lookupContactName(contacts, key) : null;
+      // Prefer any inbound message name in the thread (last may be "You")
+      let inboundName: string | null = null;
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        const m = sorted[i];
+        if (m.direction === 'OUTBOUND') continue;
+        const label = displaySenderLabel(m, key, isGroup, contactName);
+        if (label && label !== 'You' && label !== 'Chat' && label !== 'Unknown member') {
+          inboundName = label;
+          break;
+        }
+      }
       const label =
         groupName ||
-        (dmLabel && dmLabel !== 'You' && dmLabel !== 'Chat' ? dmLabel : null) ||
+        contactName ||
+        inboundName ||
         (isGroup ? key.replace(/@g\.us$/, '') : null) ||
         (!isGroup
           ? key.replace(/@s\.whatsapp\.net$/i, '').replace(/@lid$/i, '')
@@ -600,7 +657,7 @@ export default function WhatsAppHubPage() {
         new Date(b.lastMessage.createdAt).getTime() -
         new Date(a.lastMessage.createdAt).getTime()
     );
-  }, [messages, groups]);
+  }, [messages, groups, contacts]);
 
   const filteredThreads = useMemo(() => {
     const q = chatSearch.trim().toLowerCase();
@@ -941,7 +998,15 @@ export default function WhatsAppHubPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{activeThread.label}</p>
                       <p className="truncate text-[11px] text-muted-foreground">
-                        {activeThread.isGroup ? 'Group' : 'Chat'} ·{' '}
+                        {activeThread.isGroup ? 'Group' : 'Chat'}
+                        {!activeThread.isGroup &&
+                        lookupContactName(contacts, activeThread.key) &&
+                        !/^\d+$/.test(activeThread.label)
+                          ? ` · ${activeThread.key
+                              .replace(/@s\.whatsapp\.net$/i, '')
+                              .replace(/@lid$/i, '')}`
+                          : ''}
+                        {' · '}
                         {activeThread.messages.length} messages · cached locally
                       </p>
                     </div>
@@ -974,10 +1039,21 @@ export default function WhatsAppHubPage() {
 
                         {activeThread.messages.map((msg) => {
                           const outbound = msg.direction === 'OUTBOUND';
+                          const fields = extractWhatsAppSenderFields(msg.metadata);
+                          const contactHint = activeThread.isGroup
+                            ? lookupContactName(
+                                contacts,
+                                msg.senderPhone ||
+                                  fields.participantAlt ||
+                                  fields.participant ||
+                                  ''
+                              )
+                            : lookupContactName(contacts, activeThread.key);
                           const from = displaySenderLabel(
                             msg,
                             activeThread.key,
-                            activeThread.isGroup
+                            activeThread.isGroup,
+                            contactHint
                           );
                           return (
                             <div

@@ -53,6 +53,7 @@ export function extractWhatsAppSenderFields(metadata: unknown): {
   sender: string | null;
   senderPhone: string | null;
   senderLid: string | null;
+  contactName: string | null;
   fromMe: boolean;
 } {
   const meta = (metadata || {}) as Record<string, unknown>;
@@ -71,6 +72,8 @@ export function extractWhatsAppSenderFields(metadata: unknown): {
     (pickMetaField(meta, data, 'senderPhone') as string | null) || null;
   const senderLid =
     (pickMetaField(meta, data, 'senderLid') as string | null) || null;
+  const contactName =
+    (pickMetaField(meta, data, 'contactName') as string | null) || null;
   const fromMe =
     meta.fromMe === true ||
     data.fromMe === true ||
@@ -83,6 +86,7 @@ export function extractWhatsAppSenderFields(metadata: unknown): {
     sender: sender ? String(sender).trim() : null,
     senderPhone: senderPhone ? String(senderPhone).trim() : null,
     senderLid: senderLid ? String(senderLid).trim() : null,
+    contactName: contactName ? String(contactName).trim() : null,
     fromMe,
   };
 }
@@ -110,12 +114,22 @@ export function resolveWhatsAppSenderName(opts: {
   senderName?: unknown;
   senderPhone?: unknown;
   senderLid?: unknown;
+  contactName?: unknown;
 }): { name: string | null; phone: string | null; label: string | null } {
   if (opts.fromMe) {
     return { name: 'You', phone: null, label: 'You' };
   }
 
   const groupLocal = jidLocalPart(opts.chatJid);
+  const contact = String(opts.contactName || '').trim();
+  const contactOk =
+    contact &&
+    contact.toLowerCase() !== 'me' &&
+    contact.toLowerCase() !== 'unknown' &&
+    !looksLikeGroupId(contact, opts.chatJid)
+      ? contact
+      : null;
+
   const push = String(opts.pushName || opts.senderName || '').trim();
   const pushOk =
     push &&
@@ -153,7 +167,8 @@ export function resolveWhatsAppSenderName(opts: {
     sender.toLowerCase() !== 'me' &&
     sender.toLowerCase() !== 'unknown' &&
     !looksLikeGroupId(sender, opts.chatJid) &&
-    sender !== pushOk
+    sender !== pushOk &&
+    sender !== contactOk
       ? sender
       : null;
 
@@ -164,14 +179,16 @@ export function resolveWhatsAppSenderName(opts: {
       : null;
 
   const name =
+    contactOk ||
     pushOk ||
     (senderOk && !senderAsId ? senderOk : null) ||
     null;
 
   const id = phone || senderAsId || lid || null;
 
+  // Chat list: show name only (cleaner). Bubbles can still pass through label with phone.
   if (name && id && name !== id) {
-    return { name, phone: id, label: `${name} · ${id}` };
+    return { name, phone: id, label: name };
   }
   if (name) return { name, phone: id, label: name };
   if (id) return { name: null, phone: id, label: id };
