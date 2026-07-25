@@ -13,6 +13,13 @@ import {
   resolveWhatsAppSenderName,
 } from '@/lib/crm/whatsapp-chat';
 
+/** Last-known Summora inbox filter — avoid blocking every message list on the bridge. */
+const inboxFilterCache = new Map<
+  string,
+  { filterType: string; allowedJids: string[]; at: number }
+>();
+const INBOX_FILTER_TTL_MS = 60_000;
+
 interface SendWhatsAppInput {
   userId: string;
   toPhone: string;
@@ -337,12 +344,34 @@ export class WhatsAppService {
       before?: string;
       limit?: number;
       chatJid?: string;
+      /** Extra JIDs/phones that identify the same chat (LID ↔ phone). */
+      chatAliases?: string[];
     }
   ) {
     const limit = Math.min(Math.max(filters?.limit ?? 100, 1), 400);
     const wantChat = filters?.chatJid
       ? normalizeWhatsAppChatJid(filters.chatJid)
       : null;
+    const aliasSet = new Set<string>();
+    const addAlias = (raw: string | null | undefined) => {
+      const n = normalizeWhatsAppChatJid(raw);
+      if (!n) return;
+      aliasSet.add(n);
+      const local = n.split('@')[0]?.split(':')[0] || '';
+      if (local) {
+        aliasSet.add(local);
+        if (!local.includes('@')) {
+          aliasSet.add(`${local}@s.whatsapp.net`);
+          aliasSet.add(`${local}@lid`);
+        }
+      }
+    };
+    if (wantChat) {
+      addAlias(wantChat);
+      for (const a of filters?.chatAliases || []) addAlias(a);
+    }
+    const chatVariants = Array.from(aliasSet);
+
     const where: Record<string, unknown> = { userId };
     if (filters?.channel) where.channel = filters.channel;
     if (filters?.leadId) where.leadId = filters.leadId;
@@ -356,10 +385,29 @@ export class WhatsAppService {
       }
     }
 
+    // Narrow to this chat in SQL so we don't miss older threads among 1000+ chats
+    if (chatVariants.length) {
+      const phoneKeys = chatVariants.filter((v) => !v.includes('@') || !v.endsWith('@g.us'));
+      const groupKeys = chatVariants.filter((v) => v.endsWith('@g.us'));
+      const or: Record<string, unknown>[] = [];
+      for (const v of [...phoneKeys, ...groupKeys]) {
+        or.push({ toPhone: v });
+        or.push({ fromPhone: v });
+      }
+      for (const v of chatVariants) {
+        or.push({ metadata: { path: ['remoteJid'], equals: v } });
+        or.push({ metadata: { path: ['data', 'remoteJid'], equals: v } });
+      }
+      where.OR = or;
+    }
+
     const beforeOccurredAt = (where as { __beforeOccurredAt?: Date }).__beforeOccurredAt;
     delete (where as { __beforeOccurredAt?: Date }).__beforeOccurredAt;
 
-    // Over-fetch so inbox filter / chat filter still yield a full page
+    // Over-fetch only when still applying inbox filter in memory (no chat scope)
+    const take = wantChat
+      ? Math.min(limit * 3, 400)
+      : Math.min(limit * 4, 400);
     const rows = await prisma.whatsAppMessage.findMany({
       where,
       include: {
@@ -368,24 +416,39 @@ export class WhatsAppService {
         ticket: { select: { id: true, subject: true, status: true } },
       },
       orderBy: { createdAt: 'desc' },
-      take: Math.min(limit * (wantChat ? 8 : 6), wantChat ? 800 : 600),
+      take,
     });
 
     const respect = filters?.respectInboxFilter !== false;
     let filterType = 'ALL';
     let allowedJids: string[] = [];
 
+    // Never block the inbox on Summora — short timeout + cache, fail-open to ALL
     if (respect) {
-      const creds = await getSummoraCreds(userId);
-      if (!('error' in creds)) {
-        const result = await fetchSummoraBridge(creds, '/api/v1/bridge/filters', {
-          timeoutMs: 8_000,
-        });
-        if (result.ok) {
-          filterType = String(result.body.filterType || 'ALL').toUpperCase();
-          allowedJids = Array.isArray(result.body.allowedJids)
-            ? (result.body.allowedJids as string[])
-            : [];
+      const cached = inboxFilterCache.get(userId);
+      if (cached && Date.now() - cached.at < INBOX_FILTER_TTL_MS) {
+        filterType = cached.filterType;
+        allowedJids = cached.allowedJids;
+      } else {
+        const creds = await getSummoraCreds(userId);
+        if (!('error' in creds)) {
+          const result = await fetchSummoraBridge(creds, '/api/v1/bridge/filters', {
+            timeoutMs: 1_500,
+          });
+          if (result.ok) {
+            filterType = String(result.body.filterType || 'ALL').toUpperCase();
+            allowedJids = Array.isArray(result.body.allowedJids)
+              ? (result.body.allowedJids as string[])
+              : [];
+            inboxFilterCache.set(userId, {
+              filterType,
+              allowedJids,
+              at: Date.now(),
+            });
+          } else if (cached) {
+            filterType = cached.filterType;
+            allowedJids = cached.allowedJids;
+          }
         }
       }
     }
@@ -445,11 +508,17 @@ export class WhatsAppService {
         ) {
           return false;
         }
-        if (wantChat && normalizeWhatsAppChatJid(msg.chatJid) !== wantChat) {
-          // Also match bare phone ↔ full jid
-          const wantLocal = wantChat.split('@')[0];
-          const msgLocal = String(msg.chatJid).split('@')[0];
-          if (wantLocal !== msgLocal) return false;
+        if (chatVariants.length) {
+          const msgJid = normalizeWhatsAppChatJid(msg.chatJid);
+          const msgLocal = msgJid.split('@')[0]?.split(':')[0] || '';
+          const hit =
+            chatVariants.includes(msgJid) ||
+            (msgLocal && chatVariants.includes(msgLocal)) ||
+            chatVariants.some((v) => {
+              const vl = v.split('@')[0]?.split(':')[0] || '';
+              return vl && vl === msgLocal;
+            });
+          if (!hit) return false;
         }
         return true;
       })

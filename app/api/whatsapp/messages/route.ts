@@ -8,6 +8,10 @@ export const GET = withSessionRoute(async (req, { userId }) => {
   const respectInboxFilter = searchParams.get('respectInboxFilter') !== '0';
   const before = searchParams.get('before') || undefined;
   const chatJid = searchParams.get('chatJid') || undefined;
+  const chatAliases = searchParams
+    .getAll('alias')
+    .map((a) => a.trim())
+    .filter(Boolean);
   const limitRaw = Number(searchParams.get('limit') || 100);
   const limit = Number.isFinite(limitRaw) ? limitRaw : 100;
 
@@ -19,6 +23,7 @@ export const GET = withSessionRoute(async (req, { userId }) => {
     respectInboxFilter,
     before,
     chatJid,
+    chatAliases,
     limit,
   });
 

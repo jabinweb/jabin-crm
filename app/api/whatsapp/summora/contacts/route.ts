@@ -12,7 +12,7 @@ export const GET = withSessionRoute(async (_req, { userId }) => {
   }
 
   const result = await fetchSummoraBridge(creds, '/api/v1/bridge/contacts', {
-    timeoutMs: 45_000,
+    timeoutMs: 12_000,
   });
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });

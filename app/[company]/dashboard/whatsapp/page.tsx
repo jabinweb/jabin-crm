@@ -150,6 +150,32 @@ function lookupContactName(
   return hit?.name || null;
 }
 
+/** LID / phone / full jid aliases for the same contact thread. */
+function contactAliasesForChat(
+  contacts: { jid: string; name: string; phone?: string }[],
+  chatKey: string
+): string[] {
+  const key = normalizeWhatsAppChatJid(chatKey);
+  const local = key.split('@')[0]?.split(':')[0] || '';
+  const hit = contacts.find(
+    (c) =>
+      c.jid === key ||
+      c.phone === local ||
+      c.jid.split('@')[0]?.split(':')[0] === local ||
+      (c.phone && (key.includes(c.phone) || c.jid.includes(local)))
+  );
+  if (!hit) return local ? [local] : [];
+  const out = new Set<string>();
+  if (hit.jid) out.add(hit.jid);
+  if (hit.phone) {
+    out.add(hit.phone);
+    out.add(`${hit.phone}@s.whatsapp.net`);
+  }
+  if (local) out.add(local);
+  out.add(key);
+  return Array.from(out);
+}
+
 function connectionTone(status?: string) {
   if (status === 'ACTIVE') return 'bg-emerald-500';
   if (
@@ -329,7 +355,7 @@ export default function WhatsAppHubPage() {
     try {
       const params = new URLSearchParams();
       if (channel !== 'ALL') params.append('channel', channel);
-      params.set('limit', '300');
+      params.set('limit', '150');
       const res = await fetch(`/api/whatsapp/messages?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load messages');
       const data = await res.json();
@@ -338,6 +364,8 @@ export default function WhatsAppHubPage() {
       setChatHasMore(!!data.hasMore);
 
       // Inbox list: trust server only (stale IndexedDB was scrambling order)
+      // Keep prior messages if server returned empty (transient miss / cold start)
+      if (!list.length) return;
       setMessages((prev) => {
         if (!selectedChatKey) return list;
         // Keep open-thread extras while refreshing inbox
@@ -610,10 +638,14 @@ export default function WhatsAppHubPage() {
     let cancelled = false;
     const loadThread = async () => {
       try {
+        const aliases = contactAliasesForChat(contacts, selectedChatKey);
         const params = new URLSearchParams({
           chatJid: selectedChatKey,
           limit: '200',
         });
+        for (const a of aliases) {
+          if (a !== selectedChatKey) params.append('alias', a);
+        }
         if (channelFilter !== 'ALL') params.set('channel', channelFilter);
         const res = await fetch(`/api/whatsapp/messages?${params}`);
         if (!res.ok || cancelled) return;
@@ -622,6 +654,28 @@ export default function WhatsAppHubPage() {
         if (cancelled) return;
         setChatHasMore(!!data.hasMore);
         const userId = session?.user?.id;
+        const aliasKeys = new Set(
+          [selectedChatKey, ...aliases].map((k) =>
+            normalizeWhatsAppChatJid(k)
+              .replace(/@s\.whatsapp\.net$/i, '')
+              .replace(/@lid$/i, '')
+          )
+        );
+        aliasKeys.add(selectedChatKey);
+
+        const isThisThread = (m: WaMessage) => {
+          const key = normalizeWhatsAppChatJid(
+            m.chatJid || m.fromPhone || m.toPhone || ''
+          )
+            .replace(/@s\.whatsapp\.net$/i, '')
+            .replace(/@lid$/i, '');
+          return (
+            aliasKeys.has(key) ||
+            aliasKeys.has(normalizeWhatsAppChatJid(m.chatJid || '')) ||
+            key === selectedChatKey
+          );
+        };
+
         if (userId) {
           const merged = await mergeCachedWithServer(
             userId,
@@ -629,22 +683,19 @@ export default function WhatsAppHubPage() {
             { chatJid: selectedChatKey }
           );
           if (cancelled) return;
+          // Never wipe an open thread when the server returns empty (504 / miss)
+          if (!list.length && !merged.length) return;
           setMessages((prev) => {
-            const others = prev.filter((m) => {
-              const key = normalizeWhatsAppChatJid(
-                m.chatJid || m.fromPhone || m.toPhone || ''
-              )
-                .replace(/@s\.whatsapp\.net$/i, '')
-                .replace(/@lid$/i, '');
-              const sel = selectedChatKey
-                .replace(/@s\.whatsapp\.net$/i, '')
-                .replace(/@lid$/i, '');
-              return key !== sel && key !== selectedChatKey;
-            });
-            return mergeMessageLists(others, merged as WaMessage[]);
+            const others = prev.filter((m) => !isThisThread(m));
+            const incoming = (merged.length ? merged : list) as WaMessage[];
+            if (!incoming.length) return prev;
+            return mergeMessageLists(others, incoming);
           });
         } else if (list.length) {
-          setMessages((prev) => mergeMessageLists(prev, list));
+          setMessages((prev) => {
+            const others = prev.filter((m) => !isThisThread(m));
+            return mergeMessageLists(others, list);
+          });
         }
       } catch {
         /* ignore */
@@ -654,7 +705,7 @@ export default function WhatsAppHubPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedChatKey, channelFilter, featureEnabled, session?.user?.id]);
+  }, [selectedChatKey, channelFilter, featureEnabled, session?.user?.id, contacts]);
 
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) {
@@ -723,6 +774,18 @@ export default function WhatsAppHubPage() {
       map.set(key, list);
     }
 
+    const msgsForChatKey = (chatJid: string): WaMessage[] => {
+      const key = threadKeyOf(chatJid);
+      const direct = map.get(key) || map.get(chatJid) || [];
+      if (direct.length) return direct;
+      for (const alias of contactAliasesForChat(contacts, chatJid)) {
+        const ak = threadKeyOf(alias);
+        const hit = map.get(ak) || map.get(alias);
+        if (hit?.length) return hit;
+      }
+      return [];
+    };
+
     const buildFromMessages = (key: string, msgs: WaMessage[]): ChatThread => {
       const sorted = [...msgs].sort(
         (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
@@ -766,14 +829,23 @@ export default function WhatsAppHubPage() {
 
     const result: ChatThread[] = [];
     const used = new Set<string>();
+    const markUsed = (chatJid: string, msgs: WaMessage[]) => {
+      used.add(threadKeyOf(chatJid));
+      for (const alias of contactAliasesForChat(contacts, chatJid)) {
+        used.add(threadKeyOf(alias));
+      }
+      for (const m of msgs) {
+        used.add(threadKeyOf(m.chatJid || m.fromPhone || m.toPhone || ''));
+      }
+    };
 
     // Prefer WhatsApp's own chat directory order when available
     if (waChats.length) {
       for (const chat of waChats) {
         const key = threadKeyOf(chat.jid);
         if (used.has(key)) continue;
-        used.add(key);
-        const msgs = map.get(key) || map.get(chat.jid) || [];
+        const msgs = msgsForChatKey(chat.jid);
+        markUsed(chat.jid, msgs);
         if (msgs.length) {
           result.push(buildFromMessages(key, msgs));
         } else {
