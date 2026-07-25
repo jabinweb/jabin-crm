@@ -331,10 +331,20 @@ export class WhatsAppService {
     const enriched = rows
       .map((msg) => {
         const chatJid = extractWhatsAppChatJid(msg);
+        const meta = (msg.metadata || {}) as Record<string, unknown>;
+        const data = (meta.data || {}) as Record<string, unknown>;
+        const senderName = String(
+          meta.senderName ||
+            meta.pushName ||
+            data.sender ||
+            data.pushName ||
+            ''
+        ).trim();
         return {
           ...msg,
           chatJid,
           isGroup: isWhatsAppGroupJid(chatJid),
+          senderName: senderName || null,
         };
       })
       .filter((msg) =>
@@ -514,6 +524,9 @@ export class WhatsAppService {
       );
       // Store DM as bare number; keep full group JID (@g.us)
       const fromPhone = chatJid.replace(/@s\.whatsapp\.net$/, '');
+      const senderName = String(
+        data.sender || data.pushName || data.participant || ''
+      ).trim();
       const body = String(data.content || '');
       const created = await prisma.whatsAppMessage.create({
         data: {
@@ -530,6 +543,8 @@ export class WhatsAppService {
             remoteJid: chatJid,
             isGroup: isWhatsAppGroupJid(chatJid),
             participant: data.participant || null,
+            senderName: senderName || null,
+            pushName: data.pushName || data.sender || null,
           },
         },
       });

@@ -786,6 +786,7 @@ export default function WhatsAppHubPage() {
                 <TableRow>
                   <TableHead>Time</TableHead>
                   <TableHead>Chat</TableHead>
+                  <TableHead>From</TableHead>
                   <TableHead>Direction</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Message</TableHead>
@@ -794,7 +795,7 @@ export default function WhatsAppHubPage() {
               <TableBody>
                 {messages.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No messages for the current inbox filter yet. After you save Selected groups,
                       only new matching WhatsApp traffic appears here.
                     </TableCell>
@@ -808,6 +809,11 @@ export default function WhatsAppHubPage() {
                       msg.chatJid ||
                       msg.fromPhone ||
                       msg.toPhone ||
+                      '—';
+                    const fromLabel =
+                      msg.senderName ||
+                      (msg.direction === 'OUTBOUND' ? 'You' : null) ||
+                      msg.fromPhone ||
                       '—';
                     return (
                       <TableRow key={msg.id}>
@@ -825,6 +831,9 @@ export default function WhatsAppHubPage() {
                               </Badge>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="text-sm truncate max-w-[160px]">
+                          {fromLabel}
                         </TableCell>
                         <TableCell>{msg.direction}</TableCell>
                         <TableCell>
