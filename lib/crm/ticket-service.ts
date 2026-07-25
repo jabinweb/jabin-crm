@@ -330,6 +330,8 @@ export class TicketService {
                         performedBy: { select: { name: true } },
                     },
                     orderBy: { createdAt: 'desc' },
+                    // Cap payload — WhatsApp-linked tickets can have hundreds of comments
+                    take: 80,
                 },
                 serviceReports: {
                     include: {

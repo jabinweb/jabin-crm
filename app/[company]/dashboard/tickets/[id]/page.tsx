@@ -101,6 +101,7 @@ export default function TicketDetailPage() {
             if (!response.ok) throw new Error('Failed to fetch ticket');
             return response.json();
         },
+        staleTime: 30_000,
     });
 
     const { data: cannedResponses } = useQuery({
@@ -110,6 +111,7 @@ export default function TicketDetailPage() {
             if (!response.ok) return [];
             return response.json();
         },
+        staleTime: 60_000,
     });
 
     const { data: sla } = useQuery({
@@ -120,6 +122,7 @@ export default function TicketDetailPage() {
             if (!response.ok) return null;
             return response.json();
         },
+        staleTime: 30_000,
     });
 
     const handleAddComment = async () => {

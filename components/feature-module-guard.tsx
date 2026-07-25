@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Button } from '@/components/ui/button';
-import { SectionSkeleton } from '@/components/loading';
 import type { FeatureModuleKey } from '@/lib/feature-module-keys';
 
 type ModuleMap = Partial<Record<FeatureModuleKey, boolean>>;
@@ -75,11 +74,9 @@ export function FeatureModuleGuard({
 }) {
   const enabled = useFeatureModule(module);
 
-  if (enabled === null) {
-    return <SectionSkeleton lines={4} className="py-8 max-w-lg mx-auto" />;
-  }
-
-  if (!enabled) {
+  // While modules are loading, render children so pages can start their own
+  // data fetches immediately (avoids skeleton → skeleton and sequential waits).
+  if (enabled === false) {
     return (
       <div className="mx-auto max-w-lg py-16 text-center space-y-4">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-muted">
