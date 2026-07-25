@@ -24,19 +24,23 @@ import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 import {
   Check,
   ChevronDown,
+  CornerUpLeft,
   Filter,
   Link2,
   Loader2,
   MessageSquare,
+  Paperclip,
   Phone,
   QrCode,
   RefreshCw,
   Search,
   Send,
   Settings2,
+  Smile,
   Users,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react';
 import {
   cacheWhatsAppMessages,
@@ -64,6 +68,16 @@ type WaMessage = {
   fromPhone?: string | null;
   toPhone?: string | null;
   metadata?: unknown;
+  kind?: string;
+  quoted?: { id?: string; text?: string | null; participant?: string | null } | null;
+  reactions?: Array<{ emoji: string; from?: string; fromMe?: boolean }> | null;
+  mediaType?: string | null;
+  mimetype?: string | null;
+  fileName?: string | null;
+  mediaId?: string | null;
+  hasMedia?: boolean;
+  mediaStored?: boolean;
+  externalMessageId?: string | null;
 };
 
 type ChatThread = {
@@ -224,6 +238,15 @@ export default function WhatsAppHubPage() {
     customerId: '',
     ticketId: '',
   });
+  const [replyTo, setReplyTo] = useState<WaMessage | null>(null);
+  const [pendingFile, setPendingFile] = useState<{
+    name: string;
+    type: 'image' | 'video' | 'audio' | 'document';
+    mimetype: string;
+    dataBase64: string;
+  } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
   const checkFeatureEnabled = async () => {
     try {
@@ -861,9 +884,78 @@ export default function WhatsAppHubPage() {
     }
   }, [activeThread?.key]);
 
+  useEffect(() => {
+    setReplyTo(null);
+    setPendingFile(null);
+  }, [activeThread?.key]);
+
+  const pickAttachment = async (file: File) => {
+    const mime = file.type || 'application/octet-stream';
+    const type: 'image' | 'video' | 'audio' | 'document' = mime.startsWith('image/')
+      ? 'image'
+      : mime.startsWith('video/')
+        ? 'video'
+        : mime.startsWith('audio/')
+          ? 'audio'
+          : 'document';
+    if (file.size > 4_500_000) {
+      toast.error('File too large (max ~4.5MB)');
+      return;
+    }
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const dataBase64 = btoa(binary);
+    setPendingFile({
+      name: file.name,
+      type,
+      mimetype: mime,
+      dataBase64,
+    });
+  };
+
+  const sendReaction = async (target: WaMessage, emoji: string) => {
+    if (!form.toPhone || !target.externalMessageId) {
+      toast.error('Cannot react — message id missing (wait for sync)');
+      return;
+    }
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          toPhone: form.toPhone,
+          message: '',
+          channel: form.channel,
+          react: {
+            emoji,
+            targetId: target.externalMessageId,
+            targetFromMe: target.direction === 'OUTBOUND',
+          },
+        }),
+      });
+      if (!res.ok) throw new Error('React failed');
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== target.id) return m;
+          const reactions = [...(m.reactions || [])].filter((r) => !r.fromMe);
+          reactions.push({ emoji, fromMe: true, from: 'me' });
+          return { ...m, reactions };
+        })
+      );
+    } catch {
+      toast.error('Could not send reaction');
+    }
+  };
+
   const sendWhatsApp = async () => {
-    if (!form.toPhone || !form.message) {
-      toast.error('Recipient and message are required');
+    if (!form.toPhone) {
+      toast.error('Recipient is required');
+      return;
+    }
+    if (!form.message.trim() && !pendingFile) {
+      toast.error('Type a message or attach a file');
       return;
     }
     const text = form.message;
@@ -874,16 +966,36 @@ export default function WhatsAppHubPage() {
       createdAt: new Date().toISOString(),
       direction: 'OUTBOUND',
       status: 'QUEUED',
-      message: text,
+      message: text || (pendingFile ? `[${pendingFile.type}]` : ''),
       channel: form.channel,
       chatJid,
       isGroup: chatJid.endsWith('@g.us'),
       senderName: 'You',
       toPhone: form.toPhone,
       fromPhone: chatJid,
+      quoted: replyTo
+        ? {
+            id: replyTo.externalMessageId || replyTo.id,
+            text: replyTo.message,
+          }
+        : null,
+      hasMedia: !!pendingFile,
+      mediaType: pendingFile?.type || null,
+      fileName: pendingFile?.name || null,
     };
     setMessages((prev) => mergeMessageLists(prev, [optimistic]));
+    const quotedId = replyTo?.externalMessageId || undefined;
+    const media = pendingFile
+      ? {
+          type: pendingFile.type,
+          mimetype: pendingFile.mimetype,
+          fileName: pendingFile.name,
+          dataBase64: pendingFile.dataBase64,
+        }
+      : undefined;
     setForm((f) => ({ ...f, message: '', leadId: '', customerId: '', ticketId: '' }));
+    setReplyTo(null);
+    setPendingFile(null);
     setSending(true);
     try {
       const res = await fetch('/api/whatsapp/send', {
@@ -896,6 +1008,8 @@ export default function WhatsAppHubPage() {
           leadId: form.leadId || undefined,
           customerId: form.customerId || undefined,
           ticketId: form.ticketId || undefined,
+          quotedId,
+          media,
         }),
       });
       if (!res.ok) throw new Error('Failed to send WhatsApp');
@@ -904,7 +1018,7 @@ export default function WhatsAppHubPage() {
         toast.error(response.errorMessage || 'Message logged but failed to send');
         setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
       } else {
-        toast.success('Message sent');
+        toast.success(media ? 'Attachment sent' : 'Message sent');
         setMessages((prev) =>
           prev.map((m) =>
             m.id === optimisticId
@@ -912,6 +1026,7 @@ export default function WhatsAppHubPage() {
                   ...m,
                   id: response.id || m.id,
                   status: response.status || 'SENT',
+                  externalMessageId: response.externalMessageId || m.externalMessageId,
                 }
               : m
           )
@@ -1201,11 +1316,13 @@ export default function WhatsAppHubPage() {
                             activeThread.isGroup,
                             contactHint
                           );
+                          const mediaId = msg.mediaId || msg.externalMessageId;
+                          const canShowMedia = !!(msg.hasMedia && mediaId);
                           return (
                             <div
                               key={msg.id}
                               className={cn(
-                                'flex flex-col gap-0.5',
+                                'group flex flex-col gap-0.5',
                                 outbound ? 'items-end' : 'items-start'
                               )}
                             >
@@ -1216,13 +1333,67 @@ export default function WhatsAppHubPage() {
                               )}
                               <div
                                 className={cn(
-                                  'max-w-[min(92%,36rem)] rounded-lg px-2.5 py-1.5 text-[13px] leading-snug shadow-sm',
+                                  'relative max-w-[min(92%,36rem)] rounded-lg px-2.5 py-1.5 text-[13px] leading-snug shadow-sm',
                                   outbound
                                     ? 'rounded-br-sm bg-[#d9fdd3] text-foreground dark:bg-emerald-950'
                                     : 'rounded-bl-sm bg-background'
                                 )}
                               >
-                                <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                                {msg.quoted && (
+                                  <div className="mb-1.5 rounded border-l-2 border-emerald-600 bg-black/5 px-2 py-1 text-[11px] dark:bg-white/5">
+                                    <p className="font-medium opacity-80">Reply</p>
+                                    <p className="line-clamp-2 opacity-70">
+                                      {msg.quoted.text || 'Original message'}
+                                    </p>
+                                  </div>
+                                )}
+                                {canShowMedia && msg.mediaType === 'image' && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={`/api/whatsapp/media?id=${encodeURIComponent(mediaId!)}`}
+                                    alt={msg.fileName || 'Image'}
+                                    className="mb-1 max-h-64 max-w-full rounded object-contain"
+                                    loading="lazy"
+                                  />
+                                )}
+                                {canShowMedia &&
+                                  (msg.mediaType === 'video' || msg.mediaType === 'ptv') && (
+                                    <video
+                                      src={`/api/whatsapp/media?id=${encodeURIComponent(mediaId!)}`}
+                                      controls
+                                      className="mb-1 max-h-64 max-w-full rounded"
+                                    />
+                                  )}
+                                {canShowMedia && msg.mediaType === 'audio' && (
+                                  <audio
+                                    src={`/api/whatsapp/media?id=${encodeURIComponent(mediaId!)}`}
+                                    controls
+                                    className="mb-1 w-full max-w-xs"
+                                  />
+                                )}
+                                {canShowMedia &&
+                                  (msg.mediaType === 'document' ||
+                                    msg.mediaType === 'sticker') && (
+                                    <a
+                                      href={`/api/whatsapp/media?id=${encodeURIComponent(mediaId!)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="mb-1 inline-flex text-xs font-medium text-emerald-700 underline dark:text-emerald-400"
+                                    >
+                                      {msg.fileName || msg.message || 'Download file'}
+                                    </a>
+                                  )}
+                                {msg.message &&
+                                  !(
+                                    canShowMedia &&
+                                    /^\[(Image|Video|Audio|Document|Sticker|Media)/.test(
+                                      msg.message
+                                    )
+                                  ) && (
+                                    <p className="whitespace-pre-wrap break-words">
+                                      {msg.message}
+                                    </p>
+                                  )}
                                 <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
                                   <span>{formatMsgTime(msg.createdAt)}</span>
                                   {outbound && (
@@ -1231,6 +1402,42 @@ export default function WhatsAppHubPage() {
                                     </span>
                                   )}
                                 </div>
+                                {!!msg.reactions?.length && (
+                                  <div className="mt-1 flex flex-wrap gap-0.5">
+                                    {msg.reactions.map((r, i) => (
+                                      <span
+                                        key={`${r.emoji}-${i}`}
+                                        className="rounded-full bg-background/80 px-1.5 text-xs shadow-sm"
+                                      >
+                                        {r.emoji}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-1.5 text-[10px]"
+                                  onClick={() => setReplyTo(msg)}
+                                >
+                                  <CornerUpLeft className="mr-0.5 h-3 w-3" />
+                                  Reply
+                                </Button>
+                                {QUICK_REACTIONS.slice(0, 3).map((emoji) => (
+                                  <Button
+                                    key={emoji}
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 px-0 text-xs"
+                                    onClick={() => void sendReaction(msg, emoji)}
+                                  >
+                                    {emoji}
+                                  </Button>
+                                ))}
                               </div>
                             </div>
                           );
@@ -1242,7 +1449,62 @@ export default function WhatsAppHubPage() {
 
                   <div className="border-t bg-background p-2 sm:p-2.5">
                     <div className="mx-auto flex w-full max-w-3xl flex-col gap-1.5">
+                      {replyTo && (
+                        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
+                          <CornerUpLeft className="h-3.5 w-3.5 shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium">Replying</p>
+                            <p className="truncate text-muted-foreground">{replyTo.message}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => setReplyTo(null)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      {pendingFile && (
+                        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-2 py-1.5 text-xs">
+                          <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {pendingFile.name} ({pendingFile.type})
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={() => setPendingFile(null)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
                       <div className="flex items-end gap-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.zip"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) void pickAttachment(f);
+                            e.target.value = '';
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9 w-9 shrink-0 p-0"
+                          onClick={() => fileInputRef.current?.click()}
+                          title="Attach file"
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
                         <Select
                           value={form.channel}
                           onValueChange={(value) => setForm({ ...form, channel: value })}
@@ -1258,7 +1520,13 @@ export default function WhatsAppHubPage() {
                         <Textarea
                           value={form.message}
                           onChange={(e) => setForm({ ...form, message: e.target.value })}
-                          placeholder="Type a message…"
+                          placeholder={
+                            replyTo
+                              ? 'Write a reply…'
+                              : pendingFile
+                                ? 'Add a caption (optional)…'
+                                : 'Type a message…'
+                          }
                           rows={1}
                           className="min-h-[40px] max-h-28 flex-1 resize-none py-2.5"
                           onKeyDown={(e) => {
@@ -1271,7 +1539,7 @@ export default function WhatsAppHubPage() {
                         <Button
                           className="h-10 w-10 shrink-0 rounded-full p-0"
                           onClick={() => void sendWhatsApp()}
-                          disabled={sending || !form.message.trim()}
+                          disabled={sending || (!form.message.trim() && !pendingFile)}
                         >
                           {sending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -1280,6 +1548,9 @@ export default function WhatsAppHubPage() {
                           )}
                         </Button>
                       </div>
+                      <p className="px-1 text-[10px] text-muted-foreground">
+                        Hover a message to reply or react · Attach images, video, audio, docs
+                      </p>
                       <div className="flex flex-wrap items-center gap-2 px-1">
                         <Input
                           value={form.toPhone}

@@ -21,6 +21,18 @@ interface SendWhatsAppInput {
   leadId?: string;
   customerId?: string;
   ticketId?: string;
+  quotedId?: string;
+  media?: {
+    type: string;
+    mimetype: string;
+    fileName?: string;
+    dataBase64: string;
+  };
+  react?: {
+    emoji: string;
+    targetId: string;
+    targetFromMe?: boolean;
+  };
 }
 
 function normalizeWhatsAppNumber(phone: string): string {
@@ -55,13 +67,23 @@ export class WhatsAppService {
         direction: 'OUTBOUND',
         toPhone,
         fromPhone: chatJid,
-        message: input.message,
+        message: input.react
+          ? `Reacted ${input.react.emoji || ''}`
+          : input.media
+            ? input.message || `[${input.media.type}]`
+            : input.message,
         status: 'QUEUED',
         metadata: {
           remoteJid: chatJid,
           isGroup: isWhatsAppGroupJid(chatJid),
           senderName: 'You',
           fromMe: true,
+          quotedId: input.quotedId || null,
+          mediaType: input.media?.type || null,
+          mimetype: input.media?.mimetype || null,
+          fileName: input.media?.fileName || null,
+          hasMedia: !!input.media,
+          react: input.react || null,
         },
       },
     });
@@ -258,6 +280,9 @@ export class WhatsAppService {
         body: JSON.stringify({
           to: normalizeE164(input.toPhone),
           message: input.message,
+          quotedId: input.quotedId || undefined,
+          react: input.react || undefined,
+          media: input.media || undefined,
         }),
       });
       const result = await res.json().catch(() => ({}));
@@ -383,18 +408,31 @@ export class WhatsAppService {
           contactName: fields.contactName,
         });
         const occurredAt = extractWhatsAppOccurredAt(msg);
+        const meta = (msg.metadata || {}) as Record<string, unknown>;
+        const data = (meta.data || {}) as Record<string, unknown>;
         return {
           ...msg,
           chatJid,
           isGroup: isWhatsAppGroupJid(chatJid),
           senderName: resolved.label,
           senderPhone: resolved.phone,
-          // Expose WhatsApp time for UI sorting (overrides ingest-time createdAt)
           createdAt: occurredAt,
           occurredAt,
+          kind: meta.kind || data.kind || 'message',
+          quoted: meta.quoted || data.quoted || null,
+          reactions: meta.reactions || null,
+          mediaType: meta.mediaType || data.mediaType || null,
+          mimetype: meta.mimetype || data.mimetype || null,
+          fileName: meta.fileName || data.fileName || null,
+          mediaId: meta.mediaId || data.mediaId || msg.externalMessageId || null,
+          hasMedia: !!(meta.hasMedia || data.hasMedia || meta.mediaType || data.mediaType),
+          mediaStored: !!(meta.mediaStored || data.mediaStored),
+          externalMessageId: msg.externalMessageId,
         };
       })
       .filter((msg) => {
+        // Hide standalone reaction rows from the chat transcript
+        if (msg.kind === 'reaction') return false;
         if (
           beforeOccurredAt &&
           new Date(msg.createdAt).getTime() >= beforeOccurredAt.getTime()
@@ -642,6 +680,43 @@ export class WhatsAppService {
         return { ok: true, type, skipped: 'missing_remote_jid' };
       }
 
+      // Reactions update the target message instead of creating a chat bubble
+      if (data.kind === 'reaction' && data.reaction?.targetId) {
+        const target = await prisma.whatsAppMessage.findFirst({
+          where: {
+            userId,
+            externalMessageId: String(data.reaction.targetId),
+          },
+        });
+        if (target) {
+          const prevMeta = (target.metadata || {}) as Record<string, unknown>;
+          const reactions = Array.isArray(prevMeta.reactions)
+            ? [...(prevMeta.reactions as Array<Record<string, unknown>>)]
+            : [];
+          const emoji = String(data.reaction.emoji || '');
+          const fromKey = fromMe ? 'me' : String(data.participant || data.sender || 'peer');
+          const next = reactions.filter((r) => r.from !== fromKey);
+          if (emoji) {
+            next.push({
+              emoji,
+              from: fromKey,
+              fromMe,
+              at: new Date().toISOString(),
+            });
+          }
+          return prisma.whatsAppMessage.update({
+            where: { id: target.id },
+            data: {
+              metadata: {
+                ...prevMeta,
+                reactions: next,
+              },
+            },
+          });
+        }
+        // Target not yet stored — fall through and keep as reaction row
+      }
+
       const peer = chatJid
         .replace(/@s\.whatsapp\.net$/i, '')
         .replace(/@lid$/i, '');
@@ -690,6 +765,17 @@ export class WhatsAppService {
             contactName: data.contactName || resolved.name,
             pushName: data.pushName || null,
             fromMe,
+            kind: data.kind || 'message',
+            quoted: data.quoted || null,
+            reaction: data.reaction || null,
+            mediaType: data.mediaType || null,
+            mimetype: data.mimetype || null,
+            fileName: data.fileName || null,
+            fileLength: data.fileLength || null,
+            hasMedia: !!data.hasMedia,
+            mediaId: data.mediaId || data.externalId || externalId || null,
+            mediaStored: !!data.mediaStored,
+            rawKey: data.rawKey || null,
             timestamp: occurredAt.toISOString(),
             messageTimestamp:
               typeof data.messageTimestamp === 'number'
@@ -700,7 +786,12 @@ export class WhatsAppService {
       });
 
       // Support tickets are for 1:1 inbound DMs only
-      if (!fromMe && body.trim() && !isWhatsAppGroupJid(chatJid)) {
+      if (
+        !fromMe &&
+        body.trim() &&
+        data.kind !== 'reaction' &&
+        !isWhatsAppGroupJid(chatJid)
+      ) {
         const { ensureWhatsAppTicket } = await import('@/lib/support/whatsapp-ticket');
         ensureWhatsAppTicket({
           userId,
