@@ -1,35 +1,107 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
-import { FullTableSkeleton } from '@/components/loading';
+import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
+import {
+  Check,
+  ChevronDown,
+  Filter,
+  Link2,
+  Loader2,
+  MessageSquare,
+  Phone,
+  QrCode,
+  RefreshCw,
+  Search,
+  Send,
+  Settings2,
+  Users,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 
-const statusColor: Record<string, string> = {
-  SENT: 'text-foreground underline decoration-zinc-500 underline-offset-4',
-  DELIVERED: 'text-foreground font-black tracking-widest',
-  READ: 'text-muted-foreground line-through opacity-50',
-  FAILED: 'text-foreground border border-foreground px-1 bg-foreground text-background',
-  QUEUED: 'text-muted-foreground italic',
+type WaMessage = {
+  id: string;
+  createdAt: string;
+  direction: string;
+  status: string;
+  message: string;
+  channel?: string;
+  chatJid?: string;
+  isGroup?: boolean;
+  senderName?: string | null;
+  fromPhone?: string | null;
+  toPhone?: string | null;
 };
+
+type ChatThread = {
+  key: string;
+  label: string;
+  isGroup: boolean;
+  lastMessage: WaMessage;
+  messages: WaMessage[];
+  preview: string;
+};
+
+function initials(label: string) {
+  const parts = label.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return (label.slice(0, 2) || '?').toUpperCase();
+}
+
+function formatMsgTime(iso: string) {
+  const d = new Date(iso);
+  if (isToday(d)) return format(d, 'HH:mm');
+  if (isYesterday(d)) return `Yesterday ${format(d, 'HH:mm')}`;
+  return format(d, 'dd MMM HH:mm');
+}
+
+function connectionTone(status?: string) {
+  if (status === 'ACTIVE') return 'bg-emerald-500';
+  if (status === 'SYNCING' || status === 'CONNECTING') return 'bg-amber-500 animate-pulse';
+  return 'bg-muted-foreground/40';
+}
+
+function statusLabel(status?: string) {
+  if (!status) return 'Unknown';
+  if (status === 'ACTIVE') return 'Connected';
+  if (status === 'SYNCING') return 'Syncing';
+  if (status === 'CONNECTING') return 'Waiting for scan';
+  if (status === 'DISCONNECTED') return 'Disconnected';
+  return status;
+}
 
 export default function WhatsAppHubPage() {
   const { data: session } = useSession();
   const [featureEnabled, setFeatureEnabled] = useState(true);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<WaMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
   const [channelFilter, setChannelFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [mainTab, setMainTab] = useState('inbox');
+  const [chatSearch, setChatSearch] = useState('');
+  const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null);
+  const [linkIdsOpen, setLinkIdsOpen] = useState(false);
   const [summoraSession, setSummoraSession] = useState<{
     status: string;
     qr: string | null;
@@ -60,7 +132,7 @@ export default function WhatsAppHubPage() {
   const [form, setForm] = useState({
     toPhone: '',
     message: '',
-    channel: 'SALES',
+    channel: 'SERVICE',
     leadId: '',
     customerId: '',
     ticketId: '',
@@ -98,7 +170,7 @@ export default function WhatsAppHubPage() {
         summoraApiKey: data.hasSummoraApiKey ? '••••••••' : '',
         webhookVerifyToken: data.hasWebhookVerifyToken ? '••••••••' : '',
       });
-    } catch (error) {
+    } catch {
       toast.error('Failed to load WhatsApp provider config');
     }
   };
@@ -112,9 +184,9 @@ export default function WhatsAppHubPage() {
         body: JSON.stringify(config),
       });
       if (!res.ok) throw new Error('Failed to save');
-      toast.success('WhatsApp provider config saved');
+      toast.success('Provider settings saved');
       await loadConfig();
-    } catch (error) {
+    } catch {
       toast.error('Failed to save provider config');
     } finally {
       setSavingConfig(false);
@@ -129,7 +201,6 @@ export default function WhatsAppHubPage() {
       const res = await fetch(`/api/whatsapp/messages?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load messages');
       const data = await res.json();
-      // New shape: { messages, inboxFilter }; legacy: bare array
       const list = Array.isArray(data) ? data : data.messages ?? [];
       setMessages(list);
       if (data?.inboxFilter?.filterType) {
@@ -178,8 +249,9 @@ export default function WhatsAppHubPage() {
         workspaceSlug: data.workspaceSlug,
       });
       toast.success('Scan the QR with WhatsApp on your phone');
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not start WhatsApp connection');
+      setMainTab('setup');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Could not start WhatsApp connection');
     } finally {
       setSummoraBusy(false);
     }
@@ -202,8 +274,8 @@ export default function WhatsAppHubPage() {
         workspaceSlug: data.workspaceSlug,
       });
       toast.success('WhatsApp disconnected');
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not disconnect');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Could not disconnect');
     } finally {
       setSummoraBusy(false);
     }
@@ -214,9 +286,7 @@ export default function WhatsAppHubPage() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Failed to load filters');
     const next = String(data.filterType || 'ALL').toUpperCase();
-    setFilterType(
-      next === 'GROUPS_ONLY' || next === 'CUSTOM' ? next : 'ALL'
-    );
+    setFilterType(next === 'GROUPS_ONLY' || next === 'CUSTOM' ? next : 'ALL');
     setAllowedJids(Array.isArray(data.allowedJids) ? data.allowedJids : []);
     return data;
   };
@@ -262,20 +332,19 @@ export default function WhatsAppHubPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to save filters');
       setFilterType(nextType);
       setAllowedJids(nextType === 'CUSTOM' ? nextJids : []);
-      toast.success('Inbox filter saved — only matching chats will appear below');
+      toast.success('Inbox filter saved');
       await loadMessages();
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not save filter');
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Could not save filter');
     } finally {
       setFilterBusy(false);
     }
   };
 
   const toggleGroupJid = (jid: string) => {
-    const next = allowedJids.includes(jid)
-      ? allowedJids.filter((j) => j !== jid)
-      : [...allowedJids, jid];
-    setAllowedJids(next);
+    setAllowedJids((prev) =>
+      prev.includes(jid) ? prev.filter((j) => j !== jid) : [...prev, jid]
+    );
   };
 
   useEffect(() => {
@@ -301,13 +370,11 @@ export default function WhatsAppHubPage() {
       try {
         if (!cancelled) await refreshSummoraSession();
       } catch {
-        /* ignore transient poll errors */
+        /* ignore */
       }
     };
     void tick();
-
     const status = summoraSession?.status;
-    // Poll faster only while waiting for QR / link; back off once linked.
     const intervalMs =
       status === 'CONNECTING' || status === 'UNKNOWN' || !status
         ? 4000
@@ -323,41 +390,102 @@ export default function WhatsAppHubPage() {
 
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) return;
-    void loadSummoraFilters().catch(() => {
-      /* ignore until connected */
-    });
+    void loadSummoraFilters().catch(() => undefined);
   }, [config.provider, config.isActive]);
 
   useEffect(() => {
     if (config.provider !== 'SUMMORA' || !config.isActive) return;
     if (filterType !== 'CUSTOM') return;
-    // Groups are available once the socket is up (ACTIVE or still SYNCING history).
     const ready =
-      summoraSession?.status === 'ACTIVE' ||
-      summoraSession?.status === 'SYNCING';
+      summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING';
     if (!ready) return;
     void loadSummoraGroups();
   }, [config.provider, config.isActive, filterType, summoraSession?.status]);
 
-  if (!featureEnabled) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            WhatsApp is disabled by your Super Admin.
-          </CardContent>
-        </Card>
-      </div>
+  const threads: ChatThread[] = useMemo(() => {
+    const map = new Map<string, WaMessage[]>();
+    for (const msg of messages) {
+      const key =
+        msg.chatJid ||
+        msg.fromPhone ||
+        msg.toPhone ||
+        msg.id;
+      const list = map.get(key) || [];
+      list.push(msg);
+      map.set(key, list);
+    }
+    const result: ChatThread[] = [];
+    for (const [key, msgs] of map.entries()) {
+      const sorted = [...msgs].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+      const last = sorted[sorted.length - 1];
+      const isGroup =
+        last.isGroup ||
+        String(key).endsWith('@g.us') ||
+        sorted.some((m) => m.isGroup);
+      const groupName = groups.find((g) => g.jid === key)?.name;
+      const label =
+        groupName ||
+        (isGroup ? key.replace(/@g\.us$/, '') : null) ||
+        last.senderName ||
+        key;
+      result.push({
+        key,
+        label,
+        isGroup,
+        lastMessage: last,
+        messages: sorted,
+        preview: last.message,
+      });
+    }
+    return result.sort(
+      (a, b) =>
+        new Date(b.lastMessage.createdAt).getTime() -
+        new Date(a.lastMessage.createdAt).getTime()
     );
-  }
+  }, [messages, groups]);
+
+  const filteredThreads = useMemo(() => {
+    const q = chatSearch.trim().toLowerCase();
+    if (!q) return threads;
+    return threads.filter(
+      (t) =>
+        t.label.toLowerCase().includes(q) ||
+        t.preview.toLowerCase().includes(q) ||
+        t.key.toLowerCase().includes(q)
+    );
+  }, [threads, chatSearch]);
+
+  useEffect(() => {
+    if (!selectedChatKey && filteredThreads[0]) {
+      setSelectedChatKey(filteredThreads[0].key);
+    } else if (
+      selectedChatKey &&
+      filteredThreads.length > 0 &&
+      !filteredThreads.some((t) => t.key === selectedChatKey)
+    ) {
+      setSelectedChatKey(filteredThreads[0].key);
+    }
+  }, [filteredThreads, selectedChatKey]);
+
+  const activeThread = filteredThreads.find((t) => t.key === selectedChatKey) || null;
+
+  useEffect(() => {
+    if (!activeThread) return;
+    if (activeThread.isGroup) {
+      setForm((f) => ({ ...f, toPhone: activeThread.key }));
+    } else {
+      const phone = activeThread.key.replace(/@s\.whatsapp\.net$/, '');
+      setForm((f) => ({ ...f, toPhone: phone.startsWith('+') ? phone : phone }));
+    }
+  }, [activeThread?.key]);
 
   const sendWhatsApp = async () => {
     if (!form.toPhone || !form.message) {
-      toast.error('Phone number and message are required');
+      toast.error('Recipient and message are required');
       return;
     }
-
     setSending(true);
     try {
       const res = await fetch('/api/whatsapp/send', {
@@ -372,487 +500,800 @@ export default function WhatsAppHubPage() {
           ticketId: form.ticketId || undefined,
         }),
       });
-
       if (!res.ok) throw new Error('Failed to send WhatsApp');
       const response = await res.json();
       if (response.status === 'FAILED') {
         toast.error(response.errorMessage || 'Message logged but failed to send');
       } else {
-        toast.success('WhatsApp message sent');
+        toast.success('Message sent');
       }
-      setForm({
-        toPhone: '',
+      setForm((f) => ({
+        ...f,
         message: '',
-        channel: form.channel,
         leadId: '',
         customerId: '',
         ticketId: '',
-      });
-      loadMessages();
-    } catch (error) {
+      }));
+      await loadMessages();
+    } catch {
       toast.error('Failed to send WhatsApp message');
     } finally {
       setSending(false);
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="border-b pb-6 mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">WhatsApp</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Send and review WhatsApp messages for this workspace.
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Provider configuration</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Active Provider</Label>
-              <Select value={config.provider} onValueChange={(value) => setConfig({ ...config, provider: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DISABLED">Disabled</SelectItem>
-                  <SelectItem value="TWILIO">Twilio</SelectItem>
-                  <SelectItem value="META_CLOUD">Meta Cloud API</SelectItem>
-                  <SelectItem value="SUMMORA">Summora (Baileys bridge)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Operational Status</Label>
-              <Select value={config.isActive ? 'ACTIVE' : 'INACTIVE'} onValueChange={(value) => setConfig({ ...config, isActive: value === 'ACTIVE' })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {config.provider === 'TWILIO' && (
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Twilio Account SID</Label>
-                <Input value={config.twilioAccountSid} onChange={(e) => setConfig({ ...config, twilioAccountSid: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Twilio Auth Token</Label>
-                <Input type="password" value={config.twilioAuthToken} onChange={(e) => setConfig({ ...config, twilioAuthToken: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Twilio WhatsApp From</Label>
-                <Input placeholder="+14155238886" value={config.twilioFromNumber} onChange={(e) => setConfig({ ...config, twilioFromNumber: e.target.value })} />
-              </div>
-            </div>
-          )}
-
-          {config.provider === 'META_CLOUD' && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Meta Access Token</Label>
-                <Input type="password" value={config.metaAccessToken} onChange={(e) => setConfig({ ...config, metaAccessToken: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Phone Number ID</Label>
-                <Input value={config.metaPhoneNumberId} onChange={(e) => setConfig({ ...config, metaPhoneNumberId: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Business ID (Optional)</Label>
-                <Input value={config.metaBusinessId} onChange={(e) => setConfig({ ...config, metaBusinessId: e.target.value })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Graph API Version</Label>
-                <Input value={config.metaApiVersion} onChange={(e) => setConfig({ ...config, metaApiVersion: e.target.value })} />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label>Webhook Verify Token</Label>
-                <Input type="password" value={config.webhookVerifyToken} onChange={(e) => setConfig({ ...config, webhookVerifyToken: e.target.value })} />
-              </div>
-              <div className="text-xs text-muted-foreground md:col-span-2">
-                Meta webhook URL: <code>{`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}`}</code>
-              </div>
-            </div>
-          )}
-
-          {config.provider === 'SUMMORA' && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2 md:col-span-2">
-                <Label>Summora base URL</Label>
-                <Input
-                  placeholder="https://summora.jabin.org"
-                  value={config.summoraBaseUrl}
-                  onChange={(e) => setConfig({ ...config, summoraBaseUrl: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Bridge API key</Label>
-                <Input
-                  type="password"
-                  value={config.summoraApiKey}
-                  onChange={(e) => setConfig({ ...config, summoraApiKey: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Webhook signing secret</Label>
-                <Input
-                  type="password"
-                  value={config.webhookVerifyToken}
-                  onChange={(e) => setConfig({ ...config, webhookVerifyToken: e.target.value })}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground md:col-span-2 space-y-1">
-                <p>
-                  Webhook URL for Summora bridge app:
-                </p>
-                <code className="block break-all">
-                  {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}&provider=SUMMORA`}
-                </code>
-              </div>
-            </div>
-          )}
-
-          <Button onClick={saveConfig} disabled={savingConfig}>
-            {savingConfig ? 'Saving...' : 'Save Provider Config'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {config.provider === 'SUMMORA' && config.isActive && (
+  if (!featureEnabled) {
+    return (
+      <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Connect WhatsApp</CardTitle>
-            <CardDescription>
-              Scan from Opslane — phone: WhatsApp → Linked devices → Link a device
-            </CardDescription>
+            <CardTitle>Module disabled</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge variant="outline">
-                {summoraSession?.status || '…'}
-              </Badge>
-              {summoraSession?.workspaceSlug && (
-                <span className="text-xs text-muted-foreground">
-                  workspace: {summoraSession.workspaceSlug}
-                </span>
-              )}
-            </div>
-
-            {summoraSession?.qr ? (
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={summoraSession.qr}
-                  alt="WhatsApp QR code"
-                  className="h-56 w-56 rounded-md border bg-white p-2"
-                />
-                <p className="max-w-sm text-sm text-muted-foreground">
-                  QR refreshes automatically. Keep this page open until status becomes ACTIVE or SYNCING.
-                </p>
-              </div>
-            ) : summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING' ? (
-              <p className="text-sm text-muted-foreground">
-                WhatsApp is linked
-                {summoraSession.status === 'SYNCING' ? ' and syncing missed messages…' : '.'}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Not linked yet. Click Connect to show a QR code here.
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => startSummoraConnect(false)}
-                disabled={summoraBusy}
-              >
-                {summoraBusy ? 'Working…' : summoraSession?.qr ? 'Refresh QR' : 'Connect WhatsApp'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => startSummoraConnect(true)}
-                disabled={summoraBusy}
-              >
-                Force reconnect
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={disconnectSummora}
-                disabled={summoraBusy}
-              >
-                Disconnect
-              </Button>
-            </div>
+          <CardContent className="text-sm text-muted-foreground">
+            WhatsApp is disabled by your Super Admin.
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
 
-      {config.provider === 'SUMMORA' && config.isActive && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Inbox filter</CardTitle>
-            <CardDescription>
-              Choose which WhatsApp chats are forwarded into Opslane. Matching
-              messages are stored here only — Summora is connection + filter, not a chat archive.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-2">
-              {(
-                [
-                  { id: 'ALL' as const, label: 'All chats' },
-                  { id: 'GROUPS_ONLY' as const, label: 'Groups only' },
-                  { id: 'CUSTOM' as const, label: 'Selected groups' },
-                ] as const
-              ).map((opt) => (
-                <Button
-                  key={opt.id}
-                  type="button"
-                  size="sm"
-                  variant={filterType === opt.id ? 'default' : 'outline'}
-                  disabled={filterBusy}
-                  onClick={() => {
-                    if (opt.id === 'CUSTOM') {
-                      setFilterType('CUSTOM');
-                      return;
-                    }
-                    void saveSummoraFilters(opt.id);
-                  }}
-                >
-                  {opt.label}
-                </Button>
-              ))}
+  const isSummoraLive = config.provider === 'SUMMORA' && config.isActive;
+  const connected =
+    summoraSession?.status === 'ACTIVE' || summoraSession?.status === 'SYNCING';
+  const filterHint =
+    filterType === 'CUSTOM'
+      ? `${allowedJids.length} selected group${allowedJids.length === 1 ? '' : 's'}`
+      : filterType === 'GROUPS_ONLY'
+        ? 'Groups only'
+        : 'All chats';
+
+  return (
+    <div className="flex h-[calc(100vh-7rem)] min-h-[560px] flex-col gap-4">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between shrink-0">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">WhatsApp</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Inbox for linked chats — filter at the source, reply from Opslane.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSummoraLive && (
+            <div className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs">
+              <span className={cn('h-2 w-2 rounded-full', connectionTone(summoraSession?.status))} />
+              <span className="font-medium">{statusLabel(summoraSession?.status)}</span>
+              <Separator orientation="vertical" className="h-3" />
+              <span className="text-muted-foreground">{filterHint}</span>
             </div>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void loadMessages()}
+            disabled={loading}
+          >
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            <span className="ml-1.5">Refresh</span>
+          </Button>
+        </div>
+      </div>
 
-            {filterType === 'CUSTOM' && (
-              <div className="space-y-3">
-                {groupsError ? (
-                  <p className="text-sm text-muted-foreground">{groupsError}</p>
-                ) : groups.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No groups loaded yet. Connect WhatsApp, then refresh.
-                  </p>
+      <Tabs value={mainTab} onValueChange={setMainTab} className="flex min-h-0 flex-1 flex-col">
+        <TabsList className="w-fit shrink-0">
+          <TabsTrigger value="inbox" className="gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5" />
+            Inbox
+          </TabsTrigger>
+          <TabsTrigger value="setup" className="gap-1.5">
+            <QrCode className="h-3.5 w-3.5" />
+            Connection
+          </TabsTrigger>
+          <TabsTrigger value="provider" className="gap-1.5">
+            <Settings2 className="h-3.5 w-3.5" />
+            Provider
+          </TabsTrigger>
+        </TabsList>
+
+        {/* ——— Inbox ——— */}
+        <TabsContent value="inbox" className="mt-3 min-h-0 flex-1 data-[state=inactive]:hidden">
+          <div className="grid h-full min-h-0 overflow-hidden rounded-xl border bg-card md:grid-cols-[minmax(260px,320px)_1fr]">
+            {/* Chat list */}
+            <div className="flex min-h-0 flex-col border-b md:border-b-0 md:border-r">
+              <div className="space-y-2 border-b p-3">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={chatSearch}
+                    onChange={(e) => setChatSearch(e.target.value)}
+                    placeholder="Search chats…"
+                    className="h-9 pl-8"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={channelFilter}
+                    onValueChange={(value) => {
+                      setChannelFilter(value);
+                      void loadMessages(value);
+                    }}
+                  >
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All channels</SelectItem>
+                      <SelectItem value="SALES">Sales</SelectItem>
+                      <SelectItem value="SERVICE">Service</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="secondary" className="shrink-0 text-[10px]">
+                    {filteredThreads.length} chat{filteredThreads.length === 1 ? '' : 's'}
+                  </Badge>
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1">
+                {loading ? (
+                  <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading…
+                  </div>
+                ) : filteredThreads.length === 0 ? (
+                  <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+                    <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No conversations yet</p>
+                    <p className="text-xs text-muted-foreground">
+                      Connect WhatsApp and set an inbox filter — matching messages appear here.
+                    </p>
+                    {isSummoraLive && !connected && (
+                      <Button size="sm" className="mt-2" onClick={() => setMainTab('setup')}>
+                        Open connection
+                      </Button>
+                    )}
+                  </div>
                 ) : (
-                  <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
-                    {groups.map((g) => {
-                      const selected = allowedJids.includes(g.jid);
+                  <div className="divide-y">
+                    {filteredThreads.map((thread) => {
+                      const active = thread.key === selectedChatKey;
                       return (
                         <button
-                          key={g.jid}
+                          key={thread.key}
                           type="button"
-                          onClick={() => toggleGroupJid(g.jid)}
+                          onClick={() => setSelectedChatKey(thread.key)}
                           className={cn(
-                            'flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm transition-colors',
-                            selected
-                              ? 'bg-foreground text-background'
-                              : 'hover:bg-muted'
+                            'flex w-full gap-3 px-3 py-3 text-left transition-colors',
+                            active ? 'bg-muted' : 'hover:bg-muted/50'
                           )}
                         >
-                          <span className="truncate font-medium">{g.name || g.jid}</span>
-                          <span className="ml-2 shrink-0 text-xs opacity-70">
-                            {selected ? 'Selected' : 'Select'}
-                          </span>
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarFallback
+                              className={cn(
+                                'text-xs font-semibold',
+                                thread.isGroup
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+                                  : 'bg-muted'
+                              )}
+                            >
+                              {thread.isGroup ? (
+                                <Users className="h-4 w-4" />
+                              ) : (
+                                initials(thread.label)
+                              )}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <span className="truncate text-sm font-medium">{thread.label}</span>
+                              <span className="shrink-0 text-[10px] text-muted-foreground">
+                                {formatDistanceToNow(new Date(thread.lastMessage.createdAt), {
+                                  addSuffix: false,
+                                })}
+                              </span>
+                            </div>
+                            <p className="truncate text-xs text-muted-foreground mt-0.5">
+                              {thread.lastMessage.direction === 'OUTBOUND' ? 'You: ' : ''}
+                              {thread.preview}
+                            </p>
+                            {thread.isGroup && (
+                              <Badge variant="outline" className="mt-1 h-4 px-1 text-[9px]">
+                                Group
+                              </Badge>
+                            )}
+                          </div>
                         </button>
                       );
                     })}
                   </div>
                 )}
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    disabled={filterBusy}
-                    onClick={() => saveSummoraFilters('CUSTOM', allowedJids)}
+              </ScrollArea>
+            </div>
+
+            {/* Thread + composer */}
+            <div className="flex min-h-0 min-w-0 flex-col bg-muted/20">
+              {activeThread ? (
+                <>
+                  <div className="flex items-center gap-3 border-b bg-background px-4 py-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="text-xs">
+                        {activeThread.isGroup ? (
+                          <Users className="h-4 w-4" />
+                        ) : (
+                          initials(activeThread.label)
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{activeThread.label}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {activeThread.isGroup ? 'Group chat' : 'Direct message'} ·{' '}
+                        {activeThread.messages.length} message
+                        {activeThread.messages.length === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <ScrollArea className="flex-1 px-4 py-4">
+                    <div className="mx-auto flex max-w-2xl flex-col gap-3">
+                      {activeThread.messages.map((msg) => {
+                        const outbound = msg.direction === 'OUTBOUND';
+                        const from =
+                          msg.senderName ||
+                          (outbound ? 'You' : activeThread.isGroup ? 'Member' : activeThread.label);
+                        return (
+                          <div
+                            key={msg.id}
+                            className={cn(
+                              'flex flex-col gap-1',
+                              outbound ? 'items-end' : 'items-start'
+                            )}
+                          >
+                            {!outbound && activeThread.isGroup && (
+                              <span className="px-1 text-[10px] font-medium text-muted-foreground">
+                                {from}
+                              </span>
+                            )}
+                            <div
+                              className={cn(
+                                'max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
+                                outbound
+                                  ? 'rounded-br-md bg-foreground text-background'
+                                  : 'rounded-bl-md border bg-background'
+                              )}
+                            >
+                              <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                            </div>
+                            <div className="flex items-center gap-1.5 px-1 text-[10px] text-muted-foreground">
+                              <span>{formatMsgTime(msg.createdAt)}</span>
+                              {outbound && (
+                                <span className="uppercase tracking-wide opacity-70">
+                                  {msg.status}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+
+                  <div className="border-t bg-background p-3">
+                    <div className="mx-auto max-w-2xl space-y-2">
+                      <div className="flex gap-2">
+                        <Select
+                          value={form.channel}
+                          onValueChange={(value) => setForm({ ...form, channel: value })}
+                        >
+                          <SelectTrigger className="h-9 w-[110px] shrink-0 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SALES">Sales</SelectItem>
+                            <SelectItem value="SERVICE">Service</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          value={form.toPhone}
+                          onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
+                          placeholder={
+                            activeThread.isGroup
+                              ? 'Group JID (auto-filled)'
+                              : 'Phone e.g. +919999999999'
+                          }
+                          className="h-9"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Textarea
+                          value={form.message}
+                          onChange={(e) => setForm({ ...form, message: e.target.value })}
+                          placeholder="Type a message…"
+                          rows={2}
+                          className="min-h-[72px] resize-none"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                              e.preventDefault();
+                              void sendWhatsApp();
+                            }
+                          }}
+                        />
+                        <Button
+                          className="h-auto shrink-0 px-4"
+                          onClick={() => void sendWhatsApp()}
+                          disabled={sending || !form.message.trim()}
+                        >
+                          {sending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                      <Collapsible open={linkIdsOpen} onOpenChange={setLinkIdsOpen}>
+                        <CollapsibleTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
+                            <Link2 className="mr-1.5 h-3 w-3" />
+                            Link CRM records
+                            <ChevronDown
+                              className={cn(
+                                'ml-1 h-3 w-3 transition-transform',
+                                linkIdsOpen && 'rotate-180'
+                              )}
+                            />
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="grid gap-2 pt-2 sm:grid-cols-3">
+                          <Input
+                            placeholder="Lead ID"
+                            value={form.leadId}
+                            onChange={(e) => setForm({ ...form, leadId: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            placeholder="Customer ID"
+                            value={form.customerId}
+                            onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            placeholder="Ticket ID"
+                            value={form.ticketId}
+                            onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
+                            className="h-8 text-xs"
+                          />
+                        </CollapsibleContent>
+                      </Collapsible>
+                      <p className="text-[10px] text-muted-foreground">
+                        ⌘/Ctrl + Enter to send
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
+                  <Phone className="h-10 w-10 text-muted-foreground/40" />
+                  <p className="text-sm font-medium">Select a conversation</p>
+                  <p className="max-w-xs text-xs text-muted-foreground">
+                    Choose a chat on the left to read the thread and reply.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* ——— Connection & filter ——— */}
+        <TabsContent value="setup" className="mt-3 space-y-4 overflow-y-auto pb-6">
+          {!isSummoraLive ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Connect WhatsApp</CardTitle>
+                <CardDescription>
+                  Set provider to Summora and mark it Active under the Provider tab first.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={() => setMainTab('provider')}>Open provider settings</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        {connected ? (
+                          <Wifi className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <WifiOff className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        Device link
+                      </CardTitle>
+                      <Badge variant="outline">{statusLabel(summoraSession?.status)}</Badge>
+                    </div>
+                    <CardDescription>
+                      Phone: WhatsApp → Linked devices → Link a device
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {summoraSession?.workspaceSlug && (
+                      <p className="text-xs text-muted-foreground">
+                        Workspace <code className="rounded bg-muted px-1">{summoraSession.workspaceSlug}</code>
+                      </p>
+                    )}
+
+                    {summoraSession?.qr ? (
+                      <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={summoraSession.qr}
+                          alt="WhatsApp QR code"
+                          className="h-52 w-52 rounded-lg border bg-white p-2 shadow-sm"
+                        />
+                        <p className="text-sm text-muted-foreground max-w-xs">
+                          Keep this tab open. QR refreshes automatically until the device is linked.
+                        </p>
+                      </div>
+                    ) : connected ? (
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
+                        WhatsApp is linked
+                        {summoraSession?.status === 'SYNCING'
+                          ? ' and catching up on recent messages…'
+                          : '.'}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Not linked yet. Generate a QR to connect this workspace.
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button onClick={() => startSummoraConnect(false)} disabled={summoraBusy}>
+                        {summoraBusy ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <QrCode className="mr-2 h-4 w-4" />
+                        )}
+                        {summoraSession?.qr ? 'Refresh QR' : 'Connect'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => startSummoraConnect(true)}
+                        disabled={summoraBusy}
+                      >
+                        Force reconnect
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={disconnectSummora}
+                        disabled={summoraBusy}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      Inbox filter
+                    </CardTitle>
+                    <CardDescription>
+                      Only matching chats are forwarded into Opslane. Summora does not keep a second archive.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {(
+                        [
+                          { id: 'ALL' as const, label: 'All chats', desc: 'DMs + groups' },
+                          { id: 'GROUPS_ONLY' as const, label: 'Groups only', desc: 'No DMs' },
+                          { id: 'CUSTOM' as const, label: 'Selected', desc: 'Pick groups' },
+                        ] as const
+                      ).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          disabled={filterBusy}
+                          onClick={() => {
+                            if (opt.id === 'CUSTOM') {
+                              setFilterType('CUSTOM');
+                              return;
+                            }
+                            void saveSummoraFilters(opt.id);
+                          }}
+                          className={cn(
+                            'rounded-lg border p-3 text-left transition-colors',
+                            filterType === opt.id
+                              ? 'border-foreground bg-foreground text-background'
+                              : 'hover:bg-muted/60'
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-sm font-medium">{opt.label}</span>
+                            {filterType === opt.id && <Check className="h-3.5 w-3.5" />}
+                          </div>
+                          <p
+                            className={cn(
+                              'mt-1 text-[11px]',
+                              filterType === opt.id
+                                ? 'text-background/70'
+                                : 'text-muted-foreground'
+                            )}
+                          >
+                            {opt.desc}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+
+                    {filterType === 'CUSTOM' && (
+                      <div className="space-y-3 rounded-lg border p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">
+                            Groups ({allowedJids.length} selected)
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={filterBusy}
+                            onClick={() => void loadSummoraGroups()}
+                          >
+                            Refresh list
+                          </Button>
+                        </div>
+                        {groupsError ? (
+                          <p className="text-sm text-muted-foreground">{groupsError}</p>
+                        ) : groups.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">
+                            No groups loaded. Connect WhatsApp, then refresh.
+                          </p>
+                        ) : (
+                          <ScrollArea className="h-52 rounded-md border">
+                            <div className="p-1">
+                              {groups.map((g) => {
+                                const selected = allowedJids.includes(g.jid);
+                                return (
+                                  <button
+                                    key={g.jid}
+                                    type="button"
+                                    onClick={() => toggleGroupJid(g.jid)}
+                                    className={cn(
+                                      'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm',
+                                      selected ? 'bg-muted' : 'hover:bg-muted/50'
+                                    )}
+                                  >
+                                    <span
+                                      className={cn(
+                                        'flex h-4 w-4 items-center justify-center rounded border',
+                                        selected && 'border-foreground bg-foreground text-background'
+                                      )}
+                                    >
+                                      {selected && <Check className="h-3 w-3" />}
+                                    </span>
+                                    <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span className="truncate">{g.name || g.jid}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </ScrollArea>
+                        )}
+                        <Button
+                          disabled={filterBusy}
+                          onClick={() => saveSummoraFilters('CUSTOM', allowedJids)}
+                        >
+                          {filterBusy ? 'Saving…' : `Save selection (${allowedJids.length})`}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        {/* ——— Provider ——— */}
+        <TabsContent value="provider" className="mt-3 space-y-4 overflow-y-auto pb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Provider configuration</CardTitle>
+              <CardDescription>
+                Choose how this workspace sends and receives WhatsApp. Most teams use Summora.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Provider</Label>
+                  <Select
+                    value={config.provider}
+                    onValueChange={(value) => setConfig({ ...config, provider: value })}
                   >
-                    {filterBusy ? 'Saving…' : `Save selection (${allowedJids.length})`}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={filterBusy}
-                    onClick={() => void loadSummoraGroups()}
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DISABLED">Disabled</SelectItem>
+                      <SelectItem value="SUMMORA">Summora (recommended)</SelectItem>
+                      <SelectItem value="TWILIO">Twilio</SelectItem>
+                      <SelectItem value="META_CLOUD">Meta Cloud API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Status</Label>
+                  <Select
+                    value={config.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    onValueChange={(value) =>
+                      setConfig({ ...config, isActive: value === 'ACTIVE' })
+                    }
                   >
-                    Refresh groups
-                  </Button>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="INACTIVE">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">Send message</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Logic Channel</Label>
-              <Select value={form.channel} onValueChange={(value) => setForm({ ...form, channel: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SALES">Sales</SelectItem>
-                  <SelectItem value="SERVICE">Service</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Destination Address</Label>
-              <Input
-                value={form.toPhone}
-                onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
-                placeholder="+919999999999"
-              />
-            </div>
-          </div>
+              {config.provider === 'TWILIO' && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>Account SID</Label>
+                    <Input
+                      value={config.twilioAccountSid}
+                      onChange={(e) =>
+                        setConfig({ ...config, twilioAccountSid: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Auth token</Label>
+                    <Input
+                      type="password"
+                      value={config.twilioAuthToken}
+                      onChange={(e) =>
+                        setConfig({ ...config, twilioAuthToken: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>From number</Label>
+                    <Input
+                      placeholder="+14155238886"
+                      value={config.twilioFromNumber}
+                      onChange={(e) =>
+                        setConfig({ ...config, twilioFromNumber: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              )}
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Lead ID (Optional)</Label>
-              <Input value={form.leadId} onChange={(e) => setForm({ ...form, leadId: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Customer ID (Optional)</Label>
-              <Input value={form.customerId} onChange={(e) => setForm({ ...form, customerId: e.target.value })} />
-            </div>
-            <div className="space-y-2">
-              <Label>Ticket ID (Optional)</Label>
-              <Input value={form.ticketId} onChange={(e) => setForm({ ...form, ticketId: e.target.value })} />
-            </div>
-          </div>
+              {config.provider === 'META_CLOUD' && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Access token</Label>
+                    <Input
+                      type="password"
+                      value={config.metaAccessToken}
+                      onChange={(e) =>
+                        setConfig({ ...config, metaAccessToken: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone number ID</Label>
+                    <Input
+                      value={config.metaPhoneNumberId}
+                      onChange={(e) =>
+                        setConfig({ ...config, metaPhoneNumberId: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Business ID</Label>
+                    <Input
+                      value={config.metaBusinessId}
+                      onChange={(e) =>
+                        setConfig({ ...config, metaBusinessId: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>API version</Label>
+                    <Input
+                      value={config.metaApiVersion}
+                      onChange={(e) =>
+                        setConfig({ ...config, metaApiVersion: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Webhook verify token</Label>
+                    <Input
+                      type="password"
+                      value={config.webhookVerifyToken}
+                      onChange={(e) =>
+                        setConfig({ ...config, webhookVerifyToken: e.target.value })
+                      }
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground md:col-span-2 break-all">
+                    Webhook:{' '}
+                    <code>
+                      {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}`}
+                    </code>
+                  </p>
+                </div>
+              )}
 
-          <div className="space-y-1.5">
-            <Label className="text-[9px] uppercase font-bold tracking-widest opacity-70">Payload Content</Label>
-            <Textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} rows={5} />
-          </div>
+              {config.provider === 'SUMMORA' && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Summora base URL</Label>
+                    <Input
+                      placeholder="https://summora.jabin.org"
+                      value={config.summoraBaseUrl}
+                      onChange={(e) =>
+                        setConfig({ ...config, summoraBaseUrl: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Bridge API key</Label>
+                    <Input
+                      type="password"
+                      value={config.summoraApiKey}
+                      onChange={(e) =>
+                        setConfig({ ...config, summoraApiKey: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Webhook signing secret</Label>
+                    <Input
+                      type="password"
+                      value={config.webhookVerifyToken}
+                      onChange={(e) =>
+                        setConfig({ ...config, webhookVerifyToken: e.target.value })
+                      }
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground md:col-span-2 break-all">
+                    Bridge webhook:{' '}
+                    <code>
+                      {`${typeof window !== 'undefined' ? window.location.origin : ''}/api/whatsapp/webhook?userId=${session?.user?.id || ''}&provider=SUMMORA`}
+                    </code>
+                  </p>
+                </div>
+              )}
 
-          <Button onClick={sendWhatsApp} disabled={sending}>
-            {sending ? 'Sending...' : 'Send WhatsApp'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <CardTitle className="text-base font-semibold">Conversations</CardTitle>
-              <CardDescription className="mt-1">
-                {filterType === 'CUSTOM'
-                  ? `Showing only ${allowedJids.length} selected group${allowedJids.length === 1 ? '' : 's'} (inbox filter). New messages outside the selection are never forwarded from Summora.`
-                  : filterType === 'GROUPS_ONLY'
-                    ? 'Showing group chats only — DMs are blocked at Summora before they reach Opslane.'
-                    : 'Showing all forwarded chats. Change Inbox filter above to limit which chats arrive.'}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => void loadMessages()}
-              >
-                Refresh
-              </Button>
-              <Select
-                value={channelFilter}
-                onValueChange={(value) => {
-                  setChannelFilter(value);
-                  loadMessages(value);
-                }}
-              >
-                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Channels</SelectItem>
-                  <SelectItem value="SALES">Sales</SelectItem>
-                  <SelectItem value="SERVICE">Service</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <FullTableSkeleton columnCount={6} rowCount={5} />
-          ) : (
-          <div className="rounded-none border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Chat</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>Direction</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Message</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {messages.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No messages for the current inbox filter yet. After you save Selected groups,
-                      only new matching WhatsApp traffic appears here.
-                    </TableCell>
-                  </TableRow>
+              <Button onClick={saveConfig} disabled={savingConfig}>
+                {savingConfig ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
+                  </>
                 ) : (
-                  messages.map((msg: any) => {
-                    const chatLabel =
-                      (msg.isGroup || String(msg.chatJid || '').endsWith('@g.us')
-                        ? groups.find((g) => g.jid === msg.chatJid)?.name
-                        : null) ||
-                      msg.chatJid ||
-                      msg.fromPhone ||
-                      msg.toPhone ||
-                      '—';
-                    const fromLabel =
-                      msg.senderName ||
-                      (msg.direction === 'OUTBOUND' ? 'You' : null) ||
-                      msg.fromPhone ||
-                      '—';
-                    return (
-                      <TableRow key={msg.id}>
-                        <TableCell className="whitespace-nowrap text-sm">
-                          {new Date(msg.createdAt).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-sm font-medium truncate max-w-[220px]">
-                              {chatLabel}
-                            </span>
-                            {(msg.isGroup || String(msg.chatJid || '').endsWith('@g.us')) && (
-                              <Badge variant="secondary" className="w-fit text-[10px]">
-                                Group
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-sm truncate max-w-[160px]">
-                          {fromLabel}
-                        </TableCell>
-                        <TableCell>{msg.direction}</TableCell>
-                        <TableCell>
-                          <span className={cn("text-[10px] font-bold uppercase", statusColor[msg.status] || 'text-muted-foreground')}>
-                            {msg.status}
-                          </span>
-                        </TableCell>
-                        <TableCell className="max-w-[380px] truncate">{msg.message}</TableCell>
-                      </TableRow>
-                    );
-                  })
+                  'Save provider'
                 )}
-              </TableBody>
-            </Table>
-          </div>
-          )}
-        </CardContent>
-      </Card>
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
-
