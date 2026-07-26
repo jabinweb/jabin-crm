@@ -81,22 +81,33 @@ const crmNav: NavigationItem[] = [
   { name: 'Clients', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
   { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY' },
   {
-    name: 'Installed equipment',
+    name: 'Inventory',
     href: '/dashboard/inventory',
     icon: Database,
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
+    workspaceFeature: 'inventory',
+    module: 'INVENTORY',
+    children: [
+      { name: 'Stock overview', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+      { name: 'Locations', href: '/dashboard/inventory/locations', icon: MapPin, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+      { name: 'Transfers', href: '/dashboard/inventory/transfers', icon: ArrowLeftRight, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+      { name: 'Batches', href: '/dashboard/inventory/batches', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+      { name: 'Stock adjustment', href: '/dashboard/inventory/stock-adjustment', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+    ],
+  },
+  {
+    name: 'Installed equipment',
+    href: '/dashboard/inventory/new',
+    icon: Wrench,
     roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
     workspaceFeature: 'equipment',
     module: 'EQUIPMENT',
     terminologyKey: 'equipment',
     children: [
-      { name: 'Stock overview', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-      { name: 'Locations', href: '/dashboard/inventory/locations', icon: MapPin, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-      { name: 'Transfers', href: '/dashboard/inventory/transfers', icon: ArrowLeftRight, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-      { name: 'Batches', href: '/dashboard/inventory/batches', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-      { name: 'Stock adjustment', href: '/dashboard/inventory/stock-adjustment', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Register equipment', href: '/dashboard/inventory/new', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
     ],
   },
-  { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT', terminologyKey: 'equipment' },
   { name: 'Client insights', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customerAnalytics' },
 ];
 
@@ -151,10 +162,10 @@ const supportNav: NavigationItem[] = [
     roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'],
     workspaceFeature: 'fieldService',
     children: [
-      { name: 'Job board', href: '/dashboard/service/board', icon: LayoutGrid, module: 'TICKETS' },
-      { name: 'GPS tracking', href: '/dashboard/service/gps', icon: MapPin, module: 'SERVICE_GPS' },
-      { name: 'Expenses', href: '/dashboard/service/expenses', icon: Route, module: 'SERVICE_EXPENSES' },
-      { name: 'Cash on hand', href: '/dashboard/service/cash', icon: Wallet, module: 'SERVICE_CASH' },
+      { name: 'Job board', href: '/dashboard/service/board', icon: LayoutGrid, module: 'TICKETS', workspaceFeature: 'fieldService' },
+      { name: 'GPS tracking', href: '/dashboard/service/gps', icon: MapPin, module: 'SERVICE_GPS', workspaceFeature: 'fieldService' },
+      { name: 'Expenses', href: '/dashboard/service/expenses', icon: Route, module: 'SERVICE_EXPENSES', workspaceFeature: 'fieldService' },
+      { name: 'Cash on hand', href: '/dashboard/service/cash', icon: Wallet, module: 'SERVICE_CASH', workspaceFeature: 'fieldService' },
     ],
   },
 ];
@@ -192,9 +203,9 @@ const emailNav: NavigationItem[] = [
 ];
 
 const opsNav: NavigationItem[] = [
-  { name: 'Suppliers', href: '/dashboard/suppliers', icon: Truck, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY' },
-  { name: 'Purchase orders', href: '/dashboard/purchase-orders', icon: ClipboardList, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY' },
-  { name: 'Sales orders', href: '/dashboard/sales-orders', icon: ShoppingCart, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY' },
+  { name: 'Suppliers', href: '/dashboard/suppliers', icon: Truck, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY', workspaceFeature: 'inventory' },
+  { name: 'Purchase orders', href: '/dashboard/purchase-orders', icon: ClipboardList, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY', workspaceFeature: 'inventory' },
+  { name: 'Sales orders', href: '/dashboard/sales-orders', icon: ShoppingCart, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY', workspaceFeature: 'inventory' },
   { name: 'Assets', href: '/dashboard/assets', icon: Landmark, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Budgets', href: '/dashboard/budgets', icon: PiggyBank, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: ['ADMIN', 'SUPER_ADMIN'] },
@@ -370,7 +381,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     const childVisible = (child: NavigationItem) => {
       const childRoleOk = !child.roles || child.roles.includes(userRole);
       const childModuleOk = !child.module || moduleMap[child.module] === true;
-      return childRoleOk && childModuleOk;
+      const childWorkspaceOk =
+        !child.workspaceFeature ||
+        !workspaceFeatures ||
+        workspaceFeatures[child.workspaceFeature] === true;
+      return childRoleOk && childModuleOk && childWorkspaceOk;
     };
 
     const filtered = items.filter((item) => {

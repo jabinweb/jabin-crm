@@ -1,17 +1,7 @@
-const industries = [
-  'Web & digital agencies',
-  'Field service',
-  'Medical equipment',
-  'SaaS & software',
-  'Manufacturing',
-  'Professional services',
-  'E-commerce',
-  'Construction',
-  'Healthcare',
-  'Education',
-  'Hospitality',
-  'Consulting',
-];
+import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+
+/** Landing strip — mirrors workspace industry templates. */
+export const LANDING_INDUSTRIES = BUSINESS_VERTICAL_OPTIONS.map((o) => o.label);
 
 export function IndustryStrip() {
   return (
@@ -21,7 +11,7 @@ export function IndustryStrip() {
           Built for every industry
         </p>
         <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-          {industries.map((name) => (
+          {LANDING_INDUSTRIES.map((name) => (
             <span
               key={name}
               className="rounded-full border border-[var(--lp-line)] bg-white px-4 py-2 text-sm text-[var(--lp-ink)]"

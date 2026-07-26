@@ -104,7 +104,7 @@ export function CustomerDepartmentsTab({
       <div>
         <h3 className="text-lg font-semibold tracking-tight">Departments</h3>
         <p className="text-sm text-muted-foreground">
-          Optional — Cardiology, ICU, Night OT…
+          Optional org units — e.g. Cardiology, ICU, or regional teams.
         </p>
       </div>
 
@@ -113,7 +113,7 @@ export function CustomerDepartmentsTab({
           <Building2 className="mx-auto mb-3 h-10 w-10 text-muted-foreground/60" />
           <p className="font-medium">Skip if not needed</p>
           <p className="mt-1 text-sm text-muted-foreground max-w-xs mx-auto">
-            Small clinics can ignore this. Hospitals add units so visits hit the right team.
+            Add departments when visits or tickets should route to a specific team.
           </p>
         </div>
       ) : (

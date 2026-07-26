@@ -1,6 +1,11 @@
 /**
  * Workspace templates define which product areas and terminology apply per business type.
  * Templates are merged with company settings overrides at runtime.
+ *
+ * Two gating layers (do not conflate):
+ * - Industry pack (this file): workspace feature flags, terminology, lead flows, ticket presets.
+ * - Subscription plan (`FeatureModule`): paid entitlement via ensureFeatureEnabled / sidebar module.
+ * Horizontal CRM (leads/deals/tickets/WhatsApp/email/HRMS) stays plan-gated only — never hidden by vertical.
  */
 
 export const BUSINESS_VERTICALS = [

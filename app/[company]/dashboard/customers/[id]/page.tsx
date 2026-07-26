@@ -40,6 +40,7 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { ServiceLinkCard } from '@/components/service-request/service-link-card';
 import { DetailSkeleton } from '@/components/loading';
 import { CurrencySelect } from '@/components/ui/currency-select';
@@ -63,6 +64,8 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
+  const { data: workspaceData } = useWorkspaceConfig();
+  const customerLabel = workspaceData?.config.terminology.customer ?? 'customer';
   const [activeTab, setActiveTab] = useState('people');
 
   const { data: customer, isLoading } = useQuery({
@@ -375,7 +378,7 @@ export default function CustomerDetailPage() {
         scope="customer"
         id={customerId}
         title="QR / one-click service request"
-        description="Share with this hospital or clinic so they can raise tickets without WhatsApp or a portal login."
+        description={`Share with this ${customerLabel.toLowerCase()} so they can raise tickets without WhatsApp or a portal login.`}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">

@@ -70,3 +70,15 @@ export async function seedCompanySupportDesk(
     seedDefaultSlaPolicies(companyId),
   ]);
 }
+
+/**
+ * On industry switch: add any missing support groups for the new vertical's
+ * ticket-type presets. Does not delete existing groups or wipe custom ticket types
+ * (those live in company settings and are merged at resolve time).
+ */
+export async function syncSupportDeskForVertical(
+  companyId: string,
+  vertical: BusinessVertical
+) {
+  await seedDefaultSupportGroups(companyId, vertical);
+}

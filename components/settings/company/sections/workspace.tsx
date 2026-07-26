@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/settings-context';
 import type { SettingsUpdatePayload } from '@/types/settings';
 import {
@@ -25,13 +26,25 @@ const FEATURE_LABELS: Record<WorkspaceFeatureKey, string> = {
   customerPortal: 'Customer portal',
   customers: 'Customer records',
   customerAnalytics: 'Customer analytics',
-  inventory: 'Inventory & products',
-  equipment: 'Assets & equipment',
+  inventory: 'Inventory & stock',
+  equipment: 'Installed equipment',
   fieldService: 'Field service operations',
   warranties: 'Warranties & coverage',
   serviceHistory: 'Service history',
   products: 'Product catalog',
 };
+
+const PACK_FEATURE_ORDER: WorkspaceFeatureKey[] = [
+  'products',
+  'inventory',
+  'equipment',
+  'fieldService',
+  'warranties',
+  'serviceHistory',
+  'customerPortal',
+  'customers',
+  'customerAnalytics',
+];
 
 export function WorkspaceSection({
   onChange,
@@ -46,6 +59,16 @@ export function WorkspaceSection({
   }, [settings]);
 
   const resolved = useMemo(() => resolveWorkspaceConfig(workspace), [workspace]);
+
+  const templateFeatures = useMemo(
+    () => WORKSPACE_TEMPLATES[workspace.businessVertical]?.features,
+    [workspace.businessVertical]
+  );
+
+  const packEnabled = useMemo(
+    () => PACK_FEATURE_ORDER.filter((key) => templateFeatures?.[key] === true),
+    [templateFeatures]
+  );
 
   const updateWorkspace = (patch: Partial<typeof workspace>) => {
     onChange({
@@ -82,6 +105,7 @@ export function WorkspaceSection({
           <CardDescription>
             Choose a template that matches your industry. Navigation, portal pages, and lead
             pipelines adapt automatically. You can fine-tune individual areas below.
+            CRM, support, WhatsApp, and HRMS stay available based on your subscription plan.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -102,6 +126,22 @@ export function WorkspaceSection({
             <p className="text-sm text-muted-foreground">
               {WORKSPACE_TEMPLATES[workspace.businessVertical]?.description}
             </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">This industry enables</p>
+            {packEnabled.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Core CRM and support only — no inventory, equipment, or field ops by default.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {packEnabled.map((key) => (
+                  <Badge key={key} variant="secondary">
+                    {FEATURE_LABELS[key]}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

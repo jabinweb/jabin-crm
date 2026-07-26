@@ -1,11 +1,13 @@
 import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
-import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma'
 import {
   resolveCompanyContextFromRequest,
   TenantError,
 } from '@/lib/auth/company-membership'
+import { workspaceSettingsFromCompanySettings } from '@/lib/workspace-config'
+import { isBusinessVertical } from '@/lib/workspace-templates'
+import { syncSupportDeskForVertical } from '@/lib/support/seed-company-support'
 
 function deepMergeSettings(
   base: Record<string, unknown>,
@@ -119,6 +121,12 @@ export async function PATCH(req: NextRequest) {
       select: { settings: true },
     })
 
+    const previousVertical = workspaceSettingsFromCompanySettings(
+      existing?.settings && typeof existing.settings === 'object' && !Array.isArray(existing.settings)
+        ? (existing.settings as Record<string, unknown>)
+        : {}
+    ).businessVertical
+
     const mergedSettings =
       settingsData && existing?.settings && typeof existing.settings === 'object' && !Array.isArray(existing.settings)
         ? deepMergeSettings(existing.settings as Record<string, unknown>, settingsData)
@@ -146,6 +154,20 @@ export async function PATCH(req: NextRequest) {
         settings: true,
       },
     })
+
+    const nextVertical = workspaceSettingsFromCompanySettings(
+      company.settings && typeof company.settings === 'object' && !Array.isArray(company.settings)
+        ? (company.settings as Record<string, unknown>)
+        : {}
+    ).businessVertical
+
+    if (
+      settingsData &&
+      isBusinessVertical(nextVertical) &&
+      nextVertical !== previousVertical
+    ) {
+      await syncSupportDeskForVertical(companyId, nextVertical)
+    }
 
     const response = {
       company: {

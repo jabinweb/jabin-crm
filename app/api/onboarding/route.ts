@@ -20,6 +20,7 @@ import {
 } from '@/lib/workspace-config';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
 import { isBusinessVertical, BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import { syncSupportDeskForVertical } from '@/lib/support/seed-company-support';
 
 function settingsRecord(raw: unknown): Record<string, unknown> {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
@@ -140,6 +141,7 @@ export async function PATCH(req: NextRequest) {
             data: { name: String(body.data.companyName) },
           });
         }
+        await syncSupportDeskForVertical(companyId, vertical);
       }
 
       if (step === 'support' && body.data?.channels) {

@@ -1,21 +1,4 @@
-/** Common account industries — any vertical, not hospital-only */
-export const ACCOUNT_INDUSTRIES = [
-  'Healthcare',
-  'Retail & E-commerce',
-  'SaaS / Software',
-  'Manufacturing',
-  'Financial Services',
-  'Education',
-  'Hospitality',
-  'Logistics',
-  'Real Estate',
-  'Professional Services',
-  'Telecommunications',
-  'Government',
-  'Non-profit',
-  'Other',
-] as const;
-
+/** Shared account-type chips for CRM records (not workspace industry templates). */
 export const ACCOUNT_TYPES = [
   'Enterprise',
   'SMB',

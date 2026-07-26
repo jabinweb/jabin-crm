@@ -5,6 +5,150 @@ import {
   resolveWorkspaceConfig,
   workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
+import {
+  BUSINESS_VERTICALS,
+  WORKSPACE_TEMPLATES,
+  type WorkspaceFeatureKey,
+} from '@/lib/workspace-templates';
+
+/** Expected industry pack feature matrix — keep in sync with WORKSPACE_TEMPLATES. */
+const FEATURE_SNAPSHOT: Record<
+  (typeof BUSINESS_VERTICALS)[number],
+  Record<WorkspaceFeatureKey, boolean>
+> = {
+  general: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: false,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: false,
+  },
+  field_service: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: true,
+    equipment: true,
+    fieldService: true,
+    warranties: true,
+    serviceHistory: true,
+    products: true,
+  },
+  agency: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: false,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: true,
+  },
+  web_agency: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: false,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: true,
+  },
+  ecommerce: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: true,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: true,
+  },
+  professional_services: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: false,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: true,
+  },
+  manufacturing: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: true,
+    equipment: true,
+    fieldService: false,
+    warranties: true,
+    serviceHistory: true,
+    products: true,
+  },
+  healthcare: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: true,
+    equipment: true,
+    fieldService: true,
+    warranties: true,
+    serviceHistory: true,
+    products: true,
+  },
+  saas: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: false,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: true,
+  },
+  construction: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: true,
+    equipment: true,
+    fieldService: true,
+    warranties: true,
+    serviceHistory: true,
+    products: true,
+  },
+  education: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: false,
+    equipment: false,
+    fieldService: false,
+    warranties: false,
+    serviceHistory: false,
+    products: true,
+  },
+  hospitality: {
+    customerPortal: true,
+    customers: true,
+    customerAnalytics: true,
+    inventory: true,
+    equipment: true,
+    fieldService: true,
+    warranties: false,
+    serviceHistory: true,
+    products: true,
+  },
+};
 
 describe('workspace-config', () => {
   it('defaults to general business template', () => {
@@ -64,5 +208,20 @@ describe('workspace-config', () => {
   it('seeds company billing.defaultCurrency', () => {
     const initial = buildInitialCompanySettings('general');
     expect(initial.billing.defaultCurrency).toBe('INR');
+  });
+
+  it('matches industry pack feature matrix for every vertical', () => {
+    for (const vertical of BUSINESS_VERTICALS) {
+      const config = resolveWorkspaceConfig({ businessVertical: vertical });
+      expect(config.features).toEqual(FEATURE_SNAPSHOT[vertical]);
+      expect(WORKSPACE_TEMPLATES[vertical].features).toEqual(FEATURE_SNAPSHOT[vertical]);
+    }
+  });
+
+  it('ecommerce enables inventory without equipment', () => {
+    const config = resolveWorkspaceConfig({ businessVertical: 'ecommerce' });
+    expect(config.features.inventory).toBe(true);
+    expect(config.features.equipment).toBe(false);
+    expect(config.features.fieldService).toBe(false);
   });
 });
