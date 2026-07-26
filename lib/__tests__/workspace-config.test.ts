@@ -1,8 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 import {
   buildInitialCompanySettings,
+  buildVerticalSwitchPatch,
   parseWorkspaceSettings,
   resolveWorkspaceConfig,
+  selectionIdForWorkspace,
   workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
 import {
@@ -10,6 +12,11 @@ import {
   WORKSPACE_TEMPLATES,
   type WorkspaceFeatureKey,
 } from '@/lib/workspace-templates';
+import {
+  PRIMARY_INDUSTRY_PICKER_OPTIONS,
+  assertPacksCovered,
+  resolveIndustrySelection,
+} from '@/lib/industry-aliases';
 
 /** Expected industry pack feature matrix — keep in sync with WORKSPACE_TEMPLATES. */
 const FEATURE_SNAPSHOT: Record<
@@ -223,5 +230,60 @@ describe('workspace-config', () => {
     expect(config.features.inventory).toBe(true);
     expect(config.features.equipment).toBe(false);
     expect(config.features.fieldService).toBe(false);
+  });
+
+  it('resolves medical equipment alias to field_service pack with biomed labels', () => {
+    const resolved = resolveIndustrySelection('medical_equipment');
+    expect(resolved.businessVertical).toBe('field_service');
+    expect(resolved.deepTemplate).toBe(true);
+
+    const seeded = buildInitialCompanySettings(resolved.businessVertical, {
+      industryAlias: resolved.industryAlias,
+    });
+    expect(seeded.workspace.industryAlias).toBe('medical_equipment');
+    expect(seeded.workspace.businessVertical).toBe('field_service');
+
+    const config = resolveWorkspaceConfig(seeded.workspace);
+    expect(config.verticalLabel).toBe('Medical Equipment');
+    expect(config.terminology.agent).toBe('Biomed engineer');
+    expect(config.features.fieldService).toBe(true);
+  });
+
+  it('maps primary industry tiles to deep packs', () => {
+    const expectedPacks: Record<string, string> = {
+      medical_equipment: 'field_service',
+      manufacturing: 'manufacturing',
+      fmcg: 'ecommerce',
+      facilities_management: 'field_service',
+      logistics: 'manufacturing',
+      pharma: 'manufacturing',
+      retail: 'ecommerce',
+      construction: 'construction',
+      automotive: 'field_service',
+      professional_services: 'professional_services',
+      financial_services: 'professional_services',
+      education: 'education',
+    };
+    expect(PRIMARY_INDUSTRY_PICKER_OPTIONS).toHaveLength(12);
+    for (const opt of PRIMARY_INDUSTRY_PICKER_OPTIONS) {
+      expect(resolveIndustrySelection(opt.id).businessVertical).toBe(expectedPacks[opt.id]);
+    }
+  });
+
+  it('covers every deep pack with at least one picker option', () => {
+    expect(assertPacksCovered()).toEqual([]);
+  });
+
+  it('buildVerticalSwitchPatch stores alias and clears overrides', () => {
+    const patch = buildVerticalSwitchPatch('retail');
+    expect(patch.workspace.businessVertical).toBe('ecommerce');
+    expect(patch.workspace.industryAlias).toBe('retail');
+    expect(patch.workspace.featureOverrides).toBeNull();
+    expect(
+      selectionIdForWorkspace({
+        businessVertical: patch.workspace.businessVertical as 'ecommerce',
+        industryAlias: patch.workspace.industryAlias,
+      })
+    ).toBe('retail');
   });
 });

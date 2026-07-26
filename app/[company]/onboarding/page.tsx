@@ -18,7 +18,8 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
-import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import { INDUSTRY_PICKER_OPTIONS, getIndustryPickerOption } from '@/lib/industry-aliases';
+import { selectionIdForWorkspace } from '@/lib/workspace-config';
 import {
   canManageCompanyOnboarding,
   normalizeOnboardingStep,
@@ -59,9 +60,12 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (!data || prefilled) return;
+    const ws = data.workspace;
     setWelcome({
       companyName: data.company?.name || '',
-      businessVertical: data.workspace?.businessVertical || 'general',
+      businessVertical: selectionIdForWorkspace(
+        ws ?? { businessVertical: 'general' }
+      ),
     });
     const ch = data.support?.channels;
     if (ch) {
@@ -150,7 +154,7 @@ export default function OnboardingPage() {
   };
 
   const verticalLabel =
-    BUSINESS_VERTICAL_OPTIONS.find((o) => o.id === welcome.businessVertical)?.label ??
+    getIndustryPickerOption(welcome.businessVertical)?.label ??
     welcome.businessVertical;
 
   return (
@@ -202,9 +206,10 @@ export default function OnboardingPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {BUSINESS_VERTICAL_OPTIONS.map((o) => (
+                      {INDUSTRY_PICKER_OPTIONS.map((o) => (
                         <SelectItem key={o.id} value={o.id}>
                           {o.label}
+                          {o.deepTemplate ? ' · Deep template' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>

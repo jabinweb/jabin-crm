@@ -5,17 +5,24 @@ import {
   type WorkspaceFeatureKey,
   type WorkspaceTerminology,
 } from '@/lib/workspace-templates';
+import {
+  getIndustryPickerOption,
+  resolveIndustrySelection,
+} from '@/lib/industry-aliases';
 import { defaultPipelines } from '@/lib/pipelines/company-pipelines';
 import { leadFlowToPipelineConfig } from '@/lib/pipelines/lead-flow-map';
 
 export interface WorkspaceSettings {
   businessVertical: BusinessVertical;
+  /** Marketing / signup industry tile; maps to businessVertical via industry-aliases. */
+  industryAlias?: string;
   featureOverrides?: Partial<Record<WorkspaceFeatureKey, boolean>>;
   terminologyOverrides?: Partial<WorkspaceTerminology>;
 }
 
 export interface ResolvedWorkspaceConfig {
   businessVertical: BusinessVertical;
+  industryAlias?: string;
   verticalLabel: string;
   features: Record<WorkspaceFeatureKey, boolean>;
   terminology: WorkspaceTerminology;
@@ -36,6 +43,11 @@ export function parseWorkspaceSettings(raw: unknown): WorkspaceSettings {
     ? obj.businessVertical
     : DEFAULT_WORKSPACE_SETTINGS.businessVertical;
 
+  const industryAlias =
+    typeof obj.industryAlias === 'string' && obj.industryAlias.trim()
+      ? obj.industryAlias.trim()
+      : undefined;
+
   const featureOverrides =
     obj.featureOverrides && typeof obj.featureOverrides === 'object' && !Array.isArray(obj.featureOverrides)
       ? (obj.featureOverrides as Partial<Record<WorkspaceFeatureKey, boolean>>)
@@ -50,6 +62,7 @@ export function parseWorkspaceSettings(raw: unknown): WorkspaceSettings {
 
   return {
     businessVertical,
+    ...(industryAlias ? { industryAlias } : {}),
     ...(featureOverrides ? { featureOverrides } : {}),
     ...(terminologyOverrides ? { terminologyOverrides } : {}),
   };
@@ -66,7 +79,6 @@ export function workspaceSettingsFromCompanySettings(settings: unknown): Workspa
   const root = settings as Record<string, unknown>;
   if (root.workspace && typeof root.workspace === 'object' && !Array.isArray(root.workspace)) {
     const nested = parseWorkspaceSettings(root.workspace);
-    // Legacy: top-level businessVertical when nested is still general
     if (
       nested.businessVertical === 'general' &&
       isBusinessVertical(root.businessVertical)
@@ -93,12 +105,17 @@ export function resolveWorkspaceConfig(settings: WorkspaceSettings): ResolvedWor
     }
   }
 
+  const aliasOption = getIndustryPickerOption(settings.industryAlias);
+  const aliasTerminology = aliasOption?.terminologyOverrides ?? {};
+
   return {
     businessVertical: template.id,
-    verticalLabel: template.label,
+    industryAlias: settings.industryAlias,
+    verticalLabel: aliasOption?.label ?? template.label,
     features,
     terminology: {
       ...template.terminology,
+      ...aliasTerminology,
       ...(settings.terminologyOverrides ?? {}),
     },
     leadStatusFlow: [...template.leadStatusFlow],
@@ -106,16 +123,27 @@ export function resolveWorkspaceConfig(settings: WorkspaceSettings): ResolvedWor
 }
 
 /** Seed company.settings JSON for a new workspace (or vertical switch). */
-export function buildInitialCompanySettings(businessVertical: BusinessVertical = 'general') {
-  const template = WORKSPACE_TEMPLATES[businessVertical] ?? WORKSPACE_TEMPLATES.general;
+export function buildInitialCompanySettings(
+  businessVertical: BusinessVertical = 'general',
+  options?: { industryAlias?: string }
+) {
+  const resolved = options?.industryAlias
+    ? resolveIndustrySelection(options.industryAlias)
+    : resolveIndustrySelection(businessVertical);
+
+  const pack = resolved.businessVertical;
+  const template = WORKSPACE_TEMPLATES[pack] ?? WORKSPACE_TEMPLATES.general;
   const leadPipeline = leadFlowToPipelineConfig(template.leadStatusFlow);
   const pipelines = defaultPipelines();
   pipelines.leads = leadPipeline;
 
+  const workspace: WorkspaceSettings = {
+    businessVertical: template.id,
+    industryAlias: resolved.industryAlias,
+  };
+
   return {
-    workspace: {
-      businessVertical: template.id,
-    } satisfies WorkspaceSettings,
+    workspace,
     billing: {
       defaultCurrency: 'INR',
     },
@@ -134,16 +162,20 @@ export function buildInitialCompanySettings(businessVertical: BusinessVertical =
 }
 
 /**
- * Patch applied when industry vertical changes on an existing company.
- * Refreshes lead pipeline labels/stages and clears feature overrides.
+ * Patch when industry selection changes (alias or pack id).
+ * Refreshes lead pipeline and applies alias terminology; clears feature overrides.
  */
-export function buildVerticalSwitchPatch(businessVertical: BusinessVertical) {
-  const initial = buildInitialCompanySettings(businessVertical);
+export function buildVerticalSwitchPatch(selection: string) {
+  const resolved = resolveIndustrySelection(selection);
+  const initial = buildInitialCompanySettings(resolved.businessVertical, {
+    industryAlias: resolved.industryAlias,
+  });
   return {
     workspace: {
       businessVertical: initial.workspace.businessVertical,
-      featureOverrides: undefined,
-      terminologyOverrides: undefined,
+      industryAlias: initial.workspace.industryAlias,
+      featureOverrides: null,
+      terminologyOverrides: null,
     },
     leads: {
       statusFlow: initial.leads.statusFlow,
@@ -152,6 +184,17 @@ export function buildVerticalSwitchPatch(businessVertical: BusinessVertical) {
       leads: initial.pipelines.leads,
     },
   };
+}
+
+/** Picker value for settings / onboarding given stored workspace. */
+export function selectionIdForWorkspace(settings: WorkspaceSettings): string {
+  if (settings.industryAlias && getIndustryPickerOption(settings.industryAlias)) {
+    return settings.industryAlias;
+  }
+  if (getIndustryPickerOption(settings.businessVertical)) {
+    return settings.businessVertical;
+  }
+  return settings.businessVertical;
 }
 
 export function isWorkspaceFeatureEnabled(

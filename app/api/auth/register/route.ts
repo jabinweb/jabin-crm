@@ -11,9 +11,9 @@ import {
   EmployeeStatus,
   CompanyRole,
 } from '@prisma/client'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient, Prisma } from '@prisma/client'
 import { buildInitialCompanySettings } from '@/lib/workspace-config'
-import { isBusinessVertical, type BusinessVertical } from '@/lib/workspace-templates'
+import { isIndustrySelection, resolveIndustrySelection } from '@/lib/industry-aliases'
 import { seedCompanySupportDesk } from '@/lib/support/seed-company-support'
 
 type RegisterTransactionClient = Pick<
@@ -39,7 +39,7 @@ const registerSchema = z.object({
   businessVertical: z
     .string()
     .optional()
-    .refine((v) => !v || isBusinessVertical(v), 'Invalid business type'),
+    .refine((v) => !v || isIndustrySelection(v), 'Invalid business type'),
 })
 
 export async function POST(req: Request) {
@@ -63,9 +63,11 @@ export async function POST(req: Request) {
 
     // Create records in transaction
     const result = await prisma.$transaction(async (tx: RegisterTransactionClient) => {
-      const vertical = isBusinessVertical(data.businessVertical)
-        ? data.businessVertical
-        : 'general'
+      const industry = resolveIndustrySelection(
+        data.businessVertical && isIndustrySelection(data.businessVertical)
+          ? data.businessVertical
+          : 'general'
+      )
 
       // Create company first
       const company = await tx.company.create({
@@ -74,7 +76,9 @@ export async function POST(req: Request) {
           slug: `${slugFromName(data.companyName)}-${randomUUID().slice(0, 8)}`,
           website: data.website,
           status: CompanyStatus.PENDING,
-          settings: buildInitialCompanySettings(vertical),
+          settings: buildInitialCompanySettings(industry.businessVertical, {
+            industryAlias: industry.industryAlias,
+          }) as unknown as Prisma.InputJsonValue,
         },
       })
 
@@ -125,13 +129,12 @@ export async function POST(req: Request) {
         },
       })
 
-      return { user, company, employee, vertical }
+      return { user, company, employee, vertical: industry.businessVertical }
     })
 
-    seedCompanySupportDesk(
-      result.company.id,
-      result.vertical as BusinessVertical
-    ).catch((err) => console.error('[register] support desk seed failed:', err))
+    seedCompanySupportDesk(result.company.id, result.vertical).catch((err) =>
+      console.error('[register] support desk seed failed:', err)
+    )
 
     return NextResponse.json({
       success: true,

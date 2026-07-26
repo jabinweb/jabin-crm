@@ -15,6 +15,10 @@ function deepMergeSettings(
 ): Record<string, unknown> {
   const result = { ...base }
   for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      delete result[key]
+      continue
+    }
     if (
       value &&
       typeof value === 'object' &&

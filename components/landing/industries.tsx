@@ -1,7 +1,4 @@
-import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
-
-/** Landing strip — mirrors workspace industry templates. */
-export const LANDING_INDUSTRIES = BUSINESS_VERTICAL_OPTIONS.map((o) => o.label);
+import { LANDING_INDUSTRY_LABELS } from '@/lib/industry-aliases';
 
 export function IndustryStrip() {
   return (
@@ -11,7 +8,7 @@ export function IndustryStrip() {
           Built for every industry
         </p>
         <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-          {LANDING_INDUSTRIES.map((name) => (
+          {LANDING_INDUSTRY_LABELS.map((name) => (
             <span
               key={name}
               className="rounded-full border border-[var(--lp-line)] bg-white px-4 py-2 text-sm text-[var(--lp-ink)]"

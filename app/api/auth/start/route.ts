@@ -12,7 +12,7 @@ import {
   CompanyRole,
 } from '@prisma/client'
 import { buildInitialCompanySettings } from '@/lib/workspace-config'
-import { isBusinessVertical, type BusinessVertical } from '@/lib/workspace-templates'
+import { isIndustrySelection, resolveIndustrySelection } from '@/lib/industry-aliases'
 import { seedCompanySupportDesk } from '@/lib/support/seed-company-support'
 import { initialOnboardingState } from '@/lib/onboarding/company-onboarding'
 import { ensureFreeTrialSubscription } from '@/lib/subscription/ensure-free-trial'
@@ -57,7 +57,7 @@ const startSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/i, 'Use letters, numbers, and single hyphens only'),
   businessVertical: z
     .string()
-    .refine((v) => isBusinessVertical(v), 'Invalid industry'),
+    .refine((v) => isIndustrySelection(v), 'Invalid industry'),
   country: z.string().min(2).max(2).optional(),
   teamSize: z.enum(['1-10', '11-35', '36-100', '100+']).optional(),
   name: z.string().min(2).max(100),
@@ -118,14 +118,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'That workspace URL is taken' }, { status: 409 })
     }
 
-    const vertical = data.businessVertical as BusinessVertical
+    const industry = resolveIndustrySelection(data.businessVertical)
     const settings = {
-      ...buildInitialCompanySettings(vertical),
+      ...buildInitialCompanySettings(industry.businessVertical, {
+        industryAlias: industry.industryAlias,
+      }),
       onboarding: initialOnboardingState(),
       start: {
         country: data.country?.toUpperCase() || null,
         teamSize: data.teamSize || null,
         source: 'opslane-start',
+        industryAlias: industry.industryAlias,
       },
     }
 
@@ -190,7 +193,7 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      return { user, company, employee, vertical }
+      return { user, company, employee, vertical: industry.businessVertical }
     })
 
     seedCompanySupportDesk(result.company.id, result.vertical).catch((err) =>

@@ -14,12 +14,19 @@ import { Badge } from '@/components/ui/badge';
 import { useSettings } from '@/contexts/settings-context';
 import type { SettingsUpdatePayload } from '@/types/settings';
 import {
-  BUSINESS_VERTICAL_OPTIONS,
   WORKSPACE_TEMPLATES,
-  type BusinessVertical,
   type WorkspaceFeatureKey,
 } from '@/lib/workspace-templates';
-import { parseWorkspaceSettings, resolveWorkspaceConfig, buildVerticalSwitchPatch } from '@/lib/workspace-config';
+import {
+  INDUSTRY_PICKER_OPTIONS,
+  getIndustryPickerOption,
+} from '@/lib/industry-aliases';
+import {
+  parseWorkspaceSettings,
+  resolveWorkspaceConfig,
+  buildVerticalSwitchPatch,
+  selectionIdForWorkspace,
+} from '@/lib/workspace-config';
 import { useMemo } from 'react';
 
 const FEATURE_LABELS: Record<WorkspaceFeatureKey, string> = {
@@ -59,15 +66,12 @@ export function WorkspaceSection({
   }, [settings]);
 
   const resolved = useMemo(() => resolveWorkspaceConfig(workspace), [workspace]);
-
-  const templateFeatures = useMemo(
-    () => WORKSPACE_TEMPLATES[workspace.businessVertical]?.features,
-    [workspace.businessVertical]
-  );
+  const selectionId = selectionIdForWorkspace(workspace);
+  const selectedOption = getIndustryPickerOption(selectionId);
 
   const packEnabled = useMemo(
-    () => PACK_FEATURE_ORDER.filter((key) => templateFeatures?.[key] === true),
-    [templateFeatures]
+    () => PACK_FEATURE_ORDER.filter((key) => resolved.features[key] === true),
+    [resolved.features]
   );
 
   const updateWorkspace = (patch: Partial<typeof workspace>) => {
@@ -81,8 +85,8 @@ export function WorkspaceSection({
     });
   };
 
-  const setVertical = (vertical: BusinessVertical) => {
-    const patch = buildVerticalSwitchPatch(vertical);
+  const setIndustry = (selection: string) => {
+    const patch = buildVerticalSwitchPatch(selection);
     onChange({
       settings: patch as SettingsUpdatePayload['settings'],
     });
@@ -97,35 +101,44 @@ export function WorkspaceSection({
     });
   };
 
+  const packLabel =
+    WORKSPACE_TEMPLATES[resolved.businessVertical]?.label ?? resolved.businessVertical;
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Business type</CardTitle>
           <CardDescription>
-            Choose a template that matches your industry. Navigation, portal pages, and lead
-            pipelines adapt automatically. You can fine-tune individual areas below.
-            CRM, support, WhatsApp, and HRMS stay available based on your subscription plan.
+            Choose an industry. Navigation, portal pages, and lead pipelines adapt via a deep
+            product pack. CRM, support, WhatsApp, and HRMS stay available based on your plan.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="business-vertical">Industry template</Label>
-            <Select value={workspace.businessVertical} onValueChange={(v) => setVertical(v as BusinessVertical)}>
+            <Label htmlFor="business-vertical">Industry</Label>
+            <Select value={selectionId} onValueChange={setIndustry}>
               <SelectTrigger id="business-vertical">
-                <SelectValue placeholder="Select business type" />
+                <SelectValue placeholder="Select industry" />
               </SelectTrigger>
               <SelectContent>
-                {BUSINESS_VERTICAL_OPTIONS.map((option) => (
+                {INDUSTRY_PICKER_OPTIONS.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.label}
+                    {option.deepTemplate ? ' · Deep template' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              {WORKSPACE_TEMPLATES[workspace.businessVertical]?.description}
+              {selectedOption?.description ??
+                WORKSPACE_TEMPLATES[workspace.businessVertical]?.description}
             </p>
+            {selectedOption && selectedOption.pack !== selectedOption.id && (
+              <p className="text-xs text-muted-foreground">
+                Uses product pack: <span className="font-medium text-foreground">{packLabel}</span>
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">This industry enables</p>

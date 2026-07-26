@@ -5,7 +5,7 @@ import {
   resolveWorkspaceConfig,
   workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
-import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import { INDUSTRY_PICKER_OPTIONS } from '@/lib/industry-aliases';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
 
 export async function GET() {
@@ -41,7 +41,7 @@ export async function GET() {
       workspace: workspaceSettings,
       config,
       support: supportSettings,
-      templates: BUSINESS_VERTICAL_OPTIONS,
+      templates: INDUSTRY_PICKER_OPTIONS,
     });
   } catch (error) {
     console.error('[api/portal/workspace-config]', error);

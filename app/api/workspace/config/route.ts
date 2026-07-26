@@ -10,7 +10,7 @@ import {
   resolveWorkspaceConfig,
   workspaceSettingsFromCompanySettings,
 } from '@/lib/workspace-config';
-import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import { INDUSTRY_PICKER_OPTIONS } from '@/lib/industry-aliases';
 
 export async function GET(req: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       workspace: workspaceSettings,
       config,
-      templates: BUSINESS_VERTICAL_OPTIONS,
+      templates: INDUSTRY_PICKER_OPTIONS,
     });
   } catch (error) {
     if (error instanceof TenantError) {

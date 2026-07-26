@@ -14,7 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import {
+  INDUSTRY_PICKER_OPTIONS,
+  PRIMARY_INDUSTRY_PICKER_OPTIONS,
+} from '@/lib/industry-aliases';
 import { getClientBrandConfig } from '@/lib/branding';
 import { cn } from '@/lib/utils';
 import {
@@ -67,10 +70,11 @@ export default function StartPage() {
   const [workspace, setWorkspace] = useState({
     companyName: '',
     slug: '',
-    businessVertical: 'field_service',
+    businessVertical: 'medical_equipment',
     country: 'IN',
     teamSize: '1-10' as string,
   });
+  const [showMoreIndustries, setShowMoreIndustries] = useState(false);
 
   const [account, setAccount] = useState({
     name: '',
@@ -328,7 +332,10 @@ export default function StartPage() {
               <div className="space-y-2">
                 <Label>Industry *</Label>
                 <div className="grid sm:grid-cols-2 gap-2">
-                  {BUSINESS_VERTICAL_OPTIONS.map((opt) => (
+                  {(showMoreIndustries
+                    ? INDUSTRY_PICKER_OPTIONS
+                    : PRIMARY_INDUSTRY_PICKER_OPTIONS
+                  ).map((opt) => (
                     <button
                       key={opt.id}
                       type="button"
@@ -342,13 +349,27 @@ export default function StartPage() {
                           : 'border-border bg-white hover:bg-muted/40'
                       )}
                     >
-                      <p className="text-sm font-medium text-foreground">{opt.label}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground">{opt.label}</p>
+                        {opt.deepTemplate && (
+                          <span className="shrink-0 text-[10px] font-medium text-teal-700">
+                            Deep template
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
                         {opt.description}
                       </p>
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  onClick={() => setShowMoreIndustries((v) => !v)}
+                >
+                  {showMoreIndustries ? 'Show primary industries' : 'More industries (SaaS, agency, …)'}
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

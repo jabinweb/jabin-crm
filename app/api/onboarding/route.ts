@@ -19,7 +19,11 @@ import {
   buildVerticalSwitchPatch,
 } from '@/lib/workspace-config';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
-import { isBusinessVertical, BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import {
+  isIndustrySelection,
+  INDUSTRY_PICKER_OPTIONS,
+  resolveIndustrySelection,
+} from '@/lib/industry-aliases';
 import { syncSupportDeskForVertical } from '@/lib/support/seed-company-support';
 
 function settingsRecord(raw: unknown): Record<string, unknown> {
@@ -58,7 +62,7 @@ export async function GET(req: NextRequest) {
       workspace,
       support,
       steps: ONBOARDING_STEPS,
-      templates: BUSINESS_VERTICAL_OPTIONS,
+      templates: INDUSTRY_PICKER_OPTIONS,
       canManage: canManageCompanyOnboarding(role),
       role,
     });
@@ -118,10 +122,11 @@ export async function PATCH(req: NextRequest) {
       });
     } else if (step && action === 'complete') {
       if (step === 'welcome' && body.data) {
-        const vertical = isBusinessVertical(body.data.businessVertical)
-          ? body.data.businessVertical
+        const verticalSelection = isIndustrySelection(body.data.businessVertical)
+          ? String(body.data.businessVertical)
           : 'general';
-        const patch = buildVerticalSwitchPatch(vertical);
+        const industry = resolveIndustrySelection(verticalSelection);
+        const patch = buildVerticalSwitchPatch(industry.industryAlias);
         stored.workspace = patch.workspace;
         stored.leads = {
           ...(typeof stored.leads === 'object' && stored.leads
@@ -141,7 +146,7 @@ export async function PATCH(req: NextRequest) {
             data: { name: String(body.data.companyName) },
           });
         }
-        await syncSupportDeskForVertical(companyId, vertical);
+        await syncSupportDeskForVertical(companyId, industry.businessVertical);
       }
 
       if (step === 'support' && body.data?.channels) {

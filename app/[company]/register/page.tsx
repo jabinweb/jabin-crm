@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { BUSINESS_VERTICAL_OPTIONS } from '@/lib/workspace-templates';
+import { INDUSTRY_PICKER_OPTIONS } from '@/lib/industry-aliases';
 
 const formSchema = z.object({
   name: z
@@ -238,7 +238,7 @@ export default function RegisterPage() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {BUSINESS_VERTICAL_OPTIONS.map((option) => (
+                      {INDUSTRY_PICKER_OPTIONS.map((option) => (
                         <SelectItem key={option.id} value={option.id}>
                           {option.label}
                         </SelectItem>
