@@ -26,6 +26,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Loader2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { FullTableSkeleton } from '@/components/loading';
 
 type Location = {
@@ -40,6 +41,8 @@ const LOCATION_TYPES = ['WAREHOUSE', 'STORE', 'VAN'] as const;
 
 export default function LocationsPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
+  const { data: workspaceData } = useWorkspaceConfig();
+  const showEquipment = workspaceData?.config.features.equipment === true;
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [type, setType] = useState<string>('WAREHOUSE');
@@ -133,19 +136,23 @@ export default function LocationsPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Locations</h1>
           <p className="text-sm text-muted-foreground">
-            Warehouses, stores, and vans used for stock transfers and demo fleet.
+            {showEquipment
+              ? 'Warehouses, stores, and vans used for stock and field units.'
+              : 'Warehouses and stores used for stock transfers and fulfillment.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href={path('/dashboard/inventory')}>Installed equipment</Link>
+            <Link href={path('/dashboard/inventory')}>Stock overview</Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href={path('/dashboard/inventory/transfers')}>Transfers</Link>
           </Button>
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/demo-equipment')}>Demo fleet</Link>
-          </Button>
+          {showEquipment && (
+            <Button variant="outline" asChild>
+              <Link href={path('/dashboard/demo-equipment')}>Demo fleet</Link>
+            </Button>
+          )}
           <Button variant="outline" asChild>
             <Link href={path('/dashboard/settings/migration') + '?object=locations'}>
               Import CSV
@@ -229,7 +236,7 @@ export default function LocationsPage() {
             <EmptyState
               icon={MapPin}
               title="No locations yet"
-              description="Create a warehouse or store so transfers and demo fleet can use it."
+              description="Create a warehouse or store so stock transfers can use it."
             />
           ) : (
             <Table>

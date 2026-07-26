@@ -412,11 +412,140 @@ const VERTICAL_TYPES: Partial<Record<BusinessVertical, PortalTicketTypeDefinitio
   ],
 };
 
+/** Extra ticket types keyed by industry alias (merged on top of pack presets). */
+const ALIAS_TICKET_TYPES: Record<string, PortalTicketTypeDefinition[]> = {
+  medical_equipment: [
+    {
+      id: 'preventive_maintenance',
+      label: 'Preventive maintenance',
+      description: 'Schedule or report PM for a medical device.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Biomed',
+      showEquipment: true,
+      fields: [
+        { id: 'pmDueDate', label: 'PM due date', type: 'text', placeholder: 'YYYY-MM-DD' },
+      ],
+    },
+    {
+      id: 'device_breakdown',
+      label: 'Device breakdown',
+      description: 'Critical medical device down or unsafe to use.',
+      defaultPriority: 'CRITICAL',
+      groupName: 'Biomed',
+      showEquipment: true,
+      fields: [
+        { id: 'symptom', label: 'Symptoms / error codes', type: 'textarea', required: true },
+      ],
+    },
+  ],
+  automotive: [
+    {
+      id: 'service_job',
+      label: 'Service job / RO',
+      description: 'Workshop repair order or service appointment.',
+      defaultPriority: 'HIGH',
+      groupName: 'Workshop',
+      showEquipment: true,
+      fields: [
+        { id: 'vehicleId', label: 'VIN / reg. no.', type: 'text', placeholder: 'Optional' },
+      ],
+    },
+    {
+      id: 'vehicle_issue',
+      label: 'Vehicle / unit fault',
+      description: 'Fault reported on a vehicle or installed unit.',
+      defaultPriority: 'HIGH',
+      groupName: 'Workshop',
+      showEquipment: true,
+      fields: [],
+    },
+  ],
+  logistics: [
+    {
+      id: 'shipment',
+      label: 'Shipment issue',
+      description: 'Delayed, damaged, or missing shipment.',
+      defaultPriority: 'HIGH',
+      groupName: 'Operations',
+      fields: [
+        { id: 'trackingNumber', label: 'Tracking / AWB', type: 'text', required: true },
+      ],
+    },
+    {
+      id: 'delivery',
+      label: 'Delivery exception',
+      description: 'Failed delivery, address issue, or POD dispute.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Operations',
+      fields: [],
+    },
+  ],
+  pharma: [
+    {
+      id: 'quality_deviation',
+      label: 'Quality deviation',
+      description: 'Process or product quality deviation.',
+      defaultPriority: 'HIGH',
+      groupName: 'Quality',
+      fields: [
+        { id: 'batchLot', label: 'Batch / lot #', type: 'text', placeholder: 'Optional' },
+      ],
+    },
+    {
+      id: 'batch_issue',
+      label: 'Batch / inventory issue',
+      description: 'Expiry, quarantine, or stock discrepancy.',
+      defaultPriority: 'HIGH',
+      groupName: 'Quality',
+      showProduct: true,
+      fields: [
+        { id: 'batchLot', label: 'Batch / lot #', type: 'text', required: true },
+      ],
+    },
+  ],
+  financial_services: [
+    {
+      id: 'mandate',
+      label: 'Mandate / engagement',
+      description: 'Questions or issues on an active mandate.',
+      defaultPriority: 'MEDIUM',
+      groupName: 'Client Services',
+      fields: [],
+    },
+    {
+      id: 'kyc_case',
+      label: 'KYC / onboarding',
+      description: 'Document collection or onboarding blockers.',
+      defaultPriority: 'HIGH',
+      groupName: 'Client Services',
+      fields: [],
+    },
+  ],
+  facilities_management: [
+    {
+      id: 'work_order',
+      label: 'Work order',
+      description: 'On-site repair, inspection, or soft services request.',
+      defaultPriority: 'HIGH',
+      groupName: 'Facilities',
+      showEquipment: true,
+      fields: [
+        { id: 'siteArea', label: 'Site / area', type: 'text', placeholder: 'Building, floor, zone' },
+      ],
+    },
+  ],
+};
+
 export function getDefaultTicketTypesForVertical(
-  vertical: BusinessVertical
+  vertical: BusinessVertical,
+  industryAlias?: string
 ): PortalTicketTypeDefinition[] {
   const extra = VERTICAL_TYPES[vertical] ?? [];
-  const merged = [...BASE_TYPES, ...extra];
+  const aliasExtra =
+    industryAlias && ALIAS_TICKET_TYPES[industryAlias]
+      ? ALIAS_TICKET_TYPES[industryAlias]
+      : [];
+  const merged = [...BASE_TYPES, ...extra, ...aliasExtra];
   const seen = new Set<string>();
   return merged.filter((t) => {
     if (seen.has(t.id)) return false;
@@ -461,7 +590,10 @@ export function resolvePortalTicketTypes(
   supportSettings?: SupportSettings
 ): PortalTicketTypeDefinition[] {
   const disabled = new Set(supportSettings?.disabledTicketTypeIds ?? []);
-  const preset = getDefaultTicketTypesForVertical(config.businessVertical);
+  const preset = getDefaultTicketTypesForVertical(
+    config.businessVertical,
+    config.industryAlias
+  );
   const custom = supportSettings?.customTicketTypes ?? [];
 
   const merged = [...preset];

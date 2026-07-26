@@ -67,6 +67,11 @@ interface NavigationItem {
   roles?: string[];
   module?: string;
   workspaceFeature?: WorkspaceFeatureKey;
+  /**
+   * When true with module INVENTORY: allow Products if workspace `products` is on
+   * even when plan inventory is off (catalog-only verticals like SaaS/agency).
+   */
+  waiveInventoryModuleWhenNoStock?: boolean;
   /** When set, label is replaced by terminology key at render time */
   terminologyKey?: keyof import('@/lib/workspace-templates').WorkspaceTerminology;
 }
@@ -79,7 +84,7 @@ const mainNav: NavigationItem[] = [
 
 const crmNav: NavigationItem[] = [
   { name: 'Clients', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
-  { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY' },
+  { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY', waiveInventoryModuleWhenNoStock: true },
   {
     name: 'Inventory',
     href: '/dashboard/inventory',
@@ -104,7 +109,7 @@ const crmNav: NavigationItem[] = [
     module: 'EQUIPMENT',
     terminologyKey: 'equipment',
     children: [
-      { name: 'Register equipment', href: '/dashboard/inventory/new', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
+      { name: 'Register unit', href: '/dashboard/inventory/new', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
       { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
     ],
   },
@@ -134,7 +139,7 @@ const salesNav: NavigationItem[] = [
 
 const supportNav: NavigationItem[] = [
   { name: 'Tickets', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', terminologyKey: 'tickets' },
-  { name: 'AMC / CMC', href: '/dashboard/contracts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', workspaceFeature: 'warranties' },
+  { name: 'Contracts', href: '/dashboard/contracts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', workspaceFeature: 'warranties' },
   { name: 'Service reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_REPORTS', workspaceFeature: 'serviceHistory' },
   { name: 'My tickets', href: '/portal/tickets', icon: List, roles: ['CUSTOMER'] },
   {
@@ -378,9 +383,23 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   };
 
   const renderNavGroup = (items: NavigationItem[], title?: string) => {
+    const moduleAllowedFor = (item: NavigationItem) => {
+      if (!item.module) return true;
+      if (moduleMap[item.module] === true) return true;
+      if (
+        item.waiveInventoryModuleWhenNoStock &&
+        item.module === 'INVENTORY' &&
+        workspaceFeatures?.inventory !== true &&
+        workspaceFeatures?.products === true
+      ) {
+        return true;
+      }
+      return false;
+    };
+
     const childVisible = (child: NavigationItem) => {
       const childRoleOk = !child.roles || child.roles.includes(userRole);
-      const childModuleOk = !child.module || moduleMap[child.module] === true;
+      const childModuleOk = moduleAllowedFor(child);
       const childWorkspaceOk =
         !child.workspaceFeature ||
         !workspaceFeatures ||
@@ -390,7 +409,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
 
     const filtered = items.filter((item) => {
       const roleAllowed = !item.roles || item.roles.includes(userRole);
-      const moduleAllowed = !item.module || moduleMap[item.module] === true;
+      const moduleAllowed = moduleAllowedFor(item);
       const workspaceAllowed =
         !item.workspaceFeature ||
         !workspaceFeatures ||

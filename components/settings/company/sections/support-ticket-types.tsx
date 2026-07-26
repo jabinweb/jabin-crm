@@ -65,8 +65,12 @@ export function SupportTicketTypesSection({
     [resolved, support]
   );
   const allPresets = useMemo(
-    () => getDefaultTicketTypesForVertical(resolved.businessVertical),
-    [resolved.businessVertical]
+    () =>
+      getDefaultTicketTypesForVertical(
+        resolved.businessVertical,
+        resolved.industryAlias
+      ),
+    [resolved.businessVertical, resolved.industryAlias]
   );
 
   const disabled = new Set(support.disabledTicketTypeIds ?? []);

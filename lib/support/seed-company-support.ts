@@ -21,9 +21,10 @@ const DEFAULT_SLA: Array<{
  */
 export async function seedDefaultSupportGroups(
   companyId: string,
-  vertical: BusinessVertical = 'general'
+  vertical: BusinessVertical = 'general',
+  industryAlias?: string
 ) {
-  const types = getDefaultTicketTypesForVertical(vertical);
+  const types = getDefaultTicketTypesForVertical(vertical, industryAlias);
   const groupNames = new Set<string>();
 
   for (const type of types) {
@@ -63,10 +64,11 @@ export async function seedDefaultSlaPolicies(companyId: string) {
 
 export async function seedCompanySupportDesk(
   companyId: string,
-  vertical: BusinessVertical = 'general'
+  vertical: BusinessVertical = 'general',
+  industryAlias?: string
 ) {
   await Promise.all([
-    seedDefaultSupportGroups(companyId, vertical),
+    seedDefaultSupportGroups(companyId, vertical, industryAlias),
     seedDefaultSlaPolicies(companyId),
   ]);
 }
@@ -78,7 +80,8 @@ export async function seedCompanySupportDesk(
  */
 export async function syncSupportDeskForVertical(
   companyId: string,
-  vertical: BusinessVertical
+  vertical: BusinessVertical,
+  industryAlias?: string
 ) {
-  await seedDefaultSupportGroups(companyId, vertical);
+  await seedDefaultSupportGroups(companyId, vertical, industryAlias);
 }

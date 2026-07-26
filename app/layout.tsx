@@ -28,9 +28,9 @@ const landingDisplay = Outfit({
 const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'Opslane';
 
 export const metadata: Metadata = {
-  title: `${appName} — Simple service ops for every role`,
+  title: `${appName} — CRM and ops for every industry`,
   description:
-    'Sales, tickets, field service, AMC renewals, and a client portal in one workspace. Clear enough for anyone — live in minutes.',
+    'Sales, tickets, inventory, field service, and a client portal in one workspace. Pick your industry — terminology and defaults follow.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

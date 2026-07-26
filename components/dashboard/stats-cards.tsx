@@ -19,21 +19,43 @@ interface StatsCardsProps {
   };
   /** Hide open-tickets card when Home already shows SLA strip */
   omitOpenTickets?: boolean;
+  /** When false, hide the installed-equipment card (non-equipment industries). */
+  showEquipment?: boolean;
+  labels?: {
+    customers?: string;
+    tickets?: string;
+    leads?: string;
+    equipment?: string;
+  };
 }
 
-export function StatsCards({ stats, omitOpenTickets }: StatsCardsProps) {
+export function StatsCards({
+  stats,
+  omitOpenTickets,
+  showEquipment = true,
+  labels,
+}: StatsCardsProps) {
   const customers = stats?.totalCustomers ?? stats?.customers ?? 0;
+  const customersLabel = labels?.customers ?? 'Clients';
+  const ticketsLabel = labels?.tickets ?? 'Open tickets';
+  const leadsLabel = labels?.leads ?? 'Pipeline leads';
+  const equipmentLabel = labels?.equipment ?? 'Installed equipment';
+
+  const cols = omitOpenTickets
+    ? showEquipment
+      ? 'md:grid-cols-3'
+      : 'md:grid-cols-2'
+    : showEquipment
+      ? 'md:grid-cols-2 lg:grid-cols-4'
+      : 'md:grid-cols-3';
 
   return (
-    <div
-      className={cn(
-        'grid gap-3',
-        omitOpenTickets ? 'md:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-4'
-      )}
-    >
+    <div className={cn('grid gap-3', cols)}>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Clients</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {customersLabel}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold tabular-nums">{customers.toLocaleString()}</div>
@@ -44,7 +66,9 @@ export function StatsCards({ stats, omitOpenTickets }: StatsCardsProps) {
       {!omitOpenTickets && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Open tickets</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {ticketsLabel}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold tabular-nums">{stats?.openTickets ?? 0}</div>
@@ -53,23 +77,27 @@ export function StatsCards({ stats, omitOpenTickets }: StatsCardsProps) {
         </Card>
       )}
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Installed equipment
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-semibold tabular-nums">
-            {stats?.equipmentInstalled ?? 0}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">In the field</p>
-        </CardContent>
-      </Card>
+      {showEquipment && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {equipmentLabel}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold tabular-nums">
+              {stats?.equipmentInstalled ?? 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Tracked units</p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Pipeline leads</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">
+            {leadsLabel}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-semibold tabular-nums">

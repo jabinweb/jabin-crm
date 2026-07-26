@@ -125,11 +125,11 @@ export async function PATCH(req: NextRequest) {
       select: { settings: true },
     })
 
-    const previousVertical = workspaceSettingsFromCompanySettings(
+    const previous = workspaceSettingsFromCompanySettings(
       existing?.settings && typeof existing.settings === 'object' && !Array.isArray(existing.settings)
         ? (existing.settings as Record<string, unknown>)
         : {}
-    ).businessVertical
+    )
 
     const mergedSettings =
       settingsData && existing?.settings && typeof existing.settings === 'object' && !Array.isArray(existing.settings)
@@ -159,18 +159,22 @@ export async function PATCH(req: NextRequest) {
       },
     })
 
-    const nextVertical = workspaceSettingsFromCompanySettings(
+    const next = workspaceSettingsFromCompanySettings(
       company.settings && typeof company.settings === 'object' && !Array.isArray(company.settings)
         ? (company.settings as Record<string, unknown>)
         : {}
-    ).businessVertical
+    )
 
-    if (
-      settingsData &&
-      isBusinessVertical(nextVertical) &&
-      nextVertical !== previousVertical
-    ) {
-      await syncSupportDeskForVertical(companyId, nextVertical)
+    const industryChanged =
+      next.businessVertical !== previous.businessVertical ||
+      next.industryAlias !== previous.industryAlias
+
+    if (settingsData && isBusinessVertical(next.businessVertical) && industryChanged) {
+      await syncSupportDeskForVertical(
+        companyId,
+        next.businessVertical,
+        next.industryAlias
+      )
     }
 
     const response = {

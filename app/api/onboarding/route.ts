@@ -146,7 +146,11 @@ export async function PATCH(req: NextRequest) {
             data: { name: String(body.data.companyName) },
           });
         }
-        await syncSupportDeskForVertical(companyId, industry.businessVertical);
+        await syncSupportDeskForVertical(
+          companyId,
+          industry.businessVertical,
+          industry.industryAlias
+        );
       }
 
       if (step === 'support' && body.data?.channels) {

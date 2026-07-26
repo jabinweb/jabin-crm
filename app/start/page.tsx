@@ -225,13 +225,13 @@ export default function StartPage() {
         </div>
         <div className="relative space-y-8 max-w-md">
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">
-            One workspace for tickets, field work, and renewals.
+            One workspace for sales, support, and operations.
           </h1>
           <ul className="space-y-4 text-sm text-slate-300">
             {[
-              { icon: Ticket, text: 'Log jobs and track them to close' },
+              { icon: Ticket, text: 'Log work and track it to close' },
               { icon: Clock, text: 'See SLA risk before it breaches' },
-              { icon: FileText, text: 'Never miss an AMC renewal' },
+              { icon: FileText, text: 'Never miss a contract renewal' },
             ].map((item) => (
               <li key={item.text} className="flex gap-3 items-start">
                 <item.icon className="h-4 w-4 mt-0.5 text-teal-400 shrink-0" />

@@ -2,7 +2,7 @@ const silos = [
   'Sales in spreadsheets',
   'Tickets in email & WhatsApp',
   'Attendance in a separate app',
-  'AMC renewals tracked manually',
+  'Renewals and contracts tracked manually',
   'Reports assembled weekly',
 ];
 
@@ -15,7 +15,7 @@ export function ProblemSection() {
             The problem
           </p>
           <h2 className="font-[family-name:var(--font-landing-display)] text-3xl md:text-4xl font-semibold tracking-tight text-[var(--lp-ink)] leading-tight">
-            Most service businesses don&apos;t have a system — they have tools.
+            Most teams don&apos;t have a system — they have tools.
           </h2>
           <p className="mt-4 text-[var(--lp-muted)] leading-relaxed">
             Fragmented tools create blind spots, missed SLAs, and revenue leakage. Your team
@@ -43,8 +43,8 @@ export function ProblemSection() {
               Powerful where it counts — simple where people work every day.
             </p>
             <p className="mt-4 text-sm text-slate-400 leading-relaxed">
-              Tickets, SLAs, AMC alerts, field tools, and a client portal in one place. Built so
-              a new hire can open Home and know what to do next.
+              CRM, tickets, SLAs, inventory or field tools when you need them, and a client
+              portal — adapted to your industry.
             </p>
           </div>
         </div>

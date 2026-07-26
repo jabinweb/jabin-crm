@@ -326,7 +326,19 @@ export default function WorkspaceDashboardPage() {
           ))}
         </div>
       ) : (
-        stats && <StatsCards stats={stats} omitOpenTickets />
+        stats && (
+          <StatsCards
+            stats={stats}
+            omitOpenTickets
+            showEquipment={showEquipment}
+            labels={{
+              customers: terminology?.customers ?? 'Clients',
+              tickets: `Open ${ticketsLabel.toLowerCase()}`,
+              leads: terminology?.leads ?? 'Pipeline leads',
+              equipment: terminology?.equipment ?? 'Installed equipment',
+            }}
+          />
+        )
       )}
 
       {showInventory && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
@@ -376,7 +388,7 @@ export default function WorkspaceDashboardPage() {
                 Contract renewals
               </CardTitle>
               <CardDescription>
-                AMC / CMC ending within 60 days or already overdue
+                Coverage ending within 60 days or already overdue
               </CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>

@@ -193,10 +193,14 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      return { user, company, employee, vertical: industry.businessVertical }
+      return { user, company, employee, vertical: industry.businessVertical, industryAlias: industry.industryAlias }
     })
 
-    seedCompanySupportDesk(result.company.id, result.vertical).catch((err) =>
+    seedCompanySupportDesk(
+      result.company.id,
+      result.vertical,
+      result.industryAlias
+    ).catch((err) =>
       console.error('[start] support desk seed failed:', err)
     )
 
