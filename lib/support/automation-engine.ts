@@ -48,7 +48,22 @@ export async function runSupportAutomations(ctx: AutomationEventContext) {
 
   const ticket = await prisma.supportTicket.findUnique({
     where: { id: ctx.ticketId },
-    select: { id: true, tags: true, priority: true, groupId: true, customerId: true },
+    select: {
+      id: true,
+      tags: true,
+      priority: true,
+      groupId: true,
+      customerId: true,
+      subject: true,
+      customer: {
+        select: {
+          id: true,
+          email: true,
+          contactPerson: true,
+          phone: true,
+        },
+      },
+    },
   });
   if (!ticket) return;
 
@@ -99,6 +114,31 @@ export async function runSupportAutomations(ctx: AutomationEventContext) {
                 metadata: { ticketId: ctx.ticketId, ruleId: rule.id, automation: true },
               },
             }).catch(() => undefined);
+          }
+          break;
+        }
+        case 'NOTIFY_CUSTOMER': {
+          const customer = ticket.customer;
+          if (customer?.id) {
+            await prisma.notification.create({
+              data: {
+                customerId: customer.id,
+                type: 'TICKET_UPDATED',
+                title: action.title,
+                body: action.body,
+                metadata: { ticketId: ctx.ticketId, ruleId: rule.id, automation: true },
+              },
+            }).catch(() => undefined);
+          }
+          if (customer?.email) {
+            const { sendTicketStatusEmail } = await import('@/lib/email/portal-notifications');
+            sendTicketStatusEmail({
+              customerEmail: customer.email,
+              customerName: customer.contactPerson || 'Customer',
+              ticketSubject: ticket.subject || action.title,
+              ticketId: ctx.ticketId,
+              newStatus: ctx.trigger === 'SLA_BREACHED' ? 'SLA_BREACHED' : 'SLA_AT_RISK',
+            }).catch((err) => console.error('[NOTIFY_CUSTOMER email]', err));
           }
           break;
         }

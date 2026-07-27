@@ -171,7 +171,11 @@ export async function POST(request: NextRequest) {
                     data.priority = data.priority ?? typeDef.defaultPriority;
                 }
             }
-            ticket = await ticketService.createTicket(data);
+            ticket = await ticketService.createTicket({
+                ...data,
+                serviceContractId: data.serviceContractId || null,
+                companyId: staffCompanyId ?? customer?.companyId ?? undefined,
+            });
         }
 
         // Async: Notify customer and technician (don't await to avoid slowing down response)
@@ -223,6 +227,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(ticket, { status: 201 });
     } catch (error) {
         console.error('Error creating ticket:', error);
+        if (error && typeof error === 'object' && 'code' in error) {
+            const code = (error as { code?: string }).code;
+            if (code === 'VISIT_LIMIT_EXCEEDED' || code === 'PHOTO_EVIDENCE_REQUIRED') {
+                return NextResponse.json(
+                    { error: error instanceof Error ? error.message : 'Request blocked', code },
+                    { status: 400 }
+                );
+            }
+        }
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 }

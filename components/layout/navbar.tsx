@@ -24,13 +24,66 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Activity, LogOut, Settings, User, Crown, CreditCard, Search, Building2, Mail, Phone, ClipboardList } from 'lucide-react';
+import {
+  LogOut,
+  Settings,
+  User,
+  Crown,
+  CreditCard,
+  Search,
+  Building2,
+  Users,
+  Package,
+  Receipt,
+  FileText,
+  Wrench,
+  Handshake,
+  Ticket,
+  UserCircle,
+} from 'lucide-react';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { getClientBrandConfig } from '@/lib/branding';
 import { PunchButton } from '@/components/dashboard/punch-button';
 import { NotificationsPanel } from '@/components/notifications/notifications-panel';
+import type { GlobalSearchEntityType, GlobalSearchResult } from '@/lib/crm/global-search-types';
+
+const SEARCH_GROUP_ORDER: GlobalSearchEntityType[] = [
+  'lead',
+  'customer',
+  'employee',
+  'ticket',
+  'deal',
+  'product',
+  'invoice',
+  'contract',
+  'equipment',
+];
+
+const SEARCH_GROUP_LABELS: Record<GlobalSearchEntityType, string> = {
+  lead: 'Leads',
+  customer: 'Customers',
+  employee: 'Employees',
+  ticket: 'Tickets',
+  deal: 'Deals',
+  product: 'Products',
+  invoice: 'Invoices',
+  contract: 'Contracts',
+  equipment: 'Equipment',
+};
+
+const SEARCH_GROUP_ICONS: Record<GlobalSearchEntityType, typeof Building2> = {
+  lead: Building2,
+  customer: Users,
+  employee: UserCircle,
+  ticket: Ticket,
+  deal: Handshake,
+  product: Package,
+  invoice: Receipt,
+  contract: FileText,
+  equipment: Wrench,
+};
 
 export function Navbar() {
   const { data: session } = useSession();
@@ -50,7 +103,7 @@ export function Navbar() {
     : '/workspace';
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<GlobalSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
 
   // Open command menu with Ctrl+K / Cmd+K
@@ -66,40 +119,67 @@ export function Navbar() {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  // Search leads when query changes
+  useEffect(() => {
+    if (!open) {
+      setSearchQuery('');
+      setSearchResults([]);
+      setSearching(false);
+    }
+  }, [open]);
+
+  // Workspace global search
   useEffect(() => {
     if (!searchQuery || searchQuery.length < 2) {
       setSearchResults([]);
+      setSearching(false);
       return;
     }
 
-    const searchLeads = async () => {
+    const controller = new AbortController();
+
+    const runSearch = async () => {
       setSearching(true);
       try {
         const headers = workspaceSlug ? workspaceSlugHeaders(workspaceSlug) : undefined;
         const response = await fetch(
-          `/api/leads?query=${encodeURIComponent(searchQuery)}&limit=10`,
-          headers ? { headers } : undefined
+          `/api/search?q=${encodeURIComponent(searchQuery)}`,
+          {
+            signal: controller.signal,
+            ...(headers ? { headers } : {}),
+          }
         );
         if (response.ok) {
           const data = await response.json();
-          setSearchResults(data.data || data.leads || []);
+          setSearchResults(data.results || data.data?.results || []);
+        } else {
+          setSearchResults([]);
         }
       } catch (error) {
-        console.error('Search error:', error);
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Search error:', error);
+          setSearchResults([]);
+        }
       } finally {
-        setSearching(false);
+        if (!controller.signal.aborted) setSearching(false);
       }
     };
 
-    const debounce = setTimeout(searchLeads, 300);
-    return () => clearTimeout(debounce);
-  }, [searchQuery]);
+    const debounce = setTimeout(runSearch, 250);
+    return () => {
+      clearTimeout(debounce);
+      controller.abort();
+    };
+  }, [searchQuery, workspaceSlug]);
 
-  const handleSelectLead = (leadId: string) => {
+  const handleSelectResult = (href: string) => {
     setOpen(false);
-    router.push(path(`/dashboard/leads/${leadId}`));
+    router.push(path(href));
   };
+
+  const groupedResults = SEARCH_GROUP_ORDER.map((type) => ({
+    type,
+    items: searchResults.filter((r) => r.type === type),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <header className="z-50 w-full border-b bg-background shrink-0">
@@ -238,52 +318,51 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Command Dialog for Lead Search */}
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      {/* Global workspace search */}
+      <CommandDialog open={open} onOpenChange={setOpen} shouldFilter={false}>
         <CommandInput
-          placeholder="Search leads by company, email, or phone..."
+          placeholder="Search leads, customers, employees, tickets…"
           value={searchQuery}
           onValueChange={setSearchQuery}
         />
         <CommandList>
           <CommandEmpty>
-            {searching ? 'Searching...' : searchQuery.length < 2 ? 'Type at least 2 characters to search' : 'No leads found.'}
+            {searching
+              ? 'Searching…'
+              : searchQuery.length < 2
+                ? 'Type at least 2 characters to search'
+                : 'No results found.'}
           </CommandEmpty>
-          {searchResults.length > 0 && (
-            <CommandGroup heading="Leads">
-              {searchResults.map((lead) => (
-                <CommandItem
-                  key={lead.id}
-                  onSelect={() => handleSelectLead(lead.id)}
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  <div className="flex-1">
-                    <div className="font-medium">{lead.companyName}</div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-3">
-                      {lead.email && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="h-3 w-3" />
-                          {lead.email}
-                        </span>
-                      )}
-                      {lead.phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3 w-3" />
-                          {lead.phone}
-                        </span>
-                      )}
+          {groupedResults.map(({ type, items }) => {
+            const Icon = SEARCH_GROUP_ICONS[type];
+            return (
+              <CommandGroup key={type} heading={SEARCH_GROUP_LABELS[type]}>
+                {items.map((item) => (
+                  <CommandItem
+                    key={`${item.type}-${item.id}`}
+                    value={`${item.type}-${item.id}-${item.title}-${item.subtitle ?? ''}`}
+                    onSelect={() => handleSelectResult(item.href)}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{item.title}</div>
+                      {item.subtitle ? (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {item.subtitle}
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
-                  {lead.status && (
-                    <Badge variant="secondary" className="text-xs">
-                      {lead.status}
-                    </Badge>
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
+                    {item.meta ? (
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {item.meta}
+                      </Badge>
+                    ) : null}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            );
+          })}
         </CommandList>
       </CommandDialog>
     </header>

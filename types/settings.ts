@@ -80,6 +80,18 @@ export interface CompanySettings {
     };
     sessionTimeout: number;
   };
+  /** Field service ops: visit limits, photo evidence, geo-fence */
+  fieldOps?: {
+    enforceVisitLimits?: boolean;
+    requirePhotoEvidence?: boolean;
+    geoFence?: {
+      enabled?: boolean;
+      lat?: number | null;
+      lng?: number | null;
+      radiusMeters?: number;
+      hardBlock?: boolean;
+    };
+  };
 }
 
 export interface SettingsUpdatePayload {

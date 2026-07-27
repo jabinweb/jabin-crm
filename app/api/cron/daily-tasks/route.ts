@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
       contracts: { expired: 0, errors: 0 },
       invoices: { overdueMarked: 0, errors: 0 },
       usage: { reset: 0, errors: 0 },
+      pmDue: { created: 0, skipped: 0, companiesEligible: 0, errors: 0 },
     };
 
     // Task 1: Process email sequences (real send path)
@@ -161,6 +162,19 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Error resetting monthly usage:', error);
       results.usage.errors += 1;
+    }
+
+    // Task 8: Industry pack — PM due → create preventive maintenance tickets
+    try {
+      const { runPmDueTicketAutomation } = await import('@/lib/crm/pm-due-automation');
+      const pm = await runPmDueTicketAutomation();
+      results.pmDue.created = pm.created;
+      results.pmDue.skipped = pm.skipped;
+      results.pmDue.companiesEligible = pm.companiesEligible;
+      results.pmDue.errors = pm.errors;
+    } catch (error) {
+      console.error('Error running PM due automation:', error);
+      results.pmDue.errors += 1;
     }
 
     return NextResponse.json({

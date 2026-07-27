@@ -38,6 +38,10 @@ type ContractRow = {
   annualValue: number | null;
   currency: string;
   includesParts: boolean;
+  visitLimit: number | null;
+  visitsUsed: number;
+  remaining: number | null;
+  overLimit: boolean;
   customer: { id: string; organizationName: string; city: string | null };
   equipment: {
     id: string;
@@ -158,6 +162,7 @@ export default function ContractsPage() {
                   <TableHead>Client</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Visits</TableHead>
                   <TableHead>Ends</TableHead>
                   <TableHead className="text-right">Value</TableHead>
                 </TableRow>
@@ -167,6 +172,10 @@ export default function ContractsPage() {
                   const left = daysUntil(new Date(c.endDate));
                   const urgency =
                     c.status === 'ACTIVE' ? renewalUrgency(left) : 'ok';
+                  const visitPct =
+                    c.visitLimit != null && c.visitLimit > 0
+                      ? Math.min(100, Math.round((c.visitsUsed / c.visitLimit) * 100))
+                      : null;
                   return (
                     <TableRow key={c.id}>
                       <TableCell>
@@ -203,6 +212,35 @@ export default function ContractsPage() {
                         <Badge variant={statusVariant(c.status)}>
                           {c.status}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {c.visitLimit != null ? (
+                          <div className="min-w-[88px]">
+                            <div
+                              className={
+                                c.overLimit
+                                  ? 'text-xs text-destructive tabular-nums'
+                                  : 'text-xs tabular-nums'
+                              }
+                            >
+                              {c.visitsUsed}/{c.visitLimit}
+                            </div>
+                            <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                              <div
+                                className={
+                                  c.overLimit
+                                    ? 'h-full bg-destructive'
+                                    : visitPct != null && visitPct >= 80
+                                      ? 'h-full bg-amber-500'
+                                      : 'h-full bg-primary'
+                                }
+                                style={{ width: `${visitPct ?? 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>{formatDate(c.endDate)}</div>

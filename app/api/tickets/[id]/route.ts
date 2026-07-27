@@ -99,6 +99,15 @@ export async function PATCH(
 
     return NextResponse.json(result);
   } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error) {
+      const code = (error as { code?: string }).code;
+      if (code === 'VISIT_LIMIT_EXCEEDED' || code === 'PHOTO_EVIDENCE_REQUIRED') {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : 'Request blocked', code },
+          { status: 400 }
+        );
+      }
+    }
     if (!isApiException(error)) {
       console.error('Error updating ticket:', error);
     }

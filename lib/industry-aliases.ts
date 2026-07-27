@@ -1,11 +1,12 @@
 /**
  * Industry picker aliases map marketing labels → deep workspace packs.
- * Packs (BusinessVertical) still own features / pipelines / ticket presets.
- * Aliases only refine label + optional terminology for signup and settings UI.
+ * Rich vertical packs (lib/industry-packs) own tickets / SLA / widgets for key industries.
+ * Packs (BusinessVertical) still own base features / pipelines.
  */
 
 import type { BusinessVertical, WorkspaceTerminology } from '@/lib/workspace-templates';
 import { BUSINESS_VERTICALS, isBusinessVertical } from '@/lib/workspace-templates';
+import { getIndustryVerticalPack } from '@/lib/industry-packs';
 
 export interface IndustryPickerOption {
   id: string;
@@ -18,115 +19,35 @@ export interface IndustryPickerOption {
   terminologyOverrides?: Partial<WorkspaceTerminology>;
 }
 
+function fromVerticalPack(id: string): IndustryPickerOption | null {
+  const p = getIndustryVerticalPack(id);
+  if (!p) return null;
+  return {
+    id: p.id,
+    label: p.label,
+    description: p.description,
+    pack: p.pack,
+    deepTemplate: p.deepTemplate,
+    terminologyOverrides: p.terminologyOverrides,
+  };
+}
+
+const medical = fromVerticalPack('medical_equipment')!;
+const manufacturing = fromVerticalPack('manufacturing')!;
+const facilities = fromVerticalPack('facilities_management')!;
+const logistics = fromVerticalPack('logistics')!;
+const fmcg = fromVerticalPack('fmcg')!;
+const pharma = fromVerticalPack('pharma')!;
+const automotive = fromVerticalPack('automotive')!;
+
 /** Primary grid — matches common B2B industry tiles; each resolves to a deep pack. */
 export const INDUSTRY_PICKER_OPTIONS: IndustryPickerOption[] = [
-  {
-    id: 'medical_equipment',
-    label: 'Medical Equipment',
-    description: 'Installed devices, AMC/CMC, biomed field service, and hospital accounts.',
-    pack: 'field_service',
-    deepTemplate: true,
-    terminologyOverrides: {
-      customer: 'Hospital / facility',
-      customers: 'Hospitals / facilities',
-      agent: 'Biomed engineer',
-      asset: 'Medical device',
-      equipment: 'Medical equipment',
-      ticket: 'Service ticket',
-      tickets: 'Service tickets',
-      lead: 'Equipment lead',
-      leads: 'Equipment leads',
-      deal: 'Equipment deal',
-      deals: 'Equipment deals',
-      newRequest: 'Request service',
-      portalSubtitle:
-        'Manage medical devices, warranties, and service tickets for your facilities.',
-    },
-  },
-  {
-    id: 'manufacturing',
-    label: 'Manufacturing',
-    description: 'Inventory, installed assets, B2B accounts, and after-sales support.',
-    pack: 'manufacturing',
-  },
-  {
-    id: 'fmcg',
-    label: 'FMCG',
-    description: 'Product catalog, stock, orders, and retail / distributor support.',
-    pack: 'ecommerce',
-    terminologyOverrides: {
-      customer: 'Distributor / retailer',
-      customers: 'Distributors / retailers',
-      asset: 'SKU',
-      equipment: 'SKU',
-      lead: 'Trade lead',
-      leads: 'Trade leads',
-      deal: 'Order',
-      deals: 'Orders',
-      portalSubtitle: 'Track orders, stock, and account support.',
-    },
-  },
-  {
-    id: 'facilities_management',
-    label: 'Facilities Management',
-    description: 'Sites, work orders, technicians, and on-site service operations.',
-    pack: 'field_service',
-    terminologyOverrides: {
-      customer: 'Site / client',
-      customers: 'Sites / clients',
-      agent: 'Technician',
-      asset: 'Site asset',
-      equipment: 'Assets',
-      ticket: 'Work order',
-      tickets: 'Work orders',
-      lead: 'Site lead',
-      leads: 'Site leads',
-      deal: 'Contract',
-      deals: 'Contracts',
-      newRequest: 'New work order',
-      portalSubtitle: 'Submit work orders and track facility service.',
-    },
-  },
-  {
-    id: 'logistics',
-    label: 'Logistics',
-    description: 'Fleet assets, inventory, B2B accounts, and ops support.',
-    pack: 'manufacturing',
-    terminologyOverrides: {
-      customer: 'Shipper / partner',
-      customers: 'Shippers / partners',
-      agent: 'Ops coordinator',
-      asset: 'Fleet asset',
-      equipment: 'Fleet & assets',
-      ticket: 'Ops ticket',
-      tickets: 'Ops tickets',
-      lead: 'Lane lead',
-      leads: 'Lane leads',
-      deal: 'Contract',
-      deals: 'Contracts',
-      portalSubtitle: 'Track shipments support, assets, and account activity.',
-    },
-  },
-  {
-    id: 'pharma',
-    label: 'Pharma',
-    description: 'Batch-aware inventory, quality assets, and regulated account support.',
-    pack: 'manufacturing',
-    terminologyOverrides: {
-      customer: 'Account',
-      customers: 'Accounts',
-      agent: 'QA / service',
-      asset: 'Equipment',
-      equipment: 'Lab / plant equipment',
-      ticket: 'Quality / service ticket',
-      tickets: 'Quality / service tickets',
-      lead: 'RFQ',
-      leads: 'RFQs',
-      deal: 'Supply deal',
-      deals: 'Supply deals',
-      portalSubtitle: 'Track equipment, batches, and support for your operations.',
-    },
-  },
+  medical,
+  manufacturing,
+  fmcg,
+  facilities,
+  logistics,
+  pharma,
   {
     id: 'retail',
     label: 'Retail',
@@ -150,27 +71,7 @@ export const INDUSTRY_PICKER_OPTIONS: IndustryPickerOption[] = [
     description: 'Jobs, site visits, materials, and field crews.',
     pack: 'construction',
   },
-  {
-    id: 'automotive',
-    label: 'Automotive',
-    description: 'Dealership / workshop service, parts stock, and field units.',
-    pack: 'field_service',
-    terminologyOverrides: {
-      customer: 'Dealer / fleet',
-      customers: 'Dealers / fleets',
-      agent: 'Service advisor',
-      asset: 'Vehicle / unit',
-      equipment: 'Vehicles & equipment',
-      ticket: 'Service job',
-      tickets: 'Service jobs',
-      lead: 'Service lead',
-      leads: 'Service leads',
-      deal: 'Service deal',
-      deals: 'Service deals',
-      newRequest: 'Book service',
-      portalSubtitle: 'Track service jobs, warranties, and vehicle history.',
-    },
-  },
+  automotive,
   {
     id: 'professional_services',
     label: 'Professional Services',

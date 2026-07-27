@@ -74,6 +74,7 @@ model User {
   assignedTasks       Task[]                  @relation("TaskAssignee")
   tasks               Task[]                  @relation("TaskCreator")
   ticketActivities    TicketActivity[]        @relation("TicketActivities")
+  ticketAttachments   TicketAttachment[]      @relation("TicketAttachments")
   transfersFrom       TicketTransferHistory[] @relation("TransfersFrom")
   transfersTo         TicketTransferHistory[] @relation("TransfersTo")
   usage               UsageTracking?
@@ -870,6 +871,12 @@ model Invoice {
   customerEmail   String
   customerPhone   String?
   customerAddress String?
+  /// Seller GSTIN (India)
+  gstin           String?
+  /// Place of supply state/UT code or name (India GST)
+  placeOfSupply   String?
+  /// JSON: { cgst, sgst, igst, taxableAmount } when GST breakup is used
+  taxBreakup      Json?
   paymentMethod   String?
   paymentDetails  String?
   notes           String?
@@ -894,6 +901,7 @@ model Invoice {
   @@index([quotationId])
   @@index([status])
   @@index([invoiceNumber])
+  @@index([dueDate])
 }
 
 model InvoiceItem {
@@ -904,6 +912,8 @@ model InvoiceItem {
   quantity    Float    @default(1)
   unitPrice   Float
   amount      Float
+  /// HSN or SAC code (India GST)
+  hsnSac      String?
   createdAt   DateTime @default(now())
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
@@ -1266,6 +1276,7 @@ model ServiceContract {
   company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   customer            Customer              @relation(fields: [customerId], references: [id], onDelete: Cascade)
   equipment           EquipmentInstallation? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
+  tickets             SupportTicket[]
 
   @@index([companyId])
   @@index([customerId])
@@ -1292,6 +1303,7 @@ model SupportTicket {
   customerId           String
   equipmentId          String?
   groupId              String?
+  serviceContractId    String?
   subject              String
   description          String
   priority             TicketPriority          @default(MEDIUM)
@@ -1314,6 +1326,7 @@ model SupportTicket {
   customer             Customer                @relation(fields: [customerId], references: [id], onDelete: Cascade)
   equipment            EquipmentInstallation?  @relation(fields: [equipmentId], references: [id])
   group                SupportGroup?           @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  serviceContract      ServiceContract?        @relation(fields: [serviceContractId], references: [id], onDelete: SetNull)
   mergedInto           SupportTicket?          @relation("TicketMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
   mergedFrom           SupportTicket[]         @relation("TicketMerge")
   liveChatSession      LiveChatSession?
@@ -1323,16 +1336,33 @@ model SupportTicket {
   travelExpenses       TravelExpense[]
   locationLogs         TechnicianLocationLog[]
   whatsappMessages     WhatsAppMessage[]
+  attachments          TicketAttachment[]
 
   @@index([customerId])
   @@index([equipmentId])
   @@index([groupId])
+  @@index([serviceContractId])
   @@index([assignedTechnicianId])
   @@index([status])
   @@index([priority])
   @@index([channel])
   @@index([createdAt])
   @@index([mergedIntoId])
+}
+
+model TicketAttachment {
+  id          String        @id @default(cuid())
+  ticketId    String
+  url         String
+  fileName    String?
+  contentType String?
+  uploadedById String?
+  createdAt   DateTime      @default(now())
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  uploadedBy  User?         @relation("TicketAttachments", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([uploadedById])
 }
 
 model TicketActivity {

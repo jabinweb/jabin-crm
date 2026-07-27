@@ -44,9 +44,22 @@ export default function WorkspaceDashboardPage() {
   const { data: workspaceData } = useWorkspaceConfig();
   const features = workspaceData?.config.features;
   const terminology = workspaceData?.config.terminology;
+  const homeWidgets = workspaceData?.config.homeWidgets ?? [];
+  const hasPackWidgets = homeWidgets.length > 0;
   const showWarranties = features?.warranties === true;
   const showEquipment = features?.equipment === true;
   const showInventory = features?.inventory === true;
+  const showRenewalsWidget = hasPackWidgets
+    ? homeWidgets.includes('renewals')
+    : showWarranties;
+  const showLowStockWidget = hasPackWidgets
+    ? homeWidgets.includes('low_stock')
+    : showInventory;
+  const showSlaAtRiskWidget = hasPackWidgets
+    ? homeWidgets.includes('sla_at_risk')
+    : true;
+  const showOpenWorkOrdersWidget = homeWidgets.includes('open_work_orders');
+  const showDeliveryExceptionsWidget = homeWidgets.includes('delivery_exceptions');
   const customerLabel = terminology?.customer ?? 'Client';
   const ticketsLabel = terminology?.tickets ?? 'Tickets';
   const ticketLabel = terminology?.ticket ?? 'Ticket';
@@ -120,7 +133,7 @@ export default function WorkspaceDashboardPage() {
         count: number;
       }>;
     },
-    enabled: !!slug && showWarranties,
+    enabled: !!slug && showRenewalsWidget,
   });
 
   const { data: inventoryAlerts } = useQuery({
@@ -141,7 +154,7 @@ export default function WorkspaceDashboardPage() {
         }>,
       };
     },
-    enabled: !!slug && showInventory,
+    enabled: !!slug && showLowStockWidget,
   });
 
   const getPriorityVariant = (
@@ -261,7 +274,11 @@ export default function WorkspaceDashboardPage() {
               <CardHeader className="pb-2">
                 <CardDescription className="flex items-center gap-1.5">
                   <Ticket className="h-3.5 w-3.5" />
-                  Open {ticketsLabel.toLowerCase()}
+                  {showOpenWorkOrdersWidget
+                    ? 'Open work orders'
+                    : showDeliveryExceptionsWidget
+                      ? 'Open delivery / ops tickets'
+                      : `Open ${ticketsLabel.toLowerCase()}`}
                 </CardDescription>
                 <CardTitle className="text-3xl font-semibold tabular-nums">
                   {supportStats?.summary?.openTickets ?? stats?.openTickets ?? 0}
@@ -286,6 +303,7 @@ export default function WorkspaceDashboardPage() {
                 </CardTitle>
               </CardHeader>
             </Card>
+            {showSlaAtRiskWidget ? (
             <Card className="border-amber-200/80">
               <CardHeader className="pb-2">
                 <CardDescription className="flex items-center gap-1.5 text-amber-700">
@@ -297,6 +315,7 @@ export default function WorkspaceDashboardPage() {
                 </CardTitle>
               </CardHeader>
             </Card>
+            ) : null}
             <Card className="border-destructive/25">
               <CardHeader className="pb-2">
                 <CardDescription className="flex items-center gap-1.5 text-destructive">
@@ -341,7 +360,7 @@ export default function WorkspaceDashboardPage() {
         )
       )}
 
-      {showInventory && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
+      {showLowStockWidget && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
         <Card className="border-amber-200/80">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>
@@ -379,7 +398,7 @@ export default function WorkspaceDashboardPage() {
         </Card>
       )}
 
-      {showWarranties && (renewalsData?.count ?? 0) > 0 && (
+      {showRenewalsWidget && (renewalsData?.count ?? 0) > 0 && (
         <Card className="border-amber-200/80">
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <div>

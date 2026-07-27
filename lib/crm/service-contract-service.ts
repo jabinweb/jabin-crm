@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import type { ServiceContractStatus, ServiceContractType } from '@prisma/client';
 import { daysUntil, renewalUrgency } from '@/lib/crm/service-contract-utils';
+import { attachVisitUsage } from '@/lib/crm/field-ops';
 
 export type CreateServiceContractInput = {
   companyId: string;
@@ -37,7 +38,7 @@ export async function listServiceContracts(
   companyId: string,
   opts?: { status?: ServiceContractStatus; type?: ServiceContractType }
 ) {
-  return prisma.serviceContract.findMany({
+  const contracts = await prisma.serviceContract.findMany({
     where: {
       companyId,
       ...(opts?.status ? { status: opts.status } : {}),
@@ -46,6 +47,8 @@ export async function listServiceContracts(
     include: contractInclude,
     orderBy: { endDate: 'asc' },
   });
+  type Row = (typeof contracts)[number];
+  return attachVisitUsage<Row>(contracts);
 }
 
 /** Active contracts ending within `withinDays`, plus already overdue active ones. */
@@ -65,7 +68,10 @@ export async function listRenewalAlerts(companyId: string, withinDays = 60) {
     take: 50,
   });
 
-  return contracts.map((c) => {
+  type Row = (typeof contracts)[number];
+  const withUsage = await attachVisitUsage<Row>(contracts);
+
+  return withUsage.map((c) => {
     const daysLeft = daysUntil(c.endDate, now);
     return {
       ...c,
@@ -73,6 +79,39 @@ export async function listRenewalAlerts(companyId: string, withinDays = 60) {
       urgency: renewalUrgency(daysLeft),
     };
   });
+}
+
+export async function getServiceContract(companyId: string, id: string) {
+  const contract = await prisma.serviceContract.findFirst({
+    where: { id, companyId },
+    include: contractInclude,
+  });
+  if (!contract) return null;
+  type Row = typeof contract;
+  const [withUsage] = await attachVisitUsage<Row>([contract]);
+  return withUsage;
+}
+
+/** Suggest ACTIVE contracts for a customer (optionally matching equipment). */
+export async function suggestContractsForTicket(
+  companyId: string,
+  customerId: string,
+  equipmentId?: string | null
+) {
+  const contracts = await prisma.serviceContract.findMany({
+    where: {
+      companyId,
+      customerId,
+      status: 'ACTIVE',
+      ...(equipmentId
+        ? { OR: [{ equipmentId }, { equipmentId: null }] }
+        : {}),
+    },
+    include: contractInclude,
+    orderBy: { endDate: 'asc' },
+  });
+  type Row = (typeof contracts)[number];
+  return attachVisitUsage<Row>(contracts);
 }
 
 export async function createServiceContract(input: CreateServiceContractInput) {
@@ -107,7 +146,7 @@ export async function createServiceContract(input: CreateServiceContractInput) {
     companyId: input.companyId,
   });
 
-  return prisma.serviceContract.create({
+  const created = await prisma.serviceContract.create({
     data: {
       companyId: input.companyId,
       customerId: input.customerId,
@@ -127,6 +166,9 @@ export async function createServiceContract(input: CreateServiceContractInput) {
     },
     include: contractInclude,
   });
+  type Row = typeof created;
+  const [withUsage] = await attachVisitUsage<Row>([created]);
+  return withUsage;
 }
 
 export async function updateServiceContract(
@@ -140,7 +182,7 @@ export async function updateServiceContract(
   });
   if (!existing) throw new Error('Contract not found');
 
-  return prisma.serviceContract.update({
+  const updated = await prisma.serviceContract.update({
     where: { id },
     data: {
       ...(data.title != null ? { title: data.title.trim() } : {}),
@@ -163,6 +205,9 @@ export async function updateServiceContract(
     },
     include: contractInclude,
   });
+  type Row = typeof updated;
+  const [withUsage] = await attachVisitUsage<Row>([updated]);
+  return withUsage;
 }
 
 /** Mark ACTIVE contracts past endDate as EXPIRED. */

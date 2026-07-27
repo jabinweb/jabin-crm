@@ -217,6 +217,7 @@ interface InvoiceData {
     quantity: number;
     unitPrice: number;
     amount: number;
+    hsnSac?: string;
   }>;
   subtotal: number;
   taxRate: number;
@@ -233,6 +234,9 @@ interface InvoiceData {
   companyEmail?: string;
   companyPhone?: string;
   companyTaxId?: string;
+  gstin?: string;
+  placeOfSupply?: string;
+  taxBreakup?: { cgst?: number; sgst?: number; igst?: number } | null;
   // Payment Details
   bankName?: string;
   accountName?: string;
@@ -323,6 +327,9 @@ export const InvoicePDF: React.FC<{ invoice: InvoiceData }> = ({ invoice }) => {
             {invoice.companyTaxId && (
               <Text style={styles.companyDetails}>Tax ID: {invoice.companyTaxId}</Text>
             )}
+            {invoice.gstin && (
+              <Text style={styles.companyDetails}>GSTIN: {invoice.gstin}</Text>
+            )}
           </View>
           <View style={styles.invoiceHeader}>
             <Text style={styles.invoiceTitle}>INVOICE</Text>
@@ -361,6 +368,12 @@ export const InvoicePDF: React.FC<{ invoice: InvoiceData }> = ({ invoice }) => {
             <Text style={styles.label}>Currency:</Text>
             <Text style={styles.value}>{invoice.currency}</Text>
           </View>
+          {invoice.placeOfSupply ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+              <Text style={styles.label}>Place of supply:</Text>
+              <Text style={styles.value}>{invoice.placeOfSupply}</Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -377,6 +390,9 @@ export const InvoicePDF: React.FC<{ invoice: InvoiceData }> = ({ invoice }) => {
           <View key={index} style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
             <View style={styles.col1}>
               <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{item.name}</Text>
+              {item.hsnSac ? (
+                <Text style={{ fontSize: 8, color: '#666' }}>HSN/SAC: {item.hsnSac}</Text>
+              ) : null}
               {item.description && (
                 <Text style={{ fontSize: 8, color: '#666' }}>{item.description}</Text>
               )}
@@ -408,6 +424,24 @@ export const InvoicePDF: React.FC<{ invoice: InvoiceData }> = ({ invoice }) => {
             <Text>{formatCurrency(invoice.taxAmount, invoice.currency)}</Text>
           </View>
         )}
+        {invoice.taxBreakup?.cgst ? (
+          <View style={styles.totalRow}>
+            <Text>CGST:</Text>
+            <Text>{formatCurrency(invoice.taxBreakup.cgst, invoice.currency)}</Text>
+          </View>
+        ) : null}
+        {invoice.taxBreakup?.sgst ? (
+          <View style={styles.totalRow}>
+            <Text>SGST:</Text>
+            <Text>{formatCurrency(invoice.taxBreakup.sgst, invoice.currency)}</Text>
+          </View>
+        ) : null}
+        {invoice.taxBreakup?.igst ? (
+          <View style={styles.totalRow}>
+            <Text>IGST:</Text>
+            <Text>{formatCurrency(invoice.taxBreakup.igst, invoice.currency)}</Text>
+          </View>
+        ) : null}
 
         <View style={{ ...styles.totalRowFinal, backgroundColor: primaryColor }}>
           <Text>TOTAL:</Text>

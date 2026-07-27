@@ -9,6 +9,7 @@ import {
   getIndustryPickerOption,
   resolveIndustrySelection,
 } from '@/lib/industry-aliases';
+import { getIndustryVerticalPack } from '@/lib/industry-packs';
 import { defaultPipelines } from '@/lib/pipelines/company-pipelines';
 import { leadFlowToPipelineConfig } from '@/lib/pipelines/lead-flow-map';
 
@@ -27,6 +28,8 @@ export interface ResolvedWorkspaceConfig {
   features: Record<WorkspaceFeatureKey, boolean>;
   terminology: WorkspaceTerminology;
   leadStatusFlow: string[];
+  /** Industry vertical pack home widgets (empty if no pack). */
+  homeWidgets: import('@/lib/industry-packs/types').IndustryHomeWidget[];
 }
 
 export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
@@ -95,8 +98,16 @@ export function workspaceSettingsFromCompanySettings(settings: unknown): Workspa
 
 export function resolveWorkspaceConfig(settings: WorkspaceSettings): ResolvedWorkspaceConfig {
   const template = WORKSPACE_TEMPLATES[settings.businessVertical] ?? WORKSPACE_TEMPLATES.general;
+  const verticalPack = getIndustryVerticalPack(settings.industryAlias);
 
   const features = { ...template.features };
+  if (verticalPack?.featureOverrides) {
+    for (const [key, value] of Object.entries(verticalPack.featureOverrides)) {
+      if (key in features && typeof value === 'boolean') {
+        features[key as WorkspaceFeatureKey] = value;
+      }
+    }
+  }
   if (settings.featureOverrides) {
     for (const [key, value] of Object.entries(settings.featureOverrides)) {
       if (key in features && typeof value === 'boolean') {
@@ -106,12 +117,13 @@ export function resolveWorkspaceConfig(settings: WorkspaceSettings): ResolvedWor
   }
 
   const aliasOption = getIndustryPickerOption(settings.industryAlias);
-  const aliasTerminology = aliasOption?.terminologyOverrides ?? {};
+  const aliasTerminology =
+    verticalPack?.terminologyOverrides ?? aliasOption?.terminologyOverrides ?? {};
 
   return {
     businessVertical: template.id,
     industryAlias: settings.industryAlias,
-    verticalLabel: aliasOption?.label ?? template.label,
+    verticalLabel: verticalPack?.label ?? aliasOption?.label ?? template.label,
     features,
     terminology: {
       ...template.terminology,
@@ -119,6 +131,7 @@ export function resolveWorkspaceConfig(settings: WorkspaceSettings): ResolvedWor
       ...(settings.terminologyOverrides ?? {}),
     },
     leadStatusFlow: [...template.leadStatusFlow],
+    homeWidgets: verticalPack?.homeWidgets ? [...verticalPack.homeWidgets] : [],
   };
 }
 

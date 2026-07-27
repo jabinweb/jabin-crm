@@ -21,6 +21,12 @@ export interface CreateInvoiceInput {
   paymentMethod?: string;
   terms?: string;
   notes?: string;
+  /** Seller GSTIN */
+  gstin?: string | null;
+  /** Place of supply (state name or code) */
+  placeOfSupply?: string | null;
+  /** CGST_SGST (intra) or IGST (inter) */
+  gstTaxType?: 'CGST_SGST' | 'IGST' | null;
   // Payment details
   bankName?: string;
   accountName?: string;
@@ -34,7 +40,21 @@ export interface CreateInvoiceInput {
     description?: string;
     quantity: number;
     unitPrice: number;
+    hsnSac?: string | null;
   }>;
+}
+
+export function buildGstTaxBreakup(
+  taxAmount: number,
+  gstTaxType?: 'CGST_SGST' | 'IGST' | null
+): { cgst: number; sgst: number; igst: number; taxableHint?: string } | null {
+  if (!gstTaxType || taxAmount <= 0) return null;
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  if (gstTaxType === 'IGST') {
+    return { cgst: 0, sgst: 0, igst: round2(taxAmount) };
+  }
+  const half = round2(taxAmount / 2);
+  return { cgst: half, sgst: round2(taxAmount - half), igst: 0 };
 }
 
 export interface RecordPaymentInput {
@@ -158,6 +178,8 @@ export class InvoiceService {
         userId: input.userId,
       });
 
+      const taxBreakup = buildGstTaxBreakup(taxAmount, input.gstTaxType);
+
       const invoice = await prisma.invoice.create({
         data: {
           invoiceNumber,
@@ -181,6 +203,9 @@ export class InvoiceService {
           amountPaid: 0,
           amountDue: total,
           dueDate,
+          gstin: input.gstin?.trim() || null,
+          placeOfSupply: input.placeOfSupply?.trim() || null,
+          taxBreakup: taxBreakup ?? undefined,
           paymentMethod: input.paymentMethod,
           paymentDetails: input.bankName || input.accountNumber ? JSON.stringify({
             bankName: input.bankName,
@@ -201,6 +226,7 @@ export class InvoiceService {
               quantity: item.quantity,
               unitPrice: item.unitPrice,
               amount: Math.round(item.quantity * item.unitPrice * 100) / 100,
+              hsnSac: item.hsnSac?.trim() || null,
             })),
           },
         },
@@ -714,6 +740,10 @@ export class InvoiceService {
         terms: input.terms,
         notes: input.notes,
         status: input.status,
+        ...(input.gstin !== undefined ? { gstin: input.gstin?.trim() || null } : {}),
+        ...(input.placeOfSupply !== undefined
+          ? { placeOfSupply: input.placeOfSupply?.trim() || null }
+          : {}),
       };
 
       // Handle payment details
@@ -743,6 +773,7 @@ export class InvoiceService {
         updateData.taxAmount = taxAmount;
         updateData.total = total;
         updateData.amountDue = total - existingInvoice.amountPaid;
+        updateData.taxBreakup = buildGstTaxBreakup(taxAmount, input.gstTaxType) ?? undefined;
 
         // Delete existing items and create new ones
         await prisma.invoiceItem.deleteMany({
@@ -756,8 +787,12 @@ export class InvoiceService {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             amount: item.quantity * item.unitPrice,
+            hsnSac: item.hsnSac?.trim() || null,
           })),
         };
+      } else if (input.gstTaxType !== undefined) {
+        updateData.taxBreakup =
+          buildGstTaxBreakup(existingInvoice.taxAmount, input.gstTaxType) ?? undefined;
       }
 
       const invoice = await prisma.invoice.update({

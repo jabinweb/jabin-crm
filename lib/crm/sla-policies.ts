@@ -1,5 +1,7 @@
 import { TicketPriority } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import { getIndustryVerticalPack } from '@/lib/industry-packs';
+import { workspaceSettingsFromCompanySettings } from '@/lib/workspace-config';
 
 export type SlaConfig = {
   responseHours: number;
@@ -13,6 +15,26 @@ const FALLBACK_BY_PRIORITY: Record<TicketPriority, SlaConfig> = {
   HIGH: { responseHours: 2, resolutionHours: 24, policyName: 'Default — High' },
   CRITICAL: { responseHours: 1, resolutionHours: 8, policyName: 'Default — Critical' },
 };
+
+async function getIndustryPackSla(
+  companyId: string | null | undefined,
+  priority: TicketPriority
+): Promise<SlaConfig | null> {
+  if (!companyId) return null;
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { settings: true },
+  });
+  const workspace = workspaceSettingsFromCompanySettings(company?.settings);
+  const pack = getIndustryVerticalPack(workspace.industryAlias);
+  const row = pack?.slaByPriority?.[priority];
+  if (!row) return null;
+  return {
+    responseHours: row.responseHours,
+    resolutionHours: row.resolutionHours,
+    policyName: `${pack!.label} — ${priority}`,
+  };
+}
 
 export async function getSlaConfigForPriority(
   priority: TicketPriority,
@@ -30,6 +52,9 @@ export async function getSlaConfigForPriority(
       };
     }
   }
+
+  const packSla = await getIndustryPackSla(companyId, priority);
+  if (packSla) return packSla;
 
   const globalPolicy = await prisma.slaPolicy.findFirst({
     where: { companyId: null, priority },

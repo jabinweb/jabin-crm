@@ -14,6 +14,19 @@ type TodayAttendance = {
   status?: string;
 };
 
+function getCurrentPosition(): Promise<GeolocationPosition> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not supported'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 15000,
+    });
+  });
+}
+
 export function PunchButton({ className }: { className?: string }) {
   const { data: session } = useSession();
   const employeeId = (session?.user as { employeeId?: string } | undefined)?.employeeId;
@@ -33,6 +46,18 @@ export function PunchButton({ className }: { className?: string }) {
 
   const punch = useMutation({
     mutationFn: async (action: 'in' | 'out') => {
+      let coords: { latitude?: number; longitude?: number; accuracy?: number } = {};
+      try {
+        const pos = await getCurrentPosition();
+        coords = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
+      } catch {
+        // Allow punch without GPS if permission denied; server may still accept
+      }
+
       const url =
         action === 'in'
           ? '/api/employee/attendance/check-in'
@@ -40,14 +65,26 @@ export function PunchButton({ className }: { className?: string }) {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(action === 'in' ? { notes: 'Punched in from dashboard' } : {}),
+        body: JSON.stringify(
+          action === 'in'
+            ? { notes: 'Punched in from dashboard', ...coords }
+            : { notes: 'Punched out from dashboard', ...coords }
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Punch failed');
-      return data;
+      return data as { outsideGeofence?: boolean };
     },
-    onSuccess: (_data, action) => {
-      toast.success(action === 'in' ? 'Punched in' : 'Punched out');
+    onSuccess: (data, action) => {
+      if (data.outsideGeofence) {
+        toast.warning(
+          action === 'in'
+            ? 'Punched in — outside office geo-fence'
+            : 'Punched out — outside office geo-fence'
+        );
+      } else {
+        toast.success(action === 'in' ? 'Punched in' : 'Punched out');
+      }
       queryClient.invalidateQueries({ queryKey: ['attendance-today-me'] });
       queryClient.invalidateQueries({ queryKey: ['ops-today', slug] });
     },

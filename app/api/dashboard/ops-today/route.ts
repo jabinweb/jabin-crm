@@ -44,6 +44,7 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, employeeId,
     status: AttendanceStatus;
     checkIn: Date | null;
     checkOut: Date | null;
+    metadata: unknown;
   };
 
   type LeaveRow = {
@@ -64,6 +65,7 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, employeeId,
             status: true,
             checkIn: true,
             checkOut: true,
+            metadata: true,
           },
         })
       : Promise.resolve([] as AttendanceRow[]),
@@ -111,6 +113,7 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, employeeId,
   let workingNow = 0;
   let notArrived = 0;
   const lateList: { id: string; name: string; checkIn: string | null }[] = [];
+  const outsideGeofenceList: { id: string; name: string; checkIn: string | null }[] = [];
   const onLeaveSeen = new Set<string>();
   const onLeaveList: { id: string; name: string; type: string }[] = [];
 
@@ -148,6 +151,17 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, employeeId,
       if (lateHit) {
         late += 1;
         lateList.push({
+          id: emp.id,
+          name: emp.name,
+          checkIn: row?.checkIn?.toISOString() ?? null,
+        });
+      }
+      const meta =
+        row?.metadata && typeof row.metadata === 'object' && !Array.isArray(row.metadata)
+          ? (row.metadata as Record<string, unknown>)
+          : {};
+      if (meta.outsideGeofence === true || meta.flag === 'OUTSIDE_GEOFENCE') {
+        outsideGeofenceList.push({
           id: emp.id,
           name: emp.name,
           checkIn: row?.checkIn?.toISOString() ?? null,
@@ -197,6 +211,7 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, employeeId,
       attendancePercent,
       rosterSize,
       lateList: lateList.slice(0, 8),
+      outsideGeofenceList: outsideGeofenceList.slice(0, 8),
       onLeaveList: onLeaveList.slice(0, 8),
     },
     me: {

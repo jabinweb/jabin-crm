@@ -23,6 +23,9 @@ const createInvoiceSchema = z.object({
   paymentMethod: z.string().optional(),
   terms: z.string().optional(),
   notes: z.string().optional(),
+  gstin: z.string().optional().nullable(),
+  placeOfSupply: z.string().optional().nullable(),
+  gstTaxType: z.enum(['CGST_SGST', 'IGST']).optional().nullable(),
   // Payment details
   bankName: z.string().optional(),
   accountName: z.string().optional(),
@@ -37,6 +40,7 @@ const createInvoiceSchema = z.object({
       description: z.string().optional(),
       quantity: z.number().min(1, 'Quantity must be at least 1'),
       unitPrice: z.number().min(0, 'Unit price must be positive'),
+      hsnSac: z.string().optional().nullable(),
     })
   ).min(1, 'At least one item is required'),
 });

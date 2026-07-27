@@ -11,6 +11,7 @@ import {
 export interface CreateTicketData {
     customerId: string;
     equipmentId?: string;
+    serviceContractId?: string | null;
     subject: string;
     description: string;
     priority?: TicketPriority;
@@ -20,6 +21,24 @@ export interface CreateTicketData {
     ticketType?: string;
     customFields?: Record<string, string>;
     companyId?: string | null;
+}
+
+export class VisitLimitError extends Error {
+    readonly code = 'VISIT_LIMIT_EXCEEDED';
+    readonly visitUsage: { visitLimit: number | null; visitsUsed: number; remaining: number | null };
+    constructor(message: string, visitUsage: VisitLimitError['visitUsage']) {
+        super(message);
+        this.name = 'VisitLimitError';
+        this.visitUsage = visitUsage;
+    }
+}
+
+export class PhotoEvidenceRequiredError extends Error {
+    readonly code = 'PHOTO_EVIDENCE_REQUIRED';
+    constructor(message = 'Photo evidence is required before resolving this ticket') {
+        super(message);
+        this.name = 'PhotoEvidenceRequiredError';
+    }
 }
 
 function addHours(date: Date, hours: number): Date {
@@ -68,6 +87,48 @@ export class TicketService {
             supportSettings,
         });
 
+        let serviceContractId = data.serviceContractId || null;
+        if (serviceContractId && companyId) {
+            const contract = await prisma.serviceContract.findFirst({
+                where: {
+                    id: serviceContractId,
+                    companyId,
+                    customerId: data.customerId,
+                    status: 'ACTIVE',
+                },
+                select: { id: true, visitLimit: true },
+            });
+            if (!contract) {
+                throw new Error('Service contract not found or not active for this customer');
+            }
+            const { getContractVisitUsage, getFieldOpsSettings } = await import('@/lib/crm/field-ops');
+            const usage = await getContractVisitUsage(contract.id, contract.visitLimit);
+            if (usage.overLimit) {
+                const fieldOps = await getFieldOpsSettings(companyId);
+                if (fieldOps.enforceVisitLimits) {
+                    throw new VisitLimitError(
+                        `Visit limit reached for this contract (${usage.visitsUsed}/${usage.visitLimit})`,
+                        usage
+                    );
+                }
+            }
+        } else if (!serviceContractId && companyId) {
+            // Auto-suggest: prefer equipment-specific ACTIVE contract, else customer-level
+            const suggested = await prisma.serviceContract.findFirst({
+                where: {
+                    companyId,
+                    customerId: data.customerId,
+                    status: 'ACTIVE',
+                    ...(data.equipmentId
+                        ? { OR: [{ equipmentId: data.equipmentId }, { equipmentId: null }] }
+                        : {}),
+                },
+                orderBy: [{ equipmentId: 'desc' }, { endDate: 'asc' }],
+                select: { id: true },
+            });
+            if (suggested) serviceContractId = suggested.id;
+        }
+
         const now = new Date();
         const metadata: Record<string, unknown> = {};
         if (data.customFields && Object.keys(data.customFields).length > 0) {
@@ -81,6 +142,7 @@ export class TicketService {
             data: {
                 customerId: data.customerId,
                 equipmentId: data.equipmentId || null,
+                serviceContractId,
                 subject: data.subject,
                 description: data.description,
                 priority,
@@ -98,6 +160,9 @@ export class TicketService {
                 customer: true,
                 assignedTechnician: {
                     select: { name: true, email: true },
+                },
+                serviceContract: {
+                    select: { id: true, title: true, type: true, visitLimit: true },
                 },
             },
         });
@@ -154,15 +219,19 @@ export class TicketService {
             select: {
                 status: true,
                 ticketType: true,
+                serviceContractId: true,
                 customer: { select: { companyId: true } },
+                _count: { select: { attachments: true } },
             },
         });
 
         if (!existing) throw new Error('Ticket not found');
 
-        if (existing.customer?.companyId && existing.ticketType) {
+        const companyId = existing.customer?.companyId ?? null;
+
+        if (companyId && existing.ticketType) {
             const company = await prisma.company.findUnique({
-                where: { id: existing.customer.companyId },
+                where: { id: companyId },
                 select: { settings: true },
             });
             const stored =
@@ -176,6 +245,38 @@ export class TicketService {
             }
         }
 
+        const counting = status === 'RESOLVED' || status === 'CLOSED';
+        const wasCounting =
+            existing.status === 'RESOLVED' || existing.status === 'CLOSED';
+
+        if (counting && !wasCounting && companyId) {
+            const { getFieldOpsSettings, getContractVisitUsage } = await import('@/lib/crm/field-ops');
+            const fieldOps = await getFieldOpsSettings(companyId);
+
+            if (fieldOps.requirePhotoEvidence && existing._count.attachments < 1) {
+                throw new PhotoEvidenceRequiredError();
+            }
+
+            if (existing.serviceContractId) {
+                const contract = await prisma.serviceContract.findUnique({
+                    where: { id: existing.serviceContractId },
+                    select: { visitLimit: true },
+                });
+                if (contract) {
+                    const usage = await getContractVisitUsage(
+                        existing.serviceContractId,
+                        contract.visitLimit
+                    );
+                    if (usage.overLimit && fieldOps.enforceVisitLimits) {
+                        throw new VisitLimitError(
+                            `Visit limit reached for linked contract (${usage.visitsUsed}/${usage.visitLimit})`,
+                            usage
+                        );
+                    }
+                }
+            }
+        }
+
         const ticket = await prisma.supportTicket.update({
             where: { id: ticketId },
             data: { status },
@@ -186,7 +287,6 @@ export class TicketService {
 
         await this.logActivity(ticketId, 'STATUS_CHANGED', `Status changed to ${status}`, performedById);
 
-        const companyId = existing.customer?.companyId;
         if (companyId) {
             const full = await prisma.supportTicket.findUnique({
                 where: { id: ticketId },

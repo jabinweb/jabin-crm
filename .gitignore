@@ -45,3 +45,8 @@ node_modules/
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+scripts/set-live-urls.ts
+scripts/test-live-bridge.ts
+scripts/test-summora-bridge.ts
+scripts/wire-summora-provider.ts

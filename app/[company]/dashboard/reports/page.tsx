@@ -38,12 +38,15 @@ import {
 } from 'lucide-react';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import Link from 'next/link';
 
 type DateRange = '7d' | '30d' | 'week' | 'month' | 'all';
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange>('30d');
   const [activeTab, setActiveTab] = useState('overview');
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
 
   const { data: reportData, isLoading } = useQuery({
     queryKey: ['reports', dateRange],
@@ -52,6 +55,32 @@ export default function ReportsPage() {
       if (!response.ok) throw new Error('Failed to fetch reports');
       return response.json();
     },
+  });
+
+  const { data: arAging, isLoading: arLoading } = useQuery({
+    queryKey: ['ar-aging', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/invoices/ar-aging');
+      if (!res.ok) throw new Error('Failed to load AR aging');
+      const json = await res.json();
+      return (json.data ?? json) as {
+        totalOutstanding: number;
+        totalInvoices: number;
+        buckets: Record<string, { label: string; count: number; amount: number }>;
+        invoices: Array<{
+          id: string;
+          invoiceNumber: string;
+          customerName: string;
+          dueDate: string;
+          amountDue: number;
+          currency: string;
+          daysPastDue: number;
+          bucketLabel: string;
+          status: string;
+        }>;
+      };
+    },
+    enabled: !!slug && activeTab === 'ar-aging',
   });
 
   const getDateRangeText = () => {
@@ -72,6 +101,40 @@ export default function ReportsPage() {
   };
 
   const handleExportReport = async (format: 'pdf' | 'csv') => {
+    if (activeTab === 'ar-aging' && arAging) {
+      const headers = [
+        'Invoice',
+        'Customer',
+        'Due Date',
+        'Days Past Due',
+        'Bucket',
+        'Amount Due',
+        'Currency',
+        'Status',
+      ];
+      const lines = arAging.invoices.map((inv) =>
+        [
+          inv.invoiceNumber,
+          `"${inv.customerName.replace(/"/g, '""')}"`,
+          inv.dueDate.slice(0, 10),
+          inv.daysPastDue,
+          inv.bucketLabel,
+          inv.amountDue,
+          inv.currency,
+          inv.status,
+        ].join(',')
+      );
+      const blob = new Blob([[headers.join(','), ...lines].join('\n')], {
+        type: 'text/csv',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ar-aging-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
     if (format === 'pdf') {
       window.print();
       return;
@@ -163,6 +226,7 @@ export default function ReportsPage() {
           <TabsTrigger value="leads">Leads</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="ar-aging">AR aging</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-6">
@@ -557,6 +621,115 @@ export default function ReportsPage() {
           </div>
 
 
+        </TabsContent>
+
+        <TabsContent value="ar-aging" className="space-y-4 mt-6">
+          {arLoading ? (
+            <SectionSkeleton lines={6} />
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold tabular-nums">
+                      {(arAging?.totalOutstanding ?? 0).toLocaleString(undefined, {
+                        maximumFractionDigits: 0,
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {arAging?.totalInvoices ?? 0} open invoices
+                    </p>
+                  </CardContent>
+                </Card>
+                {(['current', 'd31_60', 'd61_90', 'd90_plus'] as const).map((key) => {
+                  const b = arAging?.buckets?.[key];
+                  return (
+                    <Card key={key}>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">
+                          {b?.label ?? key}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold tabular-nums">
+                          {(b?.amount ?? 0).toLocaleString(undefined, {
+                            maximumFractionDigits: 0,
+                          })}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{b?.count ?? 0} invoices</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Receivables detail</CardTitle>
+                  <CardDescription>
+                    Unpaid invoices by days past due. Export CSV from the toolbar.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Due</TableHead>
+                        <TableHead>Bucket</TableHead>
+                        <TableHead className="text-right">Amount due</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(arAging?.invoices?.length ?? 0) === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={5}
+                            className="text-center text-muted-foreground"
+                          >
+                            No outstanding receivables
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        arAging!.invoices.map((inv) => (
+                          <TableRow key={inv.id}>
+                            <TableCell>
+                              <Link
+                                href={path(`/dashboard/invoices/${inv.id}`)}
+                                className="font-medium hover:underline"
+                              >
+                                {inv.invoiceNumber}
+                              </Link>
+                            </TableCell>
+                            <TableCell>{inv.customerName}</TableCell>
+                            <TableCell>
+                              <div>{format(new Date(inv.dueDate), 'dd MMM yyyy')}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {inv.daysPastDue}d past due
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{inv.bucketLabel}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {inv.currency}{' '}
+                              {inv.amountDue.toLocaleString(undefined, {
+                                maximumFractionDigits: 2,
+                              })}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

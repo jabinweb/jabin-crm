@@ -10,7 +10,8 @@ export type AutomationAction =
   | { type: 'SET_PRIORITY'; priority: TicketPriority }
   | { type: 'ADD_TAG'; tag: string }
   | { type: 'ASSIGN_GROUP'; groupName: string }
-  | { type: 'NOTIFY'; title: string; body: string };
+  | { type: 'NOTIFY'; title: string; body: string }
+  | { type: 'NOTIFY_CUSTOMER'; title: string; body: string };
 
 export interface AutomationRule {
   id: string;
@@ -91,6 +92,11 @@ export const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
         title: 'SLA at risk',
         body: 'A ticket is approaching its SLA deadline.',
       },
+      {
+        type: 'NOTIFY_CUSTOMER',
+        title: 'Service update — delay possible',
+        body: 'We are working on your request and it is approaching our service deadline. Our team is prioritizing it.',
+      },
     ],
   },
   {
@@ -104,6 +110,11 @@ export const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
         type: 'NOTIFY',
         title: 'SLA breached',
         body: 'A ticket has breached its SLA and requires immediate attention.',
+      },
+      {
+        type: 'NOTIFY_CUSTOMER',
+        title: 'Service delay notification',
+        body: 'Your request has exceeded our expected response time. We apologize for the delay and are escalating it now.',
       },
     ],
   },

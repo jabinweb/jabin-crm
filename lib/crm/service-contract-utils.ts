@@ -16,3 +16,27 @@ export function renewalUrgency(
   if (daysLeft <= 45) return 'soon';
   return 'ok';
 }
+
+/** Statuses that consume a contract visit. */
+export const VISIT_COUNTING_STATUSES = ['RESOLVED', 'CLOSED'] as const;
+
+export type VisitUsage = {
+  visitLimit: number | null;
+  visitsUsed: number;
+  remaining: number | null;
+  overLimit: boolean;
+};
+
+export function computeVisitUsage(
+  visitLimit: number | null | undefined,
+  visitsUsed: number
+): VisitUsage {
+  const limit = visitLimit ?? null;
+  const remaining = limit == null ? null : Math.max(0, limit - visitsUsed);
+  return {
+    visitLimit: limit,
+    visitsUsed,
+    remaining,
+    overLimit: limit != null && visitsUsed >= limit,
+  };
+}

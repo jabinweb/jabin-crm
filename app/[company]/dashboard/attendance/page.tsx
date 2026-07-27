@@ -99,6 +99,34 @@ export default function CompanyAttendancePage() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Outside geo-fence</CardTitle>
+            <CardDescription>Punched in outside the office radius</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <SectionSkeleton lines={3} />
+            ) : !opsToday?.attendance?.outsideGeofenceList?.length ? (
+              <p className="text-sm text-muted-foreground">No geo-fence flags today.</p>
+            ) : (
+              <ul className="space-y-2">
+                {opsToday.attendance.outsideGeofenceList.map(
+                  (p: { id: string; name: string; checkIn: string | null }) => (
+                    <li
+                      key={p.id}
+                      className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">{p.name}</span>
+                      <Badge variant="destructive">Outside fence</Badge>
+                    </li>
+                  )
+                )}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">On leave today</CardTitle>
             <CardDescription>Approved leave covering today</CardDescription>
           </CardHeader>

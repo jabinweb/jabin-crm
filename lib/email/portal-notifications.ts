@@ -83,6 +83,8 @@ export async function sendTicketStatusEmail(params: {
         RESOLVED: 'Resolved – Your issue has been resolved.',
         CLOSED: 'Closed – Your support ticket has been closed.',
         ASSIGNED: 'Assigned – Someone from the team has been assigned to your request.',
+        SLA_AT_RISK: 'Update – Your request is approaching our service deadline and is being prioritized.',
+        SLA_BREACHED: 'Delay notice – Your request has exceeded our expected response time. We apologize and are escalating it.',
     };
 
     const body = `

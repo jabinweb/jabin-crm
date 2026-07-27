@@ -52,6 +52,7 @@ export async function GET(
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         amount: item.amount,
+        hsnSac: (item as { hsnSac?: string | null }).hsnSac || undefined,
       })),
       subtotal: invoice.subtotal,
       taxRate: invoice.taxRate,
@@ -63,11 +64,18 @@ export async function GET(
       currency: invoice.currency,
       terms: invoice.terms || undefined,
       notes: invoice.notes || undefined,
+      gstin: (invoice as { gstin?: string | null }).gstin || undefined,
+      placeOfSupply: (invoice as { placeOfSupply?: string | null }).placeOfSupply || undefined,
+      taxBreakup: ((invoice as { taxBreakup?: unknown }).taxBreakup as {
+        cgst?: number;
+        sgst?: number;
+        igst?: number;
+      } | null) || undefined,
       companyName: userProfile?.companyName || invoice.user.name || 'Your Company',
       companyAddress: (userProfile as any)?.companyAddress || undefined,
       companyEmail: userProfile?.companyEmail || invoice.user.email || undefined,
       companyPhone: (userProfile as any)?.companyPhone || undefined,
-      companyTaxId: (userProfile as any)?.taxId || undefined,
+      companyTaxId: (userProfile as any)?.taxId || (invoice as { gstin?: string | null }).gstin || undefined,
       // Payment details
       bankName: paymentDetails.bankName || undefined,
       accountName: paymentDetails.accountName || undefined,

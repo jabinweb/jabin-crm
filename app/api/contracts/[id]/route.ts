@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { validateRequest } from '@/lib/validations/server';
-import { updateServiceContract } from '@/lib/crm/service-contract-service';
-import { prisma } from '@/lib/prisma';
+import { getServiceContract, updateServiceContract } from '@/lib/crm/service-contract-service';
 
 const patchSchema = z.object({
   title: z.string().min(2).optional(),
@@ -23,19 +22,7 @@ const patchSchema = z.object({
 
 export const GET = withTenantRoute(async (_req, { companyId }, routeContext) => {
   const id = (await routeContext!.params).id;
-  const contract = await prisma.serviceContract.findFirst({
-    where: { id, companyId },
-    include: {
-      customer: { select: { id: true, organizationName: true, city: true } },
-      equipment: {
-        select: {
-          id: true,
-          serialNumber: true,
-          product: { select: { name: true, modelNumber: true } },
-        },
-      },
-    },
-  });
+  const contract = await getServiceContract(companyId, id);
   if (!contract) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }

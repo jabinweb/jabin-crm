@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { TicketPhotoEvidence } from '@/components/tickets/ticket-photo-evidence';
 import {
     Card,
     CardContent,
@@ -181,12 +182,17 @@ export default function TicketDetailPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status }),
             });
-            if (!response.ok) throw new Error('Failed to update status');
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(
+                    typeof body.error === 'string' ? body.error : 'Failed to update status'
+                );
+            }
             toast.success(`Status updated to ${status}`);
             queryClient.invalidateQueries({ queryKey: ['ticket', id] });
             setShowStatusDialog(false);
         } catch (error) {
-            toast.error('Failed to update status');
+            toast.error(error instanceof Error ? error.message : 'Failed to update status');
         } finally {
             setIsUpdatingStatus(false);
         }
@@ -539,6 +545,8 @@ export default function TicketDetailPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <TicketPhotoEvidence ticketId={String(id)} />
 
                     <Card>
                         <CardHeader className="pb-3">

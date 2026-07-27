@@ -32,11 +32,15 @@ export class ServiceReportService {
             },
         });
 
-        // 1. Update ticket status to RESOLVED automatically when a report is filed
-        await prisma.supportTicket.update({
-            where: { id: data.ticketId },
-            data: { status: 'RESOLVED' },
-        });
+        // Resolve ticket via updateStatus so visit limits / photo evidence apply
+        const { ticketService } = await import('@/lib/crm/ticket-service');
+        try {
+            await ticketService.updateStatus(data.ticketId, 'RESOLVED', data.technicianId);
+        } catch (err) {
+            // Roll back report if resolve blocked
+            await prisma.serviceReport.delete({ where: { id: report.id } }).catch(() => null);
+            throw err;
+        }
 
         // 2. Log activity on the ticket
         await prisma.ticketActivity.create({

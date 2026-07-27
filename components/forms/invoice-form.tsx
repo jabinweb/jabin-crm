@@ -26,6 +26,7 @@ interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  hsnSac?: string;
 }
 
 interface InvoiceFormData {
@@ -41,6 +42,9 @@ interface InvoiceFormData {
   currency: string;
   terms: string;
   notes: string;
+  gstin: string;
+  placeOfSupply: string;
+  gstTaxType: '' | 'CGST_SGST' | 'IGST';
   bankName: string;
   accountName: string;
   accountNumber: string;
@@ -78,6 +82,9 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     currency: '',
     terms: 'Payment is due within 30 days',
     notes: '',
+    gstin: '',
+    placeOfSupply: '',
+    gstTaxType: '',
     bankName: '',
     accountName: '',
     accountNumber: '',
@@ -91,7 +98,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   const [items, setItems] = useState<InvoiceItem[]>(
     initialItems && initialItems.length > 0
       ? initialItems
-      : [{ name: '', description: '', quantity: 1, unitPrice: 0, amount: 0 }]
+      : [{ name: '', description: '', quantity: 1, unitPrice: 0, amount: 0, hsnSac: '' }]
   );
 
   const { data: leads } = useQuery({
@@ -242,7 +249,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   };
 
   const addItem = () => {
-    setItems([...items, { name: '', description: '', quantity: 1, unitPrice: 0, amount: 0 }]);
+    setItems([...items, { name: '', description: '', quantity: 1, unitPrice: 0, amount: 0, hsnSac: '' }]);
   };
 
   const removeItem = (index: number) => {
@@ -306,6 +313,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   const handleSaveDraft = () => {
     const invoiceData = {
       ...formData,
+      gstTaxType: formData.gstTaxType || null,
       status: 'DRAFT',
       items: items.filter((item) => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),
@@ -326,6 +334,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   const handleSaveAndSend = async () => {
     const invoiceData = {
       ...formData,
+      gstTaxType: formData.gstTaxType || null,
       status: 'DRAFT',
       items: items.filter((item) => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),
@@ -575,6 +584,15 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                       />
                     </div>
 
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>HSN / SAC</Label>
+                      <Input
+                        value={item.hsnSac || ''}
+                        onChange={(e) => handleItemChange(index, 'hsnSac', e.target.value)}
+                        placeholder="e.g. 998314"
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       <Label>Quantity *</Label>
                       <Input
@@ -758,6 +776,45 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                     value={formData.taxRate.toFixed(2)}
                     onChange={(e) => handleChange('taxRate', parseFloat(e.target.value) || 0)}
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gstin">GSTIN</Label>
+                  <Input
+                    id="gstin"
+                    value={formData.gstin}
+                    onChange={(e) => handleChange('gstin', e.target.value)}
+                    placeholder="22AAAAA0000A1Z5"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="placeOfSupply">Place of supply</Label>
+                  <Input
+                    id="placeOfSupply"
+                    value={formData.placeOfSupply}
+                    onChange={(e) => handleChange('placeOfSupply', e.target.value)}
+                    placeholder="e.g. Maharashtra"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>GST tax type</Label>
+                  <Select
+                    value={formData.gstTaxType || 'none'}
+                    onValueChange={(v) =>
+                      handleChange('gstTaxType', v === 'none' ? '' : v)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="None" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="CGST_SGST">CGST + SGST</SelectItem>
+                      <SelectItem value="IGST">IGST</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="flex justify-between text-sm">

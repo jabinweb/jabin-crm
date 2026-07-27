@@ -46,6 +46,7 @@ export default function NewTicketPage() {
         customerId: initialCustomerId,
         ticketType: '',
         equipmentId: '',
+        serviceContractId: '',
         subject: '',
         description: '',
         priority: 'MEDIUM',
@@ -100,6 +101,46 @@ export default function NewTicketPage() {
         enabled: !!formData.customerId,
     });
 
+    const { data: contractSuggest } = useQuery({
+        queryKey: ['contracts-suggest', slug, formData.customerId, formData.equipmentId],
+        queryFn: async () => {
+            const params = new URLSearchParams({ customerId: formData.customerId });
+            if (formData.equipmentId) params.set('equipmentId', formData.equipmentId);
+            const res = await workspaceFetch(`/api/contracts/suggest?${params}`);
+            if (!res.ok) return { contracts: [] };
+            return res.json() as Promise<{
+                contracts: Array<{
+                    id: string;
+                    title: string;
+                    type: string;
+                    visitLimit: number | null;
+                    visitsUsed: number;
+                    remaining: number | null;
+                    overLimit: boolean;
+                }>;
+            }>;
+        },
+        enabled: !!formData.customerId && !!slug,
+    });
+
+    const suggestedContracts = contractSuggest?.contracts ?? [];
+
+    useEffect(() => {
+        const list = contractSuggest?.contracts;
+        if (!list?.length) {
+            setFormData((prev) =>
+                prev.serviceContractId ? { ...prev, serviceContractId: '' } : prev
+            );
+            return;
+        }
+        setFormData((prev) => {
+            if (prev.serviceContractId && list.some((c) => c.id === prev.serviceContractId)) {
+                return prev;
+            }
+            return { ...prev, serviceContractId: list[0].id };
+        });
+    }, [contractSuggest?.contracts]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.customerId || !formData.ticketType || !formData.subject || !formData.description) {
@@ -115,6 +156,7 @@ export default function NewTicketPage() {
                 body: JSON.stringify({
                     ...formData,
                     equipmentId: selectedType?.showEquipment ? formData.equipmentId : undefined,
+                    serviceContractId: formData.serviceContractId || null,
                 }),
             });
 
@@ -128,7 +170,7 @@ export default function NewTicketPage() {
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
             router.push(path(`/dashboard/tickets/${ticket.id}`));
         } catch (error) {
-            toast.error('Failed to create ticket');
+            toast.error(error instanceof Error ? error.message : 'Failed to create ticket');
         } finally {
             setIsSubmitting(false);
         }
@@ -228,7 +270,14 @@ export default function NewTicketPage() {
                                     <Label>Client / site</Label>
                                     <Select
                                         value={formData.customerId}
-                                        onValueChange={(val) => setFormData({ ...formData, customerId: val, equipmentId: '' })}
+                                        onValueChange={(val) =>
+                                            setFormData({
+                                                ...formData,
+                                                customerId: val,
+                                                equipmentId: '',
+                                                serviceContractId: '',
+                                            })
+                                        }
                                     >
                                         <SelectTrigger className="w-full">
                                             <SelectValue placeholder={isLoadingCustomers ? "Loading clients..." : "Select client"} />
@@ -248,7 +297,9 @@ export default function NewTicketPage() {
                                     <Label>Equipment (Optional)</Label>
                                     <Select
                                         value={formData.equipmentId}
-                                        onValueChange={(val) => setFormData({ ...formData, equipmentId: val })}
+                                        onValueChange={(val) =>
+                                            setFormData({ ...formData, equipmentId: val, serviceContractId: '' })
+                                        }
                                         disabled={!formData.customerId || isLoadingEquipment}
                                     >
                                         <SelectTrigger className="w-full">
@@ -267,13 +318,48 @@ export default function NewTicketPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    {formData.customerId && !isLoadingEquipment && selectedCustomer?.equipmentInstallations?.length === 0 && (
+                                </div>
+                                ) : null}
+
+                                {formData.customerId && suggestedContracts.length > 0 ? (
+                                <div className="space-y-2">
+                                    <Label>Link to contract</Label>
+                                    <Select
+                                        value={formData.serviceContractId || 'none'}
+                                        onValueChange={(val) =>
+                                            setFormData({
+                                                ...formData,
+                                                serviceContractId: val === 'none' ? '' : val,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Select contract" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">No contract</SelectItem>
+                                            {suggestedContracts.map((c) => (
+                                                <SelectItem key={c.id} value={c.id}>
+                                                    {c.type}: {c.title}
+                                                    {c.visitLimit != null
+                                                        ? ` (${c.visitsUsed}/${c.visitLimit} visits)`
+                                                        : ''}
+                                                    {c.overLimit ? ' — over limit' : ''}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                ) : null}
+
+                                {selectedType?.showEquipment &&
+                                    formData.customerId &&
+                                    !isLoadingEquipment &&
+                                    selectedCustomer?.equipmentInstallations?.length === 0 && (
                                         <p className="text-[10px] text-muted-foreground italic mt-1">
                                             No equipment records found for this client.
                                         </p>
                                     )}
-                                </div>
-                                ) : null}
 
                                 {selectedType?.fields.map((field) => (
                                     <div key={field.id} className="space-y-2">
