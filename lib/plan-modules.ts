@@ -68,7 +68,8 @@ export function parsePlanModules(
   planName: string,
   modulesJson: unknown
 ): PlanModuleMap {
-  const defaults = DEFAULT_PLAN_MODULES[planName] ?? DEFAULT_PLAN_MODULES.free;
+  const normalized = planName.trim().toLowerCase();
+  const defaults = DEFAULT_PLAN_MODULES[normalized] ?? DEFAULT_PLAN_MODULES.free;
   const map = baseMap(defaults);
 
   if (modulesJson && typeof modulesJson === 'object' && !Array.isArray(modulesJson)) {

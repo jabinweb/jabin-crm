@@ -57,7 +57,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import type { WorkspaceFeatureKey } from '@/lib/workspace-templates';
-import { fetchFeatureModules } from '@/components/feature-module-guard';
+import { fetchFeatureModules, didFeatureModulesFetchFail } from '@/components/feature-module-guard';
 
 interface NavigationItem {
   name: string;
@@ -123,7 +123,6 @@ const salesNav: NavigationItem[] = [
   { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: CalendarIcon, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   {
     name: 'More sales',
     href: '/dashboard/analytics',
@@ -139,6 +138,7 @@ const salesNav: NavigationItem[] = [
 
 const supportNav: NavigationItem[] = [
   { name: 'Tickets', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', terminologyKey: 'tickets' },
+  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
   { name: 'Contracts', href: '/dashboard/contracts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', workspaceFeature: 'warranties' },
   { name: 'Service reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_REPORTS', workspaceFeature: 'serviceHistory' },
   { name: 'My tickets', href: '/portal/tickets', icon: List, roles: ['CUSTOMER'] },
@@ -256,7 +256,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-  const [moduleMap, setModuleMap] = useState<Record<string, boolean>>({});
+  const [moduleMap, setModuleMap] = useState<Record<string, boolean> | null>(null);
   const { data: workspaceData } = useWorkspaceConfig();
   const workspaceFeatures = workspaceData?.config.features;
   const terminology = workspaceData?.config.terminology;
@@ -334,10 +334,16 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     let cancelled = false;
     fetchFeatureModules()
       .then((modules) => {
-        if (!cancelled) setModuleMap(modules);
+        if (cancelled) return;
+        // Empty map after a failed fetch would hide WhatsApp/Leads/etc — keep open instead.
+        if (didFeatureModulesFetchFail()) {
+          setModuleMap(null);
+          return;
+        }
+        setModuleMap(modules);
       })
       .catch(() => {
-        if (!cancelled) setModuleMap({});
+        if (!cancelled) setModuleMap(null);
       });
     return () => {
       cancelled = true;
@@ -385,6 +391,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const renderNavGroup = (items: NavigationItem[], title?: string) => {
     const moduleAllowedFor = (item: NavigationItem) => {
       if (!item.module) return true;
+      // While entitlements load, keep items visible (avoids WhatsApp/etc vanishing).
+      if (moduleMap === null) return true;
       if (moduleMap[item.module] === true) return true;
       if (
         item.waiveInventoryModuleWhenNoStock &&

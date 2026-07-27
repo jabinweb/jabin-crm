@@ -12,9 +12,13 @@ let cachedModules: ModuleMap | null = null;
 let fetchFailed = false;
 let cachePromise: Promise<ModuleMap> | null = null;
 
+export function didFeatureModulesFetchFail() {
+  return fetchFailed;
+}
+
 /** Shared module map fetch — one in-flight request for sidebar + guards. */
 export async function fetchFeatureModules(): Promise<ModuleMap> {
-  if (cachedModules !== null) return cachedModules;
+  if (cachedModules !== null && !fetchFailed) return cachedModules;
   if (!cachePromise) {
     cachePromise = (async () => {
       const controller = new AbortController();
@@ -23,17 +27,18 @@ export async function fetchFeatureModules(): Promise<ModuleMap> {
         const res = await fetch('/api/features/me', { signal: controller.signal });
         if (!res.ok) {
           fetchFailed = true;
-          cachedModules = {};
-          return cachedModules;
+          cachedModules = null;
+          return {};
         }
         const data = await res.json();
         fetchFailed = false;
-        cachedModules = data.modules ?? {};
+        // Support both flat and `{ data: { modules } }` response shapes.
+        cachedModules = data.modules ?? data.data?.modules ?? {};
         return cachedModules!;
       } catch {
         fetchFailed = true;
-        cachedModules = {};
-        return cachedModules;
+        cachedModules = null;
+        return {};
       } finally {
         clearTimeout(timer);
         cachePromise = null;
@@ -44,9 +49,11 @@ export async function fetchFeatureModules(): Promise<ModuleMap> {
 }
 
 export function useFeatureModule(module: FeatureModuleKey) {
-  const [enabled, setEnabled] = useState<boolean | null>(() =>
-    cachedModules !== null ? cachedModules[module] === true || fetchFailed : null
-  );
+  const [enabled, setEnabled] = useState<boolean | null>(() => {
+    if (fetchFailed) return true;
+    if (cachedModules !== null) return cachedModules[module] === true;
+    return null;
+  });
 
   useEffect(() => {
     let cancelled = false;
