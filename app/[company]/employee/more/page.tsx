@@ -72,6 +72,18 @@ export default function EmployeeMorePage() {
       icon: FileText,
     },
     {
+      href: employeePath('/employee/performance'),
+      label: 'Performance',
+      hint: 'Goals & reviews',
+      icon: Activity,
+    },
+    {
+      href: employeePath('/employee/travel'),
+      label: 'Travel requests',
+      hint: 'Business travel & expenses',
+      icon: ClipboardList,
+    },
+    {
       href: employeePath('/employee/exit'),
       label: 'Exit request',
       hint: 'Resignation & clearance',

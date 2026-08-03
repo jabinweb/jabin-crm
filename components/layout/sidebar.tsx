@@ -314,6 +314,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       { name: 'Leave policies', href: '/dashboard/leave-policies', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Letters', href: '/dashboard/letters', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Performance', href: '/dashboard/performance', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Timesheets', href: '/dashboard/timesheets', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Travel', href: '/dashboard/travel', icon: MapPin, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'HR analytics', href: '/dashboard/hr/analytics', icon: Activity, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'HR tickets', href: '/dashboard/hr-tickets', icon: MessageSquare, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Policies', href: '/dashboard/hr-policies', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
