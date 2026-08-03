@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -40,8 +40,10 @@ interface SequenceStats {
   };
 }
 
-export default function SequenceDetailsPage({ params }: { params: { id: string } }) {
+export default function SequenceDetailsPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const sequenceId = routeParams.id;
   const { path } = useWorkspacePaths();
   const [stats, setStats] = useState<SequenceStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,13 +52,14 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
   const [availableLeads, setAvailableLeads] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!sequenceId) return;
     fetchStats();
     fetchAvailableLeads();
-  }, [params.id]);
+  }, [sequenceId]);
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`/api/sequences/${params.id}/stats`);
+      const res = await fetch(`/api/sequences/${sequenceId}/stats`);
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -84,7 +87,7 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
     if (!stats) return;
 
     try {
-      const res = await fetch(`/api/sequences/${params.id}`, {
+      const res = await fetch(`/api/sequences/${sequenceId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isActive: !stats.isActive }),
@@ -100,7 +103,7 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
 
   const enrollLeads = async () => {
     try {
-      const res = await fetch(`/api/sequences/${params.id}/enroll`, {
+      const res = await fetch(`/api/sequences/${sequenceId}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ leadIds: selectedLeads }),
@@ -169,7 +172,7 @@ export default function SequenceDetailsPage({ params }: { params: { id: string }
               onClick={async () => {
                 if (!confirm(`Delete sequence "${stats.name}"?`)) return;
                 try {
-                  const res = await fetch(`/api/sequences/${params.id}`, {
+                  const res = await fetch(`/api/sequences/${sequenceId}`, {
                     method: 'DELETE',
                   });
                   if (!res.ok) {

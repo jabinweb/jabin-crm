@@ -49,6 +49,7 @@ import {
   Landmark,
   LayoutGrid,
   ArrowLeftRight,
+  Briefcase,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -295,10 +296,29 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     if (!companySlug || !['ADMIN', 'SUPER_ADMIN'].includes(userRole)) return [];
     return [
       { name: 'Employees', href: '/dashboard/employees', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Directory', href: '/dashboard/directory', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Org chart', href: '/dashboard/org-chart', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Departments', href: '/dashboard/departments', icon: Building2, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Designations', href: '/dashboard/designations', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Branches', href: '/dashboard/branches', icon: MapPin, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Attendance', href: '/dashboard/attendance', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Shifts', href: '/dashboard/shifts', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Regularization', href: '/dashboard/attendance-corrections', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Onboarding', href: '/dashboard/onboarding-hr', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Exit', href: '/dashboard/exit', icon: User, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Recruitment', href: '/dashboard/recruitment', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Approve staff', href: '/dashboard/approve-employees', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Payroll', href: '/dashboard/payroll', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Compliance', href: '/dashboard/payroll/compliance', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Leave requests', href: '/dashboard/leave-requests', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Leave policies', href: '/dashboard/leave-policies', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Letters', href: '/dashboard/letters', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Performance', href: '/dashboard/performance', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'HR analytics', href: '/dashboard/hr/analytics', icon: Activity, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'HR tickets', href: '/dashboard/hr-tickets', icon: MessageSquare, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Policies', href: '/dashboard/hr-policies', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Claims', href: '/dashboard/hr-claims', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
+      { name: 'Holidays', href: '/dashboard/holidays', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Announcements', href: '/dashboard/announcements', icon: MessageSquare, roles: ['ADMIN', 'SUPER_ADMIN'] },
     ];
   }, [companySlug, userRole]);

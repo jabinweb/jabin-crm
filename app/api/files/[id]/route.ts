@@ -8,8 +8,8 @@ export const DELETE = withAuthorization(
         const auditLogger = new AuditLogger();
 
         try {
-            const params = await routeContext?.params;
-            if (!params) {
+            const params = await routeContext.params;
+            if (!params?.id) {
                 return NextResponse.json(
                     { error: 'Invalid request' },
                     { status: 400 }
@@ -71,8 +71,8 @@ export const DELETE = withAuthorization(
 export const GET = withAuthorization(
     async (req: NextRequest, context, routeContext) => {
         try {
-            const params = await routeContext?.params;
-            if (!params) {
+            const params = await routeContext.params;
+            if (!params?.id) {
                 return NextResponse.json(
                     { error: 'Invalid request' },
                     { status: 400 }

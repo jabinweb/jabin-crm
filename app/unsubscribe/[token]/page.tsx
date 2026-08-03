@@ -1,24 +1,25 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
-export default function UnsubscribePage({ params }: { params: { token: string } }) {
-  const router = useRouter();
+export default function UnsubscribePage() {
+  const params = useParams<{ token: string }>();
+  const token = params.token;
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
-  useState(() => {
-    // Fetch email from token
-    fetch(`/api/unsubscribe/${params.token}`)
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/unsubscribe/${token}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.email) {
@@ -31,14 +32,14 @@ export default function UnsubscribePage({ params }: { params: { token: string } 
         }
       })
       .catch(() => setError('Invalid unsubscribe link'));
-  });
+  }, [token]);
 
   const handleUnsubscribe = async () => {
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch(`/api/unsubscribe/${params.token}`, {
+      const res = await fetch(`/api/unsubscribe/${token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason }),
@@ -49,8 +50,8 @@ export default function UnsubscribePage({ params }: { params: { token: string } 
       if (!res.ok) throw new Error(data.error);
 
       setSubmitted(true);
-    } catch (err: any) {
-      setError(err.message || 'Failed to unsubscribe');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to unsubscribe');
     } finally {
       setLoading(false);
     }

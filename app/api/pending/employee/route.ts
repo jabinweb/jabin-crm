@@ -108,6 +108,15 @@ export async function PATCH(request: NextRequest): Promise<Response> {
       },
     })
 
+    if (action === 'approve') {
+      try {
+        const { startOnboardingForEmployee } = await import('@/lib/hr/onboarding')
+        await startOnboardingForEmployee(result.id, result.companyId)
+      } catch (e) {
+        console.warn('[approve employee] onboarding', e)
+      }
+    }
+
     return json(result)
   } catch (error) {
     if (error instanceof TenantError) {

@@ -34,6 +34,7 @@ import { toast } from '@/hooks/use-toast'
 import { SalaryForm } from '@/components/employee/payroll/salary-form'
 import { EmployeeData, EmploymentType, EmployeeStatus } from '@/types/employee'
 import { DetailSkeleton } from '@/components/loading'
+import { EmployeeDigitalFile } from '@/components/hr/employee-digital-file'
 
 type AddressShape = {
   street?: string
@@ -46,6 +47,132 @@ type AddressShape = {
 function asAddress(value: unknown): AddressShape | null {
   if (!value || typeof value !== 'object') return null
   return value as AddressShape
+}
+
+function CustomFieldsEditor({
+  employeeId,
+  initial,
+  headers,
+  onSaved,
+}: {
+  employeeId: string
+  initial?: Record<string, string> | null
+  headers: HeadersInit
+  onSaved: (fields: Record<string, string>) => void
+}) {
+  const [text, setText] = useState(
+    JSON.stringify(initial && typeof initial === 'object' ? initial : {}, null, 2)
+  )
+  return (
+    <div className="space-y-2">
+      <textarea
+        className="w-full min-h-[120px] rounded-md border bg-background p-2 font-mono text-xs"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <Button
+        size="sm"
+        onClick={async () => {
+          try {
+            const customFields = JSON.parse(text) as Record<string, string>
+            const res = await fetch(`/api/employees/${employeeId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', ...headers },
+              body: JSON.stringify({ customFields }),
+            })
+            if (!res.ok) throw new Error('Failed')
+            onSaved(customFields)
+            toast({ title: 'Custom fields saved' })
+          } catch {
+            toast({ variant: 'destructive', title: 'Invalid JSON' })
+          }
+        }}
+      >
+        Save fields
+      </Button>
+    </div>
+  )
+}
+
+function StatutoryEditor({
+  employeeId,
+  headers,
+}: {
+  employeeId: string
+  headers: HeadersInit
+}) {
+  const [pan, setPan] = useState('')
+  const [uan, setUan] = useState('')
+  const [pfNumber, setPfNumber] = useState('')
+  const [esiNumber, setEsiNumber] = useState('')
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/hr/statutory?employeeId=${employeeId}`, { headers })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) {
+          if (!cancelled) setLoaded(true)
+          return
+        }
+        setPan(d.pan || '')
+        setUan(d.uan || '')
+        setPfNumber(d.pfNumber || '')
+        setEsiNumber(d.esiNumber || '')
+        setLoaded(true)
+      })
+      .catch(() => setLoaded(true))
+    return () => {
+      cancelled = true
+    }
+  }, [employeeId, headers])
+
+  if (!loaded) return <p className="text-sm text-muted-foreground">Loading…</p>
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <input
+        className="rounded-md border bg-background px-3 py-2 text-sm"
+        placeholder="PAN"
+        value={pan}
+        onChange={(e) => setPan(e.target.value)}
+      />
+      <input
+        className="rounded-md border bg-background px-3 py-2 text-sm"
+        placeholder="UAN"
+        value={uan}
+        onChange={(e) => setUan(e.target.value)}
+      />
+      <input
+        className="rounded-md border bg-background px-3 py-2 text-sm"
+        placeholder="PF number"
+        value={pfNumber}
+        onChange={(e) => setPfNumber(e.target.value)}
+      />
+      <input
+        className="rounded-md border bg-background px-3 py-2 text-sm"
+        placeholder="ESI number"
+        value={esiNumber}
+        onChange={(e) => setEsiNumber(e.target.value)}
+      />
+      <Button
+        size="sm"
+        className="sm:col-span-2"
+        onClick={async () => {
+          const res = await fetch('/api/hr/statutory', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            body: JSON.stringify({ employeeId, pan, uan, pfNumber, esiNumber }),
+          })
+          if (!res.ok) toast({ variant: 'destructive', title: 'Failed to save statutory' })
+          else toast({ title: 'Statutory profile saved' })
+        }}
+      >
+        Save statutory
+      </Button>
+    </div>
+  )
 }
 
 export default function EmployeePage() {
@@ -190,7 +317,13 @@ export default function EmployeePage() {
             </Button>
             <EditEmployeeDialog
               employee={employee}
-              onUpdate={(updatedEmployee) => setEmployee(updatedEmployee)}
+              onUpdate={(updatedEmployee) =>
+                setEmployee((prev) =>
+                  prev
+                    ? ({ ...prev, ...updatedEmployee } as EmployeeData)
+                    : (updatedEmployee as unknown as EmployeeData)
+                )
+              }
             />
           </div>
         </div>
@@ -285,6 +418,25 @@ export default function EmployeePage() {
                 </div>
               </div>
             </div>
+          </Card>
+
+          <EmployeeDigitalFile employeeId={id} companySlug={companySlug} />
+
+          <Card className="p-6 space-y-4">
+            <h2 className="text-lg font-semibold">Custom fields</h2>
+            <CustomFieldsEditor
+              employeeId={id}
+              initial={(employee as { customFields?: Record<string, string> | null }).customFields}
+              headers={tenantHeaders}
+              onSaved={(fields) =>
+                setEmployee((prev) => (prev ? { ...prev, customFields: fields } as EmployeeData : prev))
+              }
+            />
+          </Card>
+
+          <Card className="p-6 space-y-4">
+            <h2 className="text-lg font-semibold">India statutory</h2>
+            <StatutoryEditor employeeId={id} headers={tenantHeaders} />
           </Card>
 
           <SalaryForm employeeId={id} initialData={employee.salary} />

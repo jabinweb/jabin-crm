@@ -23,6 +23,9 @@ export interface EmployeeData {
   salary?: SalaryStructure;
   avatar?: string | null;
   managerId?: string;  // Changed from number to string
+  departmentId?: string | null;
+  designationId?: string | null;
+  branchId?: string | null;
 }
 
 export interface EmployeeRegistrationData {

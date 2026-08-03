@@ -22,6 +22,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
         ? body.equipmentInstallationId.trim()
         : null;
   }
+  if (body.assignedToEmployeeId !== undefined) {
+    data.assignedToEmployeeId =
+      typeof body.assignedToEmployeeId === 'string' && body.assignedToEmployeeId.trim()
+        ? body.assignedToEmployeeId.trim()
+        : null;
+  }
 
   const updated = await prisma.asset.updateMany({
     where: { id, companyId },

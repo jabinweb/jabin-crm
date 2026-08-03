@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,12 +15,18 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 import { workspaceSlugHeaders } from "@/lib/api/workspace-slug";
-import AddressForm from "@/components/ui/address"; // Import AddressForm component
+import AddressForm from "@/components/ui/address";
 
-// Define the form schema
 const employeeFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
@@ -33,18 +40,25 @@ const employeeFormSchema = z.object({
   }),
   jobTitle: z.string().min(2, "Job title must be at least 2 characters"),
   department: z.string().min(2, "Department must be at least 2 characters"),
+  departmentId: z.string().optional(),
+  designationId: z.string().optional(),
+  branchId: z.string().optional(),
+  managerId: z.string().optional(),
   dateJoined: z.string().min(1, "Date joined is required"),
 });
 
-// Infer the type from the schema
 type EmployeeFormData = z.infer<typeof employeeFormSchema>;
+type OrgOption = { id: string; name: string };
 
 export default function NewEmployeePage() {
   const router = useRouter();
   const params = useParams<{ company: string }>();
   const { path, slug } = useWorkspacePaths();
+  const [departments, setDepartments] = useState<OrgOption[]>([]);
+  const [designations, setDesignations] = useState<OrgOption[]>([]);
+  const [branches, setBranches] = useState<OrgOption[]>([]);
+  const [managers, setManagers] = useState<OrgOption[]>([]);
 
-  // Initialize the form
   const form = useForm({
     resolver: zodResolver(employeeFormSchema),
     defaultValues: {
@@ -59,12 +73,36 @@ export default function NewEmployeePage() {
         country: "",
       },
       jobTitle: "",
-      department: "",
+      department: "General",
+      departmentId: "",
+      designationId: "",
+      branchId: "",
+      managerId: "",
       dateJoined: "",
     },
   });
 
-  // Handle form submission
+  useEffect(() => {
+    const headers = workspaceSlugHeaders(slug ?? params.company);
+    void Promise.all([
+      fetch("/api/hr/departments").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/hr/designations").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/hr/branches").then((r) => (r.ok ? r.json() : [])),
+      fetch("/api/employees", { headers }).then((r) => (r.ok ? r.json() : [])),
+    ]).then(([deps, desigs, brs, emps]) => {
+      setDepartments(deps);
+      setDesignations(desigs);
+      setBranches(brs);
+      const list = Array.isArray(emps) ? emps : emps?.data || [];
+      setManagers(
+        list.map((e: { id: string; name: string }) => ({
+          id: e.id,
+          name: e.name,
+        }))
+      );
+    });
+  }, [slug, params.company]);
+
   const onSubmit = async (data: EmployeeFormData) => {
     try {
       const response = await fetch("/api/employees", {
@@ -75,12 +113,16 @@ export default function NewEmployeePage() {
         },
         body: JSON.stringify({
           ...data,
-          dateJoined: new Date(data.dateJoined).toISOString(), // Convert date to ISO string
+          departmentId: data.departmentId || null,
+          designationId: data.designationId || null,
+          branchId: data.branchId || null,
+          managerId: data.managerId || null,
+          dateJoined: new Date(data.dateJoined).toISOString(),
         }),
       });
-  
+
       const result = await response.json();
-  
+
       if (response.ok) {
         toast({
           title: "Success",
@@ -88,15 +130,13 @@ export default function NewEmployeePage() {
         });
         router.push(path("/dashboard/employees"));
       } else {
-        // Handle API errors
         toast({
           title: "Error",
           description: result.error || "Failed to add employee.",
           variant: "destructive",
         });
       }
-    } catch (error) {
-      // Handle network or unexpected errors
+    } catch {
       toast({
         title: "Error",
         description: "An error occurred while adding the employee.",
@@ -104,7 +144,6 @@ export default function NewEmployeePage() {
       });
     }
   };
-  
 
   return (
     <div className="space-y-6">
@@ -150,10 +189,10 @@ export default function NewEmployeePage() {
               </FormItem>
             )}
           />
-         <FormField
+          <FormField
             control={form.control}
             name="address"
-            render={({ field }) => (
+            render={() => (
               <FormItem>
                 <FormLabel>Address</FormLabel>
                 <FormControl>
@@ -161,6 +200,128 @@ export default function NewEmployeePage() {
                     <AddressForm />
                   </div>
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="departmentId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Department</FormLabel>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => {
+                    const id = v === "none" ? "" : v;
+                    field.onChange(id);
+                    const name = departments.find((d) => d.id === id)?.name;
+                    if (name) form.setValue("department", name);
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="designationId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Designation</FormLabel>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => {
+                    const id = v === "none" ? "" : v;
+                    field.onChange(id);
+                    const name = designations.find((d) => d.id === id)?.name;
+                    if (name) form.setValue("jobTitle", name);
+                  }}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select designation" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {designations.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="branchId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Branch</FormLabel>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select branch" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {branches.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="managerId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Manager</FormLabel>
+                <Select
+                  value={field.value || "none"}
+                  onValueChange={(v) => field.onChange(v === "none" ? "" : v)}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select manager" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {managers.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -183,7 +344,7 @@ export default function NewEmployeePage() {
             name="department"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Department</FormLabel>
+                <FormLabel>Department (text fallback)</FormLabel>
                 <FormControl>
                   <Input placeholder="Enter employee department" {...field} />
                 </FormControl>

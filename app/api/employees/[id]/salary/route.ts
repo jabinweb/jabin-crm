@@ -93,6 +93,15 @@ export async function POST(
       },
     })
 
+    const { logEmployeeActivity } = await import('@/lib/hr/activity')
+    await logEmployeeActivity({
+      employeeId,
+      actorId: session.user.employeeId,
+      type: 'SALARY_UPDATE',
+      message: 'Salary structure updated',
+      meta: { salaryId: salary.id },
+    })
+
     return new Response(JSON.stringify(salary), {
       headers: { 'Content-Type': 'application/json' },
     })

@@ -6,7 +6,11 @@ import {
   evaluateGeoFence,
   getFieldOpsSettings,
 } from '@/lib/crm/field-ops';
-
+import {
+  evaluateCheckOut,
+  getActiveShiftForEmployee,
+} from '@/lib/hr/shift-attendance';
+import { attendanceDateOnly, grantCompOff } from '@/lib/hr/leave-year';
 function mergeAttendanceMetadata(
   existing: Prisma.JsonValue | null | undefined,
   patch: Prisma.InputJsonObject
@@ -39,14 +43,13 @@ export async function POST(req: NextRequest) {
     };
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const date = attendanceDateOnly(now);
 
-    const attendance = await prisma.attendance.findFirst({
+    const attendance = await prisma.attendance.findUnique({
       where: {
-        employeeId: session.user.employeeId,
-        createdAt: {
-          gte: today,
-          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        employeeId_date: {
+          employeeId: session.user.employeeId,
+          date,
         },
       },
     });
@@ -94,9 +97,11 @@ export async function POST(req: NextRequest) {
     }
 
     const checkInTime = new Date(attendance.checkIn);
-    const overtimeMinutes = Math.max(
-      0,
-      Math.floor((now.getTime() - checkInTime.getTime()) / (1000 * 60) - 480)
+    const shift = await getActiveShiftForEmployee(session.user.employeeId, now);
+    const { overtimeMinutes, earlyDeparture } = evaluateCheckOut(
+      checkInTime,
+      now,
+      shift
     );
 
     const updated = await prisma.attendance.update({
@@ -104,9 +109,12 @@ export async function POST(req: NextRequest) {
       data: {
         checkOut: now,
         overtime: overtimeMinutes,
+        earlyDeparture,
         metadata: mergeAttendanceMetadata(attendance.metadata, {
           checkOutNotes: notes || 'Checked out',
           checkOutAt: now.toISOString(),
+          earlyDeparture,
+          ...(shift && { shiftEnd: shift.endTime, shiftId: shift.id }),
           ...(typeof latitude === 'number' &&
             typeof longitude === 'number' && {
               checkOutLat: latitude,
@@ -120,11 +128,21 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (overtimeMinutes >= 240 && employee?.companyId) {
+      try {
+        await grantCompOff(session.user.employeeId, employee.companyId, 0.5)
+      } catch (e) {
+        console.warn('[check-out] comp-off grant failed', e)
+      }
+    }
+
     return new Response(
       JSON.stringify({
         ...updated,
         outsideGeofence,
         distanceMeters,
+        earlyDeparture,
+        overtimeMinutes,
       }),
       { headers: { 'Content-Type': 'application/json' } }
     );

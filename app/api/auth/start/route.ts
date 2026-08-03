@@ -38,7 +38,7 @@ const RESERVED = new Set([
   'opslane',
 ])
 
-export function normalizeWorkspaceSlug(raw: string) {
+function normalizeWorkspaceSlug(raw: string) {
   return raw
     .trim()
     .toLowerCase()

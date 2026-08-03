@@ -1,30 +1,20 @@
 'use client'
 
-import { useSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PayslipCard } from "@/components/employee/payroll/payslip-card"
+import { useSession } from 'next-auth/react'
+import { PayslipCard } from '@/components/employee/payroll/payslip-card'
 
 export default function PayslipsPage() {
   const { data: session } = useSession()
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">My Payslips</h1>
-      
-      <div className="grid gap-6">
-        <PayslipCard employeeId={session?.user?.employeeId || ''} />
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Add payment history details */}
-            </div>
-          </CardContent>
-        </Card>
+    <div className="mx-auto max-w-lg space-y-4 px-1 pb-4 lg:max-w-2xl lg:px-0">
+      <div>
+        <h1 className="text-xl font-semibold lg:text-2xl">Payslips</h1>
+        <p className="text-sm text-muted-foreground">
+          View and download your salary statements
+        </p>
       </div>
+      <PayslipCard employeeId={session?.user?.employeeId || ''} />
     </div>
   )
 }

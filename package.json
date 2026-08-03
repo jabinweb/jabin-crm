@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" NEXT_PRIVATE_DISABLE_TURBOPACK=1 next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build --webpack",
     "db:generate": "prisma generate",
     "db:seed": "prisma db seed",
     "db:sync-pricing": "tsx scripts/sync-plan-pricing.ts",

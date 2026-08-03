@@ -3,9 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 
-export const GET = withTenantRoute(async (_request, { companyId }) => {
+export const GET = withTenantRoute(async (request, { companyId }) => {
+  const employeeId = new URL(request.url).searchParams.get('employeeId')
   const assets = await prisma.asset.findMany({
-    where: { companyId },
+    where: {
+      companyId,
+      ...(employeeId ? { assignedToEmployeeId: employeeId } : {}),
+    },
     include: {
       equipmentInstallation: {
         select: {
@@ -15,6 +19,7 @@ export const GET = withTenantRoute(async (_request, { companyId }) => {
           customer: { select: { organizationName: true } },
         },
       },
+      assignedToEmployee: { select: { id: true, name: true, employeeId: true } },
     },
     orderBy: { purchaseDate: 'desc' },
   });
@@ -51,6 +56,11 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       ? body.equipmentInstallationId.trim()
       : null;
 
+  const assignedToEmployeeId =
+    typeof body.assignedToEmployeeId === 'string' && body.assignedToEmployeeId.trim()
+      ? body.assignedToEmployeeId.trim()
+      : null;
+
   const asset = await prisma.asset.create({
     data: {
       name,
@@ -60,6 +70,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       purchaseDate,
       companyId,
       equipmentInstallationId,
+      assignedToEmployeeId,
     },
     include: {
       equipmentInstallation: {

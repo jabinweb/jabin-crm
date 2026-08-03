@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { useSession } from "next-auth/react"
-import { toast } from "@/hooks/use-toast"
-import { DateRangePicker } from "@/components/dashboard/date-range-picker"
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { toast } from '@/hooks/use-toast'
+import { LeaveBalance } from '@/components/employee/leave/leave-balance'
+import { format } from 'date-fns'
+import { CalendarDays } from 'lucide-react'
 
 interface LeaveRequest {
   id: string
@@ -17,158 +18,168 @@ interface LeaveRequest {
   type: string
   reason: string
   status: string
+  days?: number
   createdAt: string
+  policy?: { name: string; code: string } | null
+}
+
+interface Holiday {
+  id: string
+  name: string
+  date: string
+  type: string
 }
 
 export default function LeavePage() {
-  const { data: session } = useSession()
-  const [requests, setRequests] = useState<LeaveRequest[]>([])
-  const [startDate, setStartDate] = useState<Date>()
-  const [endDate, setEndDate] = useState<Date>()
-  const [reason, setReason] = useState("")
-  const [loading, setLoading] = useState(false)
+  const queryClient = useQueryClient()
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchLeaveRequests()
-  }, [])
+  const { data: requests = [], isLoading } = useQuery({
+    queryKey: ['employee-leave-requests'],
+    queryFn: async () => {
+      const res = await fetch('/api/employee/leave')
+      if (!res.ok) throw new Error('Failed to fetch requests')
+      return (await res.json()) as LeaveRequest[]
+    },
+  })
 
-  const fetchLeaveRequests = async () => {
+  const { data: holidays = [] } = useQuery({
+    queryKey: ['employee-holidays'],
+    queryFn: async () => {
+      const res = await fetch('/api/employee/holidays?upcoming=1')
+      if (!res.ok) return []
+      return (await res.json()) as Holiday[]
+    },
+  })
+
+  const cancelRequest = async (id: string) => {
+    setCancellingId(id)
     try {
-      const response = await fetch('/api/employee/leave-requests')
-      if (!response.ok) throw new Error('Failed to fetch requests')
-      const data = await response.json()
-      setRequests(data)
+      const res = await fetch('/api/employee/leave', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, action: 'CANCEL' }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Cancel failed')
+      }
+      toast({ title: 'Leave cancelled' })
+      void queryClient.invalidateQueries({ queryKey: ['employee-leave-requests'] })
+      void queryClient.invalidateQueries({ queryKey: ['leave-balances'] })
+      void queryClient.invalidateQueries({ queryKey: ['ess-leave-balances'] })
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Could not load leave requests",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!startDate || !endDate || !reason) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setLoading(true)
-    try {
-      const response = await fetch('/api/employee/leave-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate,
-          endDate,
-          reason,
-          type: 'ANNUAL'
-        })
-      })
-
-      if (!response.ok) throw new Error()
-
-      toast({
-        title: "Success",
-        description: "Leave request submitted successfully",
-      })
-      setStartDate(undefined)
-      setEndDate(undefined)
-      setReason("")
-      fetchLeaveRequests()
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to submit leave request",
-        variant: "destructive",
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Could not cancel',
+        variant: 'destructive',
       })
     } finally {
-      setLoading(false)
+      setCancellingId(null)
     }
   }
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      {/* <h1 className="text-3xl font-bold mb-6">Leave Management</h1> */}
-      
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="lg:sticky lg:top-6">
-          <CardHeader>
-            <CardTitle>Create Leave Request</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <DateRangePicker
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={setStartDate}
-                onEndDateChange={setEndDate}
-              />
+    <div className="mx-auto max-w-lg space-y-5 px-1 pb-4 lg:max-w-5xl lg:px-0">
+      <div>
+        <h1 className="text-xl font-semibold lg:text-2xl">Leave</h1>
+        <p className="text-sm text-muted-foreground">
+          Balances, requests, and upcoming holidays
+        </p>
+      </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Reason for Leave</label>
-                <Textarea
-                  placeholder="Please describe your reason for requesting leave..."
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="min-h-[100px]"
-                />
-              </div>
-
-              <Button type="submit" disabled={loading} className="w-full">
-                {loading ? "Submitting..." : "Submit Leave Request"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <LeaveBalance />
 
         <Card>
-          <CardHeader>
-            <CardTitle>Leave Request History</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarDays className="h-4 w-4" />
+              Upcoming holidays
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[380px] pr-4">
-              <div className="space-y-4">
-                {requests.map((request) => (
-                  <div key={request.id} className="p-4 border rounded-lg space-y-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-medium">
-                          {new Date(request.startDate).toLocaleDateString()} - {' '}
-                          {new Date(request.endDate).toLocaleDateString()}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{request.reason}</p>
-                      </div>
-                      <Badge
-                        variant={
-                          request.status === 'APPROVED' ? 'default' :
-                          request.status === 'REJECTED' ? 'destructive' :
-                          'secondary'
-                        }
-                      >
-                        {request.status}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Requested on: {new Date(request.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-                {requests.length === 0 && (
-                  <p className="text-center text-muted-foreground">
-                    No leave requests found
-                  </p>
-                )}
+          <CardContent className="space-y-2">
+            {holidays.length === 0 && (
+              <p className="text-sm text-muted-foreground">No upcoming holidays</p>
+            )}
+            {holidays.slice(0, 6).map((h) => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between rounded-lg border px-3 py-2"
+              >
+                <span className="text-sm font-medium">{h.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(h.date), 'd MMM yyyy')}
+                </span>
               </div>
-            </ScrollArea>
+            ))}
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">My requests</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[360px] pr-2">
+            <div className="space-y-3">
+              {isLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {!isLoading && requests.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-8">
+                  No leave requests yet
+                </p>
+              )}
+              {requests.map((request) => (
+                <div
+                  key={request.id}
+                  className="space-y-2 rounded-xl border p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-sm">
+                        {format(new Date(request.startDate), 'd MMM')} –{' '}
+                        {format(new Date(request.endDate), 'd MMM yyyy')}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {request.policy?.name || request.type}
+                        {request.days ? ` · ${request.days} day(s)` : ''}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {request.reason}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={
+                        request.status === 'APPROVED'
+                          ? 'default'
+                          : request.status === 'REJECTED'
+                            ? 'destructive'
+                            : 'secondary'
+                      }
+                    >
+                      {request.status}
+                    </Badge>
+                  </div>
+                  {request.status === 'PENDING' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      disabled={cancellingId === request.id}
+                      onClick={() => cancelRequest(request.id)}
+                    >
+                      {cancellingId === request.id ? 'Cancelling…' : 'Cancel request'}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   )
 }

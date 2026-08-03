@@ -229,10 +229,10 @@ interface AuthorizationOptions {
 }
 
 export function withAuthorization(
-    handler: (req: NextRequest, context: { user: AuthenticatedUser; checker: PermissionChecker }, routeContext?: { params: Promise<Record<string, string>> }) => Promise<NextResponse>,
+    handler: (req: NextRequest, context: { user: AuthenticatedUser; checker: PermissionChecker }, routeContext: { params: Promise<Record<string, string>> }) => Promise<NextResponse>,
     options: AuthorizationOptions = {}
 ) {
-    return async (req: NextRequest, routeContext?: { params: Promise<Record<string, string>> }): Promise<NextResponse> => {
+    return async (req: NextRequest, routeContext: { params: Promise<Record<string, string>> }): Promise<NextResponse> => {
         const auditLogger = new AuditLogger();
 
         try {
@@ -265,7 +265,7 @@ export function withAuthorization(
                 if (!hasPermission) {
                     // Check resource ownership if allowed
                     if (options.allowResourceOwner && options.resource && options.resourceIdParam) {
-                        const params = routeContext?.params ? await routeContext.params : {};
+                        const params = await routeContext.params;
                         const resourceId = params[options.resourceIdParam];
 
                         if (resourceId) {

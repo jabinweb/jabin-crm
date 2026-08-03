@@ -1,4 +1,3 @@
-import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
@@ -8,6 +7,8 @@ import {
   resolveCompanyContextFromRequest,
   TenantError,
 } from '@/lib/auth/company-membership'
+import { resolveOrgLabels } from '@/lib/hr/employee-id'
+import { logEmployeeActivity } from '@/lib/hr/activity'
 
 export async function GET(
   request: NextRequest,
@@ -22,13 +23,19 @@ export async function GET(
 
     const employee = await prisma.employee.findUnique({
       where: { id },
+      include: {
+        hrDepartment: { select: { id: true, name: true } },
+        designation: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true } },
+        manager: { select: { id: true, name: true } },
+      },
     });
 
     if (!employee) {
       return NextResponse.json({ error: "Employee not found" }, { status: 404 });
     }
 
-    const role = (session.user as any).role as string
+    const role = (session.user as { role?: string }).role as string
     if (role === 'SUPER_ADMIN' && !request.headers.get(WORKSPACE_SLUG_HEADER)?.trim()) {
       return NextResponse.json(employee);
     }
@@ -68,13 +75,20 @@ export async function PATCH(
     }
 
     const id = (await params).id
-    const role = (session.user as any).role as string
+    const role = (session.user as { role?: string }).role as string
     const hasWorkspace = request.headers.get(WORKSPACE_SLUG_HEADER)?.trim()
+
+    const existing = await prisma.employee.findUnique({ where: { id } })
+    if (!existing) {
+      return new Response(JSON.stringify({ error: 'Not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
 
     if (role !== 'SUPER_ADMIN' || hasWorkspace) {
       const { companyId } = await resolveCompanyContextFromRequest(session, request)
-      const existing = await prisma.employee.findFirst({ where: { id, companyId } })
-      if (!existing) {
+      if (existing.companyId !== companyId) {
         return new Response(JSON.stringify({ error: 'Not found' }), {
           status: 404,
           headers: { 'Content-Type': 'application/json' }
@@ -83,14 +97,38 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const labels = await resolveOrgLabels({
+      departmentId: body.departmentId !== undefined ? body.departmentId : existing.departmentId,
+      designationId: body.designationId !== undefined ? body.designationId : existing.designationId,
+      department: body.department,
+      jobTitle: body.jobTitle,
+    })
 
     const employee = await prisma.employee.update({
       where: { id },
-      data: body,
+      data: {
+        ...body,
+        ...(labels.department ? { department: labels.department } : {}),
+        ...(labels.jobTitle ? { jobTitle: labels.jobTitle } : {}),
+      },
       include: {
-        user: true
+        user: true,
+        hrDepartment: { select: { id: true, name: true } },
+        designation: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true } },
+        manager: { select: { id: true, name: true } },
       }
     })
+
+    if (body.status && body.status !== existing.status) {
+      await logEmployeeActivity({
+        employeeId: id,
+        actorId: session.user.employeeId,
+        type: 'STATUS_CHANGE',
+        message: `Status changed to ${body.status}`,
+        meta: { from: existing.status, to: body.status },
+      })
+    }
 
     return new Response(JSON.stringify(employee), {
       status: 200,

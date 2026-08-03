@@ -7,6 +7,11 @@ import {
   evaluateGeoFence,
   getFieldOpsSettings,
 } from '@/lib/crm/field-ops';
+import {
+  evaluateCheckInStatus,
+  getActiveShiftForEmployee,
+} from '@/lib/hr/shift-attendance';
+import { attendanceDateOnly } from '@/lib/hr/leave-year';
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,13 +32,13 @@ export async function POST(req: NextRequest) {
       accuracy?: number;
     };
     const now = new Date();
+    const date = attendanceDateOnly(now);
 
-    const existingAttendance = await prisma.attendance.findFirst({
+    const existingAttendance = await prisma.attendance.findUnique({
       where: {
-        employeeId: session.user.employeeId,
-        createdAt: {
-          gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()),
-          lt: new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1),
+        employeeId_date: {
+          employeeId: session.user.employeeId,
+          date,
         },
       },
     });
@@ -73,10 +78,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const shift = await getActiveShiftForEmployee(session.user.employeeId, now);
+    const status = evaluateCheckInStatus(now, shift);
+    let lateMinutes = 0;
+    if (shift && status === AttendanceStatus.LATE) {
+      const [h, m] = shift.startTime.split(':').map((x) => parseInt(x, 10));
+      const startMins = (h || 0) * 60 + (m || 0);
+      const actual = now.getHours() * 60 + now.getMinutes();
+      lateMinutes = Math.max(0, actual - startMins - shift.graceMinutes);
+    }
+
     const meta: Prisma.InputJsonObject = {
       ...(location != null && { location }),
       ...(notes != null && { notes }),
       punchedAt: now.toISOString(),
+      ...(shift && {
+        shiftId: shift.id,
+        shiftName: shift.name,
+        shiftStart: shift.startTime,
+      }),
+      ...(status === AttendanceStatus.LATE && { late: true, lateMinutes }),
       ...(typeof latitude === 'number' &&
         typeof longitude === 'number' && {
           lat: latitude,
@@ -92,16 +113,19 @@ export async function POST(req: NextRequest) {
       ? await prisma.attendance.update({
           where: { id: existingAttendance.id },
           data: {
-            status: AttendanceStatus.PRESENT,
+            status,
             checkIn: now,
+            lateMinutes,
             metadata: meta,
           },
         })
       : await prisma.attendance.create({
           data: {
             employeeId: session.user.employeeId,
-            status: AttendanceStatus.PRESENT,
+            date,
+            status,
             checkIn: now,
+            lateMinutes,
             metadata: meta,
           },
         });
@@ -111,6 +135,10 @@ export async function POST(req: NextRequest) {
         ...attendance,
         outsideGeofence,
         distanceMeters,
+        late: status === AttendanceStatus.LATE,
+        shift: shift
+          ? { id: shift.id, name: shift.name, startTime: shift.startTime }
+          : null,
       }),
       { headers: { 'Content-Type': 'application/json' } }
     );

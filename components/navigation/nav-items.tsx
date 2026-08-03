@@ -49,19 +49,19 @@ export const NAV_ITEMS: NavItems = {
   EMPLOYEE: [
     {
       href: '/employee/dashboard',
-      title: 'Dashboard',
+      title: 'Home',
       icon: <Home className="mr-2 h-4 w-4" />
     },
-    {
-      href: '/employee/profile',
-      title: 'Profile',
-      icon: <User className="mr-2 h-4 w-4" />
-    },
-    // HRMS items below have no `module` key — always visible; not subscription-gated.
+    // ESS tabs — always visible; not subscription-gated.
     {
       href: '/employee/attendance',
       title: 'Attendance',
       icon: <Clock className="mr-2 h-4 w-4" />
+    },
+    {
+      href: '/employee/leave',
+      title: 'Leave',
+      icon: <Calendar className="mr-2 h-4 w-4" />
     },
     {
       href: '/employee/payslips',
@@ -69,9 +69,14 @@ export const NAV_ITEMS: NavItems = {
       icon: <Wallet className="mr-2 h-4 w-4" />
     },
     {
-      href: '/employee/leave',
-      title: 'Leave',
-      icon: <Calendar className="mr-2 h-4 w-4" />
+      href: '/employee/more',
+      title: 'More',
+      icon: <User className="mr-2 h-4 w-4" />
+    },
+    {
+      href: '/employee/profile',
+      title: 'Profile',
+      icon: <User className="mr-2 h-4 w-4" />
     },
     {
       href: "/employee/leads",

@@ -25,7 +25,7 @@ export type ApiRouteContext = {
 type Handler = (
   request: NextRequest,
   ctx: ApiRouteContext,
-  routeContext?: RouteContext
+  routeContext: RouteContext
 ) => Promise<Response | NextResponse>;
 
 /**
@@ -40,7 +40,7 @@ export function withApiRoute(options: {
 }) {
   const authMode = options.auth ?? 'session';
 
-  return async (request: NextRequest, routeContext?: RouteContext): Promise<Response> => {
+  return async (request: NextRequest, routeContext: RouteContext): Promise<Response> => {
     try {
       let session: Session | null = null;
       let companyId: string | undefined;
@@ -109,10 +109,10 @@ export function withStaffRoute(
   handler: (
     request: NextRequest,
     ctx: StaffRouteContext,
-    routeContext?: RouteContext
+    routeContext: RouteContext
   ) => Promise<Response | NextResponse>
 ) {
-  return async (request: NextRequest, routeContext?: RouteContext): Promise<Response> => {
+  return async (request: NextRequest, routeContext: RouteContext): Promise<Response> => {
     try {
       const session = await auth();
       if (!session?.user?.id) throw ApiErrors.unauthorized();
@@ -142,7 +142,7 @@ export const withTenantRoute = (
   handler: (
     request: NextRequest,
     ctx: ApiRouteContext & { companyId: string },
-    routeContext?: RouteContext
+    routeContext: RouteContext
   ) => Promise<Response | NextResponse>
 ) =>
   withApiRoute({
@@ -155,6 +155,6 @@ export const withSessionRoute = (
   handler: (
     request: NextRequest,
     ctx: ApiRouteContext,
-    routeContext?: RouteContext
+    routeContext: RouteContext
   ) => Promise<Response | NextResponse>
 ) => withApiRoute({ auth: 'session', handler });

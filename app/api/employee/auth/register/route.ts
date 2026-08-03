@@ -13,6 +13,7 @@ import {
   CompanyRole,
 } from '@prisma/client'
 import type { PrismaClient } from '@prisma/client'
+import { nextEmployeeCode } from '@/lib/hr/employee-id'
 
 type EmployeeRegisterTx = Pick<PrismaClient, 'employee' | 'user'>
 
@@ -60,12 +61,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email already registered' }, { status: 400 })
     }
 
+    const sequentialId = await nextEmployeeCode(company.id)
+
     const result = await prisma.$transaction(async (tx: EmployeeRegisterTx) => {
       // Create employee with required fields
       const employee = await tx.employee.create({
         data: {
           id: randomUUID(),
-          employeeId: `EMP${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+          employeeId: sequentialId,
           name: validatedData.name,
           email: validatedData.email.toLowerCase(),
           phone: '', // Required field, set empty initially
