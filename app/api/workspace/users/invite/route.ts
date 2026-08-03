@@ -109,6 +109,12 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     },
   });
 
+  const { ensureRbacCatalog, syncUserRoleAssignment } = await import(
+    '@/lib/auth/rbac-catalog'
+  );
+  await ensureRbacCatalog();
+  await syncUserRoleAssignment(user.id, role);
+
   return jsonOk(
     {
       success: true,

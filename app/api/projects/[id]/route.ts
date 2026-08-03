@@ -35,6 +35,16 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     const d = new Date(body.endDate);
     if (!Number.isNaN(d.getTime())) data.endDate = d;
   }
+  if (body.customerId !== undefined) {
+    data.customerId =
+      typeof body.customerId === 'string' && body.customerId.trim()
+        ? body.customerId.trim()
+        : null;
+  }
+  if (body.dealId !== undefined) {
+    data.dealId =
+      typeof body.dealId === 'string' && body.dealId.trim() ? body.dealId.trim() : null;
+  }
 
   const existing = await prisma.project.findFirst({ where: { id, companyId } });
   if (!existing) {
@@ -44,6 +54,10 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   const project = await prisma.project.update({
     where: { id },
     data: data as Prisma.ProjectUpdateInput,
+    include: {
+      customer: { select: { id: true, organizationName: true } },
+      deal: { select: { id: true, title: true } },
+    },
   });
 
   return jsonOk(project);

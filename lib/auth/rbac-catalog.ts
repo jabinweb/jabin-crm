@@ -43,6 +43,18 @@ const ROLE_PERMISSIONS: Record<string, PermissionName[]> = {
   CUSTOMER: ['tickets:read', 'tickets:write'],
 };
 
+/** Read-only matrix for admin UI (does not include SUPER_ADMIN in tenant views). */
+export const TENANT_ROLE_PERMISSIONS: Record<string, PermissionName[]> = {
+  ADMIN: ROLE_PERMISSIONS.ADMIN,
+  SUPPORT_MANAGER: ROLE_PERMISSIONS.SUPPORT_MANAGER,
+  SALES: ROLE_PERMISSIONS.SALES,
+  TECHNICIAN: ROLE_PERMISSIONS.TECHNICIAN,
+};
+
+export function getPermissionsForRole(roleName: string): PermissionName[] {
+  return ROLE_PERMISSIONS[roleName] ? [...ROLE_PERMISSIONS[roleName]] : [];
+}
+
 /** Ensure Role / Permission rows exist and map UserRole enums → RBAC. */
 export async function ensureRbacCatalog() {
   for (const name of PERMISSIONS) {

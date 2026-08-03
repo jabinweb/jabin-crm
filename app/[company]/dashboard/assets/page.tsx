@@ -28,6 +28,13 @@ type Asset = {
   value: number;
   purchaseDate: string;
   depreciation: number;
+  equipmentInstallationId?: string | null;
+  equipmentInstallation?: {
+    id: string;
+    serialNumber: string | null;
+    product?: { name: string } | null;
+    customer?: { organizationName: string } | null;
+  } | null;
 };
 
 function toDateInput(value?: string | null) {
@@ -43,6 +50,7 @@ export default function AssetsPage() {
   const [value, setValue] = useState('');
   const [depreciation, setDepreciation] = useState('0');
   const [purchaseDate, setPurchaseDate] = useState('');
+  const [equipmentInstallationId, setEquipmentInstallationId] = useState('');
   const [editing, setEditing] = useState<Asset | null>(null);
 
   const { data: assets = [], isLoading } = useQuery({
@@ -55,12 +63,28 @@ export default function AssetsPage() {
     enabled: !!slug,
   });
 
+  const { data: fleet = [] } = useQuery({
+    queryKey: ['asset-fleet', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/inventory/installations');
+      if (!res.ok) return [];
+      return (await res.json()) as Array<{
+        id: string;
+        serialNumber: string | null;
+        product: { name: string };
+        customer: { organizationName: string };
+      }>;
+    },
+    enabled: !!slug,
+  });
+
   const resetForm = () => {
     setName('');
     setType('');
     setValue('');
     setDepreciation('0');
     setPurchaseDate('');
+    setEquipmentInstallationId('');
     setEditing(null);
   };
 
@@ -72,6 +96,7 @@ export default function AssetsPage() {
         value: Number(value),
         depreciation: Number(depreciation || 0),
         purchaseDate: purchaseDate || undefined,
+        equipmentInstallationId: equipmentInstallationId || null,
       };
       if (editing) {
         const res = await workspaceFetch(`/api/assets/${editing.id}`, {
@@ -127,6 +152,9 @@ export default function AssetsPage() {
     setValue(String(a.value));
     setDepreciation(String(a.depreciation ?? 0));
     setPurchaseDate(toDateInput(a.purchaseDate));
+    setEquipmentInstallationId(
+      a.equipmentInstallationId || a.equipmentInstallation?.id || ''
+    );
   };
 
   return (
@@ -134,7 +162,13 @@ export default function AssetsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Assets</h1>
-          <p className="text-sm text-muted-foreground">Company fixed assets and depreciation.</p>
+          <p className="text-sm text-muted-foreground">
+            Internal fixed-asset register. Installed customer equipment lives on{' '}
+            <Link href={path('/dashboard/equipment')} className="text-primary underline">
+              Fleet
+            </Link>
+            .
+          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
@@ -187,6 +221,23 @@ export default function AssetsPage() {
               onChange={(e) => setPurchaseDate(e.target.value)}
             />
           </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Linked fleet unit (optional)</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={equipmentInstallationId}
+              onChange={(e) => setEquipmentInstallationId(e.target.value)}
+            >
+              <option value="">None</option>
+              {fleet.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {[u.product?.name, u.serialNumber, u.customer?.organizationName]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-wrap items-end gap-2">
             <Button
               disabled={!name.trim() || !type.trim() || !value || saveMutation.isPending}
@@ -223,6 +274,7 @@ export default function AssetsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Type</TableHead>
+                  <TableHead>Fleet unit</TableHead>
                   <TableHead className="text-right">Value</TableHead>
                   <TableHead className="text-right">Depreciation</TableHead>
                   <TableHead>Purchased</TableHead>
@@ -234,6 +286,16 @@ export default function AssetsPage() {
                   <TableRow key={a.id}>
                     <TableCell className="font-medium">{a.name}</TableCell>
                     <TableCell>{a.type}</TableCell>
+                    <TableCell>
+                      {a.equipmentInstallation
+                        ? [
+                            a.equipmentInstallation.product?.name,
+                            a.equipmentInstallation.serialNumber,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : '—'}
+                    </TableCell>
                     <TableCell className="text-right">{a.value.toLocaleString()}</TableCell>
                     <TableCell className="text-right">{a.depreciation.toLocaleString()}</TableCell>
                     <TableCell>{new Date(a.purchaseDate).toLocaleDateString()}</TableCell>

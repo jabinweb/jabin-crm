@@ -130,6 +130,75 @@ export class ProductService {
             orderBy: { installationDate: 'desc' },
         });
     }
+
+    /**
+     * Company-wide installed equipment fleet (serial / AMC board).
+     */
+    async getCompanyEquipment(
+        companyId: string,
+        filters?: {
+            status?: string;
+            warrantyExpiringDays?: number;
+            hasContract?: boolean;
+        }
+    ) {
+        const now = new Date();
+        const warrantyBefore =
+            typeof filters?.warrantyExpiringDays === 'number'
+                ? new Date(now.getTime() + filters.warrantyExpiringDays * 24 * 60 * 60 * 1000)
+                : undefined;
+
+        return prisma.equipmentInstallation.findMany({
+            where: {
+                customer: { companyId },
+                ...(filters?.status ? { status: filters.status as any } : {}),
+                ...(warrantyBefore
+                    ? {
+                          warrantyExpiry: {
+                              not: null,
+                              lte: warrantyBefore,
+                              gte: now,
+                          },
+                      }
+                    : {}),
+                ...(filters?.hasContract === true
+                    ? { serviceContracts: { some: { status: 'ACTIVE' } } }
+                    : filters?.hasContract === false
+                      ? { serviceContracts: { none: { status: 'ACTIVE' } } }
+                      : {}),
+            },
+            include: {
+                product: {
+                    select: {
+                        id: true,
+                        name: true,
+                        modelNumber: true,
+                        sku: true,
+                    },
+                },
+                customer: {
+                    select: {
+                        id: true,
+                        organizationName: true,
+                        city: true,
+                    },
+                },
+                serviceContracts: {
+                    where: { status: 'ACTIVE' },
+                    select: {
+                        id: true,
+                        type: true,
+                        title: true,
+                        endDate: true,
+                        contractNumber: true,
+                    },
+                    orderBy: { endDate: 'asc' },
+                    take: 3,
+                },
+            },
+            orderBy: { installationDate: 'desc' },
+        });
+    }
 }
 
 export const productService = new ProductService();

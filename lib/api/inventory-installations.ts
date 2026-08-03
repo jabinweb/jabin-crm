@@ -3,15 +3,35 @@ import { productService, type CreateInstallationData } from '@/lib/crm/product-s
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import type { Session } from 'next-auth';
 
-export async function listCustomerInstallations(request: NextRequest) {
+export async function listCustomerInstallations(
+  request: NextRequest,
+  companyId?: string
+) {
   const { searchParams } = new URL(request.url);
   const customerId = searchParams.get('customerId');
+  const status = searchParams.get('status') || undefined;
+  const warrantyExpiring = searchParams.get('warrantyExpiring');
+  const hasContract = searchParams.get('hasContract');
 
-  if (!customerId) {
-    return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
+  if (customerId) {
+    const installations = await productService.getCustomerEquipment(customerId);
+    return NextResponse.json(installations);
   }
 
-  const installations = await productService.getCustomerEquipment(customerId);
+  if (!companyId) {
+    return NextResponse.json({ error: 'Customer ID or company context is required' }, { status: 400 });
+  }
+
+  const installations = await productService.getCompanyEquipment(companyId, {
+    status,
+    warrantyExpiringDays: warrantyExpiring ? Number(warrantyExpiring) : undefined,
+    hasContract:
+      hasContract === '1' || hasContract === 'true'
+        ? true
+        : hasContract === '0' || hasContract === 'false'
+          ? false
+          : undefined,
+  });
   return NextResponse.json(installations);
 }
 

@@ -88,6 +88,18 @@ function ServiceEventCard({ report }: { report: any }) {
                             </span>
                         )}
                     </div>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                        <Button variant="outline" size="sm" asChild>
+                            <a href={`/api/portal/service-history/${report.id}`} target="_blank" rel="noreferrer">
+                                Download PDF
+                            </a>
+                        </Button>
+                        {report.signedAt ? (
+                            <Badge variant="secondary">Signed {new Date(report.signedAt).toLocaleDateString()}</Badge>
+                        ) : (
+                            <Badge variant="outline">Awaiting sign-off</Badge>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
         </div>

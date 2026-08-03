@@ -58,6 +58,7 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AITicketSummary } from '@/components/tickets/AITicketSummary';
+import { SignaturePad } from '@/components/service/signature-pad';
 import { useFeatureModule } from '@/components/feature-module-guard';
 import { DetailSkeleton } from '@/components/loading';
 
@@ -82,7 +83,12 @@ export default function TicketDetailPage() {
         serviceNotes: '',
         partsReplaced: '',
         nextMaintenanceDate: '',
+        customerSignerName: '',
+        signatureDataUrl: '',
     });
+    const [partLines, setPartLines] = useState<Array<{ productId: string; quantity: number }>>([
+        { productId: '', quantity: 1 },
+    ]);
 
     // Transfer Dialog
     const [showTransferDialog, setShowTransferDialog] = useState(false);
@@ -205,17 +211,40 @@ export default function TicketDetailPage() {
         }
         setIsSubmittingReport(true);
         try {
+            const parts = partLines
+                .filter((l) => l.productId && l.quantity > 0)
+                .map((l) => ({ productId: l.productId, quantity: Number(l.quantity) }));
+
             const response = await workspaceFetch('/api/service-reports', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...reportData, ticketId: id }),
+                body: JSON.stringify({
+                    ticketId: id,
+                    serviceNotes: reportData.serviceNotes,
+                    partsReplaced: reportData.partsReplaced || undefined,
+                    nextMaintenanceDate: reportData.nextMaintenanceDate || undefined,
+                    parts,
+                    customerSignerName: reportData.customerSignerName || undefined,
+                    signatureDataUrl: reportData.signatureDataUrl || undefined,
+                }),
             });
-            if (!response.ok) throw new Error('Failed to submit report');
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(typeof body.error === 'string' ? body.error : 'Failed to submit report');
+            }
             toast.success('Service report filed. Ticket resolved.');
             queryClient.invalidateQueries({ queryKey: ['ticket', id] });
             setShowReportDialog(false);
+            setPartLines([{ productId: '', quantity: 1 }]);
+            setReportData({
+                serviceNotes: '',
+                partsReplaced: '',
+                nextMaintenanceDate: '',
+                customerSignerName: '',
+                signatureDataUrl: '',
+            });
         } catch (error) {
-            toast.error('Failed to submit service report');
+            toast.error(error instanceof Error ? error.message : 'Failed to submit service report');
         } finally {
             setIsSubmittingReport(false);
         }
@@ -228,6 +257,19 @@ export default function TicketDetailPage() {
             if (!response.ok) return [];
             return response.json();
         }
+    });
+
+    const { data: consumableProducts = [] } = useQuery({
+        queryKey: ['consumable-products'],
+        enabled: showReportDialog,
+        queryFn: async () => {
+            const response = await workspaceFetch('/api/products');
+            if (!response.ok) return [];
+            const products = await response.json();
+            const list = Array.isArray(products) ? products : products?.data || products?.products || [];
+            return (list as Array<{ id: string; name: string; quantity: number; type?: string; sku?: string }>);
+        },
+        staleTime: 30_000,
     });
 
     const handleTransfer = async () => {
@@ -592,7 +634,7 @@ export default function TicketDetailPage() {
             {/* Service Report Dialog */}
             <Dialog open={showReportDialog} onOpenChange={setShowReportDialog}>
                 {/* ... existing content ... */}
-                <DialogContent className="sm:max-w-[550px]">
+                <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Complete Service & File Report</DialogTitle>
                         <DialogDescription>Document the work performed. Saving this will mark the ticket as RESOLVED.</DialogDescription>
@@ -609,12 +651,73 @@ export default function TicketDetailPage() {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label htmlFor="parts">Parts Replaced / Used</Label>
+                            <Label>Parts used (stock OUT)</Label>
+                            <div className="space-y-2">
+                                {partLines.map((line, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center">
+                                        <select
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                            value={line.productId}
+                                            onChange={(e) => {
+                                                const next = [...partLines];
+                                                next[idx] = { ...next[idx], productId: e.target.value };
+                                                setPartLines(next);
+                                            }}
+                                        >
+                                            <option value="">Select product…</option>
+                                            {consumableProducts.map((p) => (
+                                                <option key={p.id} value={p.id}>
+                                                    {p.name} (qty {p.quantity}
+                                                    {p.sku ? ` · ${p.sku}` : ''})
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <Input
+                                            type="number"
+                                            min={1}
+                                            className="w-20"
+                                            value={line.quantity}
+                                            onChange={(e) => {
+                                                const next = [...partLines];
+                                                next[idx] = {
+                                                    ...next[idx],
+                                                    quantity: Math.max(1, Number(e.target.value) || 1),
+                                                };
+                                                setPartLines(next);
+                                            }}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() =>
+                                                setPartLines(partLines.filter((_, i) => i !== idx))
+                                            }
+                                            disabled={partLines.length <= 1}
+                                        >
+                                            Remove
+                                        </Button>
+                                    </div>
+                                ))}
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                        setPartLines([...partLines, { productId: '', quantity: 1 }])
+                                    }
+                                >
+                                    Add part line
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="parts">Parts notes (optional free text)</Label>
                             <Input
                                 id="parts"
                                 value={reportData.partsReplaced}
                                 onChange={(e) => setReportData({ ...reportData, partsReplaced: e.target.value })}
-                                placeholder="e.g. Main motherboard v2.1, 2x AA Batteries"
+                                placeholder="Extra notes if parts are not in catalogue"
                             />
                         </div>
                         <div className="grid gap-2">
@@ -624,6 +727,26 @@ export default function TicketDetailPage() {
                                 type="date"
                                 value={reportData.nextMaintenanceDate}
                                 onChange={(e) => setReportData({ ...reportData, nextMaintenanceDate: e.target.value })}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="signer">Customer signer name (optional)</Label>
+                            <Input
+                                id="signer"
+                                value={reportData.customerSignerName}
+                                onChange={(e) =>
+                                    setReportData({ ...reportData, customerSignerName: e.target.value })
+                                }
+                                placeholder="Name for sign-off"
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Customer signature (optional)</Label>
+                            <SignaturePad
+                                value={reportData.signatureDataUrl}
+                                onChange={(dataUrl) =>
+                                    setReportData({ ...reportData, signatureDataUrl: dataUrl })
+                                }
                             />
                         </div>
                     </div>

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, Users, Ticket, UserPlus, X } from 'lucide-react';
+import { CheckCircle2, Circle, Users, Ticket, UserPlus, X, Package, FileText, MessageSquare, Wrench } from 'lucide-react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 import { canManageCompanyOnboarding } from '@/lib/onboarding/company-onboarding';
@@ -72,6 +72,39 @@ export function GettingStartedChecklist() {
     enabled,
   });
 
+  const { data: productsData } = useQuery({
+    queryKey: ['getting-started-products', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/products');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.products ?? json.data ?? [];
+    },
+    enabled,
+  });
+
+  const { data: contractsData } = useQuery({
+    queryKey: ['getting-started-contracts', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/contracts?limit=1');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : json.contracts ?? [];
+    },
+    enabled,
+  });
+
+  const { data: fleetData } = useQuery({
+    queryKey: ['getting-started-fleet', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/inventory/installations');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return Array.isArray(json) ? json : [];
+    },
+    enabled,
+  });
+
   const dismiss = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/onboarding', {
@@ -102,6 +135,10 @@ export function GettingStartedChecklist() {
   // /api/employees excludes the current user — any row means a teammate exists
   const teammateCount = Array.isArray(employeesData) ? employeesData.length : 0;
 
+  const productCount = Array.isArray(productsData) ? productsData.length : 0;
+  const contractCount = Array.isArray(contractsData) ? contractsData.length : 0;
+  const fleetCount = Array.isArray(fleetData) ? fleetData.length : 0;
+
   const items: ChecklistItem[] = [
     {
       id: 'client',
@@ -111,11 +148,39 @@ export function GettingStartedChecklist() {
       icon: Users,
     },
     {
+      id: 'products',
+      label: 'Add products to your catalogue',
+      href: path('/dashboard/products'),
+      done: productCount > 0,
+      icon: Package,
+    },
+    {
+      id: 'fleet',
+      label: 'Register an installed unit',
+      href: path('/dashboard/inventory/new'),
+      done: fleetCount > 0,
+      icon: Wrench,
+    },
+    {
+      id: 'contract',
+      label: 'Create an AMC / CMC contract',
+      href: path('/dashboard/contracts'),
+      done: contractCount > 0,
+      icon: FileText,
+    },
+    {
       id: 'ticket',
       label: 'Create a service ticket',
       href: path('/dashboard/tickets/new'),
       done: ticketCount > 0,
       icon: Ticket,
+    },
+    {
+      id: 'whatsapp',
+      label: 'Configure WhatsApp',
+      href: path('/dashboard/whatsapp'),
+      done: false,
+      icon: MessageSquare,
     },
     {
       id: 'invite',
@@ -126,7 +191,9 @@ export function GettingStartedChecklist() {
     },
   ];
 
-  if (items.every((i) => i.done)) return null;
+  // Don't require WhatsApp done to hide checklist
+  const required = items.filter((i) => i.id !== 'whatsapp');
+  if (required.every((i) => i.done)) return null;
 
   const doneCount = items.filter((i) => i.done).length;
 

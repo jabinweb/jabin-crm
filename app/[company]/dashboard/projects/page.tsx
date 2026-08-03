@@ -36,6 +36,10 @@ type Project = {
   status: string;
   startDate: string;
   endDate: string;
+  customerId?: string | null;
+  dealId?: string | null;
+  customer?: { id: string; organizationName: string } | null;
+  deal?: { id: string; title: string } | null;
 };
 
 function toDateInput(value?: string | null) {
@@ -51,6 +55,8 @@ export default function ProjectsPage() {
   const [status, setStatus] = useState('ACTIVE');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [dealId, setDealId] = useState('');
   const [editing, setEditing] = useState<Project | null>(null);
 
   const { data: projects = [], isLoading } = useQuery({
@@ -63,12 +69,36 @@ export default function ProjectsPage() {
     enabled: !!slug,
   });
 
+  const { data: customers = [] } = useQuery({
+    queryKey: ['project-customers', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/customers?limit=100');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.customers || json || []) as Array<{ id: string; organizationName: string }>;
+    },
+    enabled: !!slug,
+  });
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ['project-deals', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/deals?limit=100');
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (Array.isArray(json) ? json : json.deals || []) as Array<{ id: string; title: string }>;
+    },
+    enabled: !!slug,
+  });
+
   const resetForm = () => {
     setName('');
     setDescription('');
     setStatus('ACTIVE');
     setStartDate('');
     setEndDate('');
+    setCustomerId('');
+    setDealId('');
     setEditing(null);
   };
 
@@ -80,6 +110,8 @@ export default function ProjectsPage() {
         status,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
+        customerId: customerId || null,
+        dealId: dealId || null,
       };
       if (editing) {
         const res = await workspaceFetch(`/api/projects/${editing.id}`, {
@@ -135,6 +167,8 @@ export default function ProjectsPage() {
     setStatus(p.status || 'ACTIVE');
     setStartDate(toDateInput(p.startDate));
     setEndDate(toDateInput(p.endDate));
+    setCustomerId(p.customerId || p.customer?.id || '');
+    setDealId(p.dealId || p.deal?.id || '');
   };
 
   return (
@@ -142,7 +176,9 @@ export default function ProjectsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">Track company projects and timelines.</p>
+          <p className="text-sm text-muted-foreground">
+            Track company projects linked to customers and deals.
+          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
@@ -202,6 +238,36 @@ export default function ProjectsPage() {
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
+          <div className="space-y-2">
+            <Label>Customer (optional)</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={customerId}
+              onChange={(e) => setCustomerId(e.target.value)}
+            >
+              <option value="">None</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.organizationName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Deal (optional)</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={dealId}
+              onChange={(e) => setDealId(e.target.value)}
+            >
+              <option value="">None</option>
+              {deals.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="sm:col-span-2 flex flex-wrap gap-2">
             <Button
               disabled={!name.trim() || saveMutation.isPending}
@@ -237,16 +303,20 @@ export default function ProjectsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Deal</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Start</TableHead>
                   <TableHead>End</TableHead>
                   <TableHead className="w-[140px]" />
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody>``
                 {projects.map((p) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell>{p.customer?.organizationName || '—'}</TableCell>
+                    <TableCell>{p.deal?.title || '—'}</TableCell>
                     <TableCell>{p.status}</TableCell>
                     <TableCell>{new Date(p.startDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(p.endDate).toLocaleDateString()}</TableCell>

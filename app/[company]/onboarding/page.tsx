@@ -56,6 +56,7 @@ export default function OnboardingPage() {
     chat: true,
     whatsApp: false,
   });
+  const [business, setBusiness] = useState({ gstin: '' });
   const [prefilled, setPrefilled] = useState(false);
 
   useEffect(() => {
@@ -168,7 +169,7 @@ export default function OnboardingPage() {
             {data.company?.name ?? 'Your business'}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Two quick steps — you can change everything later in Settings.
+            Two–three quick steps — you can change everything later in Settings.
           </p>
         </div>
 
@@ -260,6 +261,22 @@ export default function OnboardingPage() {
               </>
             )}
 
+            {step === 'business' && (
+              <>
+                <div className="space-y-2">
+                  <Label>GSTIN / Tax ID (optional)</Label>
+                  <Input
+                    placeholder="22AAAAA0000A1Z5"
+                    value={business.gstin}
+                    onChange={(e) => setBusiness({ gstin: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used on invoices. You can update this later under Personal CRM → Invoicing.
+                  </p>
+                </div>
+              </>
+            )}
+
             {step === 'complete' && (
               <div className="py-4 space-y-4">
                 <div className="flex justify-center">
@@ -285,6 +302,24 @@ export default function OnboardingPage() {
                       .filter(Boolean)
                       .join(', ') || 'None set'}
                   </li>
+                  {business.gstin ? (
+                    <li>
+                      <span className="text-foreground font-medium">GSTIN:</span>{' '}
+                      {business.gstin}
+                    </li>
+                  ) : null}
+                  {channels.whatsApp ? (
+                    <li className="text-xs">
+                      Next: connect WhatsApp under{' '}
+                      <Link
+                        href={`/${slug}/dashboard/whatsapp`}
+                        className="text-primary underline"
+                      >
+                        WhatsApp settings
+                      </Link>
+                      .
+                    </li>
+                  ) : null}
                 </ul>
               </div>
             )}
@@ -304,7 +339,7 @@ export default function OnboardingPage() {
                 Skip setup
               </Button>
               <div className="flex gap-2 justify-end">
-                {step === 'support' && (
+                {step !== 'welcome' && step !== 'complete' && (
                   <Button
                     variant="outline"
                     disabled={mutation.isPending}
@@ -333,6 +368,10 @@ export default function OnboardingPage() {
                       }
                       if (step === 'support') {
                         await saveStep('complete', { channels });
+                        return;
+                      }
+                      if (step === 'business') {
+                        await saveStep('complete', { gstin: business.gstin });
                       }
                     } catch {
                       /* toasted */

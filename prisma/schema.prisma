@@ -641,6 +641,7 @@ model Deal {
   invoices          Invoice[]
   quotations        Quotation[]
   tasks             Task[]
+  projects          Project[]
 
   @@index([userId])
   @@index([assignedToId])
@@ -957,6 +958,7 @@ model Customer {
   notifications          Notification[]
   whatsappMessages       WhatsAppMessage[]
   company                Company?                @relation(fields: [companyId], references: [id])
+  projects               Project[]
 
   @@index([organizationName])
   @@index([city])
@@ -1153,6 +1155,7 @@ model EquipmentInstallation {
   product             Product            @relation(fields: [productId], references: [id])
   tickets             SupportTicket[]
   serviceContracts    ServiceContract[]
+  assets              Asset[]
 
   @@index([productId])
   @@index([customerId])
@@ -1314,6 +1317,10 @@ model SupportTicket {
   metadata             Json                    @default("{}")
   responseDueAt        DateTime?
   resolutionDueAt      DateTime?
+  firstRespondedAt     DateTime?
+  resolvedAt           DateTime?
+  scheduledFor         DateTime?
+  estimatedDurationMin Int?
   assignedTechnicianId String?
   csatRating           Int?
   csatComment          String?
@@ -1348,6 +1355,8 @@ model SupportTicket {
   @@index([channel])
   @@index([createdAt])
   @@index([mergedIntoId])
+  @@index([scheduledFor])
+  @@index([resolvedAt])
 }
 
 model TicketAttachment {
@@ -1523,6 +1532,9 @@ model ServiceReport {
   partsReplaced       String?
   nextMaintenanceDate DateTime?
   attachments         Json?
+  customerSignerName  String?
+  signedAt            DateTime?
+  signatureDataUrl    String?       @db.Text
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   technician          User          @relation("ServiceReports", fields: [technicianId], references: [id], onDelete: Cascade)
@@ -2371,19 +2383,22 @@ model Announcement {
 }
 
 model Asset {
-  id           String   @id @default(cuid())
-  name         String
-  type         String
-  value        Float
-  purchaseDate DateTime
-  depreciation Float
-  companyId    String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  company      Company  @relation(fields: [companyId], references: [id])
+  id                       String                 @id @default(cuid())
+  name                     String
+  type                     String
+  value                    Float
+  purchaseDate             DateTime
+  depreciation             Float
+  companyId                String
+  equipmentInstallationId  String?
+  createdAt                DateTime               @default(now())
+  updatedAt                DateTime               @updatedAt
+  company                  Company                @relation(fields: [companyId], references: [id])
+  equipmentInstallation    EquipmentInstallation? @relation(fields: [equipmentInstallationId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([type])
+  @@index([equipmentInstallationId])
 }
 
 model Budget {
@@ -2391,12 +2406,15 @@ model Budget {
   year      Int
   amount    Float
   companyId String
+  projectId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   company   Company  @relation(fields: [companyId], references: [id])
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([year])
+  @@index([projectId])
 }
 
 model Expense {
@@ -2414,18 +2432,25 @@ model Expense {
 }
 
 model Project {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String
   status      String
   startDate   DateTime
   endDate     DateTime
   companyId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  company     Company  @relation(fields: [companyId], references: [id])
+  customerId  String?
+  dealId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  company     Company   @relation(fields: [companyId], references: [id])
+  customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  budgets     Budget[]
 
   @@index([companyId])
+  @@index([customerId])
+  @@index([dealId])
   @@index([startDate, endDate])
 }
 

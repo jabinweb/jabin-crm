@@ -12,6 +12,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   const data: Record<string, unknown> = {};
   if (body.year !== undefined) data.year = Number(body.year);
   if (body.amount !== undefined) data.amount = Number(body.amount);
+  if (body.projectId !== undefined) {
+    data.projectId =
+      typeof body.projectId === 'string' && body.projectId.trim()
+        ? body.projectId.trim()
+        : null;
+  }
 
   const updated = await prisma.budget.updateMany({
     where: { id, companyId },
@@ -20,7 +26,10 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (updated.count === 0) {
     return NextResponse.json({ error: 'Budget not found' }, { status: 404 });
   }
-  const budget = await prisma.budget.findFirst({ where: { id, companyId } });
+  const budget = await prisma.budget.findFirst({
+    where: { id, companyId },
+    include: { project: { select: { id: true, name: true } } },
+  });
   return jsonOk(budget);
 });
 

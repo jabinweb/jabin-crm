@@ -90,9 +90,48 @@ export async function PATCH(
         data.reason || 'No reason provided',
         userId
       );
+    } else if (
+      data.scheduledFor !== undefined ||
+      data.estimatedDurationMin !== undefined ||
+      data.assignedTechnicianId !== undefined
+    ) {
+      const updateData: {
+        scheduledFor?: Date | null;
+        estimatedDurationMin?: number | null;
+        assignedTechnicianId?: string | null;
+        status?: string;
+      } = {};
+      if (data.scheduledFor !== undefined) {
+        updateData.scheduledFor = data.scheduledFor
+          ? new Date(data.scheduledFor)
+          : null;
+      }
+      if (data.estimatedDurationMin !== undefined) {
+        updateData.estimatedDurationMin =
+          data.estimatedDurationMin === null || data.estimatedDurationMin === ''
+            ? null
+            : Number(data.estimatedDurationMin);
+      }
+      if (data.assignedTechnicianId !== undefined) {
+        updateData.assignedTechnicianId = data.assignedTechnicianId || null;
+        if (data.assignedTechnicianId) {
+          updateData.status = 'ASSIGNED';
+        }
+      }
+      result = await prisma.supportTicket.update({
+        where: { id },
+        data: updateData,
+        include: {
+          assignedTechnician: { select: { id: true, name: true } },
+          customer: { select: { organizationName: true } },
+        },
+      });
     } else {
       return NextResponse.json(
-        { error: 'No valid update field provided (status or toTechnicianId)' },
+        {
+          error:
+            'No valid update field provided (status, toTechnicianId, scheduledFor, or assignedTechnicianId)',
+        },
         { status: 400 }
       );
     }

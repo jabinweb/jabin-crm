@@ -15,6 +15,13 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (body.value !== undefined) data.value = Number(body.value);
   if (body.depreciation !== undefined) data.depreciation = Number(body.depreciation);
   if (body.purchaseDate) data.purchaseDate = new Date(body.purchaseDate);
+  if (body.equipmentInstallationId !== undefined) {
+    data.equipmentInstallationId =
+      typeof body.equipmentInstallationId === 'string' &&
+      body.equipmentInstallationId.trim()
+        ? body.equipmentInstallationId.trim()
+        : null;
+  }
 
   const updated = await prisma.asset.updateMany({
     where: { id, companyId },
@@ -23,7 +30,19 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (updated.count === 0) {
     return NextResponse.json({ error: 'Asset not found' }, { status: 404 });
   }
-  const asset = await prisma.asset.findFirst({ where: { id, companyId } });
+  const asset = await prisma.asset.findFirst({
+    where: { id, companyId },
+    include: {
+      equipmentInstallation: {
+        select: {
+          id: true,
+          serialNumber: true,
+          product: { select: { name: true } },
+          customer: { select: { organizationName: true } },
+        },
+      },
+    },
+  });
   return jsonOk(asset);
 });
 

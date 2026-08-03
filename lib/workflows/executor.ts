@@ -13,6 +13,31 @@ export type WorkflowEvent =
 export type WorkflowAction =
   | { type: 'notify'; message?: string; title?: string }
   | { type: 'log'; message?: string }
+  | {
+      type: 'assign';
+      assigneeId?: string;
+      assigneeMode?: 'fixed' | 'round_robin';
+    }
+  | {
+      type: 'create_task';
+      title?: string;
+      message?: string;
+      dueInDays?: number;
+      assigneeId?: string;
+    }
+  | {
+      type: 'send_email';
+      to?: string;
+      subject?: string;
+      message?: string;
+      body?: string;
+    }
+  | {
+      type: 'send_whatsapp';
+      toPhone?: string;
+      message?: string;
+      channel?: string;
+    }
   | Record<string, unknown>;
 
 /** Simple equality filters against event metadata / payload. Empty values are ignored. */
@@ -80,6 +105,23 @@ export function matchesWorkflowConditions(
   return true;
 }
 
+function substitute(
+  template: string,
+  payload: WorkflowEventPayload,
+  extras: Record<string, string> = {}
+) {
+  const bag: Record<string, string> = {
+    title: payload.title || '',
+    summary: payload.summary || '',
+    leadId: payload.leadId || '',
+    ticketId: payload.ticketId || '',
+    dealId: payload.dealId || '',
+    event: '',
+    ...extras,
+  };
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, key: string) => bag[key] ?? '');
+}
+
 async function runAction(
   action: WorkflowAction,
   event: WorkflowEvent,
@@ -109,6 +151,181 @@ async function runAction(
       },
     });
     return { type, ok: true };
+  }
+
+  if (type === 'assign') {
+    const cfg = action as {
+      assigneeId?: string;
+      assigneeMode?: 'fixed' | 'round_robin';
+    };
+    let assigneeId = cfg.assigneeId?.trim() || '';
+
+    if (cfg.assigneeMode === 'round_robin' || !assigneeId) {
+      const { getNextAvailableAgent } = await import('@/lib/support/ticket-assignment');
+      const agent = await getNextAvailableAgent({
+        companyId: payload.companyId,
+        groupId:
+          typeof payload.metadata?.groupId === 'string'
+            ? payload.metadata.groupId
+            : undefined,
+      });
+      assigneeId = agent?.id || '';
+    }
+
+    if (!assigneeId) {
+      return { type, ok: false, error: 'No assignee available' };
+    }
+
+    if (payload.ticketId) {
+      const { ticketService } = await import('@/lib/crm/ticket-service');
+      await ticketService.transferTicket(
+        payload.ticketId,
+        assigneeId,
+        'Assigned by workflow',
+        payload.userId
+      );
+      return { type, ok: true, assigneeId, target: 'ticket' };
+    }
+
+    if (payload.leadId) {
+      await prisma.lead.update({
+        where: { id: payload.leadId },
+        data: { assignedToId: assigneeId },
+      });
+      return { type, ok: true, assigneeId, target: 'lead' };
+    }
+
+    return { type, ok: false, error: 'No ticketId or leadId in payload' };
+  }
+
+  if (type === 'create_task') {
+    const cfg = action as {
+      title?: string;
+      message?: string;
+      dueInDays?: number;
+      assigneeId?: string;
+    };
+    const { taskService } = await import('@/lib/tasks/task-service');
+    const ownerId = cfg.assigneeId?.trim() || payload.userId;
+    const dueInDays = Number(cfg.dueInDays);
+    const dueDate =
+      Number.isFinite(dueInDays) && dueInDays > 0
+        ? new Date(Date.now() + dueInDays * 24 * 60 * 60 * 1000)
+        : undefined;
+
+    const task = await taskService.createTask(ownerId, {
+      title:
+        substitute(cfg.title || payload.title || `Follow up (${event})`, payload) ||
+        `Follow up (${event})`,
+      description: cfg.message || payload.summary,
+      leadId: payload.leadId,
+      dealId: payload.dealId,
+      dueDate,
+      type: 'FOLLOW_UP',
+    });
+    return { type, ok: true, taskId: task.id };
+  }
+
+  if (type === 'send_email') {
+    const cfg = action as {
+      to?: string;
+      subject?: string;
+      message?: string;
+      body?: string;
+    };
+    let to = cfg.to?.trim() || '';
+    const extras: Record<string, string> = {};
+
+    if (!to && payload.leadId) {
+      const lead = await prisma.lead.findUnique({
+        where: { id: payload.leadId },
+        select: { email: true, contactName: true, companyName: true },
+      });
+      to = lead?.email || '';
+      extras.contactName = lead?.contactName || '';
+      extras.companyName = lead?.companyName || '';
+    }
+    if (!to && payload.ticketId) {
+      const ticket = await prisma.supportTicket.findUnique({
+        where: { id: payload.ticketId },
+        include: { customer: { select: { email: true, contactPerson: true, organizationName: true } } },
+      });
+      to = ticket?.customer.email || '';
+      extras.contactName = ticket?.customer.contactPerson || '';
+      extras.companyName = ticket?.customer.organizationName || '';
+    }
+
+    if (!to) {
+      return { type, ok: false, error: 'No email recipient resolved' };
+    }
+
+    const { sendEmail } = await import('@/lib/email/nodemailer');
+    const subject = substitute(
+      cfg.subject || payload.title || `Update: ${event}`,
+      payload,
+      extras
+    );
+    const html = substitute(
+      cfg.body || cfg.message || payload.summary || `Event ${event} fired`,
+      payload,
+      extras
+    );
+    await sendEmail({ to, subject, html });
+    return { type, ok: true, to };
+  }
+
+  if (type === 'send_whatsapp') {
+    const cfg = action as {
+      toPhone?: string;
+      message?: string;
+      channel?: string;
+    };
+    let toPhone = cfg.toPhone?.trim() || '';
+    let customerId: string | undefined;
+
+    if (!toPhone && payload.leadId) {
+      const lead = await prisma.lead.findUnique({
+        where: { id: payload.leadId },
+        select: { phone: true },
+      });
+      toPhone = lead?.phone || '';
+    }
+    if (!toPhone && payload.ticketId) {
+      const ticket = await prisma.supportTicket.findUnique({
+        where: { id: payload.ticketId },
+        include: { customer: { select: { id: true, phone: true } } },
+      });
+      toPhone = ticket?.customer.phone || '';
+      customerId = ticket?.customer.id;
+    }
+
+    if (!toPhone) {
+      return { type, ok: false, error: 'No WhatsApp phone resolved' };
+    }
+
+    try {
+      const { whatsAppService } = await import('@/lib/crm/whatsapp-service');
+      const channel = 'SERVICE' as const;
+      await whatsAppService.sendMessage({
+        userId: payload.userId,
+        toPhone,
+        message: substitute(
+          cfg.message || payload.summary || payload.title || `Update: ${event}`,
+          payload
+        ),
+        channel,
+        leadId: payload.leadId,
+        ticketId: payload.ticketId,
+        customerId,
+      });
+      return { type, ok: true, toPhone };
+    } catch (err) {
+      return {
+        type,
+        ok: false,
+        error: err instanceof Error ? err.message : 'WhatsApp send failed',
+      };
+    }
   }
 
   return {
@@ -147,7 +364,11 @@ export async function dispatchWorkflowEvent(
 
       try {
         for (const action of actions) {
-          results.push(await runAction(action, event, payload));
+          const result = await runAction(action, event, payload);
+          results.push(result);
+          if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
+            status = 'PARTIAL';
+          }
         }
         if (actions.length === 0) {
           results.push({ type: 'noop', ok: true });

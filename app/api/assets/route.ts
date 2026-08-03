@@ -6,6 +6,16 @@ import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 export const GET = withTenantRoute(async (_request, { companyId }) => {
   const assets = await prisma.asset.findMany({
     where: { companyId },
+    include: {
+      equipmentInstallation: {
+        select: {
+          id: true,
+          serialNumber: true,
+          product: { select: { name: true } },
+          customer: { select: { organizationName: true } },
+        },
+      },
+    },
     orderBy: { purchaseDate: 'desc' },
   });
   return jsonOk(assets);
@@ -36,8 +46,31 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     return NextResponse.json({ error: 'Invalid purchaseDate' }, { status: 400 });
   }
 
+  const equipmentInstallationId =
+    typeof body.equipmentInstallationId === 'string' && body.equipmentInstallationId.trim()
+      ? body.equipmentInstallationId.trim()
+      : null;
+
   const asset = await prisma.asset.create({
-    data: { name, type, value, depreciation, purchaseDate, companyId },
+    data: {
+      name,
+      type,
+      value,
+      depreciation,
+      purchaseDate,
+      companyId,
+      equipmentInstallationId,
+    },
+    include: {
+      equipmentInstallation: {
+        select: {
+          id: true,
+          serialNumber: true,
+          product: { select: { name: true } },
+          customer: { select: { organizationName: true } },
+        },
+      },
+    },
   });
 
   return jsonOk(asset, { status: 201 });

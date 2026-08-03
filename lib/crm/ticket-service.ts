@@ -220,6 +220,7 @@ export class TicketService {
                 status: true,
                 ticketType: true,
                 serviceContractId: true,
+                firstRespondedAt: true,
                 customer: { select: { companyId: true } },
                 _count: { select: { attachments: true } },
             },
@@ -279,7 +280,15 @@ export class TicketService {
 
         const ticket = await prisma.supportTicket.update({
             where: { id: ticketId },
-            data: { status },
+            data: {
+                status,
+                ...(status !== 'OPEN' && status !== 'ASSIGNED'
+                    ? { firstRespondedAt: existing.firstRespondedAt ?? new Date() }
+                    : {}),
+                ...(status === 'RESOLVED' || status === 'CLOSED'
+                    ? { resolvedAt: new Date() }
+                    : {}),
+            },
             include: {
                 customer: { select: { id: true, organizationName: true, email: true, contactPerson: true } },
             },

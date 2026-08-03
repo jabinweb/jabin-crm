@@ -3,6 +3,7 @@ import type { BusinessVertical } from '@/lib/workspace-templates';
 export const ONBOARDING_STEPS = [
   { id: 'welcome', title: 'Welcome', description: 'Confirm your business profile' },
   { id: 'support', title: 'Support desk', description: 'Optional channels — change anytime in Settings' },
+  { id: 'business', title: 'Business details', description: 'GSTIN and tax ID for invoices (optional)' },
   { id: 'complete', title: 'Go live', description: 'Review and launch your workspace' },
 ] as const;
 
@@ -98,4 +99,9 @@ export interface OnboardingSupportPayload {
     chat?: boolean;
     whatsApp?: boolean;
   };
+}
+
+export interface OnboardingBusinessPayload {
+  gstin?: string;
+  taxId?: string;
 }

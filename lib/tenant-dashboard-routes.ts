@@ -9,9 +9,9 @@ export const LEGACY_DASHBOARD_ALIASES: Array<{
   resolve: (path: string, slug: string, query: string) => string;
 }> = [
   {
-    match: (p) => p === '/dashboard/equipment' || p.startsWith('/dashboard/equipment/'),
-    resolve: (p, slug, query) =>
-      `/${slug}/dashboard/inventory${p.slice('/dashboard/equipment'.length)}${query}`,
+    // Register-unit shortcut only — fleet board lives at /dashboard/equipment
+    match: (p) => p === '/dashboard/equipment/new' || p.startsWith('/dashboard/equipment/new/'),
+    resolve: (_p, slug, query) => `/${slug}/dashboard/inventory/new${query}`,
   },
   {
     match: (p) => p === '/dashboard/clients' || p.startsWith('/dashboard/clients/'),
@@ -34,6 +34,7 @@ export const TENANT_DASHBOARD_PREFIXES = [
   '/dashboard/support',
   '/dashboard/tickets',
   '/dashboard/contracts',
+  '/dashboard/equipment',
   '/dashboard/deals',
   '/dashboard/quotations',
   '/dashboard/invoices',

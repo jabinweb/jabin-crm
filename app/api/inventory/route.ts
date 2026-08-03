@@ -90,6 +90,14 @@ export async function POST(req: Request) {
 
     const { productId, quantity, reason, notes, type = 'IN_STOCK' } = await req.json()
 
+    const qty = Number(quantity)
+    if (!productId || !Number.isFinite(qty) || qty <= 0) {
+      return NextResponse.json({ error: 'Valid productId and positive quantity are required' }, { status: 400 })
+    }
+
+    const outboundTypes = new Set(['OUT', 'SERVICE_OUT', 'STOCK_OUT', 'ADJUSTMENT_OUT'])
+    const isOutbound = outboundTypes.has(String(type).toUpperCase()) || String(type).toUpperCase() === 'OUT'
+
     const inventory = await prisma.$transaction(async (tx: InventoryTx) => {
       const product = await tx.product.findUnique({
         where: { id: productId }
@@ -99,15 +107,23 @@ export async function POST(req: Request) {
         throw new Error('Product not found')
       }
 
+      if (isOutbound && product.quantity < qty) {
+        throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`)
+      }
+
+      const recordType = isOutbound
+        ? (String(type).toUpperCase() === 'SERVICE_OUT' ? 'SERVICE_OUT' : 'OUT')
+        : type
+
       // Create inventory record
       const record = await tx.inventoryRecord.create({
         data: {
-          type,
-          quantity,
+          type: recordType,
+          quantity: qty,
           price: product.price ?? 0,
           productId,
           companyId,
-          reason,
+          reason: reason || (isOutbound ? 'Stock out' : 'Stock in'),
           ...(notes && { notes }),
         }
       })
@@ -116,9 +132,9 @@ export async function POST(req: Request) {
       const updatedProduct = await tx.product.update({
         where: { id: productId },
         data: {
-          quantity: {
-            increment: quantity
-          }
+          quantity: isOutbound
+            ? { decrement: qty }
+            : { increment: qty }
         }
       })
 
@@ -136,6 +152,9 @@ export async function POST(req: Request) {
   } catch (error) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    if (error instanceof Error && error.message.includes('Insufficient stock')) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
     return handleError(error, "Failed to create inventory record")
   }

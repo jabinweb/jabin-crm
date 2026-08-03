@@ -162,6 +162,34 @@ export async function PATCH(req: NextRequest) {
         };
       }
 
+      if (step === 'business' && body.data) {
+        const gstin =
+          typeof body.data.gstin === 'string'
+            ? body.data.gstin.trim()
+            : typeof body.data.taxId === 'string'
+              ? body.data.taxId.trim()
+              : '';
+        stored.billing = {
+          ...(typeof stored.billing === 'object' && stored.billing
+            ? (stored.billing as Record<string, unknown>)
+            : {}),
+          ...(gstin ? { gstin, taxId: gstin } : {}),
+        };
+
+        // Also stamp admin user profile taxId used by invoice PDFs
+        if (gstin && session.user.id) {
+          await prisma.userProfile.upsert({
+            where: { userId: session.user.id },
+            create: {
+              userId: session.user.id,
+              taxId: gstin,
+              companyName: company.name,
+            },
+            update: { taxId: gstin },
+          });
+        }
+      }
+
       const next = nextStepId(step as OnboardingStepId) ?? 'complete';
       stored.onboarding = mergeOnboardingPatch(onboarding, { currentStep: next });
     } else if (step && action === 'skip') {

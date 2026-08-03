@@ -26,6 +26,8 @@ type Budget = {
   year: number;
   amount: number;
   createdAt: string;
+  projectId?: string | null;
+  project?: { id: string; name: string } | null;
 };
 
 export default function BudgetsPage() {
@@ -33,6 +35,7 @@ export default function BudgetsPage() {
   const queryClient = useQueryClient();
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [amount, setAmount] = useState('');
+  const [projectId, setProjectId] = useState('');
   const [editing, setEditing] = useState<Budget | null>(null);
 
   const { data: budgets = [], isLoading } = useQuery({
@@ -45,15 +48,30 @@ export default function BudgetsPage() {
     enabled: !!slug,
   });
 
+  const { data: projects = [] } = useQuery({
+    queryKey: ['budget-projects', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/projects');
+      if (!res.ok) return [];
+      return (await res.json()) as Array<{ id: string; name: string }>;
+    },
+    enabled: !!slug,
+  });
+
   const resetForm = () => {
     setYear(String(new Date().getFullYear()));
     setAmount('');
+    setProjectId('');
     setEditing(null);
   };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = { year: Number(year), amount: Number(amount) };
+      const payload = {
+        year: Number(year),
+        amount: Number(amount),
+        projectId: projectId || null,
+      };
       if (editing) {
         const res = await workspaceFetch(`/api/budgets/${editing.id}`, {
           method: 'PATCH',
@@ -105,6 +123,7 @@ export default function BudgetsPage() {
     setEditing(b);
     setYear(String(b.year));
     setAmount(String(b.amount));
+    setProjectId(b.projectId || b.project?.id || '');
   };
 
   return (
@@ -112,7 +131,9 @@ export default function BudgetsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Budgets</h1>
-          <p className="text-sm text-muted-foreground">Annual company budgets.</p>
+          <p className="text-sm text-muted-foreground">
+            Annual company budgets, optionally tagged to a project.
+          </p>
         </div>
         <Button variant="outline" asChild>
           <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
@@ -148,7 +169,22 @@ export default function BudgetsPage() {
               onChange={(e) => setAmount(e.target.value)}
             />
           </div>
-          <div className="flex flex-wrap items-end gap-2">
+          <div className="space-y-2">
+            <Label>Project (optional)</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">None</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-3 flex flex-wrap items-end gap-2">
             <Button
               disabled={!year || !amount || saveMutation.isPending}
               onClick={() => saveMutation.mutate()}
@@ -183,6 +219,7 @@ export default function BudgetsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Year</TableHead>
+                  <TableHead>Project</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="w-[140px]" />
@@ -192,6 +229,7 @@ export default function BudgetsPage() {
                 {budgets.map((b) => (
                   <TableRow key={b.id}>
                     <TableCell className="font-medium">{b.year}</TableCell>
+                    <TableCell>{b.project?.name || '—'}</TableCell>
                     <TableCell className="text-right">{b.amount.toLocaleString()}</TableCell>
                     <TableCell>{new Date(b.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="space-x-1">

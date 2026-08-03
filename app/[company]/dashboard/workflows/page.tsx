@@ -33,9 +33,15 @@ import Link from 'next/link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 type WorkflowActionDraft = {
-  type: 'notify' | 'log';
+  type: 'notify' | 'log' | 'assign' | 'create_task' | 'send_email' | 'send_whatsapp';
   title: string;
   message: string;
+  assigneeId: string;
+  assigneeMode: 'fixed' | 'round_robin';
+  dueInDays: string;
+  to: string;
+  subject: string;
+  toPhone: string;
 };
 
 type WorkflowConditionsDraft = {
@@ -87,17 +93,44 @@ const defaultAction = (trigger: string): WorkflowActionDraft => ({
   type: 'notify',
   title: 'Workflow fired',
   message: `Trigger: ${trigger}`,
+  assigneeId: '',
+  assigneeMode: 'round_robin',
+  dueInDays: '1',
+  to: '',
+  subject: '',
+  toPhone: '',
 });
 
 function parseActions(raw: unknown): WorkflowActionDraft[] {
   const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : [];
   const out = list.map((a) => {
     const row = (a || {}) as Record<string, unknown>;
-    const type = row.type === 'log' ? 'log' : 'notify';
+    const typeRaw = String(row.type || 'notify');
+    const type = (
+      ['notify', 'log', 'assign', 'create_task', 'send_email', 'send_whatsapp'].includes(typeRaw)
+        ? typeRaw
+        : 'notify'
+    ) as WorkflowActionDraft['type'];
     return {
-      type: type as 'notify' | 'log',
+      type,
       title: typeof row.title === 'string' ? row.title : '',
-      message: typeof row.message === 'string' ? row.message : '',
+      message:
+        typeof row.message === 'string'
+          ? row.message
+          : typeof row.body === 'string'
+            ? row.body
+            : '',
+      assigneeId: typeof row.assigneeId === 'string' ? row.assigneeId : '',
+      assigneeMode: row.assigneeMode === 'fixed' ? ('fixed' as const) : ('round_robin' as const),
+      dueInDays:
+        typeof row.dueInDays === 'number'
+          ? String(row.dueInDays)
+          : typeof row.dueInDays === 'string'
+            ? row.dueInDays
+            : '1',
+      to: typeof row.to === 'string' ? row.to : '',
+      subject: typeof row.subject === 'string' ? row.subject : '',
+      toPhone: typeof row.toPhone === 'string' ? row.toPhone : '',
     };
   });
   return out.length ? out : [defaultAction('lead.created')];
@@ -125,6 +158,37 @@ function actionsPayload(actions: WorkflowActionDraft[]) {
   return actions.map((a) => {
     if (a.type === 'log') {
       return { type: 'log', message: a.message.trim() || undefined };
+    }
+    if (a.type === 'assign') {
+      return {
+        type: 'assign',
+        assigneeMode: a.assigneeMode,
+        assigneeId: a.assigneeMode === 'fixed' ? a.assigneeId.trim() || undefined : undefined,
+      };
+    }
+    if (a.type === 'create_task') {
+      return {
+        type: 'create_task',
+        title: a.title.trim() || undefined,
+        message: a.message.trim() || undefined,
+        dueInDays: Number(a.dueInDays) || 1,
+        assigneeId: a.assigneeId.trim() || undefined,
+      };
+    }
+    if (a.type === 'send_email') {
+      return {
+        type: 'send_email',
+        to: a.to.trim() || undefined,
+        subject: a.subject.trim() || a.title.trim() || undefined,
+        message: a.message.trim() || undefined,
+      };
+    }
+    if (a.type === 'send_whatsapp') {
+      return {
+        type: 'send_whatsapp',
+        toPhone: a.toPhone.trim() || undefined,
+        message: a.message.trim() || undefined,
+      };
     }
     return {
       type: 'notify',
@@ -347,13 +411,17 @@ export default function WorkflowsPage() {
                 const next = [...value];
                 next[idx] = {
                   ...action,
-                  type: e.target.value as 'notify' | 'log',
+                  type: e.target.value as WorkflowActionDraft['type'],
                 };
                 onChange(next);
               }}
             >
               <option value="notify">Notify (in-app)</option>
               <option value="log">Log only</option>
+              <option value="assign">Assign lead / ticket</option>
+              <option value="create_task">Create task</option>
+              <option value="send_email">Send email</option>
+              <option value="send_whatsapp">Send WhatsApp</option>
             </select>
             <Button
               type="button"
@@ -366,7 +434,8 @@ export default function WorkflowsPage() {
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
-          {action.type === 'notify' ? (
+
+          {action.type === 'notify' || action.type === 'create_task' ? (
             <Input
               value={action.title}
               onChange={(e) => {
@@ -374,20 +443,124 @@ export default function WorkflowsPage() {
                 next[idx] = { ...action, title: e.target.value };
                 onChange(next);
               }}
-              placeholder="Notification title"
+              placeholder={action.type === 'create_task' ? 'Task title' : 'Notification title'}
               className="h-9"
             />
           ) : null}
-          <Textarea
-            rows={2}
-            value={action.message}
-            onChange={(e) => {
-              const next = [...value];
-              next[idx] = { ...action, message: e.target.value };
-              onChange(next);
-            }}
-            placeholder={action.type === 'notify' ? 'Notification body' : 'Log message'}
-          />
+
+          {action.type === 'assign' ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <select
+                className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={action.assigneeMode}
+                onChange={(e) => {
+                  const next = [...value];
+                  next[idx] = {
+                    ...action,
+                    assigneeMode: e.target.value as 'fixed' | 'round_robin',
+                  };
+                  onChange(next);
+                }}
+              >
+                <option value="round_robin">Round-robin agent</option>
+                <option value="fixed">Fixed user ID</option>
+              </select>
+              {action.assigneeMode === 'fixed' ? (
+                <Input
+                  value={action.assigneeId}
+                  onChange={(e) => {
+                    const next = [...value];
+                    next[idx] = { ...action, assigneeId: e.target.value };
+                    onChange(next);
+                  }}
+                  placeholder="Assignee user ID"
+                  className="h-9"
+                />
+              ) : null}
+            </div>
+          ) : null}
+
+          {action.type === 'create_task' ? (
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Input
+                value={action.dueInDays}
+                onChange={(e) => {
+                  const next = [...value];
+                  next[idx] = { ...action, dueInDays: e.target.value };
+                  onChange(next);
+                }}
+                placeholder="Due in days"
+                className="h-9"
+              />
+              <Input
+                value={action.assigneeId}
+                onChange={(e) => {
+                  const next = [...value];
+                  next[idx] = { ...action, assigneeId: e.target.value };
+                  onChange(next);
+                }}
+                placeholder="Owner user ID (optional)"
+                className="h-9"
+              />
+            </div>
+          ) : null}
+
+          {action.type === 'send_email' ? (
+            <div className="grid gap-2">
+              <Input
+                value={action.to}
+                onChange={(e) => {
+                  const next = [...value];
+                  next[idx] = { ...action, to: e.target.value };
+                  onChange(next);
+                }}
+                placeholder="To (blank = lead/customer email)"
+                className="h-9"
+              />
+              <Input
+                value={action.subject}
+                onChange={(e) => {
+                  const next = [...value];
+                  next[idx] = { ...action, subject: e.target.value };
+                  onChange(next);
+                }}
+                placeholder="Subject — supports {{title}}"
+                className="h-9"
+              />
+            </div>
+          ) : null}
+
+          {action.type === 'send_whatsapp' ? (
+            <Input
+              value={action.toPhone}
+              onChange={(e) => {
+                const next = [...value];
+                next[idx] = { ...action, toPhone: e.target.value };
+                onChange(next);
+              }}
+              placeholder="Phone (blank = lead/customer phone)"
+              className="h-9"
+            />
+          ) : null}
+
+          {action.type !== 'assign' ? (
+            <Textarea
+              rows={2}
+              value={action.message}
+              onChange={(e) => {
+                const next = [...value];
+                next[idx] = { ...action, message: e.target.value };
+                onChange(next);
+              }}
+              placeholder={
+                action.type === 'notify'
+                  ? 'Notification body'
+                  : action.type === 'log'
+                    ? 'Log message'
+                    : 'Message body — {{title}} {{summary}}'
+              }
+            />
+          ) : null}
         </div>
       ))}
       <Button

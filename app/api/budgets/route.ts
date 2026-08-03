@@ -6,6 +6,9 @@ import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 export const GET = withTenantRoute(async (_request, { companyId }) => {
   const budgets = await prisma.budget.findMany({
     where: { companyId },
+    include: {
+      project: { select: { id: true, name: true } },
+    },
     orderBy: { year: 'desc' },
   });
   return jsonOk(budgets);
@@ -27,8 +30,14 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     return NextResponse.json({ error: 'A valid amount is required' }, { status: 400 });
   }
 
+  const projectId =
+    typeof body.projectId === 'string' && body.projectId.trim()
+      ? body.projectId.trim()
+      : null;
+
   const budget = await prisma.budget.create({
-    data: { year, amount, companyId },
+    data: { year, amount, companyId, projectId },
+    include: { project: { select: { id: true, name: true } } },
   });
 
   return jsonOk(budget, { status: 201 });

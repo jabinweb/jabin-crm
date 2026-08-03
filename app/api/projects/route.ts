@@ -6,6 +6,10 @@ import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 export const GET = withTenantRoute(async (_request, { companyId }) => {
   const projects = await prisma.project.findMany({
     where: { companyId },
+    include: {
+      customer: { select: { id: true, organizationName: true } },
+      deal: { select: { id: true, title: true } },
+    },
     orderBy: { updatedAt: 'desc' },
   });
   return jsonOk(projects);
@@ -30,8 +34,28 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     return NextResponse.json({ error: 'Invalid dates' }, { status: 400 });
   }
 
+  const customerId =
+    typeof body.customerId === 'string' && body.customerId.trim()
+      ? body.customerId.trim()
+      : null;
+  const dealId =
+    typeof body.dealId === 'string' && body.dealId.trim() ? body.dealId.trim() : null;
+
   const project = await prisma.project.create({
-    data: { name, description, status, startDate: start, endDate: end, companyId },
+    data: {
+      name,
+      description,
+      status,
+      startDate: start,
+      endDate: end,
+      companyId,
+      customerId,
+      dealId,
+    },
+    include: {
+      customer: { select: { id: true, organizationName: true } },
+      deal: { select: { id: true, title: true } },
+    },
   });
 
   return jsonOk(project, { status: 201 });

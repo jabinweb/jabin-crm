@@ -102,13 +102,14 @@ const crmNav: NavigationItem[] = [
   },
   {
     name: 'Installed equipment',
-    href: '/dashboard/inventory/new',
+    href: '/dashboard/equipment',
     icon: Wrench,
     roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
     workspaceFeature: 'equipment',
     module: 'EQUIPMENT',
     terminologyKey: 'equipment',
     children: [
+      { name: 'Fleet', href: '/dashboard/equipment', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
       { name: 'Register unit', href: '/dashboard/inventory/new', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
       { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
     ],
@@ -168,6 +169,7 @@ const supportNav: NavigationItem[] = [
     workspaceFeature: 'fieldService',
     children: [
       { name: 'Job board', href: '/dashboard/service/board', icon: LayoutGrid, module: 'TICKETS', workspaceFeature: 'fieldService' },
+      { name: 'Service analytics', href: '/dashboard/service/analytics', icon: BarChart3, module: 'TICKETS', workspaceFeature: 'fieldService', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
       { name: 'GPS tracking', href: '/dashboard/service/gps', icon: MapPin, module: 'SERVICE_GPS', workspaceFeature: 'fieldService' },
       { name: 'Expenses', href: '/dashboard/service/expenses', icon: Route, module: 'SERVICE_EXPENSES', workspaceFeature: 'fieldService' },
       { name: 'Cash on hand', href: '/dashboard/service/cash', icon: Wallet, module: 'SERVICE_CASH', workspaceFeature: 'fieldService' },
@@ -237,6 +239,7 @@ const settingsNav: NavigationItem[] = [
       { name: 'Billing', href: '/dashboard/settings/subscription', icon: CreditCard },
       { name: 'Data migration', href: '/dashboard/settings/migration', icon: Database },
       { name: 'Pipelines', href: '/dashboard/settings/pipelines', icon: Activity },
+      { name: 'Roles & permissions', href: '/dashboard/settings/roles', icon: Users },
     ]
   },
 ];
