@@ -70,8 +70,39 @@ export async function GET(request: Request) {
       )
     }
 
+    let departmentId: string | null = null
+    let branchId: string | null = null
+    if (employeeId) {
+      const emp = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { departmentId: true, branchId: true },
+      })
+      departmentId = emp?.departmentId ?? null
+      branchId = emp?.branchId ?? null
+    }
+
     const announcements = await prisma.announcement.findMany({
-      where: { companyId: String(companyId) },
+      where: {
+        companyId: String(companyId),
+        ...(isAdmin
+          ? {}
+          : {
+              AND: [
+                {
+                  OR: [
+                    { targetDepartmentId: null },
+                    ...(departmentId ? [{ targetDepartmentId: departmentId }] : []),
+                  ],
+                },
+                {
+                  OR: [
+                    { targetBranchId: null },
+                    ...(branchId ? [{ targetBranchId: branchId }] : []),
+                  ],
+                },
+              ],
+            }),
+      },
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
       take: 10,
     })
@@ -115,6 +146,14 @@ export async function POST(request: Request) {
         content,
         priority: typeof body.priority === 'number' ? body.priority : 0,
         companyId: String(companyId),
+        targetDepartmentId:
+          typeof body.targetDepartmentId === 'string' && body.targetDepartmentId
+            ? body.targetDepartmentId
+            : null,
+        targetBranchId:
+          typeof body.targetBranchId === 'string' && body.targetBranchId
+            ? body.targetBranchId
+            : null,
       },
     })
 

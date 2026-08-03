@@ -18,12 +18,18 @@ type Announcement = {
   content: string;
   priority: number;
   createdAt: string;
+  targetDepartmentId?: string | null;
+  targetBranchId?: string | null;
 };
+
+type OrgOption = { id: string; name: string };
 
 export default function AnnouncementsAdminPage() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [targetDepartmentId, setTargetDepartmentId] = useState('');
+  const [targetBranchId, setTargetBranchId] = useState('');
 
   const { data: announcements = [], isLoading } = useQuery({
     queryKey: ['admin-announcements'],
@@ -34,12 +40,36 @@ export default function AnnouncementsAdminPage() {
     },
   });
 
+  const { data: departments = [] } = useQuery({
+    queryKey: ['ann-departments'],
+    queryFn: async () => {
+      const res = await fetch('/api/hr/departments');
+      if (!res.ok) return [];
+      return (await res.json()) as OrgOption[];
+    },
+  });
+
+  const { data: branches = [] } = useQuery({
+    queryKey: ['ann-branches'],
+    queryFn: async () => {
+      const res = await fetch('/api/hr/branches');
+      if (!res.ok) return [];
+      return (await res.json()) as OrgOption[];
+    },
+  });
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/employee/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content, priority: 0 }),
+        body: JSON.stringify({
+          title,
+          content,
+          priority: 0,
+          targetDepartmentId: targetDepartmentId || undefined,
+          targetBranchId: targetBranchId || undefined,
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -51,6 +81,8 @@ export default function AnnouncementsAdminPage() {
       toast.success('Announcement published');
       setTitle('');
       setContent('');
+      setTargetDepartmentId('');
+      setTargetBranchId('');
       queryClient.invalidateQueries({ queryKey: ['admin-announcements'] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -89,6 +121,38 @@ export default function AnnouncementsAdminPage() {
               placeholder="Share details with the team…"
             />
           </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Target department (optional)</Label>
+              <select
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={targetDepartmentId}
+                onChange={(e) => setTargetDepartmentId(e.target.value)}
+              >
+                <option value="">All departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Target branch (optional)</Label>
+              <select
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={targetBranchId}
+                onChange={(e) => setTargetBranchId(e.target.value)}
+              >
+                <option value="">All branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <Button
             disabled={!title.trim() || !content.trim() || createMutation.isPending}
             onClick={() => createMutation.mutate()}
@@ -120,6 +184,7 @@ export default function AnnouncementsAdminPage() {
                   <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{a.content}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {new Date(a.createdAt).toLocaleString()}
+                    {(a.targetDepartmentId || a.targetBranchId) && ' · Targeted'}
                   </p>
                 </li>
               ))}
