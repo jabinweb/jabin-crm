@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -48,6 +48,8 @@ import { getClientBrandConfig } from '@/lib/branding';
 import { PunchButton } from '@/components/dashboard/punch-button';
 import { NotificationsPanel } from '@/components/notifications/notifications-panel';
 import type { GlobalSearchEntityType, GlobalSearchResult } from '@/lib/crm/global-search-types';
+import { Clock } from 'lucide-react';
+import { getRecentEntities, pushRecentEntity } from '@/lib/crm/recent-entities';
 
 const SEARCH_GROUP_ORDER: GlobalSearchEntityType[] = [
   'lead',
@@ -105,6 +107,9 @@ export function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<GlobalSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [recentTick, setRecentTick] = useState(0);
+
+  const recent = useMemo(() => getRecentEntities(), [open, recentTick]);
 
   // Open command menu with Ctrl+K / Cmd+K
   useEffect(() => {
@@ -112,6 +117,7 @@ export function Navbar() {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((open) => !open);
+        setRecentTick((t) => t + 1);
       }
     };
 
@@ -171,8 +177,16 @@ export function Navbar() {
     };
   }, [searchQuery, workspaceSlug]);
 
-  const handleSelectResult = (href: string) => {
+  const handleSelectResult = (href: string, meta?: { id: string; type: string; title: string }) => {
     setOpen(false);
+    if (meta && (meta.type === 'ticket' || meta.type === 'customer' || meta.type === 'lead' || meta.type === 'deal')) {
+      pushRecentEntity({
+        id: meta.id,
+        type: meta.type as 'ticket' | 'customer' | 'lead' | 'deal',
+        label: meta.title,
+        href: path(href),
+      });
+    }
     router.push(path(href));
   };
 
@@ -333,6 +347,27 @@ export function Navbar() {
                 ? 'Type at least 2 characters to search'
                 : 'No results found.'}
           </CommandEmpty>
+          {!searchQuery && recent.length > 0 && (
+            <CommandGroup heading="Recent">
+              {recent.map((item) => (
+                <CommandItem
+                  key={`recent-${item.type}-${item.id}`}
+                  value={`recent-${item.type}-${item.id}-${item.label}`}
+                  onSelect={() => {
+                    setOpen(false);
+                    router.push(item.href);
+                  }}
+                  className="flex items-center gap-2 cursor-pointer"
+                >
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{item.label}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{item.type}</div>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
           {groupedResults.map(({ type, items }) => {
             const Icon = SEARCH_GROUP_ICONS[type];
             return (
@@ -341,7 +376,13 @@ export function Navbar() {
                   <CommandItem
                     key={`${item.type}-${item.id}`}
                     value={`${item.type}-${item.id}-${item.title}-${item.subtitle ?? ''}`}
-                    onSelect={() => handleSelectResult(item.href)}
+                    onSelect={() =>
+                      handleSelectResult(item.href, {
+                        id: item.id,
+                        type: item.type,
+                        title: item.title,
+                      })
+                    }
                     className="flex items-center gap-2 cursor-pointer"
                   >
                     <Icon className="h-4 w-4 text-muted-foreground shrink-0" />

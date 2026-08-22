@@ -30,6 +30,7 @@ import { findEmailLogForReply, trackEmailReply } from '@/lib/email/email-logger'
 import { prisma } from '@/lib/prisma';
 import { decrypt } from '@/lib/encryption';
 import { logInfo, logError, logWarning } from '@/lib/logger';
+import { handleSupportInboundEmail } from '@/lib/crm/support-email-handler';
 
 interface ImapConfig {
   user: string;
@@ -233,7 +234,28 @@ export class ImapReplyChecker {
     const originalLog = await findEmailLogForReply(from, subject, this.userId, inReplyTo);
 
     if (!originalLog) {
-      logWarning('No matching original email found for reply - will be skipped', { from });
+      logWarning('No matching original email found for reply — trying support desk', { from });
+      try {
+        const result = await handleSupportInboundEmail({
+          from,
+          to,
+          subject,
+          textBody: text || '',
+          htmlBody: html || undefined,
+          inReplyTo: inReplyTo || undefined,
+          messageId: messageId || undefined,
+        });
+        if (result.handled) {
+          logInfo('Routed IMAP email to support ticket', result);
+        } else {
+          logWarning('Unmatched IMAP email (no campaign or support customer)', {
+            from,
+            reason: result.reason,
+          });
+        }
+      } catch (e) {
+        logError(e instanceof Error ? e : new Error(String(e)), { context: 'support-inbound-fallback' });
+      }
       return;
     }
 

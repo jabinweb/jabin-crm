@@ -71,6 +71,8 @@ model User {
   sessions            Session[]
   subscription        Subscription?
   assignedTickets     SupportTicket[]         @relation("AssignedTickets")
+  ticketWatches       TicketWatcher[]         @relation("TicketWatchers")
+  savedTicketFilters  SavedTicketFilter[]
   assignedTasks       Task[]                  @relation("TaskAssignee")
   tasks               Task[]                  @relation("TaskCreator")
   ticketActivities    TicketActivity[]        @relation("TicketActivities")
@@ -1326,6 +1328,7 @@ model SupportTicket {
   csatComment          String?
   csatSubmittedAt      DateTime?
   mergedIntoId         String?
+  guestAccessToken     String?                 @unique
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
   serviceReports       ServiceReport[]
@@ -1344,6 +1347,7 @@ model SupportTicket {
   locationLogs         TechnicianLocationLog[]
   whatsappMessages     WhatsAppMessage[]
   attachments          TicketAttachment[]
+  watchers             TicketWatcher[]
 
   @@index([customerId])
   @@index([equipmentId])
@@ -1357,6 +1361,83 @@ model SupportTicket {
   @@index([mergedIntoId])
   @@index([scheduledFor])
   @@index([resolvedAt])
+  @@index([guestAccessToken])
+}
+
+model TicketWatcher {
+  id        String        @id @default(cuid())
+  ticketId  String
+  userId    String
+  createdAt DateTime      @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user      User          @relation("TicketWatchers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId])
+  @@index([ticketId])
+  @@index([userId])
+}
+
+model SavedTicketFilter {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  name      String
+  filters   Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([companyId])
+  @@index([userId])
+}
+
+model TicketCustomFieldDef {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  key        String
+  fieldType  String   @default("text")
+  options    Json?
+  required   Boolean  @default(false)
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@index([companyId])
+}
+
+model RoadmapItem {
+  id          String        @id @default(cuid())
+  companyId   String
+  title       String
+  description String?       @db.Text
+  status      String        @default("considering")
+  published   Boolean       @default(true)
+  sortOrder   Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  votes       RoadmapVote[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([published])
+}
+
+model RoadmapVote {
+  id        String      @id @default(cuid())
+  itemId    String
+  voterKey  String
+  createdAt DateTime    @default(now())
+  item      RoadmapItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, voterKey])
+  @@index([itemId])
 }
 
 model TicketAttachment {
@@ -2164,6 +2245,9 @@ model Company {
   customerVisits    CustomerVisit[]
   demoEquipmentUnits DemoEquipmentUnit[]
   demoEquipmentMovements DemoEquipmentMovement[]
+  savedTicketFilters SavedTicketFilter[]
+  ticketCustomFields TicketCustomFieldDef[]
+  roadmapItems      RoadmapItem[]
 
   @@index([slug])
   @@index([status])

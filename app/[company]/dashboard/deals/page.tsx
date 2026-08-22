@@ -28,6 +28,8 @@ import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-
 import { toast } from 'sonner';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { BoardSkeleton, PageHeaderSkeleton, StatCardsSkeleton } from '@/components/loading';
+import { useRealtime } from '@/hooks/use-realtime';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
 import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
 type Deal = {
@@ -76,6 +78,20 @@ export default function DealsPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const { formatCurrency } = useCurrency();
   const terminology = useWorkspaceTerminology();
+
+  useRealtime({
+    types: [REALTIME_EVENTS.BOARD_MOVED],
+    onEvent: (e) => {
+      if (e.payload?.entity !== 'deals') return;
+      void (async () => {
+        const res = await workspaceFetch('/api/deals');
+        if (res.ok) {
+          const data = await res.json();
+          setDeals(Array.isArray(data) ? data : data.deals || []);
+        }
+      })();
+    },
+  });
 
   const fetchDeals = useCallback(async () => {
     try {
@@ -173,6 +189,11 @@ export default function DealsPage() {
         body: JSON.stringify({ stage: toStage }),
       });
       if (!res.ok) throw new Error('Failed to update deal');
+      void workspaceFetch('/api/realtime/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entity: 'deals', id, from: fromStage, to: toStage }),
+      });
       void fetchStats();
     } catch {
       setDeals(prev);

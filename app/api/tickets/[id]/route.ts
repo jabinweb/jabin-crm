@@ -126,11 +126,41 @@ export async function PATCH(
           customer: { select: { organizationName: true } },
         },
       });
+    } else if (data.customFields && typeof data.customFields === 'object') {
+      const existing = await prisma.supportTicket.findUnique({
+        where: { id },
+        select: { metadata: true },
+      });
+      const meta =
+        existing?.metadata && typeof existing.metadata === 'object' && !Array.isArray(existing.metadata)
+          ? { ...(existing.metadata as Record<string, unknown>) }
+          : {};
+      const prev =
+        meta.customFields && typeof meta.customFields === 'object' && !Array.isArray(meta.customFields)
+          ? { ...(meta.customFields as Record<string, string>) }
+          : {};
+      result = await prisma.supportTicket.update({
+        where: { id },
+        data: {
+          metadata: {
+            ...meta,
+            customFields: { ...prev, ...(data.customFields as Record<string, string>) },
+          },
+        },
+      });
+      await ticketService.logActivity(
+        id,
+        'CUSTOM_FIELDS',
+        'Custom fields updated',
+        userId,
+        { customFields: data.customFields },
+        true
+      );
     } else {
       return NextResponse.json(
         {
           error:
-            'No valid update field provided (status, toTechnicianId, scheduledFor, or assignedTechnicianId)',
+            'No valid update field provided (status, toTechnicianId, scheduledFor, assignedTechnicianId, or customFields)',
         },
         { status: 400 }
       );

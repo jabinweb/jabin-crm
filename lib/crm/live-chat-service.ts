@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { ticketService } from '@/lib/crm/ticket-service';
+import { publishRealtime } from '@/lib/realtime/hub';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
 
 export async function getOrCreateChatSession(params: {
   visitorToken?: string;
@@ -30,6 +32,12 @@ export async function getOrCreateChatSession(params: {
       },
       include: { messages: true },
     });
+    if (params.companyId) {
+      void publishRealtime(REALTIME_EVENTS.CHAT_SESSION, params.companyId, {
+        sessionId: session.id,
+        status: 'OPEN',
+      });
+    }
   }
 
   return session;
@@ -55,6 +63,15 @@ export async function addChatMessage(params: {
   });
 
   if (!session) return message;
+
+  if (session.companyId) {
+    void publishRealtime(REALTIME_EVENTS.CHAT_MESSAGE, session.companyId, {
+      sessionId: session.id,
+      messageId: message.id,
+      sender: params.sender,
+      preview: params.body.slice(0, 120),
+    });
+  }
 
   if (!session.ticketId && params.sender === 'visitor') {
     let customerId = session.customerId;

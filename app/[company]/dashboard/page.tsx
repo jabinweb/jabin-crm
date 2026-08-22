@@ -38,6 +38,7 @@ import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { renewalUrgency } from '@/lib/crm/service-contract-utils';
 import { DailyEntryBanner } from '@/components/dashboard/daily-entry-banner';
 import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-card';
+import { AgentQueueCard } from '@/components/dashboard/agent-queue-card';
 
 export default function WorkspaceDashboardPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
@@ -251,6 +252,8 @@ export default function WorkspaceDashboardPage() {
       {profile && <ProfileCompletionBanner isComplete={profile.isComplete} />}
       <WorkspaceSetupPendingBanner />
       <GettingStartedChecklist />
+
+      <AgentQueueCard />
 
       <AttendanceTodayCard
         loading={opsLoading}

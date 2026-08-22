@@ -62,6 +62,24 @@ export default function NewTicketPage() {
         },
     });
 
+    const { data: companyCustomFields = [] } = useQuery({
+        queryKey: ['ticket-custom-fields-new'],
+        queryFn: async () => {
+            const res = await workspaceFetch('/api/support/custom-fields');
+            if (!res.ok) return [];
+            return res.json() as Promise<
+                Array<{
+                    id: string;
+                    name: string;
+                    key: string;
+                    fieldType: string;
+                    required: boolean;
+                    options?: string[] | null;
+                }>
+            >;
+        },
+    });
+
     const ticketTypes = ticketTypeData?.ticketTypes ?? [];
 
     const selectedType = useMemo(
@@ -146,6 +164,12 @@ export default function NewTicketPage() {
         if (!formData.customerId || !formData.ticketType || !formData.subject || !formData.description) {
             toast.error('Please fill in all required fields');
             return;
+        }
+        for (const field of companyCustomFields) {
+            if (field.required && !(formData.customFields[field.key]?.trim())) {
+                toast.error(`${field.name} is required`);
+                return;
+            }
         }
 
         setIsSubmitting(true);
@@ -392,6 +416,83 @@ export default function NewTicketPage() {
                                                     })
                                                 }
                                                 placeholder={field.placeholder}
+                                                required={field.required}
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+
+                                {companyCustomFields.map((field) => (
+                                    <div key={field.id} className="space-y-2">
+                                        <Label>
+                                            {field.name}
+                                            {field.required ? ' *' : ''}
+                                        </Label>
+                                        {field.fieldType === 'boolean' ? (
+                                            <Select
+                                                value={formData.customFields[field.key] || 'false'}
+                                                onValueChange={(val) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        customFields: {
+                                                            ...formData.customFields,
+                                                            [field.key]: val,
+                                                        },
+                                                    })
+                                                }
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="true">Yes</SelectItem>
+                                                    <SelectItem value="false">No</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : field.fieldType === 'select' &&
+                                          Array.isArray(field.options) ? (
+                                            <Select
+                                                value={formData.customFields[field.key] || ''}
+                                                onValueChange={(val) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        customFields: {
+                                                            ...formData.customFields,
+                                                            [field.key]: val,
+                                                        },
+                                                    })
+                                                }
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select…" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {field.options.map((opt) => (
+                                                        <SelectItem key={opt} value={opt}>
+                                                            {opt}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Input
+                                                type={
+                                                    field.fieldType === 'number'
+                                                        ? 'number'
+                                                        : field.fieldType === 'date'
+                                                          ? 'date'
+                                                          : 'text'
+                                                }
+                                                value={formData.customFields[field.key] ?? ''}
+                                                onChange={(e) =>
+                                                    setFormData({
+                                                        ...formData,
+                                                        customFields: {
+                                                            ...formData.customFields,
+                                                            [field.key]: e.target.value,
+                                                        },
+                                                    })
+                                                }
                                                 required={field.required}
                                             />
                                         )}

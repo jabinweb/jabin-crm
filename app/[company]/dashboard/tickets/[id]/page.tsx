@@ -1,11 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { TicketPhotoEvidence } from '@/components/tickets/ticket-photo-evidence';
+import { Customer360Strip } from '@/components/crm/customer-360-strip';
+import { useRealtime } from '@/hooks/use-realtime';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
+import { pushRecentEntity } from '@/lib/crm/recent-entities';
 import {
     Card,
     CardContent,
@@ -54,6 +59,9 @@ import {
     SplitSquareHorizontal,
     Search,
     Loader2,
+    Eye,
+    EyeOff,
+    Copy,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -66,9 +74,14 @@ export default function TicketDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const { path, workspaceFetch } = useWorkspacePaths();
+    const { data: session } = useSession();
     const queryClient = useQueryClient();
     const ticketAdvancedEnabled = useFeatureModule('TICKET_ADVANCED');
     const [newComment, setNewComment] = useState('');
+    const [typingPeers, setTypingPeers] = useState<string[]>([]);
+    const [optimisticComments, setOptimisticComments] = useState<
+        Array<{ id: string; description: string; eventType: string; createdAt: string }>
+    >([]);
     const [isInternalNote, setIsInternalNote] = useState(false);
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
@@ -105,6 +118,10 @@ export default function TicketDetailPage() {
     const [showSplitDialog, setShowSplitDialog] = useState(false);
     const [isSplitting, setIsSplitting] = useState(false);
     const [splitData, setSplitData] = useState({ subject: '', description: '' });
+    const [watchBusy, setWatchBusy] = useState(false);
+    const [guestBusy, setGuestBusy] = useState(false);
+    const [companyFieldEdits, setCompanyFieldEdits] = useState<Record<string, string>>({});
+    const [savingFields, setSavingFields] = useState(false);
 
     const { data: ticket, isLoading } = useQuery({
         queryKey: ['ticket', id],
@@ -115,6 +132,223 @@ export default function TicketDetailPage() {
         },
         staleTime: 30_000,
     });
+
+    const { data: watchData, refetch: refetchWatch } = useQuery({
+        queryKey: ['ticket-watch', id],
+        enabled: !!id,
+        queryFn: async () => {
+            const res = await workspaceFetch(`/api/tickets/${id}/watch`);
+            if (!res.ok) return { watching: false, watchers: [] };
+            return res.json() as Promise<{
+                watching: boolean;
+                watchers: Array<{ user?: { name?: string } }>;
+            }>;
+        },
+        staleTime: 15_000,
+    });
+
+    const { data: presence, refetch: refetchPresence } = useQuery({
+        queryKey: ['ticket-presence', id],
+        enabled: !!id,
+        queryFn: async () => {
+            const res = await workspaceFetch(`/api/tickets/${id}/presence`);
+            if (!res.ok) return null;
+            return res.json() as Promise<{
+                viewers: Array<{ id: string; name: string }>;
+                guestAccessToken?: string | null;
+                hasGuestLink?: boolean;
+            }>;
+        },
+        refetchInterval: 15_000,
+        staleTime: 10_000,
+    });
+
+    const { data: companyFieldDefs = [] } = useQuery({
+        queryKey: ['ticket-custom-fields', id],
+        enabled: !!id,
+        queryFn: async () => {
+            const res = await workspaceFetch('/api/support/custom-fields');
+            if (!res.ok) return [];
+            return res.json() as Promise<
+                Array<{
+                    id: string;
+                    name: string;
+                    key: string;
+                    fieldType: string;
+                    required: boolean;
+                    options?: unknown;
+                }>
+            >;
+        },
+        staleTime: 60_000,
+    });
+
+    useEffect(() => {
+        const meta = ticket?.metadata;
+        const fields =
+            meta && typeof meta === 'object' && !Array.isArray(meta) && meta.customFields
+                ? (meta.customFields as Record<string, string>)
+                : {};
+        setCompanyFieldEdits(fields || {});
+    }, [ticket?.metadata]);
+
+    useEffect(() => {
+        if (!id) return;
+        const tick = async () => {
+            try {
+                await workspaceFetch(`/api/tickets/${id}/presence`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'heartbeat', typing: newComment.trim().length > 0 }),
+                });
+            } catch {
+                /* ignore */
+            }
+        };
+        tick();
+        const interval = setInterval(tick, 15_000);
+        return () => clearInterval(interval);
+    }, [id, workspaceFetch, newComment]);
+
+    useRealtime({
+        types: [
+            REALTIME_EVENTS.TICKET_COMMENT,
+            REALTIME_EVENTS.TICKET_UPDATED,
+            REALTIME_EVENTS.TICKET_TYPING,
+            REALTIME_EVENTS.TICKET_PRESENCE,
+        ],
+        onEvent: (e) => {
+            if (e.payload?.ticketId !== id) return;
+            if (e.type === REALTIME_EVENTS.TICKET_TYPING) {
+                const name =
+                    typeof e.payload?.userName === 'string'
+                        ? e.payload.userName
+                        : typeof e.payload?.name === 'string'
+                          ? e.payload.name
+                          : 'Someone';
+                const typing = Boolean(e.payload?.typing);
+                const uid = e.userId;
+                if (uid && uid === session?.user?.id) return;
+                setTypingPeers((prev) => {
+                    if (typing) return Array.from(new Set([...prev, name]));
+                    return prev.filter((n) => n !== name);
+                });
+                return;
+            }
+            void queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+            void queryClient.invalidateQueries({ queryKey: ['ticket-presence', id] });
+            setOptimisticComments([]);
+        },
+    });
+
+    useEffect(() => {
+        if (!ticket?.id) return;
+        pushRecentEntity({
+            id: ticket.id,
+            type: 'ticket',
+            label: ticket.subject,
+            href: path(`/dashboard/tickets/${ticket.id}`),
+        });
+    }, [ticket?.id, ticket?.subject, path]);
+
+    const toggleWatch = async () => {
+        setWatchBusy(true);
+        try {
+            const watching = watchData?.watching;
+            const res = await workspaceFetch(`/api/tickets/${id}/watch`, {
+                method: watching ? 'DELETE' : 'POST',
+            });
+            if (!res.ok) throw new Error('Failed to update watch');
+            toast.success(watching ? 'Unwatched' : 'Watching ticket');
+            await refetchWatch();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Watch failed');
+        } finally {
+            setWatchBusy(false);
+        }
+    };
+
+    const copyGuestLink = async () => {
+        setGuestBusy(true);
+        try {
+            const res = await workspaceFetch(`/api/tickets/${id}/presence`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'guest_link' }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || 'Failed to create guest link');
+            const token = body.token as string;
+            const url = `${window.location.origin}/ticket/${token}`;
+            await navigator.clipboard.writeText(url);
+            toast.success('Guest link copied');
+            await refetchPresence();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Guest link failed');
+        } finally {
+            setGuestBusy(false);
+        }
+    };
+
+    const revokeGuestLink = async () => {
+        setGuestBusy(true);
+        try {
+            const res = await workspaceFetch(`/api/tickets/${id}/presence`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'revoke_guest_link' }),
+            });
+            if (!res.ok) throw new Error('Failed to revoke');
+            toast.success('Guest link revoked');
+            await refetchPresence();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Revoke failed');
+        } finally {
+            setGuestBusy(false);
+        }
+    };
+
+    const rotateGuestLink = async () => {
+        setGuestBusy(true);
+        try {
+            const res = await workspaceFetch(`/api/tickets/${id}/presence`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'rotate_guest_link' }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || 'Failed to rotate');
+            const token = body.token as string;
+            await navigator.clipboard.writeText(`${window.location.origin}/ticket/${token}`);
+            toast.success('New guest link copied (old link invalidated)');
+            await refetchPresence();
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Rotate failed');
+        } finally {
+            setGuestBusy(false);
+        }
+    };
+
+    const saveCompanyFields = async () => {
+        setSavingFields(true);
+        try {
+            const res = await workspaceFetch(`/api/tickets/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ customFields: companyFieldEdits }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to save fields');
+            }
+            toast.success('Custom fields saved');
+            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Save failed');
+        } finally {
+            setSavingFields(false);
+        }
+    };
 
     const { data: mergeCandidates = [], isFetching: mergeLoading } = useQuery({
         queryKey: ['tickets-merge-picker', mergeSearch, id],
@@ -160,19 +394,33 @@ export default function TicketDetailPage() {
 
     const handleAddComment = async () => {
         if (!newComment.trim()) return;
+        const text = newComment.trim();
+        const tempId = `opt-${Date.now()}`;
+        setOptimisticComments((prev) => [
+            {
+                id: tempId,
+                description: text,
+                eventType: isInternalNote ? 'INTERNAL_NOTE' : 'COMMENT',
+                createdAt: new Date().toISOString(),
+            },
+            ...prev,
+        ]);
+        setNewComment('');
         setIsSubmittingComment(true);
         try {
             const response = await workspaceFetch(`/api/tickets/${id}/activities`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ comment: newComment, isInternal: isInternalNote }),
+                body: JSON.stringify({ comment: text, isInternal: isInternalNote }),
             });
             if (!response.ok) throw new Error('Failed to add comment');
             toast.success(isInternalNote ? 'Internal note saved' : 'Reply sent');
-            setNewComment('');
             setIsInternalNote(false);
             queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+            setOptimisticComments((prev) => prev.filter((c) => c.id !== tempId));
         } catch (error) {
+            setOptimisticComments((prev) => prev.filter((c) => c.id !== tempId));
+            setNewComment(text);
             toast.error('Failed to add comment');
         } finally {
             setIsSubmittingComment(false);
@@ -424,6 +672,8 @@ export default function TicketDetailPage() {
                         </CardContent>
                     </Card>
 
+                    <Customer360Strip customerId={ticket.customer?.id} />
+
                     {/* AI Insights Card */}
                     <AITicketSummary ticketId={id as string} />
 
@@ -438,7 +688,9 @@ export default function TicketDetailPage() {
                             <Card>
                                 <CardContent className="pt-6">
                                     <div className="relative space-y-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-muted">
-                                        {ticket.activities?.map((activity: any) => (
+                                        {ticket.activities
+                                            ?.filter((a: { eventType: string }) => a.eventType !== 'PRESENCE')
+                                            .map((activity: { id: string; eventType: string; description: string; createdAt: string }) => (
                                             <div key={activity.id} className="relative pl-8">
                                                 <div className="absolute left-0 top-1.5 w-4 h-4 rounded-full border-2 border-primary bg-background flex items-center justify-center">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -476,7 +728,21 @@ export default function TicketDetailPage() {
                                                 <p className="text-sm">{comment.description}</p>
                                             </div>
                                         ))}
+                                        {optimisticComments.map((comment) => (
+                                            <div
+                                                key={comment.id}
+                                                className="p-3 rounded-lg border bg-muted/10 opacity-70"
+                                            >
+                                                <p className="text-[10px] text-muted-foreground mb-1">Sending…</p>
+                                                <p className="text-sm">{comment.description}</p>
+                                            </div>
+                                        ))}
                                     </div>
+                                    {typingPeers.length > 0 && (
+                                        <p className="text-xs text-muted-foreground italic px-1">
+                                            {typingPeers.join(', ')} typing…
+                                        </p>
+                                    )}
 
                                     {cannedResponses?.length > 0 && (
                                         <div className="space-y-2">
@@ -587,6 +853,165 @@ export default function TicketDetailPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    <Card>
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium">Collaboration</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between gap-2">
+                                <div>
+                                    <p className="text-sm font-medium">Watch</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {watchData?.watchers?.length
+                                            ? `${watchData.watchers.length} watcher(s)`
+                                            : 'Get notified on updates'}
+                                    </p>
+                                </div>
+                                <Button
+                                    size="sm"
+                                    variant={watchData?.watching ? 'default' : 'outline'}
+                                    disabled={watchBusy}
+                                    onClick={toggleWatch}
+                                >
+                                    {watchData?.watching ? (
+                                        <>
+                                            <EyeOff className="mr-1.5 h-3.5 w-3.5" />
+                                            Unwatch
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Eye className="mr-1.5 h-3.5 w-3.5" />
+                                            Watch
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                                    Viewing now
+                                </p>
+                                {presence?.viewers?.length ? (
+                                    <div className="flex flex-wrap gap-1">
+                                        {presence.viewers.map((v) => (
+                                            <Badge key={v.id} variant="secondary" className="text-[10px]">
+                                                {v.name}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">Only you</p>
+                                )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase">
+                                    Guest link
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {presence?.hasGuestLink || presence?.guestAccessToken
+                                        ? 'Active — anyone with the link can reply'
+                                        : 'No guest link yet'}
+                                </p>
+                                <div className="flex flex-col gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full"
+                                        disabled={guestBusy}
+                                        onClick={copyGuestLink}
+                                    >
+                                        <Copy className="mr-1.5 h-3.5 w-3.5" />
+                                        {guestBusy ? 'Working…' : 'Copy guest link'}
+                                    </Button>
+                                    {(presence?.hasGuestLink || presence?.guestAccessToken) && (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="secondary"
+                                                className="flex-1"
+                                                disabled={guestBusy}
+                                                onClick={rotateGuestLink}
+                                            >
+                                                Rotate
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="flex-1"
+                                                disabled={guestBusy}
+                                                onClick={revokeGuestLink}
+                                            >
+                                                Revoke
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {companyFieldDefs.length > 0 && (
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-sm font-medium">Custom fields</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                {companyFieldDefs.map((field) => (
+                                    <div key={field.id} className="space-y-1">
+                                        <Label className="text-xs">
+                                            {field.name}
+                                            {field.required ? ' *' : ''}
+                                        </Label>
+                                        {field.fieldType === 'boolean' ? (
+                                            <Select
+                                                value={companyFieldEdits[field.key] || 'false'}
+                                                onValueChange={(v) =>
+                                                    setCompanyFieldEdits((prev) => ({
+                                                        ...prev,
+                                                        [field.key]: v,
+                                                    }))
+                                                }
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="true">Yes</SelectItem>
+                                                    <SelectItem value="false">No</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : (
+                                            <Input
+                                                type={
+                                                    field.fieldType === 'number'
+                                                        ? 'number'
+                                                        : field.fieldType === 'date'
+                                                          ? 'date'
+                                                          : 'text'
+                                                }
+                                                value={companyFieldEdits[field.key] ?? ''}
+                                                onChange={(e) =>
+                                                    setCompanyFieldEdits((prev) => ({
+                                                        ...prev,
+                                                        [field.key]: e.target.value,
+                                                    }))
+                                                }
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+                                <Button
+                                    size="sm"
+                                    disabled={savingFields}
+                                    onClick={saveCompanyFields}
+                                >
+                                    {savingFields ? 'Saving…' : 'Save fields'}
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <TicketPhotoEvidence ticketId={String(id)} />
 

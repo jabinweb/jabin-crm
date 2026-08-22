@@ -19,12 +19,13 @@ import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import Link from 'next/link';
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 
 export default function SlaPoliciesPage() {
   const queryClient = useQueryClient();
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, workspaceFetch, path } = useWorkspacePaths();
   const [edits, setEdits] = useState<Record<string, { name: string; responseHours: number; resolutionHours: number }>>({});
 
   const { data, isLoading } = useQuery({
@@ -104,6 +105,11 @@ export default function SlaPoliciesPage() {
         </h1>
         <p className="text-muted-foreground mt-1">
           Configure first-response and resolution targets per priority. Tenant overrides replace global defaults.
+          Hours use your{' '}
+          <Link href={path('/dashboard/support/business-hours')} className="underline underline-offset-2">
+            business hours
+          </Link>{' '}
+          calendar when business-hours SLA is enabled.
         </p>
       </div>
 

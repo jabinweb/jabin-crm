@@ -1,6 +1,11 @@
 import { TicketPriority, TicketStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSlaConfigForPriority, type SlaConfig } from '@/lib/crm/sla-policies';
+import {
+  addBusinessHours,
+  parseBusinessHoursFromSettings,
+  type BusinessHoursConfig,
+} from '@/lib/crm/business-hours';
 
 type SlaState = 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'RESOLVED_ON_TIME' | 'RESOLVED_BREACHED';
 
@@ -58,8 +63,15 @@ async function resolveSlaConfig(
   return getSlaConfigForPriority(ticket.priority, companyId);
 }
 
-function addHours(date: Date, hours: number): Date {
-  return new Date(date.getTime() + hours * 60 * 60 * 1000);
+async function resolveBusinessHours(
+  companyId: string | null | undefined
+): Promise<BusinessHoursConfig> {
+  if (!companyId) return parseBusinessHoursFromSettings(null);
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { settings: true },
+  });
+  return parseBusinessHoursFromSettings(company?.settings);
 }
 
 function diffMinutes(from: Date, to: Date): number {
@@ -77,10 +89,20 @@ function isFirstResponseEvent(eventType: string): boolean {
 
 async function toSlaStatus(ticket: TicketWithActivities): Promise<TicketSlaStatus> {
   const config = await resolveSlaConfig(ticket);
+  const companyId =
+    ticket.customer?.companyId ??
+    (
+      await prisma.customer.findUnique({
+        where: { id: ticket.customerId },
+        select: { companyId: true },
+      })
+    )?.companyId ??
+    null;
+  const bh = await resolveBusinessHours(companyId);
   const now = new Date();
 
-  const responseDueAt = addHours(ticket.createdAt, config.responseHours);
-  const resolutionDueAt = addHours(ticket.createdAt, config.resolutionHours);
+  const responseDueAt = addBusinessHours(ticket.createdAt, config.responseHours, bh);
+  const resolutionDueAt = addBusinessHours(ticket.createdAt, config.resolutionHours, bh);
 
   const firstResponseActivity = ticket.activities.find((activity) =>
     isFirstResponseEvent(activity.eventType)
@@ -128,16 +150,6 @@ async function toSlaStatus(ticket: TicketWithActivities): Promise<TicketSlaStatu
       state = 'AT_RISK';
     }
   }
-
-  const companyId =
-    ticket.customer?.companyId ??
-    (
-      await prisma.customer.findUnique({
-        where: { id: ticket.customerId },
-        select: { companyId: true },
-      })
-    )?.companyId ??
-    null;
 
   return {
     ticketId: ticket.id,

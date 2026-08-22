@@ -7,6 +7,13 @@ import {
   getStatusPipelineForTicketType,
   isValidStatusTransition,
 } from '@/lib/support/status-pipelines';
+import {
+  addBusinessHours,
+  parseBusinessHoursFromSettings,
+} from '@/lib/crm/business-hours';
+import { generateGuestAccessToken } from '@/lib/crm/ticket-guest-access';
+import { publishRealtime } from '@/lib/realtime/hub';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
 
 export interface CreateTicketData {
     customerId: string;
@@ -39,10 +46,6 @@ export class PhotoEvidenceRequiredError extends Error {
         super(message);
         this.name = 'PhotoEvidenceRequiredError';
     }
-}
-
-function addHours(date: Date, hours: number): Date {
-    return new Date(date.getTime() + hours * 60 * 60 * 1000);
 }
 
 export class TicketService {
@@ -138,6 +141,16 @@ export class TicketService {
             metadata.ticketType = data.ticketType;
         }
 
+        const companySettings = companyId
+            ? (
+                await prisma.company.findUnique({
+                    where: { id: companyId },
+                    select: { settings: true },
+                })
+              )?.settings
+            : null;
+        const bh = parseBusinessHoursFromSettings(companySettings);
+
         const ticket = await prisma.supportTicket.create({
             data: {
                 customerId: data.customerId,
@@ -151,8 +164,9 @@ export class TicketService {
                 ticketType: data.ticketType,
                 tags,
                 metadata,
-                responseDueAt: addHours(now, sla.responseHours),
-                resolutionDueAt: addHours(now, sla.resolutionHours),
+                guestAccessToken: generateGuestAccessToken(),
+                responseDueAt: addBusinessHours(now, sla.responseHours, bh),
+                resolutionDueAt: addBusinessHours(now, sla.resolutionHours, bh),
                 status: agent ? 'ASSIGNED' : 'OPEN',
                 assignedTechnicianId: agent?.id,
             },
@@ -295,6 +309,20 @@ export class TicketService {
         });
 
         await this.logActivity(ticketId, 'STATUS_CHANGED', `Status changed to ${status}`, performedById);
+        if (companyId) {
+            void publishRealtime(
+                REALTIME_EVENTS.TICKET_UPDATED,
+                companyId,
+                { ticketId, status, previousStatus: existing.status },
+                performedById
+            );
+        }
+        void this.notifyWatchers(
+            ticketId,
+            'Ticket status updated',
+            `Status changed to ${status}`,
+            performedById
+        );
 
         if (companyId) {
             const full = await prisma.supportTicket.findUnique({
@@ -376,10 +404,10 @@ export class TicketService {
     async addComment(
         ticketId: string,
         comment: string,
-        performedById: string,
+        performedById?: string,
         options?: { isInternal?: boolean }
     ) {
-        return await this.logActivity(
+        const activity = await this.logActivity(
             ticketId,
             options?.isInternal ? 'INTERNAL_NOTE' : 'COMMENT',
             comment,
@@ -387,6 +415,96 @@ export class TicketService {
             undefined,
             options?.isInternal ?? false
         );
+        if (!options?.isInternal) {
+            void this.publishTicketEvent(
+                ticketId,
+                REALTIME_EVENTS.TICKET_COMMENT,
+                {
+                    ticketId,
+                    activityId: activity.id,
+                    comment: comment.slice(0, 500),
+                    isInternal: false,
+                },
+                performedById
+            );
+            void this.notifyWatchers(
+                ticketId,
+                'New ticket reply',
+                comment.slice(0, 140),
+                performedById
+            );
+        }
+        return activity;
+    }
+
+    /** In-app notifications for agents watching a ticket. */
+    async notifyWatchers(
+        ticketId: string,
+        title: string,
+        body: string,
+        excludeUserId?: string
+    ) {
+        try {
+            const watchers = await prisma.ticketWatcher.findMany({
+                where: {
+                    ticketId,
+                    ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
+                },
+                select: { userId: true },
+            });
+            if (!watchers.length) return;
+            const ticket = await prisma.supportTicket.findUnique({
+                where: { id: ticketId },
+                select: {
+                    subject: true,
+                    customer: { select: { companyId: true } },
+                },
+            });
+            const companyId = ticket?.customer?.companyId;
+            if (companyId) {
+                void publishRealtime(
+                    REALTIME_EVENTS.TICKET_UPDATED,
+                    companyId,
+                    { ticketId, title, body, watcherIds: watchers.map((w) => w.userId) },
+                    excludeUserId
+                );
+            }
+            const { notificationService } = await import('@/lib/crm/notification-service');
+            await Promise.all(
+                watchers.map((w) =>
+                    notificationService.create({
+                        type: 'TICKET_UPDATED',
+                        title,
+                        body: ticket?.subject
+                            ? `${ticket.subject}: ${body}`
+                            : body,
+                        userId: w.userId,
+                        metadata: { ticketId, ...(companyId ? { companyId } : {}) },
+                    }).catch(() => undefined)
+                )
+            );
+        } catch (err) {
+            console.error('[notifyWatchers]', err);
+        }
+    }
+
+    private async publishTicketEvent(
+        ticketId: string,
+        type: string,
+        payload: Record<string, unknown>,
+        userId?: string
+    ) {
+        try {
+            const ticket = await prisma.supportTicket.findUnique({
+                where: { id: ticketId },
+                select: { customer: { select: { companyId: true } } },
+            });
+            const companyId = ticket?.customer?.companyId;
+            if (!companyId) return;
+            await publishRealtime(type, companyId, payload, userId);
+        } catch (err) {
+            console.error('[publishTicketEvent]', err);
+        }
     }
 
     async logActivity(

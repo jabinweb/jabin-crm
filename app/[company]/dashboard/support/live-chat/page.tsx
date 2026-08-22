@@ -16,6 +16,8 @@ import { MessageCircle, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CardListSkeleton } from '@/components/loading';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { useRealtime } from '@/hooks/use-realtime';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
 
 type ChatMessage = {
   id: string;
@@ -63,7 +65,17 @@ function LiveChatDesk() {
       if (!res.ok) throw new Error('Failed to load sessions');
       return (await res.json()) as { sessions: ChatSession[] };
     },
-    refetchInterval: 8_000,
+    refetchInterval: 30_000,
+  });
+
+  useRealtime({
+    types: [REALTIME_EVENTS.CHAT_MESSAGE, REALTIME_EVENTS.CHAT_SESSION],
+    onEvent: () => {
+      void queryClient.invalidateQueries({ queryKey: ['live-chat-sessions'] });
+      if (selectedId) {
+        void queryClient.invalidateQueries({ queryKey: ['live-chat-session', selectedId] });
+      }
+    },
   });
 
   const sessions = data?.sessions ?? [];
@@ -76,7 +88,7 @@ function LiveChatDesk() {
       if (!res.ok) throw new Error('Failed to load session');
       return (await res.json()) as ChatSession;
     },
-    refetchInterval: 4_000,
+    refetchInterval: 20_000,
   });
 
   const sendMutation = useMutation({

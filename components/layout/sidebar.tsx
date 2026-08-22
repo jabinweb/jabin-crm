@@ -59,6 +59,7 @@ import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url'
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import type { WorkspaceFeatureKey } from '@/lib/workspace-templates';
 import { fetchFeatureModules, didFeatureModulesFetchFail } from '@/components/feature-module-guard';
+import { RecentEntitiesList } from '@/components/layout/recent-entities';
 
 interface NavigationItem {
   name: string;
@@ -159,6 +160,10 @@ const supportNav: NavigationItem[] = [
       { name: 'Canned replies', href: '/dashboard/support/canned-responses', icon: MessageSquare, module: 'SUPPORT_CANNED', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
       { name: 'Agent groups', href: '/dashboard/support/groups', icon: Users, module: 'SUPPORT_GROUPS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
       { name: 'Ticket automation', href: '/dashboard/support/automation', icon: Zap, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
+      { name: 'Custom fields', href: '/dashboard/support/custom-fields', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
+      { name: 'Business hours', href: '/dashboard/support/business-hours', icon: Clock, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
+      { name: 'Roadmap', href: '/dashboard/support/roadmap', icon: LayoutGrid, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
+      { name: 'Freshdesk import', href: '/dashboard/support/migrate', icon: Database, roles: ['ADMIN', 'SUPER_ADMIN'] },
       { name: 'Analytics', href: '/dashboard/support/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
     ],
   },
@@ -568,6 +573,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </div>
 
         {renderNavGroup(mainNav)}
+        <div className="px-1 py-2">
+          <RecentEntitiesList compact />
+        </div>
         {workspaceAdminNav.length > 0 && renderNavGroup(workspaceAdminNav, "Admin")}
         {hrNav.length > 0 && renderNavGroup(hrNav, "People")}
         {myHrNav.length > 0 && renderNavGroup(myHrNav, "My HR")}
