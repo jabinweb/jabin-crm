@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,11 +23,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, Repeat } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
+import { cn } from '@/lib/utils';
 
 type Retainer = {
   id: string;
@@ -44,6 +53,7 @@ type Retainer = {
 export default function RetainersPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [customerId, setCustomerId] = useState('');
@@ -84,6 +94,14 @@ export default function RetainersPage() {
     enabled: !!slug,
   });
 
+  const resetForm = () => {
+    setName('');
+    setAmount('');
+    setCustomerId('');
+    setBillingCycle('MONTHLY');
+    setProjectId('');
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const res = await workspaceFetch('/api/retainers', {
@@ -105,10 +123,8 @@ export default function RetainersPage() {
     },
     onSuccess: () => {
       toast.success('Retainer created');
-      setName('');
-      setAmount('');
-      setCustomerId('');
-      setProjectId('');
+      resetForm();
+      setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['retainers', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -134,91 +150,244 @@ export default function RetainersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const mrr = retainers
-    .filter((r) => r.status === 'ACTIVE')
-    .reduce((sum, r) => {
-      if (r.billingCycle === 'YEARLY') return sum + r.amount / 12;
-      if (r.billingCycle === 'QUARTERLY') return sum + r.amount / 3;
-      return sum + r.amount;
-    }, 0);
+  const mrr = useMemo(
+    () =>
+      retainers
+        .filter((r) => r.status === 'ACTIVE')
+        .reduce((sum, r) => {
+          if (r.billingCycle === 'YEARLY') return sum + r.amount / 12;
+          if (r.billingCycle === 'QUARTERLY') return sum + r.amount / 3;
+          return sum + r.amount;
+        }, 0),
+    [retainers]
+  );
+
+  const activeCount = retainers.filter((r) => r.status === 'ACTIVE').length;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Client retainers</h1>
-          <p className="text-sm text-muted-foreground">
-            Recurring plans (SEO, hosting, care) — separate from your Opslane subscription.
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+            Client retainers
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Recurring plans — SEO, hosting, care — with draft invoice generation.
           </p>
         </div>
-        <Card className="px-4 py-3">
-          <p className="text-xs text-muted-foreground">Estimated MRR</p>
-          <p className="text-xl font-semibold">{mrr.toFixed(0)}</p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/projects')}>Projects</Link>
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            New retainer
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Card>
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="rounded-md bg-muted p-2 text-muted-foreground">
+              <Repeat className="h-4 w-4" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Active retainers</p>
+              <p className="text-xl font-semibold tabular-nums">{activeCount}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Estimated MRR</p>
+            <p className="text-xl font-semibold tabular-nums">
+              {mrr.toLocaleString(undefined, {
+                maximumFractionDigits: 0,
+              })}
+            </p>
+          </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">New retainer</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Monthly SEO" />
-          </div>
-          <div className="space-y-2">
-            <Label>Amount</Label>
-            <Input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="500"
+        <CardContent className="p-4">
+          {isLoading ? (
+            <FullTableSkeleton columnCount={6} rowCount={5} />
+          ) : retainers.length === 0 ? (
+            <EmptyState
+              icon={Repeat}
+              title="No retainers yet"
+              description="Add monthly or yearly client plans to track MRR and generate invoices."
+              actionLabel="New retainer"
+              onAction={() => setDialogOpen(true)}
             />
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Client</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Next bill</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[120px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {retainers.map((r) => (
+                    <TableRow key={r.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{r.name}</p>
+                          {r.project && (
+                            <Link
+                              href={path(`/dashboard/projects/${r.project.id}`)}
+                              className="text-xs text-muted-foreground hover:underline"
+                            >
+                              {r.project.name}
+                            </Link>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>{r.customer?.organizationName ?? '—'}</TableCell>
+                      <TableCell className="tabular-nums text-sm">
+                        {r.currency} {r.amount.toLocaleString()}
+                        <span className="text-muted-foreground">
+                          {' '}
+                          / {r.billingCycle.toLowerCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {r.nextBillAt
+                          ? new Date(r.nextBillAt).toLocaleDateString(undefined, {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'font-medium',
+                            r.status === 'ACTIVE' &&
+                              'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400'
+                          )}
+                        >
+                          {r.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {r.status === 'ACTIVE' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={billMutation.isPending}
+                            onClick={() => billMutation.mutate(r.id)}
+                          >
+                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            Bill
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New retainer</DialogTitle>
+            <DialogDescription>
+              Recurring billing plan for a client engagement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Monthly SEO"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Billing cycle</Label>
+                <Select value={billingCycle} onValueChange={setBillingCycle}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MONTHLY">Monthly</SelectItem>
+                    <SelectItem value="QUARTERLY">Quarterly</SelectItem>
+                    <SelectItem value="YEARLY">Yearly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Client</Label>
+              <Select value={customerId || undefined} onValueChange={setCustomerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select client" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.organizationName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Project (optional)</Label>
+              <Select
+                value={projectId || '__none__'}
+                onValueChange={(v) => setProjectId(v === '__none__' ? '' : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="None" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">None</SelectItem>
+                  {projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Billing cycle</Label>
-            <Select value={billingCycle} onValueChange={setBillingCycle}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="MONTHLY">Monthly</SelectItem>
-                <SelectItem value="QUARTERLY">Quarterly</SelectItem>
-                <SelectItem value="YEARLY">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Client</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
-            >
-              <option value="">Select client</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.organizationName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Project (optional)</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-            >
-              <option value="">None</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
             <Button
               disabled={
                 !name.trim() || !customerId || !amount || createMutation.isPending
@@ -230,79 +399,9 @@ export default function RetainersPage() {
               )}
               Create retainer
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <FullTableSkeleton columnCount={6} rowCount={5} />
-          ) : retainers.length === 0 ? (
-            <EmptyState
-              title="No retainers yet"
-              description="Add monthly or yearly client plans to track MRR and generate invoices."
-            />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Next bill</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {retainers.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{r.name}</p>
-                        {r.project && (
-                          <Link
-                            href={path(`/dashboard/projects/${r.project.id}`)}
-                            className="text-xs text-muted-foreground underline"
-                          >
-                            {r.project.name}
-                          </Link>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{r.customer?.organizationName}</TableCell>
-                    <TableCell>
-                      {r.currency} {r.amount} / {r.billingCycle.toLowerCase()}
-                    </TableCell>
-                    <TableCell>
-                      {r.nextBillAt
-                        ? new Date(r.nextBillAt).toLocaleDateString()
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{r.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      {r.status === 'ACTIVE' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={billMutation.isPending}
-                          onClick={() => billMutation.mutate(r.id)}
-                        >
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          Bill now
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
