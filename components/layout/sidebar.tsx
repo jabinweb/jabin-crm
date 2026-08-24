@@ -48,6 +48,7 @@ import {
   FolderKanban,
   Landmark,
   LayoutGrid,
+  RefreshCw,
   ArrowLeftRight,
   Briefcase,
 } from 'lucide-react';
@@ -222,8 +223,9 @@ const opsNav: NavigationItem[] = [
   { name: 'Assets', href: '/dashboard/assets', icon: Landmark, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Budgets', href: '/dashboard/budgets', icon: PiggyBank, roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'CRM workflows', href: '/dashboard/workflows', icon: Zap, roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban, roles: ['ADMIN', 'SUPER_ADMIN', 'SALES'] },
+  { name: 'Retainers', href: '/dashboard/retainers', icon: RefreshCw, roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { name: 'Automations', href: '/dashboard/workflows', icon: Zap, roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },
 ];
 
 const workspaceNav: NavigationItem[] = [
@@ -240,7 +242,7 @@ const settingsNav: NavigationItem[] = [
     roles: ['ADMIN', 'SUPER_ADMIN'],
     children: [
       { name: 'Account', href: '/dashboard/settings', icon: Settings },
-      { name: 'Personal CRM', href: '/dashboard/settings/advanced', icon: User },
+      { name: 'Personal settings', href: '/dashboard/settings/advanced', icon: User },
       { name: 'Calendar sync', href: '/dashboard/settings/calendar', icon: CalendarIcon },
       { name: 'Billing', href: '/dashboard/settings/subscription', icon: CreditCard },
       { name: 'Data migration', href: '/dashboard/settings/migration', icon: Database },

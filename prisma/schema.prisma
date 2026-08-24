@@ -101,6 +101,8 @@ model User {
   demoMovementsCreated DemoEquipmentMovement[] @relation("DemoMovementCreator")
   demoMovementsFrom   DemoEquipmentMovement[] @relation("DemoMovementFromCustodian")
   demoMovementsTo     DemoEquipmentMovement[] @relation("DemoMovementToCustodian")
+  managedProjects     Project[]               @relation("ProjectPm")
+  projectMemberships  ProjectMember[]         @relation("ProjectMembers")
 
   // ── Company Management Integration ──
   password         String?
@@ -961,6 +963,7 @@ model Customer {
   whatsappMessages       WhatsAppMessage[]
   company                Company?                @relation(fields: [companyId], references: [id])
   projects               Project[]
+  retainers              ClientRetainer[]
 
   @@index([organizationName])
   @@index([city])
@@ -1348,6 +1351,8 @@ model SupportTicket {
   whatsappMessages     WhatsAppMessage[]
   attachments          TicketAttachment[]
   watchers             TicketWatcher[]
+  projectId            String?
+  project              Project?                @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([customerId])
   @@index([equipmentId])
@@ -1362,6 +1367,7 @@ model SupportTicket {
   @@index([scheduledFor])
   @@index([resolvedAt])
   @@index([guestAccessToken])
+  @@index([projectId])
 }
 
 model TicketWatcher {
@@ -2219,6 +2225,7 @@ model Company {
   expenses          Expense[]
   locations         Location[]
   projects          Project[]
+  clientRetainers   ClientRetainer[]
   hrLetterTemplates HrLetterTemplate[]
   hrLetters         HrLetter[]
   performanceCycles PerformanceCycle[]
@@ -3045,13 +3052,16 @@ model TimesheetEntry {
   date        DateTime  @db.Date
   hours       Float     @default(0)
   projectId   String?
+  billable    Boolean   @default(true)
   note        String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   timesheet   Timesheet @relation(fields: [timesheetId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([timesheetId])
   @@index([date])
+  @@index([projectId])
 }
 
 model PerformanceCycle {
@@ -3151,22 +3161,99 @@ model Project {
   name        String
   description String
   status      String
+  /// website | webapp | seo | branding | retainer | other
+  projectType String    @default("other")
+  progress    Int       @default(0)
   startDate   DateTime
   endDate     DateTime
   companyId   String
   customerId  String?
   dealId      String?
+  pmUserId    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   company     Company   @relation(fields: [companyId], references: [id])
   customer    Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   deal        Deal?     @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  pmUser      User?     @relation("ProjectPm", fields: [pmUserId], references: [id], onDelete: SetNull)
   budgets     Budget[]
+  milestones  ProjectMilestone[]
+  members     ProjectMember[]
+  tickets     SupportTicket[]
+  timesheetEntries TimesheetEntry[]
+  retainers   ClientRetainer[]
 
   @@index([companyId])
   @@index([customerId])
   @@index([dealId])
+  @@index([pmUserId])
+  @@index([status])
   @@index([startDate, endDate])
+}
+
+model ProjectMilestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  /// PENDING | IN_PROGRESS | DONE
+  status      String    @default("PENDING")
+  dueDate     DateTime?
+  sortOrder   Int       @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model ProjectMember {
+  id         String   @id @default(cuid())
+  projectId  String
+  userId     String
+  /// PM | DESIGN | DEV | SEO | OTHER
+  role       String   @default("OTHER")
+  createdAt  DateTime @default(now())
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user       User     @relation("ProjectMembers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([projectId])
+  @@index([userId])
+}
+
+/// Recurring client retainers (SEO, hosting, care plans) — distinct from SaaS Subscription
+model ClientRetainer {
+  id            String    @id @default(cuid())
+  companyId     String
+  customerId    String
+  projectId     String?
+  name          String
+  description   String?
+  amount        Float
+  currency      String    @default("USD")
+  /// MONTHLY | QUARTERLY | YEARLY
+  billingCycle  String    @default("MONTHLY")
+  /// ACTIVE | PAUSED | CANCELLED | ENDED
+  status        String    @default("ACTIVE")
+  startDate     DateTime  @default(now())
+  nextBillAt    DateTime?
+  lastBilledAt  DateTime?
+  endDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  company       Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer      Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project       Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([customerId])
+  @@index([projectId])
+  @@index([status])
+  @@index([nextBillAt])
 }
 
 // ── B2B: Client Management (legacy — product uses Customer; keep for data compat) ─

@@ -67,12 +67,12 @@ export default function SupportAutomationPage() {
             <h1 className="text-3xl font-bold tracking-tight">Automation rules</h1>
             <p className="text-muted-foreground mt-1">
               Auto-tag, notify, and route tickets when events occur — no code required.
-              For custom CRM event rules, use{' '}
+              For custom event rules, use{' '}
               <a
                 href={path('/dashboard/workflows')}
                 className="text-primary underline underline-offset-2"
               >
-                CRM workflows
+                Automations
               </a>
               .
             </p>

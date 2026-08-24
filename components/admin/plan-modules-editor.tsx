@@ -17,7 +17,7 @@ export function PlanModulesEditor({
 }) {
   return (
     <div className="space-y-3">
-      <Label>CRM & support modules included in this plan</Label>
+      <Label>Workspace modules included in this plan</Label>
       <p className="text-xs text-muted-foreground">
         HRMS (attendance, payroll, leave) is always on for company workspaces and is not
         controlled by plans.

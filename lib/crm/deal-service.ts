@@ -190,11 +190,25 @@ export class DealService {
         updateData.actualCloseDate = new Date();
       }
 
-      // Update lead status
+      // Update lead status + auto-create delivery project
       if (data.stage === 'CLOSED_WON') {
         const deal = await prisma.deal.findUnique({
           where: { id: dealId },
-          select: { leadId: true, userId: true, title: true, lead: { select: { companyId: true } } },
+          select: {
+            leadId: true,
+            userId: true,
+            title: true,
+            assignedToId: true,
+            projects: { select: { id: true }, take: 1 },
+            lead: {
+              select: {
+                companyId: true,
+                companyName: true,
+                email: true,
+                contactName: true,
+              },
+            },
+          },
         });
 
         if (deal) {
@@ -211,6 +225,66 @@ export class DealService {
             title: 'Deal won',
             summary: `Deal won: ${deal.title}`,
           });
+
+          // Handoff: create delivery project if none linked yet
+          if (deal.lead?.companyId && deal.projects.length === 0) {
+            try {
+              const { DEFAULT_MILESTONE_TEMPLATES } = await import(
+                '@/lib/projects/agency-delivery'
+              );
+              let customerId: string | null = null;
+              if (deal.lead.email) {
+                const match = await prisma.customer.findFirst({
+                  where: {
+                    companyId: deal.lead.companyId,
+                    OR: [
+                      { email: deal.lead.email },
+                      { organizationName: deal.lead.companyName },
+                    ],
+                  },
+                  select: { id: true },
+                });
+                customerId = match?.id ?? null;
+              }
+              if (!customerId) {
+                const created = await prisma.customer.create({
+                  data: {
+                    organizationName: deal.lead.companyName,
+                    contactPerson: deal.lead.contactName || deal.lead.companyName,
+                    email: deal.lead.email,
+                    companyId: deal.lead.companyId,
+                  },
+                  select: { id: true },
+                });
+                customerId = created.id;
+              }
+              const end = new Date();
+              end.setMonth(end.getMonth() + 3);
+              await prisma.project.create({
+                data: {
+                  name: deal.title,
+                  description: `Delivery project from won opportunity: ${deal.title}`,
+                  status: 'ACTIVE',
+                  projectType: 'other',
+                  startDate: new Date(),
+                  endDate: end,
+                  companyId: deal.lead.companyId,
+                  customerId,
+                  dealId,
+                  pmUserId: deal.assignedToId || deal.userId,
+                  milestones: {
+                    create: DEFAULT_MILESTONE_TEMPLATES.map((m) => ({
+                      title: m.title,
+                      sortOrder: m.sortOrder,
+                      status: 'PENDING',
+                    })),
+                  },
+                },
+              });
+            } catch (err) {
+              console.error('[deal-service] delivery project handoff failed', err);
+            }
+          }
         }
       }
     }

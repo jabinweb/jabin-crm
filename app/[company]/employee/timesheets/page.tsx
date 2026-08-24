@@ -9,10 +9,13 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 
+type ProjectOption = { id: string; name: string }
+
 export default function EmployeeTimesheetsPage() {
   const qc = useQueryClient()
   const [hours, setHours] = useState('8')
   const [note, setNote] = useState('')
+  const [projectId, setProjectId] = useState('')
 
   const { data: sheets = [] } = useQuery({
     queryKey: ['my-timesheets'],
@@ -24,9 +27,24 @@ export default function EmployeeTimesheetsPage() {
           id: string
           weekStart: string
           status: string
-          entries: { date: string; hours: number; note?: string | null }[]
+          entries: {
+            date: string
+            hours: number
+            note?: string | null
+            projectId?: string | null
+          }[]
         }[]
       >
+    },
+  })
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['timesheet-projects'],
+    queryFn: async () => {
+      const res = await fetch('/api/employee/projects')
+      if (!res.ok) return []
+      const json = await res.json()
+      return (Array.isArray(json) ? json : []) as ProjectOption[]
     },
   })
 
@@ -38,7 +56,15 @@ export default function EmployeeTimesheetsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'upsert',
-          entries: [{ date: today, hours: Number(hours), note }],
+          entries: [
+            {
+              date: today,
+              hours: Number(hours),
+              note,
+              projectId: projectId || undefined,
+              billable: true,
+            },
+          ],
         }),
       })
       if (!res.ok) throw new Error('Failed')
@@ -59,13 +85,30 @@ export default function EmployeeTimesheetsPage() {
     <div className="space-y-6 p-4">
       <div>
         <h1 className="text-xl font-semibold">Timesheets</h1>
-        <p className="text-sm text-muted-foreground">Log hours and submit for approval.</p>
+        <p className="text-sm text-muted-foreground">
+          Log hours against delivery projects and submit for approval.
+        </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Today</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label>Project</Label>
+            <select
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">No project / internal</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1">
             <Label>Hours</Label>
             <Input value={hours} onChange={(e) => setHours(e.target.value)} type="number" />
@@ -87,6 +130,9 @@ export default function EmployeeTimesheetsPage() {
                 <p className="font-medium">Week of {new Date(s.weekStart).toLocaleDateString()}</p>
                 <p className="text-xs text-muted-foreground">
                   {s.entries.reduce((a, e) => a + e.hours, 0)} hrs
+                  {s.entries.some((e) => e.projectId)
+                    ? ` · ${s.entries.filter((e) => e.projectId).length} project entries`
+                    : ''}
                 </p>
               </div>
               <Badge>{s.status}</Badge>

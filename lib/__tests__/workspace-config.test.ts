@@ -191,6 +191,7 @@ describe('workspace-config', () => {
     expect(config.terminology.customers).toBe('Clients');
     expect(config.terminology.ticket).toBe('Client request');
     expect(config.terminology.leads).toBe('Prospects');
+    expect(config.terminology.deals).toBe('Opportunities');
     expect(config.features.products).toBe(true);
     expect(config.features.fieldService).toBe(false);
   });
