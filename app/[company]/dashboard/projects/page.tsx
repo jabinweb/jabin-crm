@@ -175,14 +175,20 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Delivery projects</h1>
           <p className="text-sm text-muted-foreground">
-            Track company projects linked to customers and deals.
+            Delivery work for clients — milestones, hours, and requests. Won opportunities
+            auto-create a project.
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/retainers')}>Retainers</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -311,16 +317,31 @@ export default function ProjectsPage() {
                   <TableHead className="w-[140px]" />
                 </TableRow>
               </TableHeader>
-              <TableBody>``
+              <TableBody>
                 {projects.map((p) => (
                   <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        href={path(`/dashboard/projects/${p.id}`)}
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {p.name}
+                      </Link>
+                      {'progress' in p && typeof (p as { progress?: number }).progress === 'number' ? (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {(p as { progress: number }).progress}%
+                        </span>
+                      ) : null}
+                    </TableCell>
                     <TableCell>{p.customer?.organizationName || '—'}</TableCell>
                     <TableCell>{p.deal?.title || '—'}</TableCell>
                     <TableCell>{p.status}</TableCell>
                     <TableCell>{new Date(p.startDate).toLocaleDateString()}</TableCell>
                     <TableCell>{new Date(p.endDate).toLocaleDateString()}</TableCell>
                     <TableCell className="space-x-1">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={path(`/dashboard/projects/${p.id}`)}>Open</Link>
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => startEdit(p)}>
                         Edit
                       </Button>

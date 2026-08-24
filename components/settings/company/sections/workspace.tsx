@@ -111,7 +111,7 @@ export function WorkspaceSection({
           <CardTitle>Business type</CardTitle>
           <CardDescription>
             Choose an industry. Navigation, portal pages, and lead pipelines adapt via a deep
-            product pack. CRM, support, WhatsApp, and HRMS stay available based on your plan.
+            product pack. Sales, support, WhatsApp, and HRMS stay available based on your plan.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -144,7 +144,7 @@ export function WorkspaceSection({
             <p className="text-sm font-medium">This industry enables</p>
             {packEnabled.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Core CRM and support only — no inventory, equipment, or field ops by default.
+                Core sales and support only — no inventory, equipment, or field ops by default.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -164,7 +164,7 @@ export function WorkspaceSection({
           <CardTitle>Enabled areas</CardTitle>
           <CardDescription>
             Override which modules appear in your workspace. Subscription plan limits still apply
-            for paid CRM and support features.
+            for paid sales and support features.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">

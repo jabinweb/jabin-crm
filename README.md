@@ -1,17 +1,19 @@
-# Jabin CRM — CRM + HRMS + Customer Support
+# Opslane Workspace — Sales, Delivery, Support & HR
 
-Multi-tenant SaaS platform: **sales CRM**, **company HRMS** (attendance, leave, payroll), and **customer support** (tickets, live chat, KB, portal). Subscription plans control billable CRM/support modules; HRMS is included for every company workspace.
+Multi-tenant **business workspace**: sales pipeline, delivery projects & retainers, company HRMS (attendance, leave, payroll), and customer support (tickets, live chat, KB, portal). Subscription plans control billable modules; HRMS is included for every company workspace.
+
+> Formerly referred to as a “CRM” — Opslane is broader: pipeline + delivery + support + people ops.
 
 ## Features
 
-### CRM & revenue
-Leads, deals, quotations, invoices, customers, email campaigns/sequences, WhatsApp, usage quotas by plan.
+### Revenue & delivery
+Prospects, opportunities, quotations, invoices, clients, delivery projects (milestones), client retainers (MRR), email campaigns/sequences, WhatsApp, usage quotas by plan.
 
 ### HRMS (company-internal, not plan-gated)
-Employee attendance, leave requests, payslips; admin payroll generation, leave approval, employee management under `/[company]/dashboard`.
+Employee attendance, leave requests, payslips, timesheets (with project hours); admin payroll generation, leave approval, employee management under `/[company]/dashboard`.
 
 ### Customer support
-Tickets, SLA, omnichannel inbox, live chat, knowledge base, canned responses, customer portal, inbound email → ticket.
+Tickets, SLA, omnichannel inbox, live chat, knowledge base, canned responses, customer portal (briefs, project progress, invoices), inbound email → ticket.
 
 ## Tech stack
 
@@ -34,6 +36,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+Default product name is **Opslane** (`NEXT_PUBLIC_APP_NAME`).
 
 ## Scripts
 
@@ -73,23 +77,13 @@ STAGING_BASE_URL=https://staging.example.com npm run qa:staging
 ```
 app/
   admin/              # Platform SUPER_ADMIN console
-  [company]/dashboard/  # Tenant CRM + HR admin (People, payroll)
+  [company]/dashboard/  # Tenant workspace (sales, delivery, People, payroll)
   [company]/admin/   # Workspace users & approvals
   [company]/employee/ # Employee self-service portal
   portal/             # Customer portal
   api/                # REST API routes
-lib/
-  docs/comprehensive-docs.ts  # In-app help (Dashboard → Docs)
-  feature-modules.ts
-  env-validation.ts
-docs/
-  DEPLOYMENT.md       # Production guide
 ```
 
-## In-app documentation
+## Web agency pack
 
-Tenant admins: **Dashboard → Docs**. Topics include Roles & access, Platform admin, Workspace admin, Employee portal, and Customer portal — aligned with live routes.
-
-## License
-
-Private — all rights reserved.
+Select industry **Web & digital agency** for agency terminology (Prospects, Opportunities, Client requests), delivery milestones, retainers, and portal project visibility.

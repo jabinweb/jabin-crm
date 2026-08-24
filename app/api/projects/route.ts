@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import {
+  DEFAULT_MILESTONE_TEMPLATES,
+  PROJECT_INCLUDE,
+} from '@/lib/projects/agency-delivery';
 
 export const GET = withTenantRoute(async (_request, { companyId }) => {
   const projects = await prisma.project.findMany({
@@ -9,6 +13,8 @@ export const GET = withTenantRoute(async (_request, { companyId }) => {
     include: {
       customer: { select: { id: true, organizationName: true } },
       deal: { select: { id: true, title: true } },
+      pmUser: { select: { id: true, name: true } },
+      _count: { select: { milestones: true, tickets: true } },
     },
     orderBy: { updatedAt: 'desc' },
   });
@@ -16,7 +22,7 @@ export const GET = withTenantRoute(async (_request, { companyId }) => {
 });
 
 export const POST = withTenantRoute(async (request, { session, companyId }) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN')) {
+  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -28,8 +34,14 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
 
   const description = typeof body.description === 'string' ? body.description : '';
   const status = typeof body.status === 'string' ? body.status : 'ACTIVE';
+  const projectType =
+    typeof body.projectType === 'string' && body.projectType.trim()
+      ? body.projectType.trim()
+      : 'other';
   const start = body.startDate ? new Date(body.startDate) : new Date();
-  const end = body.endDate ? new Date(body.endDate) : new Date();
+  const end = body.endDate
+    ? new Date(body.endDate)
+    : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return NextResponse.json({ error: 'Invalid dates' }, { status: 400 });
   }
@@ -40,22 +52,37 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       : null;
   const dealId =
     typeof body.dealId === 'string' && body.dealId.trim() ? body.dealId.trim() : null;
+  const pmUserId =
+    typeof body.pmUserId === 'string' && body.pmUserId.trim()
+      ? body.pmUserId.trim()
+      : null;
+  const withMilestones = body.withMilestones !== false;
 
   const project = await prisma.project.create({
     data: {
       name,
       description,
       status,
+      projectType,
       startDate: start,
       endDate: end,
       companyId,
       customerId,
       dealId,
+      pmUserId,
+      ...(withMilestones
+        ? {
+            milestones: {
+              create: DEFAULT_MILESTONE_TEMPLATES.map((m) => ({
+                title: m.title,
+                sortOrder: m.sortOrder,
+                status: 'PENDING',
+              })),
+            },
+          }
+        : {}),
     },
-    include: {
-      customer: { select: { id: true, organizationName: true } },
-      deal: { select: { id: true, title: true } },
-    },
+    include: PROJECT_INCLUDE,
   });
 
   return jsonOk(project, { status: 201 });

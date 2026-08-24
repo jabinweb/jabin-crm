@@ -5,7 +5,7 @@
  * Two gating layers (do not conflate):
  * - Industry pack (this file): workspace feature flags, terminology, lead flows, ticket presets.
  * - Subscription plan (`FeatureModule`): paid entitlement via ensureFeatureEnabled / sidebar module.
- * Horizontal CRM (leads/deals/tickets/WhatsApp/email/HRMS) stays plan-gated only — never hidden by vertical.
+ * Horizontal modules (leads/deals/tickets/WhatsApp/email/HRMS) stay plan-gated only — never hidden by vertical.
  */
 
 export const BUSINESS_VERTICALS = [
@@ -105,7 +105,7 @@ export const WORKSPACE_TEMPLATES: Record<BusinessVertical, WorkspaceTemplate> = 
   general: {
     id: 'general',
     label: 'General business',
-    description: 'CRM, support desk, and HRMS for any organization.',
+    description: 'Sales, support desk, and HRMS for any organization.',
     features: {
       customerPortal: true,
       customers: true,
@@ -166,7 +166,7 @@ export const WORKSPACE_TEMPLATES: Record<BusinessVertical, WorkspaceTemplate> = 
     id: 'web_agency',
     label: 'Web & digital agency',
     description:
-      'Websites, apps, SEO, and retainers — leads, proposals, invoices, and client requests.',
+      'Websites, apps, SEO, and retainers — pipeline, proposals, invoices, delivery projects, and client requests.',
     features: {
       ...CRM_CLIENT_FEATURES,
       products: true,
@@ -182,8 +182,8 @@ export const WORKSPACE_TEMPLATES: Record<BusinessVertical, WorkspaceTemplate> = 
       tickets: 'Client requests',
       lead: 'Prospect',
       leads: 'Prospects',
-      deal: 'Project',
-      deals: 'Projects',
+      deal: 'Opportunity',
+      deals: 'Opportunities',
       newRequest: 'New brief / change request',
       portalSubtitle:
         'Submit briefs, track change requests, and view project updates with your digital agency.',

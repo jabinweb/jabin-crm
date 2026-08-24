@@ -3,20 +3,59 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import {
+  computeProgressFromMilestones,
+  PROJECT_INCLUDE,
+} from '@/lib/projects/agency-delivery';
 
 export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
   const id = (await routeContext!.params).id;
 
-  const project = await prisma.project.findFirst({ where: { id, companyId } });
+  const project = await prisma.project.findFirst({
+    where: { id, companyId },
+    include: {
+      ...PROJECT_INCLUDE,
+      tickets: {
+        take: 20,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          subject: true,
+          status: true,
+          priority: true,
+          ticketType: true,
+          createdAt: true,
+        },
+      },
+      timesheetEntries: {
+        take: 50,
+        orderBy: { date: 'desc' },
+        select: {
+          id: true,
+          date: true,
+          hours: true,
+          billable: true,
+          note: true,
+          timesheet: {
+            select: {
+              employee: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
+  });
   if (!project) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  return jsonOk(project);
+  const hoursLogged = project.timesheetEntries.reduce((s, e) => s + e.hours, 0);
+
+  return jsonOk({ ...project, hoursLogged });
 });
 
 export const PATCH = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN')) {
+  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -27,6 +66,10 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (typeof body.name === 'string') data.name = body.name.trim();
   if (typeof body.description === 'string') data.description = body.description;
   if (typeof body.status === 'string') data.status = body.status;
+  if (typeof body.projectType === 'string') data.projectType = body.projectType.trim();
+  if (typeof body.progress === 'number') {
+    data.progress = Math.max(0, Math.min(100, Math.round(body.progress)));
+  }
   if (body.startDate) {
     const d = new Date(body.startDate);
     if (!Number.isNaN(d.getTime())) data.startDate = d;
@@ -45,6 +88,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     data.dealId =
       typeof body.dealId === 'string' && body.dealId.trim() ? body.dealId.trim() : null;
   }
+  if (body.pmUserId !== undefined) {
+    data.pmUserId =
+      typeof body.pmUserId === 'string' && body.pmUserId.trim()
+        ? body.pmUserId.trim()
+        : null;
+  }
 
   const existing = await prisma.project.findFirst({ where: { id, companyId } });
   if (!existing) {
@@ -54,10 +103,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   const project = await prisma.project.update({
     where: { id },
     data: data as Prisma.ProjectUpdateInput,
-    include: {
-      customer: { select: { id: true, organizationName: true } },
-      deal: { select: { id: true, title: true } },
-    },
+    include: PROJECT_INCLUDE,
   });
 
   return jsonOk(project);
@@ -77,3 +123,17 @@ export const DELETE = withTenantRoute(async (_request, { session, companyId }, r
 
   return new Response(null, { status: 204 });
 });
+
+/** Recalculate progress from milestones */
+export async function syncProjectProgress(projectId: string) {
+  const milestones = await prisma.projectMilestone.findMany({
+    where: { projectId },
+    select: { status: true },
+  });
+  const progress = computeProgressFromMilestones(milestones);
+  await prisma.project.update({
+    where: { id: projectId },
+    data: { progress },
+  });
+  return progress;
+}

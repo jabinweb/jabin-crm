@@ -124,7 +124,7 @@ export default function PricingPage() {
             Lowest pricing. Most features. Real support.
           </h1>
           <p className="text-base text-muted-foreground max-w-xl mx-auto mb-4 leading-relaxed">
-            Competitive plans with the full service-ops pack — CRM, field tools, AMC, and HRMS —
+            Competitive plans with the full service-ops pack — sales, field tools, AMC, and HRMS —
             plus dedicated support. Team-wide seats, no per-user fee. Start free and upgrade when
             you need more.
           </p>

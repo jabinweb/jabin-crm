@@ -79,12 +79,19 @@ export async function POST(request: Request) {
       if (entries.length) {
         await prisma.timesheetEntry.createMany({
           data: entries.map(
-            (e: { date: string; hours: number; note?: string; projectId?: string }) => ({
+            (e: {
+              date: string
+              hours: number
+              note?: string
+              projectId?: string
+              billable?: boolean
+            }) => ({
               timesheetId: sheet.id,
               date: attendanceDateOnly(new Date(e.date)),
               hours: Number(e.hours) || 0,
               note: e.note || null,
               projectId: e.projectId || null,
+              billable: e.billable !== false,
             })
           ),
         })
