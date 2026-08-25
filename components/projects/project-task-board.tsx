@@ -372,7 +372,7 @@ export function ProjectTaskBoard({
       <div className="flex items-start justify-between gap-2">
         <Link
           href={taskHref(item.id)}
-          className="min-w-0 flex-1 text-left text-sm font-medium leading-snug hover:underline underline-offset-2"
+          className="min-w-0 flex-1 text-left text-sm font-medium leading-snug text-primary underline-offset-2 hover:underline"
         >
           {item.title}
         </Link>
@@ -617,7 +617,7 @@ export function ProjectTaskBoard({
                     <TableCell>
                       <Link
                         href={taskHref(t.id)}
-                        className="max-w-[260px] truncate font-medium hover:underline underline-offset-2"
+                        className="block max-w-[280px] truncate font-medium text-primary underline-offset-2 hover:underline"
                       >
                         {t.title}
                       </Link>
