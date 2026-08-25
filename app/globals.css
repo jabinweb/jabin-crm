@@ -97,3 +97,53 @@
 .animate-progress {
   animation: progress 2s ease-in-out infinite;
 }
+
+/* TipTap / project-task rich text editor */
+.rich-text-editor .ProseMirror {
+  outline: none;
+}
+
+.rich-text-editor .ProseMirror p {
+  margin: 0.25rem 0;
+}
+
+.rich-text-editor .ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text-editor .ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text-editor .ProseMirror a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich-text-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text-editor .ProseMirror code {
+  border-radius: 0.25rem;
+  background: hsl(var(--muted));
+  padding: 0.125rem 0.25rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

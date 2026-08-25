@@ -91,6 +91,7 @@ export type ProjectTaskRow = PipelineBoardCard & {
     email: string | null;
     image?: string | null;
   } | null;
+  _count?: { subtasks?: number };
 };
 
 export type ProjectMemberOption = {
@@ -421,6 +422,12 @@ export function ProjectTaskBoard({
         >
           {PRIORITY_LABEL[item.priority] ?? item.priority}
         </Badge>
+        {(item._count?.subtasks ?? 0) > 0 ? (
+          <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
+            <ListTodo className="size-3" />
+            {item._count!.subtasks}
+          </span>
+        ) : null}
         {item.dueDate ? (
           <span className="text-[10px] text-muted-foreground">
             {formatDue(item.dueDate)}

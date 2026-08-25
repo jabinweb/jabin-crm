@@ -6,6 +6,7 @@ export {
   SettingsPageSkeleton,
   BoardSkeleton,
   DetailSkeleton,
+  ProjectTaskDetailSkeleton,
   SectionSkeleton,
   ShellSkeleton,
 } from './primitives';

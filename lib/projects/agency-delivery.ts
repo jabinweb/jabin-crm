@@ -33,8 +33,10 @@ export const PROJECT_INCLUDE = {
   pmUser: { select: { id: true, name: true, email: true } },
   milestones: { orderBy: { sortOrder: 'asc' as const } },
   tasks: {
+    where: { parentTaskId: null },
     include: {
       assignee: { select: { id: true, name: true, email: true, image: true } },
+      _count: { select: { subtasks: true } },
     },
     orderBy: [{ status: 'asc' as const }, { sortOrder: 'asc' as const }],
   },

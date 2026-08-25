@@ -52,6 +52,17 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
       assignee: { select: { id: true, name: true, email: true, image: true } },
       reporter: { select: { id: true, name: true, email: true, image: true } },
       project: { select: { id: true, name: true } },
+      parentTask: {
+        select: { id: true, title: true },
+      },
+      subtasks: {
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+        include: {
+          assignee: {
+            select: { id: true, name: true, email: true, image: true },
+          },
+        },
+      },
       watchers: {
         include: {
           user: { select: { id: true, name: true, email: true, image: true } },
@@ -77,7 +88,14 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
           actor: { select: { id: true, name: true, email: true, image: true } },
         },
       },
-      _count: { select: { comments: true, watchers: true, attachments: true } },
+      _count: {
+        select: {
+          comments: true,
+          watchers: true,
+          attachments: true,
+          subtasks: true,
+        },
+      },
     },
   });
 
