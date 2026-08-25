@@ -142,6 +142,43 @@ export class CustomerService {
             createdAt: true,
           },
         },
+        projects: {
+          orderBy: { updatedAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            progress: true,
+            updatedAt: true,
+          },
+        },
+        retainers: {
+          orderBy: { nextBillAt: 'asc' },
+          take: 20,
+          select: {
+            id: true,
+            name: true,
+            amount: true,
+            currency: true,
+            billingCycle: true,
+            status: true,
+            nextBillAt: true,
+          },
+        },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            invoiceNumber: true,
+            title: true,
+            status: true,
+            total: true,
+            currency: true,
+            dueDate: true,
+          },
+        },
         _count: {
           select: {
             supportTickets: true,
@@ -149,6 +186,9 @@ export class CustomerService {
             contacts: true,
             departments: true,
             visits: true,
+            projects: true,
+            retainers: true,
+            invoices: true,
           },
         },
       },

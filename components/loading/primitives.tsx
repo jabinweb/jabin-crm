@@ -57,16 +57,57 @@ export function StatCardsSkeleton({
 export function FormSkeleton({
   fields = 4,
   className,
-}: ClassNameProps & { fields?: number }) {
+  /** Include a header block in the same skeleton (avoids stacking two loaders). */
+  withHeader = false,
+}: ClassNameProps & { fields?: number; withHeader?: boolean }) {
   return (
-    <div className={cn('space-y-4', className)}>
-      {Array.from({ length: fields }).map((_, i) => (
-        <div key={i} className="space-y-2">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-10 w-full" />
+    <div className={cn('space-y-6', className)} aria-busy="true" aria-live="polite">
+      {withHeader ? (
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-72 max-w-full" />
         </div>
-      ))}
-      <Skeleton className="h-10 w-32" />
+      ) : null}
+      <div className="space-y-4">
+        {Array.from({ length: fields }).map((_, i) => (
+          <div key={i} className="space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ))}
+        <Skeleton className="h-10 w-32" />
+      </div>
+    </div>
+  );
+}
+
+/** Settings / integrations page — one cohesive skeleton (not stacked loaders). */
+export function SettingsPageSkeleton({
+  cards = 6,
+  className,
+}: ClassNameProps & { cards?: number }) {
+  return (
+    <div className={cn('space-y-8', className)} aria-busy="true" aria-live="polite">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-40" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: cards }).map((_, i) => (
+          <div key={i} className="space-y-3 rounded-lg border bg-card p-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-9 w-9 rounded-md" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-[66%]" />
+            <Skeleton className="h-8 w-24" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

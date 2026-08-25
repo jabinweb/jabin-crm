@@ -17,10 +17,10 @@ import { SupportTicketTypesSection } from "./sections/support-ticket-types"
 import { VisitTagsSection } from "./sections/visit-tags"
 import { TerminologySection } from "./sections/terminology"
 import { FieldOpsSection } from "./sections/field-ops"
-import { SettingsProvider } from "@/contexts/settings-context"
+import { SettingsProvider, useSettings } from "@/contexts/settings-context"
 import { SettingsLayout } from "../settings-layout"
-import { useSettings } from "@/contexts/settings-context"
-import type { CompanySettings, SettingsUpdatePayload } from '@/types/settings'
+import { FormSkeleton } from '@/components/loading'
+import type { SettingsUpdatePayload } from '@/types/settings'
 
 export function CompanySettings() {
   return (
@@ -37,7 +37,7 @@ function CompanySettingsContent() {
   const [pendingChanges, setPendingChanges] = useState<SettingsUpdatePayload>({})
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading workspace settings…</p>
+    return <FormSkeleton fields={6} withHeader />
   }
 
   if (fetchError) {
@@ -89,8 +89,15 @@ function CompanySettingsContent() {
     >
       <p className="text-sm text-muted-foreground">
         Workspace company details are stored on your{' '}
-        <span className="font-medium text-foreground">Company</span> record. For personal CRM options (email
-        integrations, AI API keys, legacy invoicing fields on your user profile), use{' '}
+        <span className="font-medium text-foreground">Company</span> record. Connect Razorpay,
+        WhatsApp, email, and webhooks under{' '}
+        <DashboardLink
+          href="/dashboard/settings/integrations"
+          className="text-primary underline-offset-4 hover:underline"
+        >
+          Integrations
+        </DashboardLink>
+        . For personal CRM options (email on your user profile, AI API keys), use{' '}
         <DashboardLink href="/dashboard/settings/advanced" className="text-primary underline-offset-4 hover:underline">
           personal CRM settings
         </DashboardLink>

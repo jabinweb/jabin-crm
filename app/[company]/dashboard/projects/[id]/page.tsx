@@ -3,35 +3,40 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
-  Loader2,
-  ArrowLeft,
   CheckCircle2,
-  Circle,
-  PlayCircle,
   Clock,
+  Handshake,
   User,
   Building2,
-  Plus,
+  ExternalLink,
+  Ticket,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { cn } from '@/lib/utils';
-
-type Milestone = {
-  id: string;
-  title: string;
-  status: string;
-  dueDate?: string | null;
-  sortOrder: number;
-};
+import { DetailChrome } from '@/components/layout/detail-chrome';
+import {
+  ProjectTaskBoard,
+  type ProjectTaskRow,
+} from '@/components/projects/project-task-board';
 
 type ProjectDetail = {
   id: string;
@@ -46,7 +51,14 @@ type ProjectDetail = {
   customer?: { id: string; organizationName: string } | null;
   deal?: { id: string; title: string; stage?: string; value?: number } | null;
   pmUser?: { id: string; name: string | null; email: string | null } | null;
-  milestones: Milestone[];
+  tasks?: ProjectTaskRow[];
+  milestones: Array<{
+    id: string;
+    title: string;
+    status: string;
+    dueDate?: string | null;
+    sortOrder: number;
+  }>;
   members: Array<{
     id: string;
     role: string;
@@ -89,16 +101,6 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   },
 };
 
-function statusIcon(status: string) {
-  if (status === 'DONE') {
-    return <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />;
-  }
-  if (status === 'IN_PROGRESS') {
-    return <PlayCircle className="h-4 w-4 shrink-0 text-blue-600" />;
-  }
-  return <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />;
-}
-
 function formatDate(value?: string | null) {
   if (!value) return '—';
   return new Date(value).toLocaleDateString(undefined, {
@@ -113,12 +115,15 @@ function extractLiveUrl(description: string): string | null {
   return m?.[0] ?? null;
 }
 
+function initials(name?: string | null, email?: string | null) {
+  return (name || email || '?').trim().slice(0, 2).toUpperCase();
+}
+
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
-  const [milestoneTitle, setMilestoneTitle] = useState('');
   const [descExpanded, setDescExpanded] = useState(false);
 
   const { data: project, isLoading, isError } = useQuery({
@@ -131,45 +136,25 @@ export default function ProjectDetailPage() {
     enabled: !!slug && !!projectId,
   });
 
-  const addMilestone = useMutation({
-    mutationFn: async () => {
-      const res = await workspaceFetch(`/api/projects/${projectId}/milestones`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: milestoneTitle }),
-      });
-      if (!res.ok) throw new Error('Failed to add milestone');
-      return res.json();
-    },
-    onSuccess: () => {
-      setMilestoneTitle('');
-      toast.success('Milestone added');
-      queryClient.invalidateQueries({ queryKey: ['project', slug, projectId] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const updateMilestone = useMutation({
+  const milestoneMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const res = await workspaceFetch(`/api/projects/${projectId}/milestones`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status }),
       });
-      if (!res.ok) throw new Error('Failed to update milestone');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update milestone');
+      }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project', slug, projectId] });
+      toast.success('Milestone updated');
     },
     onError: (e: Error) => toast.error(e.message),
   });
-
-  const cycleStatus = (status: string) => {
-    if (status === 'PENDING') return 'IN_PROGRESS';
-    if (status === 'IN_PROGRESS') return 'DONE';
-    return 'PENDING';
-  };
 
   const liveUrl = useMemo(
     () => (project?.description ? extractLiveUrl(project.description) : null),
@@ -183,25 +168,42 @@ export default function ProjectDetailPage() {
     return `${cleaned.slice(0, 180)}…`;
   }, [project?.description, descExpanded]);
 
-  const milestoneDone = project?.milestones.filter((m) => m.status === 'DONE').length ?? 0;
-  const milestoneTotal = project?.milestones.length ?? 0;
+  const tasks = project?.tasks ?? [];
+  const doneTasks = tasks.filter((t) => t.status === 'DONE').length;
+
+  const newTicketHref = useMemo(() => {
+    if (!project) return path('/dashboard/tickets/new');
+    const q = new URLSearchParams();
+    if (project.customer?.id) q.set('customerId', project.customer.id);
+    q.set('projectId', project.id);
+    return path(`/dashboard/tickets/new?${q.toString()}`);
+  }, [project, path]);
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-4 w-40" />
+        <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="flex-1 flex flex-col gap-3">
+            <Skeleton className="h-9 w-2/3" />
+            <Skeleton className="h-16 w-full max-w-xl" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <Skeleton className="h-36 w-full lg:w-64" />
+        </div>
+        <Skeleton className="h-80 w-full" />
       </div>
     );
   }
 
   if (isError || !project) {
     return (
-      <div className="space-y-4 py-12 text-center">
-        <p className="text-muted-foreground">Project not found.</p>
-        <Button variant="outline" asChild>
-          <Link href={path('/dashboard/projects')}>Back to projects</Link>
-        </Button>
-      </div>
+      <EmptyState
+        title="Project not found"
+        description="It may have been deleted, or you don’t have access."
+        actionLabel="Back to projects"
+        actionHref={path('/dashboard/projects')}
+      />
     );
   }
 
@@ -211,79 +213,99 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Button variant="ghost" size="sm" asChild className="mb-3 -ml-2 text-muted-foreground">
-          <Link href={path('/dashboard/projects')}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Projects
-          </Link>
-        </Button>
+    <div className="flex flex-col gap-6">
+      <DetailChrome
+        crumbs={[
+          { label: 'Projects', href: path('/dashboard/projects') },
+          { label: project.name },
+        ]}
+        backHref={path('/dashboard/projects')}
+        backLabel="All projects"
+      />
 
+      <div>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0 flex-1 space-y-3">
+          <div className="min-w-0 flex-1 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{project.name}</h1>
+              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+                {project.name}
+              </h1>
               <Badge variant="outline" className={cn('font-medium', statusMeta.className)}>
                 {statusMeta.label}
               </Badge>
-              <Badge variant="secondary" className="capitalize font-normal">
+              <Badge variant="secondary" className="font-normal capitalize">
                 {project.projectType.replace('_', ' ')}
               </Badge>
             </div>
 
             {project.description ? (
-              <div className="max-w-2xl">
-                <p className="text-sm text-muted-foreground leading-relaxed">{descPreview}</p>
-                <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                  {project.description.length > 180 && (
-                    <button
+              <div className="max-w-2xl flex flex-col gap-1.5">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {descPreview}
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {project.description.length > 180 ? (
+                    <Button
                       type="button"
-                      className="text-xs font-medium text-foreground hover:underline"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs"
                       onClick={() => setDescExpanded((v) => !v)}
                     >
                       {descExpanded ? 'Show less' : 'Show more'}
-                    </button>
-                  )}
-                  {liveUrl && (
-                    <a
-                      href={liveUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-medium text-primary hover:underline"
-                    >
-                      Open live site ↗
-                    </a>
-                  )}
+                    </Button>
+                  ) : null}
+                  {liveUrl ? (
+                    <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
+                      <a href={liveUrl} target="_blank" rel="noopener noreferrer">
+                        Open live site
+                        <ExternalLink className="ml-1 size-3" />
+                      </a>
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ) : null}
 
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
-              {project.customer && (
+              {project.customer ? (
                 <Link
                   href={path(`/dashboard/customers/${project.customer.id}`)}
                   className="inline-flex items-center gap-1.5 hover:text-foreground"
                 >
-                  <Building2 className="h-3.5 w-3.5" />
+                  <Building2 className="size-3.5" />
                   {project.customer.organizationName}
                 </Link>
-              )}
-              {project.pmUser && (
+              ) : null}
+              {project.deal ? (
+                <Link
+                  href={path(`/dashboard/deals/${project.deal.id}`)}
+                  className="inline-flex items-center gap-1.5 hover:text-foreground"
+                >
+                  <Handshake className="size-3.5" />
+                  {project.deal.title}
+                </Link>
+              ) : null}
+              {project.pmUser ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5" />
+                  <User className="size-3.5" />
                   {project.pmUser.name || project.pmUser.email}
                 </span>
-              )}
+              ) : null}
               <span className="inline-flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
+                <Clock className="size-3.5" />
                 {formatDate(project.startDate)} → {formatDate(project.endDate)}
               </span>
             </div>
           </div>
 
-          <Card className="w-full lg:w-64 shrink-0">
-            <CardContent className="p-4 space-y-3">
+          <Card className="w-full shrink-0 lg:w-64">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Delivery health
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Progress</span>
                 <span className="font-semibold tabular-nums">{project.progress}%</span>
@@ -293,15 +315,22 @@ export default function ProjectDetailPage() {
               <div className="grid grid-cols-2 gap-3 text-center">
                 <div>
                   <p className="text-lg font-semibold tabular-nums">
-                    {milestoneDone}/{milestoneTotal}
+                    {doneTasks}/{tasks.length}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">Milestones</p>
+                  <p className="text-[11px] text-muted-foreground">Tasks done</p>
                 </div>
                 <div>
-                  <p className="text-lg font-semibold tabular-nums">
-                    {(project.hoursLogged ?? 0).toFixed(0)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">Hours</p>
+                  <Link
+                    href={path('/dashboard/timesheets')}
+                    className="block hover:opacity-80"
+                  >
+                    <p className="text-lg font-semibold tabular-nums">
+                      {(project.hoursLogged ?? 0).toFixed(0)}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground underline-offset-2 hover:underline">
+                      Hours
+                    </p>
+                  </Link>
                 </div>
               </div>
             </CardContent>
@@ -309,170 +338,192 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <CheckCircle2 className="size-4" />
+            Milestones
+          </CardTitle>
+          <CardDescription>Track delivery phases — mark done as you ship.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {project.milestones.length === 0 ? (
+            <EmptyState
+              title="No milestones"
+              description="Milestones appear when this project is set up for delivery."
+              className="py-8"
+            />
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {project.milestones.map((m) => {
+                const done = m.status === 'DONE';
+                return (
+                  <li
+                    key={m.id}
+                    className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
+                  >
+                    <Checkbox
+                      checked={done}
+                      disabled={milestoneMutation.isPending}
+                      onCheckedChange={(checked) => {
+                        void milestoneMutation.mutate({
+                          id: m.id,
+                          status: checked ? 'DONE' : 'PENDING',
+                        });
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className={cn('font-medium', done && 'text-muted-foreground line-through')}>
+                        {m.title}
+                      </p>
+                      {m.dueDate ? (
+                        <p className="text-xs text-muted-foreground">
+                          Due {formatDate(m.dueDate)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Badge variant="outline" className="shrink-0 font-normal">
+                      {m.status.replace(/_/g, ' ')}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">Work board</CardTitle>
+          <CardDescription>
+            Drag tasks across columns, or switch to list for bulk updates.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ProjectTaskBoard
+            projectId={project.id}
+            tasks={tasks}
+            progress={project.progress}
+          />
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Milestones</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {project.milestones.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No milestones yet. Add the first phase below.
-              </p>
-            ) : (
-              project.milestones.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() =>
-                    updateMilestone.mutate({ id: m.id, status: cycleStatus(m.status) })
-                  }
-                  className="flex w-full items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50"
-                >
-                  {statusIcon(m.status)}
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={cn(
-                        'font-medium truncate',
-                        m.status === 'DONE' && 'text-muted-foreground line-through'
-                      )}
-                    >
-                      {m.title}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground capitalize">
-                      {m.status.replace(/_/g, ' ').toLowerCase()}
-                      {m.dueDate ? ` · due ${formatDate(m.dueDate)}` : ''}
-                    </p>
-                  </div>
-                </button>
-              ))
-            )}
-            <div className="flex gap-2 pt-2">
-              <Input
-                placeholder="Add milestone…"
-                value={milestoneTitle}
-                onChange={(e) => setMilestoneTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && milestoneTitle.trim()) {
-                    addMilestone.mutate();
-                  }
-                }}
-              />
-              <Button
-                size="icon"
-                disabled={!milestoneTitle.trim() || addMilestone.isPending}
-                onClick={() => addMilestone.mutate()}
-              >
-                {addMilestone.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Click a milestone to cycle: pending → in progress → done.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Client requests</CardTitle>
+            <CardDescription>Support tickets linked to this project.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent>
             {project.tickets.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                No linked requests yet.
-              </p>
+              <EmptyState
+                icon={Ticket}
+                title="No linked requests"
+                description="Create a ticket linked to this project for client change requests."
+                actionLabel="New ticket"
+                actionHref={newTicketHref}
+                className="py-8"
+              />
             ) : (
-              project.tickets.map((t) => (
-                <Link
-                  key={t.id}
-                  href={path(`/dashboard/tickets/${t.id}`)}
-                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
-                >
-                  <span className="truncate font-medium">{t.subject}</span>
-                  <Badge variant="outline" className="shrink-0 font-normal">
-                    {t.status}
-                  </Badge>
-                </Link>
-              ))
+              <div className="flex flex-col gap-2">
+                {project.tickets.map((t) => (
+                  <Link
+                    key={t.id}
+                    href={path(`/dashboard/tickets/${t.id}`)}
+                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
+                  >
+                    <span className="truncate font-medium">{t.subject}</span>
+                    <Badge variant="outline" className="shrink-0 font-normal">
+                      {t.status}
+                    </Badge>
+                  </Link>
+                ))}
+                <Button variant="outline" size="sm" className="mt-2 self-start" asChild>
+                  <Link href={newTicketHref}>
+                    <Ticket className="mr-1.5 size-3.5" />
+                    New ticket
+                  </Link>
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base font-semibold">Retainers</CardTitle>
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+            <div>
+              <CardTitle className="text-base font-semibold">Team</CardTitle>
+              <CardDescription>People delivering this engagement.</CardDescription>
+            </div>
             <Button variant="ghost" size="sm" asChild className="h-8 text-xs">
-              <Link href={path('/dashboard/retainers')}>Manage</Link>
+              <Link href={path('/dashboard/retainers')}>Retainers</Link>
             </Button>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {project.retainers.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                No retainers on this project.
-              </p>
+          <CardContent>
+            {!project.pmUser && project.members.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No team assigned"
+                description="Assign a project lead or members to collaborate here."
+                className="py-8"
+              />
             ) : (
-              project.retainers.map((r) => (
-                <div
-                  key={r.id}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm"
-                >
-                  <div>
-                    <p className="font-medium">{r.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {r.currency} {r.amount.toLocaleString()} /{' '}
-                      {r.billingCycle.toLowerCase()}
-                    </p>
+              <div className="flex flex-col gap-2">
+                {project.pmUser ? (
+                  <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
+                    <Avatar className="size-8">
+                      <AvatarFallback className="text-xs">
+                        {initials(project.pmUser.name, project.pmUser.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">
+                        {project.pmUser.name || project.pmUser.email}
+                      </p>
+                      <p className="text-xs text-muted-foreground">Project lead</p>
+                    </div>
                   </div>
-                  <Badge variant="outline">{r.status}</Badge>
-                </div>
-              ))
+                ) : null}
+                {project.members.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
+                  >
+                    <Avatar className="size-8">
+                      <AvatarFallback className="text-xs">
+                        {initials(m.user.name, m.user.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{m.user.name || m.user.email}</p>
+                      <p className="text-xs text-muted-foreground">{m.role}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Team</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {project.pmUser && (
-              <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                  {(project.pmUser.name || project.pmUser.email || '?')
-                    .slice(0, 2)
-                    .toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-medium">
-                    {project.pmUser.name || project.pmUser.email}
-                  </p>
-                  <p className="text-xs text-muted-foreground">Project lead</p>
-                </div>
+            {project.retainers.length > 0 ? (
+              <div className="mt-4 flex flex-col gap-2 border-t pt-4">
+                {project.retainers.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={path('/dashboard/retainers')}
+                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+                  >
+                    <div>
+                      <p className="font-medium">{r.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.currency} {r.amount.toLocaleString()} /{' '}
+                        {r.billingCycle.toLowerCase()}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{r.status}</Badge>
+                  </Link>
+                ))}
               </div>
-            )}
-            {project.members.map((m) => (
-              <div
-                key={m.id}
-                className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-xs font-semibold">
-                  {(m.user.name || m.user.email || '?').slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-medium">{m.user.name || m.user.email}</p>
-                  <p className="text-xs text-muted-foreground">{m.role}</p>
-                </div>
-              </div>
-            ))}
-            {!project.pmUser && project.members.length === 0 && (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                No team assigned yet.
-              </p>
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>

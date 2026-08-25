@@ -5,8 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
@@ -222,29 +222,26 @@ export default function ServiceJobBoardPage() {
             Status pipeline, technician dispatch, and day schedule.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant={view === 'status' ? 'default' : 'outline'}
-            onClick={() => setView('status')}
-          >
+        <ToggleGroup
+          type="single"
+          value={view}
+          onValueChange={(v) => {
+            if (v === 'status' || v === 'technician' || v === 'day') setView(v);
+          }}
+          variant="outline"
+          size="sm"
+          className="justify-start flex-wrap"
+        >
+          <ToggleGroupItem value="status" className="px-3">
             By status
-          </Button>
-          <Button
-            size="sm"
-            variant={view === 'technician' ? 'default' : 'outline'}
-            onClick={() => setView('technician')}
-          >
+          </ToggleGroupItem>
+          <ToggleGroupItem value="technician" className="px-3">
             By technician
-          </Button>
-          <Button
-            size="sm"
-            variant={view === 'day' ? 'default' : 'outline'}
-            onClick={() => setView('day')}
-          >
+          </ToggleGroupItem>
+          <ToggleGroupItem value="day" className="px-3">
             Day strip
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       <Card>

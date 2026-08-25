@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Info, Palette } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { type useUserProfileSettings } from '@/hooks/use-user-profile-settings';
 import { ProfileSaveButton } from './profile-save-button';
@@ -30,14 +30,12 @@ export function TemplatesTab({ formData, handleChange, updateProfileMutation }: 
     <TabsContent value="templates" className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-            </svg>
-            Template Customization
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Palette className="h-4 w-4 text-primary" />
+            Template customization
           </CardTitle>
           <CardDescription>
-            Customize the appearance of your invoices and quotations
+            Appearance of your invoices and quotations
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

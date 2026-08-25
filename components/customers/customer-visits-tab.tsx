@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { EasyBottomSheet, EasyFab } from '@/components/customers/easy-bottom-sheet';
 import { cn } from '@/lib/utils';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 type Tag = { id: string; name: string; color?: string | null };
 type Contact = { id: string; name: string };
@@ -237,7 +238,12 @@ export function CustomerVisitsTab({
   };
 
   const deleteVisit = async (visitId: string) => {
-    if (!window.confirm('Delete this visit?')) return;
+    const ok = await confirmAction({
+      title: 'Delete this visit?',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       const res = await workspaceFetch(`/api/customers/${customerId}/visits/${visitId}`, {
         method: 'DELETE',

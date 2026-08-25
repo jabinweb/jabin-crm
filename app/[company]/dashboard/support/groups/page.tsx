@@ -13,6 +13,7 @@ import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 type SupportGroup = {
   id: string;
@@ -177,8 +178,17 @@ export default function SupportGroupsPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        if (confirm('Delete this group?')) deleteMutation.mutate(g.id);
+                      onClick={async () => {
+                        if (
+                          !(await confirmAction({
+                            title: 'Delete this group?',
+                            description: 'This cannot be undone.',
+                            confirmLabel: 'Delete',
+                            variant: 'destructive',
+                          }))
+                        )
+                          return;
+                        deleteMutation.mutate(g.id);
                       }}
                     >
                       Delete

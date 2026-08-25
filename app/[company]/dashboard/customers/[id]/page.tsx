@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -56,17 +56,61 @@ const CUSTOMER_TABS = [
   { value: 'visits', label: 'Visits' },
   { value: 'equipment', label: 'Equipment' },
   { value: 'tickets', label: 'Tickets' },
+  { value: 'projects', label: 'Projects' },
+  { value: 'retainers', label: 'Retainers' },
+  { value: 'invoices', label: 'Invoices' },
   { value: 'timeline', label: 'Activity' },
 ] as const;
+
+type CustomerTabValue = (typeof CUSTOMER_TABS)[number]['value'];
+
+function isCustomerTab(value: string | null): value is CustomerTabValue {
+  return !!value && CUSTOMER_TABS.some((t) => t.value === value);
+}
 
 export default function CustomerDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const { data: workspaceData } = useWorkspaceConfig();
   const customerLabel = workspaceData?.config.terminology.customer ?? 'customer';
-  const [activeTab, setActiveTab] = useState('people');
+  const vertical = workspaceData?.config.businessVertical;
+  const features = workspaceData?.config.features;
+  const visibleTabs = CUSTOMER_TABS.filter((t) => {
+    if (vertical === 'web_agency' && (t.value === 'equipment' || t.value === 'visits')) {
+      return false;
+    }
+    if (t.value === 'equipment' && features && features.equipment !== true) {
+      return false;
+    }
+    return true;
+  });
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<string>(
+    isCustomerTab(tabFromUrl) && visibleTabs.some((t) => t.value === tabFromUrl)
+      ? tabFromUrl
+      : 'people'
+  );
+
+  useEffect(() => {
+    if (isCustomerTab(tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl, activeTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const next = new URLSearchParams(searchParams.toString());
+    if (value === 'people') next.delete('tab');
+    else next.set('tab', value);
+    const qs = next.toString();
+    router.replace(
+      path(`/dashboard/customers/${id}`) + (qs ? `?${qs}` : ''),
+      { scroll: false }
+    );
+  };
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', slug, id],
@@ -383,10 +427,10 @@ export default function CustomerDetailPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 order-1 lg:order-2 min-w-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
             <div className="sticky top-0 z-10 -mx-1 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-0 pt-1">
               <TabsList className="h-auto w-full justify-start gap-0 rounded-none bg-transparent p-0">
-                {CUSTOMER_TABS.map((tab) => (
+                {visibleTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
@@ -538,6 +582,118 @@ export default function CustomerDetailPage() {
                           {ticket.priority} · {new Date(ticket.createdAt).toLocaleDateString()}
                         </p>
                       </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="projects" className="mt-0 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold">Projects</h3>
+                  <p className="text-sm text-muted-foreground">Delivery engagements</p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={path('/dashboard/projects')}>All projects</Link>
+                </Button>
+              </div>
+              {!customer.projects?.length ? (
+                <p className="text-sm text-muted-foreground italic py-6 text-center border border-dashed rounded-2xl">
+                  No projects yet.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {customer.projects.map((p: any) => (
+                    <li key={p.id}>
+                      <Link
+                        href={path(`/dashboard/projects/${p.id}`)}
+                        className="flex items-center justify-between gap-2 rounded-2xl border p-3.5 hover:bg-muted/40"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.progress}% complete</p>
+                        </div>
+                        <Badge variant="outline">{p.status}</Badge>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="retainers" className="mt-0 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold">Retainers</h3>
+                  <p className="text-sm text-muted-foreground">Recurring plans</p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={path('/dashboard/retainers')}>All retainers</Link>
+                </Button>
+              </div>
+              {!customer.retainers?.length ? (
+                <p className="text-sm text-muted-foreground italic py-6 text-center border border-dashed rounded-2xl">
+                  No retainers yet.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {customer.retainers.map((r: any) => (
+                    <li key={r.id}>
+                      <Link
+                        href={path('/dashboard/retainers')}
+                        className="flex items-center justify-between gap-2 rounded-2xl border p-3.5 hover:bg-muted/40"
+                      >
+                        <div>
+                          <p className="font-semibold">{r.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {r.currency} {Number(r.amount).toLocaleString()} /{' '}
+                            {String(r.billingCycle).toLowerCase()}
+                          </p>
+                        </div>
+                        <Badge variant="outline">{r.status}</Badge>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+
+            <TabsContent value="invoices" className="mt-0 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-lg font-semibold">Invoices</h3>
+                  <p className="text-sm text-muted-foreground">Billing history</p>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={path('/dashboard/invoices')}>All invoices</Link>
+                </Button>
+              </div>
+              {!customer.invoices?.length ? (
+                <p className="text-sm text-muted-foreground italic py-6 text-center border border-dashed rounded-2xl">
+                  No invoices yet.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {customer.invoices.map((inv: any) => (
+                    <li key={inv.id}>
+                      <Link
+                        href={path(`/dashboard/invoices/${inv.id}`)}
+                        className="flex items-center justify-between gap-2 rounded-2xl border p-3.5 hover:bg-muted/40"
+                      >
+                        <div>
+                          <p className="font-semibold">
+                            {inv.invoiceNumber || inv.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {inv.currency} {Number(inv.total).toLocaleString()}
+                            {inv.dueDate
+                              ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}`
+                              : ''}
+                          </p>
+                        </div>
+                        <Badge variant="outline">{inv.status}</Badge>
+                      </Link>
                     </li>
                   ))}
                 </ul>

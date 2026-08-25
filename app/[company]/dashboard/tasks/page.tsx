@@ -27,7 +27,9 @@ import { Plus, Phone, Mail, Calendar, CheckCircle2, Clock, AlertCircle, Pencil, 
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface Task {
   id: string;
@@ -210,7 +212,15 @@ export default function TasksPage() {
   };
 
   const deleteTask = async (taskId: string) => {
-    if (!confirm('Delete this task?')) return;
+    if (
+      !(await confirmAction({
+        title: 'Delete this task?',
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
     try {
       const res = await workspaceFetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -333,12 +343,25 @@ export default function TasksPage() {
         <TabsContent value={filter} className="space-y-4 mt-4">
           {tasks.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <CheckCircle2 className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No tasks found</h3>
-                <p className="text-muted-foreground">
-                  {filter === 'all' ? 'Create your first task to get started' : `No ${filter} tasks`}
-                </p>
+              <CardContent>
+                <EmptyState
+                  icon={CheckCircle2}
+                  title={filter === 'all' ? 'No tasks yet' : 'No tasks found'}
+                  description={
+                    filter === 'all'
+                      ? 'Create your first task to get started.'
+                      : `No ${filter.replace('_', ' ')} tasks.`
+                  }
+                  actionLabel={filter === 'all' ? 'New Task' : undefined}
+                  onAction={
+                    filter === 'all'
+                      ? () => {
+                          setForm(EMPTY_FORM);
+                          setCreateOpen(true);
+                        }
+                      : undefined
+                  }
+                />
               </CardContent>
             </Card>
           ) : (
@@ -391,7 +414,15 @@ export default function TasksPage() {
                         size="sm"
                         className="shrink-0"
                         onClick={async () => {
-                          if (!confirm('Delete this task?')) return;
+                          if (
+                            !(await confirmAction({
+                              title: 'Delete this task?',
+                              description: 'This cannot be undone.',
+                              confirmLabel: 'Delete',
+                              variant: 'destructive',
+                            }))
+                          )
+                            return;
                           const res = await workspaceFetch(`/api/tasks/${task.id}`, {
                             method: 'DELETE',
                           });

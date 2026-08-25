@@ -65,6 +65,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
               },
               ...(data.settings?.integrations?.razorpay || {})
             },
+            webhooks: {
+              enabled: false,
+              signingSecret: '',
+              subscriptions: [],
+              ...(data.settings?.integrations?.webhooks || {})
+            },
             ...(data.settings?.integrations || {})
           }
         }

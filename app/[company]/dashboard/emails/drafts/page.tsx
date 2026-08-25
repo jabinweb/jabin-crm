@@ -15,6 +15,7 @@ import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { EmailDraftModal } from '@/components/email/email-draft-modal';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CardListSkeleton, DetailSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 export default function EmailDraftsPageWithSidebar() {
   const queryClient = useQueryClient();
@@ -50,7 +51,12 @@ export default function EmailDraftsPageWithSidebar() {
     : filteredDrafts[0];
 
   const handleDeleteDraft = async (draftId: string) => {
-    if (!confirm('Are you sure you want to delete this draft?')) return;
+    const ok = await confirmAction({
+      title: 'Delete this draft?',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/emails/drafts/${draftId}`, {

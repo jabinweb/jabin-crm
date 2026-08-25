@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { CreditCard, Info } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { type useUserProfileSettings } from '@/hooks/use-user-profile-settings';
 import { ProfileSaveButton } from './profile-save-button';
@@ -23,11 +23,9 @@ export function PaymentTab({ formData, handleChange, updateProfileMutation }: Pa
     <TabsContent value="payment" className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-            Payment Information
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CreditCard className="h-4 w-4 text-primary" />
+            Payment information
           </CardTitle>
           <CardDescription>
             Bank details and payment instructions for invoices

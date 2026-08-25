@@ -46,6 +46,8 @@ export async function POST(
     }
 
     const quotation = await quotationService.rejectQuotation(id, reason);
+    const { notifyStaffQuotationDecision } = await import('@/lib/portal/notify-staff-quotation');
+    void notifyStaffQuotationDecision({ quotationId: id, decision: 'REJECTED', reason });
     return NextResponse.json(quotation);
   } catch (error) {
     console.error('[api/portal/quotations/[id]/reject]', error);

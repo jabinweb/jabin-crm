@@ -38,7 +38,7 @@ export function GoogleCalendarSettings() {
   const handleConnect = async () => {
     try {
       await signIn('google', {
-        callbackUrl: path('/dashboard/settings/calendar'),
+        callbackUrl: path('/dashboard/settings/integrations?panel=google_calendar'),
       });
     } catch (error) {
       toast({

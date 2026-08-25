@@ -1,34 +1,23 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
-import NextError from "next/error";
+import { ErrorPageClient } from '@/components/layout/error-page-client';
 
 export default function GlobalError({
   error,
+  reset,
 }: {
   error: Error & { digest?: string };
+  reset: () => void;
 }) {
-  useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Global error:", error);
-    }
-
-    fetch("/api/monitoring/errors", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: error.message,
-        digest: error.digest,
-        pathname: typeof window !== "undefined" ? window.location.pathname : undefined,
-        source: "global-error",
-      }),
-    }).catch(() => undefined);
-  }, [error]);
-
   return (
     <html lang="en">
       <body>
-        <NextError statusCode={0} />
+        <ErrorPageClient
+          error={error}
+          reset={reset}
+          title="Application error"
+          description="A critical error occurred. Try again or return to your workspace."
+        />
       </body>
     </html>
   );

@@ -5,6 +5,21 @@ import { encrypt } from '@/lib/encryption';
 import { logInfo, logError } from '@/lib/logger';
 import { handleApiError, ApiErrors } from '@/lib/api-error-handler';
 
+function asOptionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : undefined;
+}
+
+function asStringOrEmpty(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value.trim() || null;
+}
+
+function isMaskedSecret(value: unknown): boolean {
+  return typeof value === 'string' && (value.includes('•') || value === '••••••••');
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -19,7 +34,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (!profile) {
-      // Return empty profile if not exists
       return NextResponse.json({
         companyName: '',
         industry: '',
@@ -41,12 +55,32 @@ export async function GET(request: NextRequest) {
         imapUser: '',
         aiModel: 'gemini-2.0-flash',
         preferredCurrency: 'USD',
+        companyAddress: '',
+        companyPhone: '',
+        taxId: '',
+        invoicePrefix: 'INV',
+        quotationPrefix: 'QT',
+        invoiceTerms: 'Payment is due within 30 days',
+        quotationTerms: 'This quotation is valid for 30 days from the date of issue',
+        bankName: '',
+        accountName: '',
+        accountNumber: '',
+        routingNumber: '',
+        swiftCode: '',
+        iban: '',
+        paymentInstructions: '',
+        templateStyle: 'modern',
+        primaryColor: '#2563eb',
+        secondaryColor: '#7c3aed',
+        logoUrl: '',
+        headerText: '',
+        footerText: '',
         isComplete: false,
       });
     }
 
-    // Don't return encrypted passwords/keys, but indicate if they exist
-    const { smtpPassword, imapPassword, geminiApiKey, googlePlacesApiKey, ...profileData } = profile;
+    const { smtpPassword, imapPassword, geminiApiKey, googlePlacesApiKey, ...profileData } =
+      profile;
     return NextResponse.json({
       ...profileData,
       hasSmtpPassword: !!smtpPassword,
@@ -92,49 +126,59 @@ export async function POST(request: NextRequest) {
       googlePlacesApiKey,
       aiModel,
       preferredCurrency,
+      companyAddress,
+      companyPhone,
+      taxId,
+      invoicePrefix,
+      quotationPrefix,
+      invoiceTerms,
+      quotationTerms,
+      bankName,
+      accountName,
+      accountNumber,
+      routingNumber,
+      swiftCode,
+      iban,
+      paymentInstructions,
+      templateStyle,
+      primaryColor,
+      secondaryColor,
+      logoUrl,
+      headerText,
+      footerText,
     } = data;
 
     logInfo('Updating user profile', { userId: session.user.id });
 
-    // Encrypt SMTP password if provided (skip placeholder bullets)
     let encryptedSmtpPassword: string | undefined;
-    if (smtpPassword && smtpPassword !== '••••••••') {
+    if (smtpPassword && !isMaskedSecret(smtpPassword)) {
       encryptedSmtpPassword = JSON.stringify(encrypt(smtpPassword));
       logInfo('SMTP password encrypted', { userId: session.user.id });
     }
 
-    // Encrypt IMAP password if provided (skip placeholder bullets)
     let encryptedImapPassword: string | undefined;
-    if (imapPassword && imapPassword !== '••••••••') {
+    if (imapPassword && !isMaskedSecret(imapPassword)) {
       encryptedImapPassword = JSON.stringify(encrypt(imapPassword));
       logInfo('IMAP password encrypted', { userId: session.user.id });
     }
 
-    // Encrypt API keys if provided (skip placeholder bullets)
     let encryptedGeminiApiKey: string | undefined;
-    if (geminiApiKey && geminiApiKey !== '••••••••') {
+    if (geminiApiKey && !isMaskedSecret(geminiApiKey)) {
       encryptedGeminiApiKey = JSON.stringify(encrypt(geminiApiKey));
       logInfo('Gemini API key encrypted', { userId: session.user.id });
     }
 
     let encryptedGooglePlacesApiKey: string | undefined;
-    if (googlePlacesApiKey && googlePlacesApiKey !== '••••••••') {
+    if (googlePlacesApiKey && !isMaskedSecret(googlePlacesApiKey)) {
       encryptedGooglePlacesApiKey = JSON.stringify(encrypt(googlePlacesApiKey));
       logInfo('Google Places API key encrypted', { userId: session.user.id });
     }
 
-    // Check if profile is complete
-    const isComplete = !!(
-      companyName &&
-      industry &&
-      service &&
-      valueProposition
-    );
+    const isComplete = !!(companyName && industry && service && valueProposition);
 
-    // Get existing profile to preserve passwords/keys if not updating
     const existingProfile = await prisma.userProfile.findUnique({
       where: { userId: session.user.id },
-      select: { 
+      select: {
         smtpPassword: true,
         imapPassword: true,
         geminiApiKey: true,
@@ -142,76 +186,82 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const sharedFields = {
+      companyName: asStringOrEmpty(companyName),
+      industry: asStringOrEmpty(industry),
+      companySize: asStringOrEmpty(companySize),
+      website: asStringOrEmpty(website),
+      description: asStringOrEmpty(description),
+      service: asStringOrEmpty(service),
+      targetAudience: asStringOrEmpty(targetAudience),
+      valueProposition: asStringOrEmpty(valueProposition),
+      companyEmail: asStringOrEmpty(companyEmail),
+      smtpHost: asStringOrEmpty(smtpHost),
+      smtpPort: parseInt(String(smtpPort), 10) || 587,
+      smtpSecure: smtpSecure === 'true' || smtpSecure === true,
+      smtpUser: asStringOrEmpty(smtpUser),
+      smtpFrom: asStringOrEmpty(smtpFrom),
+      imapHost: asStringOrEmpty(imapHost),
+      imapPort: parseInt(String(imapPort), 10) || 993,
+      imapSecure: imapSecure === 'true' || imapSecure === true || imapSecure === undefined,
+      imapUser: asStringOrEmpty(imapUser),
+      aiModel: asOptionalString(aiModel) || 'gemini-2.0-flash',
+      preferredCurrency: asOptionalString(preferredCurrency) || 'USD',
+      companyAddress: asStringOrEmpty(companyAddress),
+      companyPhone: asStringOrEmpty(companyPhone),
+      taxId: asStringOrEmpty(taxId),
+      invoicePrefix: asOptionalString(invoicePrefix) || 'INV',
+      quotationPrefix: asOptionalString(quotationPrefix) || 'QT',
+      invoiceTerms: asStringOrEmpty(invoiceTerms),
+      quotationTerms: asStringOrEmpty(quotationTerms),
+      bankName: asStringOrEmpty(bankName),
+      accountName: asStringOrEmpty(accountName),
+      accountNumber: asStringOrEmpty(accountNumber),
+      routingNumber: asStringOrEmpty(routingNumber),
+      swiftCode: asStringOrEmpty(swiftCode),
+      iban: asStringOrEmpty(iban),
+      paymentInstructions: asStringOrEmpty(paymentInstructions),
+      templateStyle: asOptionalString(templateStyle) || 'modern',
+      primaryColor: asOptionalString(primaryColor) || '#2563eb',
+      secondaryColor: asOptionalString(secondaryColor) || '#7c3aed',
+      logoUrl: asStringOrEmpty(logoUrl),
+      headerText: asStringOrEmpty(headerText),
+      footerText: asStringOrEmpty(footerText),
+      isComplete,
+    };
+
     const profile = await prisma.userProfile.upsert({
       where: { userId: session.user.id },
       update: {
-        companyName,
-        industry,
-        companySize,
-        website,
-        description,
-        service,
-        targetAudience,
-        valueProposition,
-        companyEmail,
-        smtpHost,
-        smtpPort: parseInt(smtpPort) || 587,
-        smtpSecure: smtpSecure === 'true' || smtpSecure === true,
-        smtpUser,
-        smtpPassword: encryptedSmtpPassword || existingProfile?.smtpPassword, // Keep existing if not updating
-        smtpFrom,
-        imapHost,
-        imapPort: parseInt(imapPort) || 993,
-        imapSecure: imapSecure === 'true' || imapSecure === true,
-        imapUser,
-        imapPassword: encryptedImapPassword || existingProfile?.imapPassword, // Keep existing if not updating
-        geminiApiKey: encryptedGeminiApiKey || existingProfile?.geminiApiKey, // Keep existing if not updating
-        googlePlacesApiKey: encryptedGooglePlacesApiKey || existingProfile?.googlePlacesApiKey, // Keep existing if not updating
-        aiModel: aiModel || 'gemini-2.0-flash',
-        preferredCurrency: preferredCurrency || 'USD',
-        isComplete,
+        ...sharedFields,
+        smtpPassword: encryptedSmtpPassword || existingProfile?.smtpPassword,
+        imapPassword: encryptedImapPassword || existingProfile?.imapPassword,
+        geminiApiKey: encryptedGeminiApiKey || existingProfile?.geminiApiKey,
+        googlePlacesApiKey:
+          encryptedGooglePlacesApiKey || existingProfile?.googlePlacesApiKey,
         updatedAt: new Date(),
       },
       create: {
         userId: session.user.id,
-        companyName,
-        industry,
-        companySize,
-        website,
-        description,
-        service,
-        targetAudience,
-        valueProposition,
-        companyEmail,
-        smtpHost,
-        smtpPort: parseInt(smtpPort) || 587,
-        smtpSecure: smtpSecure === 'true' || smtpSecure === true,
-        smtpUser,
+        ...sharedFields,
         smtpPassword: encryptedSmtpPassword,
-        smtpFrom,
-        imapHost,
-        imapPort: parseInt(imapPort) || 993,
-        imapSecure: imapSecure === 'true' || imapSecure === true,
-        imapUser,
         imapPassword: encryptedImapPassword,
         geminiApiKey: encryptedGeminiApiKey,
         googlePlacesApiKey: encryptedGooglePlacesApiKey,
-        aiModel: aiModel || 'gemini-2.0-flash',
-        preferredCurrency: preferredCurrency || 'USD',
-        isComplete,
       },
     });
 
-    logInfo('Profile updated successfully', { 
+    logInfo('Profile updated successfully', {
       userId: session.user.id,
-      isComplete: profile.isComplete 
+      isComplete: profile.isComplete,
     });
 
     return NextResponse.json(profile);
   } catch (error) {
-    return handleApiError(error, { 
+    logError(error, { endpoint: 'POST /api/profile' });
+    return handleApiError(error, {
       endpoint: 'POST /api/profile',
-      userId: (await auth())?.user?.id 
+      userId: (await auth())?.user?.id,
     });
   }
 }

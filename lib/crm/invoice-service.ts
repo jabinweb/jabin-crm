@@ -527,7 +527,8 @@ export class InvoiceService {
         include: {
           items: true,
           lead: true,
-          deal: true,
+          deal: { select: { id: true, title: true, stage: true } },
+          customer: { select: { id: true, organizationName: true } },
           quotation: true,
           user: {
             select: {
@@ -557,7 +558,8 @@ export class InvoiceService {
         include: {
           items: true,
           lead: true,
-          deal: true,
+          deal: { select: { id: true, title: true, stage: true } },
+          customer: { select: { id: true, organizationName: true } },
           quotation: true,
           payments: true,
         },

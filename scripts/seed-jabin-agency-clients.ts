@@ -1,5 +1,8 @@
 import 'dotenv/config';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
+
+const PORTAL_DEV_PASSWORD = 'Demo@12345';
 
 const CLIENTS = [
   {
@@ -253,6 +256,31 @@ async function main() {
       console.log(`  ~ Project: ${project.name}`);
     }
 
+    const portalPasswordHash = await bcrypt.hash(PORTAL_DEV_PASSWORD, 12);
+    const portalUser = await prisma.user.upsert({
+      where: { email: row.email.toLowerCase() },
+      create: {
+        email: row.email.toLowerCase(),
+        name: row.contactPerson,
+        password: portalPasswordHash,
+        role: 'CUSTOMER',
+        userStatus: 'ACTIVE',
+        companyId: company.id,
+        primaryCompanyId: company.id,
+        customerId: customer.id,
+      },
+      update: {
+        name: row.contactPerson,
+        password: portalPasswordHash,
+        role: 'CUSTOMER',
+        userStatus: 'ACTIVE',
+        companyId: company.id,
+        primaryCompanyId: company.id,
+        customerId: customer.id,
+      },
+    });
+    console.log(`  + Portal: ${portalUser.email} → ${customer.organizationName}`);
+
     results.push({
       client: customer.organizationName,
       project: project.name,
@@ -265,6 +293,7 @@ async function main() {
   for (const r of results) {
     console.log(`  ${r.project} → ${r.client} (${r.projectId})`);
   }
+  console.log(`\nPortal sign-in (all clients): password ${PORTAL_DEV_PASSWORD} at /auth/signin → /portal`);
 }
 
 main().catch((e) => {

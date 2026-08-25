@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/confirm-action';
 
 const EMPTY_NEW_LEAD = {
   companyName: '',
@@ -205,7 +206,13 @@ export function useLeadsPage() {
       toast.error('Please select leads to delete');
       return;
     }
-    if (!confirm(`Are you sure you want to delete ${selectedLeads.length} leads?`)) return;
+    const ok = await confirmAction({
+      title: `Delete ${selectedLeads.length} leads?`,
+      description: `Are you sure you want to delete ${selectedLeads.length} leads?`,
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
     try {
       await Promise.all(

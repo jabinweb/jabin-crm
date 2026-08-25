@@ -19,6 +19,7 @@ import { ArrowLeft, Users, Mail, TrendingUp, Play, Pause, Edit } from 'lucide-re
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { DetailSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface SequenceStats {
   id: string;
@@ -170,7 +171,12 @@ export default function SequenceDetailsPage() {
             <Button
               variant="outline"
               onClick={async () => {
-                if (!confirm(`Delete sequence "${stats.name}"?`)) return;
+                const ok = await confirmAction({
+                  title: `Delete sequence "${stats.name}"?`,
+                  confirmLabel: 'Delete',
+                  variant: 'destructive',
+                });
+                if (!ok) return;
                 try {
                   const res = await fetch(`/api/sequences/${sequenceId}`, {
                     method: 'DELETE',

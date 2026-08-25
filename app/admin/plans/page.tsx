@@ -28,6 +28,7 @@ import { PlanModulesEditor } from "@/components/admin/plan-modules-editor";
 import {
   ALL_FEATURE_MODULES,
 } from "@/lib/feature-module-keys";
+import { confirmAction } from "@/lib/confirm-action";
 
 interface Plan {
   id: string;
@@ -146,7 +147,13 @@ export default function PlansPage() {
   };
 
   const handleDelete = async (planId: string) => {
-    if (!confirm("Are you sure you want to delete this plan?")) return;
+    const ok = await confirmAction({
+      title: "Delete this plan?",
+      description: "Are you sure you want to delete this plan?",
+      confirmLabel: "Delete",
+      variant: "destructive",
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/admin/plans/${planId}`, {

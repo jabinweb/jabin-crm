@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
-import { PageHeaderSkeleton, FullTableSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-700',
@@ -135,12 +135,7 @@ export default function ServiceExpensesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <FullTableSkeleton columnCount={5} rowCount={5} />
-      </div>
-    );
+    return <FullTableSkeleton columnCount={5} rowCount={5} withHeader />;
   }
 
   if (!featureEnabled) {

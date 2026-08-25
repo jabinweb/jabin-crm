@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, DollarSign, TrendingUp, Award } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
@@ -267,6 +268,16 @@ export default function DealsPage() {
         columns={columns}
         itemsByStage={itemsByStage}
         onMove={onMove}
+        emptyState={
+          <EmptyState
+            icon={Award}
+            title="No deals yet"
+            description="Create a deal from a lead or add one to start the pipeline."
+            actionLabel="New deal"
+            actionHref={path('/dashboard/deals/new')}
+            className="rounded-lg border border-dashed py-16"
+          />
+        }
         columnFooter={(stageId) =>
           stats ? (
             <p className="text-xs text-muted-foreground mb-2">

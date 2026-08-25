@@ -40,6 +40,8 @@ import {
   Handshake,
   Ticket,
   UserCircle,
+  FolderKanban,
+  Repeat,
 } from 'lucide-react';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -61,6 +63,8 @@ const SEARCH_GROUP_ORDER: GlobalSearchEntityType[] = [
   'invoice',
   'contract',
   'equipment',
+  'project',
+  'retainer',
 ];
 
 const SEARCH_GROUP_LABELS: Record<GlobalSearchEntityType, string> = {
@@ -73,6 +77,8 @@ const SEARCH_GROUP_LABELS: Record<GlobalSearchEntityType, string> = {
   invoice: 'Invoices',
   contract: 'Contracts',
   equipment: 'Equipment',
+  project: 'Projects',
+  retainer: 'Retainers',
 };
 
 const SEARCH_GROUP_ICONS: Record<GlobalSearchEntityType, typeof Building2> = {
@@ -85,6 +91,8 @@ const SEARCH_GROUP_ICONS: Record<GlobalSearchEntityType, typeof Building2> = {
   invoice: Receipt,
   contract: FileText,
   equipment: Wrench,
+  project: FolderKanban,
+  retainer: Repeat,
 };
 
 export function Navbar() {

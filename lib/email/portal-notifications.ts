@@ -69,6 +69,39 @@ The support team
     });
 }
 
+export async function sendTicketReplyEmail(params: {
+    customerEmail: string;
+    customerName: string;
+    ticketSubject: string;
+    ticketId: string;
+    replyPreview: string;
+    replierName: string;
+}) {
+    const { customerEmail, customerName, ticketSubject, ticketId, replyPreview, replierName } = params;
+
+    const body = `
+Hello ${customerName},
+
+Our team replied to your support request.
+
+Ticket: ${ticketSubject} [#${ticketId.slice(-6).toUpperCase()}]
+From: ${replierName}
+
+${replyPreview}
+
+Sign in to your customer portal to view the full conversation and reply.
+
+Best regards,
+The support team
+    `;
+
+    return sendEmail({
+        to: customerEmail,
+        subject: `New reply: ${ticketSubject} [#${ticketId.slice(-6).toUpperCase()}]`,
+        html: createEmailHTML(body),
+    });
+}
+
 export async function sendTicketStatusEmail(params: {
     customerEmail: string;
     customerName: string;

@@ -18,7 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { ChevronLeft, Download, Check, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
-import { SectionSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { SectionSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 import { toast } from 'sonner';
 
@@ -105,12 +105,7 @@ function QuotationDetailView() {
   });
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <SectionSkeleton lines={8} />
-      </div>
-    );
+    return <SectionSkeleton lines={8} className="py-4" />;
   }
 
   if (error || !quotation) {

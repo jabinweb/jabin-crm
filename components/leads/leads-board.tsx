@@ -7,6 +7,8 @@ import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { BoardSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Activity } from 'lucide-react';
 
 type LeadCard = {
   id: string;
@@ -84,6 +86,16 @@ export function LeadsBoard({ leads, onChanged }: LeadsBoardProps) {
       columns={columns}
       itemsByStage={itemsByStage}
       onMove={onMove}
+      emptyState={
+        <EmptyState
+          icon={Activity}
+          title="No leads on the board"
+          description="Add a lead to start tracking the pipeline."
+          actionLabel="New lead"
+          actionHref={path('/dashboard/leads/new')}
+          className="rounded-lg border border-dashed py-16"
+        />
+      }
       renderCard={(lead) => (
         <button
           type="button"

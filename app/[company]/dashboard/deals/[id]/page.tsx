@@ -15,12 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailSkeleton } from '@/components/loading';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
+import { confirmAction } from '@/lib/confirm-action';
+import { DetailChrome } from '@/components/layout/detail-chrome';
 
 type DealDetail = {
   id: string;
@@ -42,6 +44,8 @@ type DealDetail = {
   };
   user?: { id: string; name?: string | null; email?: string };
   tasks?: Array<{ id: string; title: string; status: string }>;
+  projects?: Array<{ id: string; name: string; status: string; progress: number }>;
+  createdProjectId?: string;
 };
 
 const STAGES = [
@@ -95,6 +99,7 @@ export default function DealDetailPage() {
   const save = async () => {
     setSaving(true);
     try {
+      const previousStage = deal?.stage;
       const res = await workspaceFetch(`/api/deals/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -110,7 +115,26 @@ export default function DealDetailPage() {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to save');
       }
-      toast.success('Deal updated');
+      const updated = (await res.json()) as DealDetail;
+      const projectId =
+        updated.createdProjectId ||
+        updated.projects?.[0]?.id ||
+        null;
+
+      if (
+        stage === 'CLOSED_WON' &&
+        previousStage !== 'CLOSED_WON' &&
+        projectId
+      ) {
+        toast.success('Deal won — delivery project created', {
+          action: {
+            label: 'Open project',
+            onClick: () => router.push(path(`/dashboard/projects/${projectId}`)),
+          },
+        });
+      } else {
+        toast.success('Deal updated');
+      }
       void load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to save');
@@ -120,7 +144,12 @@ export default function DealDetailPage() {
   };
 
   const remove = async () => {
-    if (!confirm('Delete this deal?')) return;
+    const ok = await confirmAction({
+      title: 'Delete this deal?',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     const res = await workspaceFetch(`/api/deals/${id}`, { method: 'DELETE' });
     if (!res.ok) {
       toast.error('Failed to delete deal');
@@ -148,27 +177,28 @@ export default function DealDetailPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <DashboardLink href="/dashboard/deals">
-              <ArrowLeft className="h-4 w-4" />
-            </DashboardLink>
-          </Button>
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{deal.title}</h1>
-            <p className="text-sm text-muted-foreground">
-              {deal.lead?.companyName}
-              {deal.lead?.contactName ? ` · ${deal.lead.contactName}` : ''}
-            </p>
-          </div>
-        </div>
+      <DetailChrome
+        crumbs={[
+          { label: 'Deals', href: path('/dashboard/deals') },
+          { label: deal.title },
+        ]}
+        backHref={path('/dashboard/deals')}
+        backLabel="Back to deals"
+      >
         <div className="flex items-center gap-2">
           <Badge variant="secondary">{deal.stage.replace(/_/g, ' ')}</Badge>
           <Button variant="outline" size="icon" onClick={() => void remove()}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
+      </DetailChrome>
+
+      <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{deal.title}</h1>
+            <p className="text-sm text-muted-foreground">
+              {deal.lead?.companyName}
+              {deal.lead?.contactName ? ` · ${deal.lead.contactName}` : ''}
+            </p>
       </div>
 
       <Card>
@@ -231,6 +261,38 @@ export default function DealDetailPage() {
           </Button>
         </CardContent>
       </Card>
+
+      {deal.projects && deal.projects.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <FolderKanban className="h-4 w-4" />
+              Delivery project
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {deal.projects.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <div className="min-w-0">
+                  <DashboardLink
+                    href={`/dashboard/projects/${p.id}`}
+                    className="font-medium underline-offset-2 hover:underline"
+                  >
+                    {p.name}
+                  </DashboardLink>
+                  <p className="text-xs text-muted-foreground">
+                    {p.status.replace(/_/g, ' ')} · {p.progress}%
+                  </p>
+                </div>
+                <Badge variant="outline">{p.status.replace(/_/g, ' ')}</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {deal.tasks && deal.tasks.length > 0 && (
         <Card>

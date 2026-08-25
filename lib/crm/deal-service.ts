@@ -164,6 +164,9 @@ export class DealService {
         user: {
           select: { id: true, name: true, email: true },
         },
+        projects: {
+          select: { id: true, name: true, status: true, progress: true },
+        },
       },
     });
 
@@ -182,6 +185,8 @@ export class DealService {
     if (data.title) updateData.title = data.title;
     if (data.value !== undefined) updateData.value = data.value;
     if (data.currency) updateData.currency = data.currency;
+    let createdProjectId: string | null = null;
+
     if (data.stage) {
       updateData.stage = data.stage;
 
@@ -260,7 +265,7 @@ export class DealService {
               }
               const end = new Date();
               end.setMonth(end.getMonth() + 3);
-              await prisma.project.create({
+              const project = await prisma.project.create({
                 data: {
                   name: deal.title,
                   description: `Delivery project from won opportunity: ${deal.title}`,
@@ -280,10 +285,14 @@ export class DealService {
                     })),
                   },
                 },
+                select: { id: true },
               });
+              createdProjectId = project.id;
             } catch (err) {
               console.error('[deal-service] delivery project handoff failed', err);
             }
+          } else if (deal.projects[0]?.id) {
+            createdProjectId = deal.projects[0].id;
           }
         }
       }
@@ -292,7 +301,7 @@ export class DealService {
     if (data.expectedCloseDate !== undefined) updateData.expectedCloseDate = data.expectedCloseDate;
     if (data.notes !== undefined) updateData.notes = data.notes;
 
-    return await prisma.deal.update({
+    const updated = await prisma.deal.update({
       where: { id: dealId },
       data: updateData,
       include: {
@@ -305,8 +314,15 @@ export class DealService {
           },
         },
         tasks: true,
+        projects: {
+          select: { id: true, name: true, status: true, progress: true },
+        },
       },
     });
+
+    return createdProjectId
+      ? { ...updated, createdProjectId }
+      : updated;
   }
 
   /**

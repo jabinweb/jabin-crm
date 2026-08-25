@@ -28,19 +28,19 @@ export function BusinessTab({ formData, handleChange, updateProfileMutation }: B
   return (
     <TabsContent value="profile" className="space-y-6">
       <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground flex items-center gap-3">
-            <Building className="h-4 w-4" />
-            Personnel / Entity Data
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building className="h-4 w-4 text-primary" />
+            Business profile
           </CardTitle>
-          <CardDescription className="text-[9px] uppercase tracking-widest font-bold opacity-50">
-            Base operational parameters
+          <CardDescription>
+            Company details used on quotes, invoices, and outreach.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="companyName" className="text-[9px] uppercase font-bold tracking-widest opacity-70">Legal Entity Name *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Company name *</Label>
               <Input
                 id="companyName"
                 value={formData.companyName}
@@ -50,8 +50,8 @@ export function BusinessTab({ formData, handleChange, updateProfileMutation }: B
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="industry" className="text-[9px] uppercase font-bold tracking-widest opacity-70">Sector Classification *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="industry">Industry *</Label>
               <Select value={formData.industry} onValueChange={(value) => handleChange('industry', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select industry" />
@@ -72,7 +72,7 @@ export function BusinessTab({ formData, handleChange, updateProfileMutation }: B
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="companySize">Company Size</Label>
+              <Label htmlFor="companySize">Company size</Label>
               <Select value={formData.companySize} onValueChange={(value) => handleChange('companySize', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select company size" />
@@ -87,8 +87,8 @@ export function BusinessTab({ formData, handleChange, updateProfileMutation }: B
               </Select>
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="website" className="text-[9px] uppercase font-bold tracking-widest opacity-70">Web Gateway</Label>
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
               <div className="relative">
                 <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input

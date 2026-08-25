@@ -12,6 +12,7 @@ import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 import { Pencil, Trash2 } from 'lucide-react';
 
 type CannedResponse = {
@@ -190,10 +191,17 @@ export default function CannedResponsesPage() {
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 text-destructive"
-                      onClick={() => {
-                        if (window.confirm(`Delete “${r.title}”?`)) {
-                          deleteMutation.mutate(r.id);
-                        }
+                      onClick={async () => {
+                        if (
+                          !(await confirmAction({
+                            title: `Delete “${r.title}”?`,
+                            description: 'This cannot be undone.',
+                            confirmLabel: 'Delete',
+                            variant: 'destructive',
+                          }))
+                        )
+                          return;
+                        deleteMutation.mutate(r.id);
                       }}
                       title="Delete"
                     >

@@ -40,7 +40,9 @@ import {
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { toast } from 'sonner';
 import { FullTableSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 const categories = [
     'HARDWARE',
@@ -116,7 +118,15 @@ export default function ProductsPage() {
     };
 
     const handleDeleteProduct = async (id: string, name: string) => {
-        if (!confirm(`Delete product "${name}"?`)) return;
+        if (
+            !(await confirmAction({
+                title: `Delete product "${name}"?`,
+                description: 'This cannot be undone.',
+                confirmLabel: 'Delete',
+                variant: 'destructive',
+            }))
+        )
+            return;
         setDeletingId(id);
         try {
             const response = await workspaceFetch(`/api/products/${id}`, {
@@ -259,6 +269,28 @@ export default function ProductsPage() {
                 <CardContent>
                     {isLoading ? (
                         <FullTableSkeleton columnCount={5} rowCount={5} />
+                    ) : filteredProducts?.length === 0 ? (
+                        <EmptyState
+                            icon={Package}
+                            title={
+                                search || category !== 'all'
+                                    ? 'No matching products'
+                                    : 'No products yet'
+                            }
+                            description={
+                                search || category !== 'all'
+                                    ? 'Try a different search or category filter.'
+                                    : 'Add your first product to the catalog.'
+                            }
+                            actionLabel={
+                                search || category !== 'all' ? undefined : 'Add Product'
+                            }
+                            onAction={
+                                search || category !== 'all'
+                                    ? undefined
+                                    : () => setShowAddDialog(true)
+                            }
+                        />
                     ) : (
                         <div className="rounded-none border">
                             <Table>
@@ -272,55 +304,47 @@ export default function ProductsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredProducts?.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                No products found match your criteria.
+                                    {filteredProducts?.map((p: any) => (
+                                        <TableRow key={p.id}>
+                                            <TableCell className="font-medium">
+                                                <div className="flex items-center space-x-2">
+                                                    <Package className="h-4 w-4 text-blue-500" />
+                                                    <span>{p.name}</span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="text-xs">
+                                                    {p.category}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-sm">
+                                                {p.manufacturer || 'N/A'}
+                                            </TableCell>
+                                            <TableCell className="text-sm font-mono text-muted-foreground">
+                                                {p.modelNumber || 'N/A'}
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-1">
+                                                <Button variant="ghost" size="sm" asChild>
+                                                    <DashboardLink href={`/dashboard/products/${p.id}`}>
+                                                        <FileText className="h-4 w-4" />
+                                                    </DashboardLink>
+                                                </Button>
+                                                <Button variant="ghost" size="sm" asChild>
+                                                    <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
+                                                        Edit
+                                                    </DashboardLink>
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={deletingId === p.id}
+                                                    onClick={() => handleDeleteProduct(p.id, p.name)}
+                                                >
+                                                    Delete
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
-                                    ) : (
-                                        filteredProducts?.map((p: any) => (
-                                            <TableRow key={p.id}>
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center space-x-2">
-                                                        <Package className="h-4 w-4 text-blue-500" />
-                                                        <span>{p.name}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {p.category}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-sm">
-                                                    {p.manufacturer || 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-sm font-mono text-muted-foreground">
-                                                    {p.modelNumber || 'N/A'}
-                                                </TableCell>
-                                                <TableCell className="text-right space-x-1">
-                                                    <Button variant="ghost" size="sm" asChild>
-                                                        <DashboardLink href={`/dashboard/products/${p.id}`}>
-                                                            <FileText className="h-4 w-4" />
-                                                        </DashboardLink>
-                                                    </Button>
-                                                    <Button variant="ghost" size="sm" asChild>
-                                                        <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
-                                                            Edit
-                                                        </DashboardLink>
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        disabled={deletingId === p.id}
-                                                        onClick={() => handleDeleteProduct(p.id, p.name)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))
-                                    )}
+                                    ))}
                                 </TableBody>
                             </Table>
                         </div>

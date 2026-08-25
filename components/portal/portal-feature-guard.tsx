@@ -2,7 +2,7 @@
 
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import type { WorkspaceFeatureKey } from '@/lib/workspace-templates';
-import { SectionSkeleton } from '@/components/loading';
+import { FormSkeleton } from '@/components/loading';
 import { Lock } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -13,16 +13,20 @@ export function PortalFeatureGuard({
   children,
   title = 'Not available',
   description = 'This area is not enabled for your account.',
+  /** When true (default), render nothing while config loads so the page owns the only loader. */
+  quietLoading = true,
 }: {
   feature: WorkspaceFeatureKey;
   children: React.ReactNode;
   title?: string;
   description?: string;
+  quietLoading?: boolean;
 }) {
   const { data, isLoading } = useWorkspaceConfig();
 
   if (isLoading || !data?.config) {
-    return <SectionSkeleton lines={4} className="py-12" />;
+    if (quietLoading) return null;
+    return <FormSkeleton fields={4} withHeader />;
   }
 
   if (data.config.features[feature] !== true) {

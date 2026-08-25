@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
-import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
 export default function CustomerPortalPage() {
     const { data: workspaceData } = useWorkspaceConfig();
@@ -34,13 +34,7 @@ export default function CustomerPortalPage() {
     });
 
     if (isLoading) {
-        return (
-            <div className="space-y-6">
-                <PageHeaderSkeleton />
-                <StatCardsSkeleton count={4} />
-                <CardListSkeleton rows={3} />
-            </div>
-        );
+        return <DashboardSkeleton />;
     }
 
     const resolvedCount = stats?.resolvedTickets ?? 0;

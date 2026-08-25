@@ -174,6 +174,7 @@ export async function POST(request: NextRequest) {
             ticket = await ticketService.createTicket({
                 ...data,
                 serviceContractId: data.serviceContractId || null,
+                projectId: data.projectId || null,
                 companyId: staffCompanyId ?? customer?.companyId ?? undefined,
             });
         }

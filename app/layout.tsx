@@ -4,6 +4,7 @@ import { Inter, DM_Sans, Outfit } from 'next/font/google';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { QueryProvider } from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
+import { ConfirmActionHost } from '@/components/ui/confirm-action-host';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 
@@ -68,6 +69,7 @@ export default function RootLayout({
               <ServiceWorkerRegistration />
               {children}
               <Toaster />
+              <ConfirmActionHost />
             </QueryProvider>
           </AuthProvider>
         </ErrorBoundary>

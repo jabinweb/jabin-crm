@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 import { Trash2 } from 'lucide-react';
 
 type CustomField = {
@@ -197,10 +198,17 @@ export default function CustomFieldsPage() {
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8 text-destructive"
-                  onClick={() => {
-                    if (window.confirm(`Remove “${f.name}”?`)) {
-                      deleteMutation.mutate(f.id);
-                    }
+                  onClick={async () => {
+                    if (
+                      !(await confirmAction({
+                        title: `Remove “${f.name}”?`,
+                        description: 'This cannot be undone.',
+                        confirmLabel: 'Remove',
+                        variant: 'destructive',
+                      }))
+                    )
+                      return;
+                    deleteMutation.mutate(f.id);
                   }}
                 >
                   <Trash2 className="h-3.5 w-3.5" />

@@ -3,6 +3,7 @@ export {
   CardListSkeleton,
   StatCardsSkeleton,
   FormSkeleton,
+  SettingsPageSkeleton,
   BoardSkeleton,
   DetailSkeleton,
   SectionSkeleton,

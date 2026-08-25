@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
-import { PageHeaderSkeleton, SectionSkeleton } from '@/components/loading';
+import { SectionSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 
 type PortalContract = {
@@ -45,12 +45,7 @@ function ContractDetail() {
   });
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <SectionSkeleton lines={6} />
-      </div>
-    );
+      return <SectionSkeleton lines={8} className="py-4" />;
   }
 
   if (error || !contract) {

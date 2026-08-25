@@ -217,7 +217,7 @@ export function PortalTicketForm() {
   };
 
   if (isLoading) {
-    return <FormSkeleton fields={5} className="py-8" />;
+    return <FormSkeleton fields={5} withHeader className="py-8" />;
   }
 
   if (issueResolved) {
@@ -234,7 +234,7 @@ export function PortalTicketForm() {
   const kbSearch = [subject, description].filter(Boolean).join(' ').trim();
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="w-full space-y-6">
       <div className="flex items-center space-x-4">
         <Button
           variant="ghost"
@@ -254,8 +254,8 @@ export function PortalTicketForm() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="xl:col-span-2">
           <Card className="border-none border-t-4 border-t-blue-600 bg-white shadow-none dark:bg-slate-900">
             <CardHeader>
               <CardTitle className="text-lg">Request details</CardTitle>
@@ -433,7 +433,7 @@ export function PortalTicketForm() {
         <div className="space-y-6">
           <Card className="relative overflow-hidden border-none bg-slate-900 text-white shadow-none dark:bg-slate-800">
             <CardHeader>
-              <CardTitle className="text-base">Request types</CardTitle>
+              <CardTitle className="text-base text-white">Request types</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {ticketTypes.map((type) => (

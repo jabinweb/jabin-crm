@@ -26,7 +26,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
-import { DetailSkeleton, PageHeaderSkeleton, CardListSkeleton, SectionSkeleton } from '@/components/loading';
+import { DetailSkeleton, CardListSkeleton } from '@/components/loading';
 
 function PortalSupportContent() {
   const searchParams = useSearchParams();
@@ -70,12 +70,7 @@ function PortalSupportContent() {
 
   if (slug) {
     if (articleLoading) {
-      return (
-        <div className="space-y-6">
-          <PageHeaderSkeleton />
-          <DetailSkeleton />
-        </div>
-      );
+      return <DetailSkeleton />;
     }
 
     if (!article) {
@@ -94,7 +89,7 @@ function PortalSupportContent() {
     }
 
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="w-full space-y-6">
         <Button asChild variant="ghost" size="sm" className="-ml-2">
           <Link href="/portal/support">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -246,11 +241,12 @@ function PortalSupportContent() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSearch} className="flex gap-2 max-w-xl">
+          <form onSubmit={handleSearch} className="flex w-full gap-2">
             <Input
               placeholder="How do I reset my password?"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              className="flex-1"
             />
             <Button type="submit">Search</Button>
           </form>
@@ -359,12 +355,7 @@ function PortalSupportContent() {
 export default function PortalSupportPage() {
   return (
     <Suspense
-      fallback={
-        <div className="space-y-6">
-          <PageHeaderSkeleton />
-          <CardListSkeleton rows={4} />
-        </div>
-      }
+      fallback={<CardListSkeleton rows={4} />}
     >
       <PortalSupportContent />
     </Suspense>

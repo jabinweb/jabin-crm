@@ -10,6 +10,7 @@ import { UserPlus, Upload } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { columns, type Employee } from '@/components/employees/employees-columns'
 import { DataTable } from '@/components/table/data-table'
+import { EmptyState } from '@/components/ui/empty-state'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 
 interface Metadata {
@@ -20,7 +21,7 @@ interface Metadata {
 
 export default function EmployeesPage() {
   const params = useParams<{ company: string }>()
-  const { slug } = useWorkspacePaths()
+  const { slug, path } = useWorkspacePaths()
   const companySlug = slug ?? params.company
 
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -146,22 +147,32 @@ export default function EmployeesPage() {
         </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={employees}
-        isLoading={isLoading}
-        searchableColumn="name"
-        filterableColumns={{
-          department: {
-            title: 'Department',
-            options: filterOptions?.departments || [],
-          },
-          status: {
-            title: 'Status',
-            options: filterOptions?.statuses || [],
-          },
-        }}
-      />
+      {!isLoading && employees.length === 0 ? (
+        <EmptyState
+          icon={UserPlus}
+          title="No employees yet"
+          description="Add your first employee to get started."
+          actionLabel="Add Employee"
+          actionHref={path('/dashboard/employees/new')}
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={employees}
+          isLoading={isLoading}
+          searchableColumn="name"
+          filterableColumns={{
+            department: {
+              title: 'Department',
+              options: filterOptions?.departments || [],
+            },
+            status: {
+              title: 'Status',
+              options: filterOptions?.statuses || [],
+            },
+          }}
+        />
+      )}
     </div>
   )
 }

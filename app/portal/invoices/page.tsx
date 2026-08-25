@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ChevronLeft } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
-import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 
 type PortalInvoice = {
@@ -50,12 +50,7 @@ function InvoicesList() {
   });
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <FullTableSkeleton columnCount={5} rowCount={5} />
-      </div>
-    );
+    return <FullTableSkeleton columnCount={5} rowCount={5} />;
   }
 
   const invoices = data?.invoices ?? [];

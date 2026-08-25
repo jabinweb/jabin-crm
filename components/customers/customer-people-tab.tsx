@@ -17,6 +17,7 @@ import {
 import { Mail, Phone, Pencil, Trash2, UserRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { EasyBottomSheet, EasyFab } from '@/components/customers/easy-bottom-sheet';
+import { confirmAction } from '@/lib/confirm-action';
 
 type Department = { id: string; name: string };
 type Contact = {
@@ -130,7 +131,12 @@ export function CustomerPeopleTab({
   };
 
   const remove = async (contactId: string, name: string) => {
-    if (!confirm(`Remove ${name}?`)) return;
+    const ok = await confirmAction({
+      title: `Remove ${name}?`,
+      confirmLabel: 'Remove',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       const res = await workspaceFetch(
         `/api/customers/${customerId}/contacts/${contactId}`,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -64,49 +65,51 @@ export default function PortalProjectsPage() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
           {projects.map((p) => (
-            <Card key={p.id}>
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base">{p.name}</CardTitle>
-                  <Badge variant="secondary">{p.status}</Badge>
-                </div>
-                {p.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {p.description}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="font-medium">{p.progress}%</span>
+            <Link key={p.id} href={`/portal/projects/${p.id}`} className="block">
+              <Card className="h-full transition-colors hover:bg-muted/40">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base">{p.name}</CardTitle>
+                    <Badge variant="secondary">{p.status}</Badge>
                   </div>
-                  <Progress value={p.progress} />
-                </div>
-                <ul className="space-y-1.5">
-                  {p.milestones.map((m) => (
-                    <li
-                      key={m.id}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span
-                        className={
-                          m.status === 'DONE'
-                            ? 'text-muted-foreground line-through'
-                            : ''
-                        }
+                  {p.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {p.description}
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{p.progress}%</span>
+                    </div>
+                    <Progress value={p.progress} />
+                  </div>
+                  <ul className="space-y-1.5">
+                    {p.milestones.slice(0, 4).map((m) => (
+                      <li
+                        key={m.id}
+                        className="flex items-center justify-between text-sm"
                       >
-                        {m.title}
-                      </span>
-                      <Badge variant="outline" className="text-[10px]">
-                        {m.status.replace('_', ' ')}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+                        <span
+                          className={
+                            m.status === 'DONE'
+                              ? 'text-muted-foreground line-through'
+                              : ''
+                          }
+                        >
+                          {m.title}
+                        </span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {m.status.replace('_', ' ')}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

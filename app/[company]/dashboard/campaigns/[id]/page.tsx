@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { DetailSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -83,8 +84,12 @@ export default function CampaignDetailPage() {
     },
   });
 
-  const handleSend = () => {
-    if (!confirm('Are you sure you want to send this campaign?')) return;
+  const handleSend = async () => {
+    const ok = await confirmAction({
+      title: 'Send this campaign?',
+      confirmLabel: 'Send',
+    });
+    if (!ok) return;
     sendMutation.mutate();
   };
 
@@ -108,8 +113,13 @@ export default function CampaignDetailPage() {
     },
   });
 
-  const handleDelete = () => {
-    if (!confirm('Delete this draft campaign?')) return;
+  const handleDelete = async () => {
+    const ok = await confirmAction({
+      title: 'Delete this draft campaign?',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     deleteMutation.mutate();
   };
 

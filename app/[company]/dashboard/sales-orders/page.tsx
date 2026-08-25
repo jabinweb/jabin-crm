@@ -24,6 +24,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Loader2, Plus, ShoppingCart, Trash2, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -229,24 +230,25 @@ export default function SalesOrdersPage() {
           <p className="text-sm text-muted-foreground">Track outbound sales orders with line items.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant={view === 'list' ? 'default' : 'outline'}
-              onClick={() => setView('list')}
-            >
-              <List className="mr-1.5 h-4 w-4" />
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(v) => {
+              if (v === 'list' || v === 'board') setView(v);
+            }}
+            variant="outline"
+            size="sm"
+            className="justify-start"
+          >
+            <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
+              <List className="size-3.5" />
               List
-            </Button>
-            <Button
-              size="sm"
-              variant={view === 'board' ? 'default' : 'outline'}
-              onClick={() => setView('board')}
-            >
-              <LayoutGrid className="mr-1.5 h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
+              <LayoutGrid className="size-3.5" />
               Board
-            </Button>
-          </div>
+            </ToggleGroupItem>
+          </ToggleGroup>
           <div className="flex items-center gap-2">
             <Switch id="so-report" checked={reportEnabled} onCheckedChange={setShowReport} />
             <Label htmlFor="so-report" className="text-sm font-normal cursor-pointer">
@@ -447,6 +449,12 @@ export default function SalesOrdersPage() {
           <CardContent>
             {isLoading || columnsLoading ? (
               <BoardSkeleton />
+            ) : orders.length === 0 ? (
+              <EmptyState
+                icon={ShoppingCart}
+                title="No sales orders"
+                description="Create a sales order above."
+              />
             ) : (
               <PipelineBoard
                 columns={columns}

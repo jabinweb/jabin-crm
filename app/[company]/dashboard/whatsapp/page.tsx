@@ -213,6 +213,7 @@ function statusLabel(status?: string) {
 export default function WhatsAppHubPage() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [messages, setMessages] = useState<WaMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -621,6 +622,12 @@ export default function WhatsAppHubPage() {
       prev.includes(jid) ? prev.filter((j) => j !== jid) : [...prev, jid]
     );
   };
+
+  useEffect(() => {
+    if (tabParam === 'provider' || tabParam === 'setup' || tabParam === 'inbox') {
+      setMainTab(tabParam);
+    }
+  }, [tabParam]);
 
   useEffect(() => {
     const init = async () => {

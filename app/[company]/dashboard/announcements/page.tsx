@@ -2,13 +2,21 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Megaphone } from 'lucide-react';
+import { Loader2, Megaphone, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { CardListSkeleton } from '@/components/loading';
 
@@ -26,6 +34,7 @@ type OrgOption = { id: string; name: string };
 
 export default function AnnouncementsAdminPage() {
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [targetDepartmentId, setTargetDepartmentId] = useState('');
@@ -58,6 +67,18 @@ export default function AnnouncementsAdminPage() {
     },
   });
 
+  const resetForm = () => {
+    setTitle('');
+    setContent('');
+    setTargetDepartmentId('');
+    setTargetBranchId('');
+  };
+
+  const openCreate = () => {
+    resetForm();
+    setDialogOpen(true);
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/employee/announcements', {
@@ -79,10 +100,8 @@ export default function AnnouncementsAdminPage() {
     },
     onSuccess: () => {
       toast.success('Announcement published');
-      setTitle('');
-      setContent('');
-      setTargetDepartmentId('');
-      setTargetBranchId('');
+      resetForm();
+      setDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ['admin-announcements'] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -90,91 +109,30 @@ export default function AnnouncementsAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Announcements</h1>
-        <p className="text-sm text-muted-foreground">
-          Post company-wide updates visible in the employee portal.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Announcements</h1>
+          <p className="text-sm text-muted-foreground">
+            Post company-wide updates visible in the employee portal.
+          </p>
+        </div>
+        <Button onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          New announcement
+        </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">New announcement</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="ann-title">Title</Label>
-            <Input
-              id="ann-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Holiday schedule"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="ann-body">Message</Label>
-            <Textarea
-              id="ann-body"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={4}
-              placeholder="Share details with the team…"
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Target department (optional)</Label>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={targetDepartmentId}
-                onChange={(e) => setTargetDepartmentId(e.target.value)}
-              >
-                <option value="">All departments</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label>Target branch (optional)</Label>
-              <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                value={targetBranchId}
-                onChange={(e) => setTargetBranchId(e.target.value)}
-              >
-                <option value="">All branches</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <Button
-            disabled={!title.trim() || !content.trim() || createMutation.isPending}
-            onClick={() => createMutation.mutate()}
-          >
-            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Publish
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {isLoading ? (
             <CardListSkeleton rows={4} />
           ) : announcements.length === 0 ? (
             <EmptyState
               icon={Megaphone}
               title="No announcements yet"
-              description="Publish your first company update above."
+              description="Publish your first company update."
+              actionLabel="New announcement"
+              onAction={openCreate}
             />
           ) : (
             <ul className="space-y-4">
@@ -192,6 +150,94 @@ export default function AnnouncementsAdminPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>New announcement</DialogTitle>
+            <DialogDescription>
+              Publish a company update visible in the employee portal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="ann-title">Title</Label>
+              <Input
+                id="ann-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Holiday schedule"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ann-body">Message</Label>
+              <Textarea
+                id="ann-body"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={4}
+                placeholder="Share details with the team…"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Target department (optional)</Label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={targetDepartmentId}
+                  onChange={(e) => setTargetDepartmentId(e.target.value)}
+                >
+                  <option value="">All departments</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label>Target branch (optional)</Label>
+                <select
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={targetBranchId}
+                  onChange={(e) => setTargetBranchId(e.target.value)}
+                >
+                  <option value="">All branches</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!title.trim() || !content.trim() || createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+            >
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Publish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

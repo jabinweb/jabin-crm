@@ -3,10 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
-import {
-  computeProgressFromMilestones,
-  PROJECT_INCLUDE,
-} from '@/lib/projects/agency-delivery';
+import { PROJECT_INCLUDE } from '@/lib/projects/agency-delivery';
 
 export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
   const id = (await routeContext!.params).id;
@@ -123,17 +120,3 @@ export const DELETE = withTenantRoute(async (_request, { session, companyId }, r
 
   return new Response(null, { status: 204 });
 });
-
-/** Recalculate progress from milestones */
-export async function syncProjectProgress(projectId: string) {
-  const milestones = await prisma.projectMilestone.findMany({
-    where: { projectId },
-    select: { status: true },
-  });
-  const progress = computeProgressFromMilestones(milestones);
-  await prisma.project.update({
-    where: { id: projectId },
-    data: { progress },
-  });
-  return progress;
-}

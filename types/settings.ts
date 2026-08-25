@@ -69,6 +69,17 @@ export interface CompanySettings {
         };
       };
     };
+    webhooks?: {
+      enabled: boolean;
+      signingSecret?: string;
+      subscriptions: Array<{
+        id: string;
+        name: string;
+        url: string;
+        events: string[];
+        enabled: boolean;
+      }>;
+    };
   };
   security: {
     twoFactorAuth: boolean;

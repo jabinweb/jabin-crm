@@ -20,6 +20,7 @@ import { Loader2, Receipt, PiggyBank, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 type Expense = {
   id: string;
@@ -305,8 +306,17 @@ export default function ExpensesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (confirm('Delete this expense?')) deleteMutation.mutate(e.id);
+                        onClick={async () => {
+                          if (
+                            !(await confirmAction({
+                              title: 'Delete this expense?',
+                              description: 'This cannot be undone.',
+                              confirmLabel: 'Delete',
+                              variant: 'destructive',
+                            }))
+                          )
+                            return;
+                          deleteMutation.mutate(e.id);
                         }}
                       >
                         Delete
