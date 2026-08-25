@@ -89,19 +89,12 @@ export function PipelineBoard<T extends PipelineBoardCard>({
                           <div
                             ref={dragProvided.innerRef}
                             {...dragProvided.draggableProps}
+                            {...dragProvided.dragHandleProps}
                             className={cn(
                               'rounded-md border bg-background shadow-sm',
                               dragSnapshot.isDragging && 'ring-2 ring-primary'
                             )}
                           >
-                            {/* Drag handle only — keep card body clickable (links, menus). */}
-                            <div
-                              {...dragProvided.dragHandleProps}
-                              className="flex cursor-grab items-center justify-center border-b border-transparent px-2 py-1 text-muted-foreground active:cursor-grabbing hover:bg-muted/50"
-                              aria-label="Drag to move"
-                            >
-                              <span className="h-1 w-8 rounded-full bg-border" />
-                            </div>
                             {renderCard(item)}
                           </div>
                         )}
