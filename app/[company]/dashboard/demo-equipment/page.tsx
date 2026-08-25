@@ -38,6 +38,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { CardListSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 import { cn } from '@/lib/utils';
 
 type DemoUnit = {
@@ -492,8 +493,13 @@ function DemoEquipmentPageInner() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => {
-                        if (confirm(`Delete ${u.name}?`)) deleteMutation.mutate(u.id);
+                      onClick={async () => {
+                        const ok = await confirmAction({
+                          title: `Delete ${u.name}?`,
+                          confirmLabel: 'Delete',
+                          variant: 'destructive',
+                        });
+                        if (ok) deleteMutation.mutate(u.id);
                       }}
                     >
                       Delete
@@ -768,8 +774,14 @@ function DemoEquipmentPageInner() {
               variant="destructive"
               className="mr-auto"
               disabled={!selectedId || deleteMutation.isPending}
-              onClick={() => {
-                if (selectedId && confirm('Delete this unit?')) {
+              onClick={async () => {
+                if (!selectedId) return;
+                const ok = await confirmAction({
+                  title: 'Delete this unit?',
+                  confirmLabel: 'Delete',
+                  variant: 'destructive',
+                });
+                if (ok) {
                   deleteMutation.mutate(selectedId);
                 }
               }}
@@ -1019,8 +1031,14 @@ function DemoEquipmentPageInner() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => {
-                if (selectedId && confirm('Delete this unit?')) {
+              onClick={async () => {
+                if (!selectedId) return;
+                const ok = await confirmAction({
+                  title: 'Delete this unit?',
+                  confirmLabel: 'Delete',
+                  variant: 'destructive',
+                });
+                if (ok) {
                   deleteMutation.mutate(selectedId);
                 }
               }}

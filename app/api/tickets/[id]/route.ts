@@ -156,11 +156,32 @@ export async function PATCH(
         { customFields: data.customFields },
         true
       );
+    } else if (data.projectId !== undefined) {
+      const nextProjectId =
+        typeof data.projectId === 'string' && data.projectId.trim()
+          ? data.projectId.trim()
+          : null;
+      result = await prisma.supportTicket.update({
+        where: { id },
+        data: { projectId: nextProjectId },
+        include: {
+          project: { select: { id: true, name: true, status: true } },
+          customer: { select: { organizationName: true } },
+        },
+      });
+      await ticketService.logActivity(
+        id,
+        'UPDATED',
+        nextProjectId ? `Linked to project` : 'Unlinked from project',
+        userId,
+        { projectId: nextProjectId },
+        true
+      );
     } else {
       return NextResponse.json(
         {
           error:
-            'No valid update field provided (status, toTechnicianId, scheduledFor, assignedTechnicianId, or customFields)',
+            'No valid update field provided (status, toTechnicianId, scheduledFor, assignedTechnicianId, customFields, or projectId)',
         },
         { status: 400 }
       );

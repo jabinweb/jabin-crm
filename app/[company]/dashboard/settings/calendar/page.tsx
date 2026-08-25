@@ -1,16 +1,19 @@
 'use client';
 
-import { GoogleCalendarSettings } from '@/components/crm/google-calendar-settings';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
-export default function CalendarSettingsPage() {
+/** Legacy route — calendar sync now lives under Integrations. */
+export default function CalendarSettingsRedirectPage() {
+  const router = useRouter();
+  const { path } = useWorkspacePaths();
+
+  useEffect(() => {
+    router.replace(`${path('/dashboard/settings/integrations')}?panel=google_calendar`);
+  }, [router, path]);
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Calendar Settings</h1>
-        <p className="text-gray-500">Manage your calendar integrations and sync settings</p>
-      </div>
-
-      <GoogleCalendarSettings />
-    </div>
+    <p className="text-sm text-muted-foreground p-6">Redirecting to Integrations…</p>
   );
 }

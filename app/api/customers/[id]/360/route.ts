@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import {
   InvoiceStatus,
-  LeadStatus,
   ServiceContractStatus,
   TicketStatus,
 } from '@prisma/client';
@@ -23,8 +22,15 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
 
   const closed: TicketStatus[] = [TicketStatus.CLOSED, TicketStatus.RESOLVED];
 
-  const [openTickets, recentTickets, openInvoices, activeContracts, lastCsatTicket] =
-    await Promise.all([
+  const [
+    openTickets,
+    recentTickets,
+    openInvoices,
+    activeContracts,
+    lastCsatTicket,
+    projectCount,
+    retainerCount,
+  ] = await Promise.all([
       prisma.supportTicket.count({
         where: {
           customerId,
@@ -62,6 +68,12 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
         orderBy: { csatSubmittedAt: 'desc' },
         select: { csatRating: true },
       }),
+      prisma.project.count({
+        where: { customerId, companyId: companyId! },
+      }),
+      prisma.clientRetainer.count({
+        where: { customerId, companyId: companyId! },
+      }),
     ]);
 
   return jsonOk({
@@ -70,6 +82,8 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
     recentTickets,
     openInvoices,
     activeContracts,
+    projectCount,
+    retainerCount,
     lastCsat: lastCsatTicket?.csatRating ?? null,
   });
 });

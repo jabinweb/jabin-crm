@@ -3,8 +3,9 @@
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { AuthShell } from '@/components/auth/auth-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
 const errorMessages: Record<string, string> = {
@@ -29,61 +30,57 @@ function ErrorContent() {
   const error = searchParams.get('error') || 'Default';
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-6 w-6 text-red-500" />
-            <CardTitle>Authentication Error</CardTitle>
+    <AuthShell>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertCircle className="size-5" />
+            <h2 className="font-[family-name:var(--font-landing-display)] text-2xl font-semibold tracking-tight text-[var(--lp-ink)]">
+              Sign-in problem
+            </h2>
           </div>
-          <CardDescription>
+          <p className="text-sm text-[var(--lp-muted)]">
             {errorMessages[error] || errorMessages.Default}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-none">
-            <p className="text-sm text-red-800">
-              <strong>Error Code:</strong> {error}
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Link href="/auth/signin">
-              <Button className="w-full">
-                Try Again
-              </Button>
-            </Link>
-            
-            <Link href="/">
-              <Button variant="outline" className="w-full">
-                Go to Homepage
-              </Button>
-            </Link>
-          </div>
+          </p>
+        </div>
 
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 p-3 bg-gray-100 rounded text-xs">
-              <p className="font-semibold mb-1">Debug Info (dev only):</p>
-              <pre className="whitespace-pre-wrap break-all">
-                {JSON.stringify({ error, searchParams: Object.fromEntries(searchParams) }, null, 2)}
-              </pre>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        <Alert variant="destructive" className="rounded-lg">
+          <AlertDescription>
+            Error code: <span className="font-mono">{error}</span>
+          </AlertDescription>
+        </Alert>
+
+        <div className="flex flex-col gap-2">
+          <Button asChild className="h-11 bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)] text-white">
+            <Link href="/auth/signin">Try again</Link>
+          </Button>
+          <Button asChild variant="outline" className="h-11 border-slate-200 bg-white">
+            <Link href="/">Back to homepage</Link>
+          </Button>
+        </div>
+
+        {process.env.NODE_ENV === 'development' && (
+          <pre className="rounded-lg bg-slate-50 p-3 text-xs text-[var(--lp-muted)] overflow-auto">
+            {JSON.stringify({ error, params: Object.fromEntries(searchParams) }, null, 2)}
+          </pre>
+        )}
+      </div>
+    </AuthShell>
   );
 }
 
 export default function AuthErrorPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-none h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <AuthShell>
+          <div className="flex min-h-[200px] items-center justify-center">
+            <div className="size-6 animate-spin rounded-full border-2 border-[var(--lp-accent)] border-t-transparent" />
+          </div>
+        </AuthShell>
+      }
+    >
       <ErrorContent />
     </Suspense>
   );
 }
-

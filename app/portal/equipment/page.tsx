@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
@@ -54,12 +54,7 @@ function CustomerEquipmentInventory() {
     );
 
     if (isLoading) {
-        return (
-            <div className="space-y-6">
-                <PageHeaderSkeleton />
-                <FullTableSkeleton columnCount={5} rowCount={5} />
-            </div>
-        );
+        return <FullTableSkeleton columnCount={5} rowCount={5} />;
     }
 
     return (

@@ -73,7 +73,7 @@ import { DetailSkeleton } from '@/components/loading';
 export default function TicketDetailPage() {
     const { id } = useParams();
     const router = useRouter();
-    const { path, workspaceFetch } = useWorkspacePaths();
+    const { path, workspaceFetch, slug } = useWorkspacePaths();
     const { data: session } = useSession();
     const queryClient = useQueryClient();
     const ticketAdvancedEnabled = useFeatureModule('TICKET_ADVANCED');
@@ -182,6 +182,40 @@ export default function TicketDetailPage() {
         },
         staleTime: 60_000,
     });
+
+    const { data: projectsList = [] } = useQuery({
+        queryKey: ['projects-list-ticket-detail', slug],
+        queryFn: async () => {
+            const res = await workspaceFetch('/api/projects');
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (Array.isArray(data) ? data : []) as Array<{
+                id: string;
+                name: string;
+                status: string;
+            }>;
+        },
+        enabled: !!slug,
+        staleTime: 60_000,
+    });
+
+    const saveProjectLink = async (projectId: string | null) => {
+        try {
+            const res = await workspaceFetch(`/api/tickets/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ projectId }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to update project');
+            }
+            toast.success(projectId ? 'Project linked' : 'Project unlinked');
+            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Failed to update project');
+        }
+    };
 
     useEffect(() => {
         const meta = ticket?.metadata;
@@ -850,6 +884,39 @@ export default function TicketDetailPage() {
                                     <p className="text-sm font-medium">{ticket.equipment?.product?.name || 'General Support'}</p>
                                     <p className="text-xs text-muted-foreground">SN: {ticket.equipment?.serialNumber || 'N/A'}</p>
                                 </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase">Project</p>
+                                <Select
+                                    value={ticket.projectId || ticket.project?.id || '__none__'}
+                                    onValueChange={(val) =>
+                                        void saveProjectLink(val === '__none__' ? null : val)
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Link project" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">No project</SelectItem>
+                                        {projectsList.map((p) => (
+                                            <SelectItem key={p.id} value={p.id}>
+                                                {p.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {(ticket.projectId || ticket.project?.id) && (
+                                    <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
+                                        <Link
+                                            href={path(
+                                                `/dashboard/projects/${ticket.projectId || ticket.project?.id}`
+                                            )}
+                                        >
+                                            Open project
+                                        </Link>
+                                    </Button>
+                                )}
                             </div>
                         </CardContent>
                     </Card>

@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type VisitTag = {
   id: string;
@@ -62,7 +64,12 @@ export function VisitTagsSection() {
       toast.error('System tags cannot be deleted');
       return;
     }
-    if (!confirm(`Delete tag “${tag.name}”?`)) return;
+    const ok = await confirmAction({
+      title: `Delete tag “${tag.name}”?`,
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       const res = await workspaceFetch(`/api/visit-tags/${tag.id}`, { method: 'DELETE' });
       const body = await res.json().catch(() => ({}));
@@ -111,7 +118,7 @@ export function VisitTagsSection() {
         </div>
 
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading tags…</p>
+          <Skeleton className="h-10 w-full" />
         ) : (
           <div className="space-y-2">
             {tags.map((tag) => (

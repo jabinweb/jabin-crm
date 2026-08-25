@@ -6,6 +6,7 @@ import {
   View,
   StyleSheet,
   Font,
+  Image,
 } from '@react-pdf/renderer';
 
 // Register fonts with better Unicode support
@@ -312,9 +313,19 @@ export const InvoicePDF: React.FC<{ invoice: InvoiceData }> = ({ invoice }) => {
       <View style={styles.header}>
         <View style={styles.row}>
           <View>
-            <Text style={styles.companyName}>
+            {invoice.logoUrl ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+              <Image
+                src={invoice.logoUrl}
+                style={{ width: 120, height: 48, objectFit: 'contain', marginBottom: 8 }}
+              />
+            ) : null}
+            <Text style={{ ...styles.companyName, color: primaryColor }}>
               {invoice.companyName || 'Your Company Name'}
             </Text>
+            {invoice.headerText ? (
+              <Text style={{ ...styles.companyDetails, marginBottom: 6 }}>{invoice.headerText}</Text>
+            ) : null}
             {invoice.companyAddress && (
               <Text style={styles.companyDetails}>{invoice.companyAddress}</Text>
             )}
@@ -332,7 +343,7 @@ export const InvoicePDF: React.FC<{ invoice: InvoiceData }> = ({ invoice }) => {
             )}
           </View>
           <View style={styles.invoiceHeader}>
-            <Text style={styles.invoiceTitle}>INVOICE</Text>
+            <Text style={{ ...styles.invoiceTitle, color: primaryColor }}>INVOICE</Text>
             <Text style={styles.invoiceNumber}>{invoice.invoiceNumber}</Text>
           </View>
         </View>

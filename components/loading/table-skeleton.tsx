@@ -51,11 +51,20 @@ export function FullTableSkeleton({
   columnCount = 5,
   rowCount = 5,
   className,
-}: TableSkeletonProps) {
+  withHeader = false,
+}: TableSkeletonProps & { withHeader?: boolean }) {
   return (
-    <div className={cn('rounded-md border', className)}>
-      <div className="relative w-full overflow-auto">
-        <TableSkeleton columnCount={columnCount} rowCount={rowCount} />
+    <div className={cn('space-y-4', className)} aria-busy="true" aria-live="polite">
+      {withHeader ? (
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </div>
+      ) : null}
+      <div className="rounded-md border">
+        <div className="relative w-full overflow-auto">
+          <TableSkeleton columnCount={columnCount} rowCount={rowCount} />
+        </div>
       </div>
     </div>
   );

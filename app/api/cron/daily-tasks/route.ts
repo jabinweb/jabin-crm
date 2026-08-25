@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
       invoices: { overdueMarked: 0, errors: 0 },
       usage: { reset: 0, errors: 0 },
       pmDue: { created: 0, skipped: 0, companiesEligible: 0, errors: 0 },
+      warrantyAlerts: { scanned: 0, sent: 0, skipped: 0, errors: 0 },
     };
 
     // Task 1: Process email sequences (real send path)
@@ -175,6 +176,18 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Error running PM due automation:', error);
       results.pmDue.errors += 1;
+    }
+
+    // Task 9: Warranty expiry alerts for portal customers
+    try {
+      const { runWarrantyExpiryAlerts } = await import('@/lib/crm/warranty-expiry-alerts');
+      const warranty = await runWarrantyExpiryAlerts();
+      results.warrantyAlerts.scanned = warranty.scanned;
+      results.warrantyAlerts.sent = warranty.sent;
+      results.warrantyAlerts.skipped = warranty.skipped;
+    } catch (error) {
+      console.error('Error running warranty expiry alerts:', error);
+      results.warrantyAlerts.errors += 1;
     }
 
     return NextResponse.json({

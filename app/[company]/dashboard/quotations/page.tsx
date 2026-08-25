@@ -22,7 +22,8 @@ import { Plus, FileText, Send, CheckCircle, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 import { formatCurrency } from "@/lib/currency";
-import { PageHeaderSkeleton, FullTableSkeleton } from "@/components/loading";
+import { FullTableSkeleton } from "@/components/loading";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface Quotation {
   id: string;
@@ -96,12 +97,7 @@ export default function QuotationsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <FullTableSkeleton columnCount={6} rowCount={6} />
-      </div>
-    );
+    return <FullTableSkeleton columnCount={6} rowCount={6} withHeader />;
   }
 
   return (
@@ -126,17 +122,13 @@ export default function QuotationsPage() {
         </CardHeader>
         <CardContent>
           {quotations.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No quotations yet</h3>
-              <p className="text-gray-500 mb-4">
-                Create your first quotation to get started
-              </p>
-              <Button onClick={() => router.push(path("/dashboard/quotations/new"))}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Quotation
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No quotations yet"
+              description="Create your first quotation to get started."
+              actionLabel="Create Quotation"
+              actionHref={path("/dashboard/quotations/new")}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Building2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EasyBottomSheet, EasyFab } from '@/components/customers/easy-bottom-sheet';
+import { confirmAction } from '@/lib/confirm-action';
 
 type Contact = { id: string; name: string; role?: string | null };
 type Department = {
@@ -85,7 +86,13 @@ export function CustomerDepartmentsTab({
   };
 
   const remove = async (deptId: string, deptName: string) => {
-    if (!confirm(`Delete ${deptName}? People stay — they just unlink.`)) return;
+    const ok = await confirmAction({
+      title: `Delete ${deptName}?`,
+      description: 'People stay — they just unlink.',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       const res = await workspaceFetch(
         `/api/customers/${customerId}/departments/${deptId}`,

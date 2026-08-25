@@ -28,7 +28,8 @@ import { Plus, FileText, Send, DollarSign, AlertCircle, Eye, Download, MoreVerti
 import { useRouter } from "next/navigation";
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 import { formatCurrency } from "@/lib/currency";
-import { PageHeaderSkeleton, FullTableSkeleton } from "@/components/loading";
+import { FullTableSkeleton } from "@/components/loading";
+import { EmptyState } from "@/components/ui/empty-state";
 import { toast } from "sonner";
 
 interface Invoice {
@@ -141,12 +142,7 @@ export default function InvoicesPage() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <FullTableSkeleton columnCount={6} rowCount={6} />
-      </div>
-    );
+    return <FullTableSkeleton columnCount={6} rowCount={6} withHeader />;
   }
 
   return (
@@ -224,17 +220,13 @@ export default function InvoicesPage() {
         </CardHeader>
         <CardContent>
           {invoices.length === 0 ? (
-            <div className="text-center py-12">
-              <FileText className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No invoices yet</h3>
-              <p className="text-gray-500 mb-4">
-                Create your first invoice to get started
-              </p>
-              <Button onClick={() => router.push(path("/dashboard/invoices/new"))}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Invoice
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No invoices yet"
+              description="Create your first invoice to get started."
+              actionLabel="Create Invoice"
+              actionHref={path("/dashboard/invoices/new")}
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>

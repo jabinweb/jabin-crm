@@ -50,6 +50,7 @@ interface Invoice {
   customerEmail: string;
   customerPhone: string | null;
   customerAddress: string | null;
+  customerId?: string | null;
   status: string;
   subtotal: number;
   taxRate: number;
@@ -66,6 +67,8 @@ interface Invoice {
   terms: string | null;
   notes: string | null;
   items: InvoiceItem[];
+  customer?: { id: string; organizationName: string } | null;
+  deal?: { id: string; title: string; stage?: string } | null;
   user: {
     name: string | null;
     email: string | null;
@@ -335,9 +338,32 @@ export default function InvoiceDetailPage() {
               <div className="flex items-start gap-3">
                 <User className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="font-semibold">{invoice.customerName}</p>
+                  {(invoice.customer?.id || invoice.customerId) ? (
+                    <DashboardLink
+                      href={`/dashboard/customers/${invoice.customer?.id || invoice.customerId}`}
+                      className="font-semibold underline-offset-2 hover:underline"
+                    >
+                      {invoice.customer?.organizationName || invoice.customerName}
+                    </DashboardLink>
+                  ) : (
+                    <p className="font-semibold">{invoice.customerName}</p>
+                  )}
                 </div>
               </div>
+              {invoice.deal?.id ? (
+                <div className="flex items-start gap-3">
+                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Deal</p>
+                    <DashboardLink
+                      href={`/dashboard/deals/${invoice.deal.id}`}
+                      className="text-sm font-medium underline-offset-2 hover:underline"
+                    >
+                      {invoice.deal.title}
+                    </DashboardLink>
+                  </div>
+                </div>
+              ) : null}
               <div className="flex items-start gap-3">
                 <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>

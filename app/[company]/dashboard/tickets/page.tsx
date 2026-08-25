@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { TicketSlaTimer } from '@/components/tickets/ticket-sla-timer';
 import {
   Table,
@@ -328,24 +329,25 @@ export default function TicketsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="flex gap-1">
-            <Button
-              size="sm"
-              variant={view === 'list' ? 'default' : 'outline'}
-              onClick={() => setView('list')}
-            >
-              <List className="mr-1.5 h-4 w-4" />
+          <ToggleGroup
+            type="single"
+            value={view}
+            onValueChange={(v) => {
+              if (v === 'list' || v === 'board') setView(v);
+            }}
+            variant="outline"
+            size="sm"
+            className="justify-start"
+          >
+            <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
+              <List className="size-3.5" />
               List
-            </Button>
-            <Button
-              size="sm"
-              variant={view === 'board' ? 'default' : 'outline'}
-              onClick={() => setView('board')}
-            >
-              <LayoutGrid className="mr-1.5 h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
+              <LayoutGrid className="size-3.5" />
               Board
-            </Button>
-          </div>
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button asChild>
             <Link href={path('/dashboard/tickets/new')}>
               <Plus className="mr-2 h-4 w-4" />

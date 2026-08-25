@@ -13,6 +13,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -34,14 +35,28 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { EmptyState } from '@/components/ui/empty-state';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
+  LayoutGrid,
+  List,
   Loader2,
   FolderKanban,
   Plus,
@@ -58,6 +73,12 @@ import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
+import {
+  PipelineBoard,
+  buildBoardState,
+} from '@/components/pipelines/pipeline-board';
+import { PROJECT_HUB_COLUMNS } from '@/lib/projects/task-board';
+import { UNMAPPED_STAGE_ID } from '@/lib/pipelines';
 
 type Project = {
   id: string;
@@ -73,7 +94,7 @@ type Project = {
   customer?: { id: string; organizationName: string } | null;
   deal?: { id: string; title: string } | null;
   pmUser?: { id: string; name: string | null } | null;
-  _count?: { milestones?: number; tickets?: number };
+  _count?: { milestones?: number; tickets?: number; tasks?: number };
 };
 
 const STATUS_META: Record<
@@ -129,8 +150,10 @@ export default function ProjectsPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [hubView, setHubView] = useState<'list' | 'board'>('board');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -263,6 +286,23 @@ export default function ProjectsPage() {
     },
     onSuccess: () => {
       toast.success('Project deleted');
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ['projects', slug] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const statusMoveMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const res = await workspaceFetch(`/api/projects/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      return res.json();
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects', slug] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -281,6 +321,15 @@ export default function ProjectsPage() {
       );
     });
   }, [projects, search, statusFilter]);
+
+  const boardItems = useMemo(
+    () => filtered.map((p) => ({ ...p, stage: p.status })),
+    [filtered]
+  );
+  const { columns: hubColumns, itemsByStage: hubByStage } = useMemo(
+    () => buildBoardState(boardItems, PROJECT_HUB_COLUMNS),
+    [boardItems]
+  );
 
   const stats = useMemo(() => {
     const active = projects.filter((p) => p.status === 'ACTIVE').length;
@@ -301,15 +350,34 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Delivery work for clients — milestones, hours, and requests.
+            Plan and track delivery — board and list views for every engagement.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <ToggleGroup
+            type="single"
+            value={hubView}
+            onValueChange={(v) => {
+              if (v === 'board' || v === 'list') setHubView(v);
+            }}
+            variant="outline"
+            size="sm"
+            className="justify-start"
+          >
+            <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
+              <LayoutGrid className="size-3.5" />
+              Board
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
+              <List className="size-3.5" />
+              List
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button variant="outline" asChild>
             <Link href={path('/dashboard/retainers')}>Retainers</Link>
           </Button>
           <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 size-4" />
             New project
           </Button>
         </div>
@@ -379,11 +447,13 @@ export default function ProjectsPage() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="ON_HOLD">On hold</SelectItem>
-                <SelectItem value="COMPLETED">Completed</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                <SelectGroup>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="ON_HOLD">On hold</SelectItem>
+                  <SelectItem value="COMPLETED">Completed</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
@@ -401,6 +471,81 @@ export default function ProjectsPage() {
               }
               actionLabel={projects.length === 0 ? 'New project' : undefined}
               onAction={projects.length === 0 ? openCreate : undefined}
+            />
+          ) : hubView === 'board' ? (
+            <PipelineBoard
+              columns={hubColumns.filter((c) => c.id !== UNMAPPED_STAGE_ID)}
+              itemsByStage={hubByStage}
+              onMove={(id, toStage) => {
+                if (!PROJECT_HUB_COLUMNS.some((c) => c.id === toStage)) return;
+                statusMoveMutation.mutate({ id, status: toStage });
+              }}
+              renderCard={(p) => (
+                <div className="group flex flex-col gap-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <Link
+                      href={path(`/dashboard/projects/${p.id}`)}
+                      className="block min-w-0 flex-1 text-sm font-medium leading-snug hover:underline underline-offset-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {p.name}
+                    </Link>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal className="size-3.5" />
+                          <span className="sr-only">Project actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuGroup>
+                          <DropdownMenuItem asChild>
+                            <Link href={path(`/dashboard/projects/${p.id}`)}>
+                              <ExternalLink className="mr-2 size-4" />
+                              Open
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(p)}>
+                            <Pencil className="mr-2 size-4" />
+                            Edit
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteTarget(p)}
+                        >
+                          <Trash2 className="mr-2 size-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  {p.customer ? (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {p.customer.organizationName}
+                    </p>
+                  ) : null}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between text-[11px] text-muted-foreground">
+                      <span>Progress</span>
+                      <span className="tabular-nums">{p.progress ?? 0}%</span>
+                    </div>
+                    <Progress value={p.progress ?? 0} className="h-1.5" />
+                  </div>
+                  {p._count?.tasks ? (
+                    <Badge variant="secondary" className="w-fit text-[10px] font-normal">
+                      {p._count.tasks} tasks
+                    </Badge>
+                  ) : null}
+                </div>
+              )}
             />
           ) : (
             <div className="rounded-md border overflow-x-auto">
@@ -431,6 +576,7 @@ export default function ProjectsPage() {
                             {p._count?.milestones
                               ? ` · ${p._count.milestones} milestones`
                               : ''}
+                            {p._count?.tasks ? ` · ${p._count.tasks} tasks` : ''}
                           </p>
                         ) : null}
                       </TableCell>
@@ -477,30 +623,24 @@ export default function ProjectsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={path(`/dashboard/projects/${p.id}`)}>
-                                <ExternalLink className="mr-2 h-4 w-4" />
-                                Open
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => openEdit(p)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenuItem>
+                            <DropdownMenuGroup>
+                              <DropdownMenuItem asChild>
+                                <Link href={path(`/dashboard/projects/${p.id}`)}>
+                                  <ExternalLink className="mr-2 size-4" />
+                                  Open
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openEdit(p)}>
+                                <Pencil className="mr-2 size-4" />
+                                Edit
+                              </DropdownMenuItem>
+                            </DropdownMenuGroup>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    `Delete “${p.name}”? This cannot be undone.`
-                                  )
-                                ) {
-                                  deleteMutation.mutate(p.id);
-                                }
-                              }}
+                              onClick={() => setDeleteTarget(p)}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
+                              <Trash2 className="mr-2 size-4" />
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -538,7 +678,7 @@ export default function ProjectsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="proj-name">Name</Label>
               <Input
                 id="proj-name"
@@ -547,44 +687,48 @@ export default function ProjectsPage() {
                 placeholder="e.g. Sciolabs"
               />
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label>Status</Label>
               <Select value={status} onValueChange={setStatus}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'].map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {STATUS_META[s]?.label ?? s}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {['ACTIVE', 'ON_HOLD', 'COMPLETED', 'CANCELLED'].map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {STATUS_META[s]?.label ?? s}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label>Type</Label>
               <Select value={projectType} onValueChange={setProjectType}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[
-                    ['website', 'Website'],
-                    ['webapp', 'Web app'],
-                    ['seo', 'SEO / content'],
-                    ['branding', 'Branding'],
-                    ['retainer', 'Retainer'],
-                    ['other', 'Other'],
-                  ].map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    {[
+                      ['website', 'Website'],
+                      ['webapp', 'Web app'],
+                      ['seo', 'SEO / content'],
+                      ['branding', 'Branding'],
+                      ['retainer', 'Retainer'],
+                      ['other', 'Other'],
+                    ].map(([v, l]) => (
+                      <SelectItem key={v} value={v!}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="grid gap-2 sm:col-span-2">
               <Label htmlFor="proj-desc">Description</Label>
               <Textarea
                 id="proj-desc"
@@ -594,7 +738,7 @@ export default function ProjectsPage() {
                 placeholder="Scope, goals, or live URL…"
               />
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor="proj-start">Start date</Label>
               <Input
                 id="proj-start"
@@ -603,7 +747,7 @@ export default function ProjectsPage() {
                 onChange={(e) => setStartDate(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label htmlFor="proj-end">End date</Label>
               <Input
                 id="proj-end"
@@ -612,7 +756,7 @@ export default function ProjectsPage() {
                 onChange={(e) => setEndDate(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label>Client</Label>
               <Select
                 value={customerId || '__none__'}
@@ -622,16 +766,18 @@ export default function ProjectsPage() {
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.organizationName}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.organizationName}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="grid gap-2">
               <Label>Opportunity</Label>
               <Select
                 value={dealId || '__none__'}
@@ -641,12 +787,14 @@ export default function ProjectsPage() {
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">None</SelectItem>
-                  {deals.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.title}
-                    </SelectItem>
-                  ))}
+                  <SelectGroup>
+                    <SelectItem value="__none__">None</SelectItem>
+                    {deals.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.title}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
@@ -666,13 +814,43 @@ export default function ProjectsPage() {
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin" />
               )}
               {editing ? 'Save changes' : 'Create project'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete project?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `“${deleteTarget.name}” and its tasks will be permanently removed. This cannot be undone.`
+                : 'This cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { Loader2, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 type Supplier = {
   id: string;
@@ -243,8 +244,17 @@ export default function SuppliersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (confirm('Delete this supplier?')) deleteMutation.mutate(s.id);
+                        onClick={async () => {
+                          if (
+                            !(await confirmAction({
+                              title: 'Delete this supplier?',
+                              description: 'This cannot be undone.',
+                              confirmLabel: 'Delete',
+                              variant: 'destructive',
+                            }))
+                          )
+                            return;
+                          deleteMutation.mutate(s.id);
                         }}
                       >
                         Delete

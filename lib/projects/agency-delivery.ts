@@ -32,6 +32,12 @@ export const PROJECT_INCLUDE = {
   deal: { select: { id: true, title: true, stage: true, value: true } },
   pmUser: { select: { id: true, name: true, email: true } },
   milestones: { orderBy: { sortOrder: 'asc' as const } },
+  tasks: {
+    include: {
+      assignee: { select: { id: true, name: true, email: true, image: true } },
+    },
+    orderBy: [{ status: 'asc' as const }, { sortOrder: 'asc' as const }],
+  },
   members: {
     include: {
       user: { select: { id: true, name: true, email: true } },
@@ -45,6 +51,7 @@ export const PROJECT_INCLUDE = {
     select: {
       tickets: true,
       timesheetEntries: true,
+      tasks: true,
     },
   },
 } as const;

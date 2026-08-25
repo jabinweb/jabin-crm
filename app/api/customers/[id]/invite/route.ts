@@ -68,11 +68,44 @@ export async function POST(
 
     if (existingUser) {
       if (existingUser.customerId === customerId) {
+        const tempPassword = randomBytes(12).toString('base64url');
+        const hashedPassword = await bcrypt.hash(tempPassword, 12);
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { password: hashedPassword, userStatus: 'ACTIVE' },
+        });
+
+        const baseUrl =
+          process.env.NEXTAUTH_URL ??
+          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+        const signInUrl = `${baseUrl}/auth/signin`;
+
+        let emailSent = false;
+        try {
+          await sendPortalInviteEmail({
+            to: email,
+            customerName: customer.contactPerson || customer.organizationName,
+            organizationName: customer.organizationName,
+            companyName: company?.name ?? 'Your company',
+            signInUrl,
+            temporaryPassword: tempPassword,
+          });
+          emailSent = true;
+        } catch (mailErr) {
+          console.error('[invite resend] email failed:', mailErr);
+        }
+
+        const isDev = process.env.NODE_ENV === 'development';
+
         return NextResponse.json({
-          message: 'Portal user already exists',
-          userId: existingUser.id,
+          message: emailSent
+            ? 'Portal credentials resent by email'
+            : 'New temporary password set — email could not be sent; share credentials manually',
+          user: { id: existingUser.id, email, name: customer.contactPerson || customer.organizationName },
+          signInUrl,
+          emailSent,
           alreadyInvited: true,
-          emailSent: false,
+          ...(isDev || !emailSent ? { temporaryPassword: tempPassword } : {}),
         });
       }
       return NextResponse.json(

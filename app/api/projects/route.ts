@@ -14,7 +14,7 @@ export const GET = withTenantRoute(async (_request, { companyId }) => {
       customer: { select: { id: true, organizationName: true } },
       deal: { select: { id: true, title: true } },
       pmUser: { select: { id: true, name: true } },
-      _count: { select: { milestones: true, tickets: true } },
+      _count: { select: { milestones: true, tickets: true, tasks: true } },
     },
     orderBy: { updatedAt: 'desc' },
   });

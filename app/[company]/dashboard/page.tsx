@@ -7,6 +7,7 @@ import { ProfileCompletionBanner } from '@/components/dashboard/profile-completi
 import {
   GettingStartedChecklist,
   WorkspaceSetupPendingBanner,
+  useGettingStartedActive,
 } from '@/components/dashboard/getting-started-checklist';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TicketSlaTimer } from '@/components/tickets/ticket-sla-timer';
@@ -32,6 +33,7 @@ import {
   ChevronDown,
   UserPlus,
   TrendingDown,
+  FolderKanban,
 } from 'lucide-react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
@@ -39,12 +41,16 @@ import { renewalUrgency } from '@/lib/crm/service-contract-utils';
 import { DailyEntryBanner } from '@/components/dashboard/daily-entry-banner';
 import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-card';
 import { AgentQueueCard } from '@/components/dashboard/agent-queue-card';
+import { ModuleHubCards } from '@/components/dashboard/module-hub-cards';
 
 export default function WorkspaceDashboardPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const { data: workspaceData } = useWorkspaceConfig();
   const features = workspaceData?.config.features;
   const terminology = workspaceData?.config.terminology;
+  const vertical = workspaceData?.config.businessVertical;
+  const isAgency = vertical === 'web_agency';
+  const setupActive = useGettingStartedActive();
   const homeWidgets = workspaceData?.config.homeWidgets ?? [];
   const hasPackWidgets = homeWidgets.length > 0;
   const showWarranties = features?.warranties === true;
@@ -174,29 +180,35 @@ export default function WorkspaceDashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs text-muted-foreground mb-1">
-            <Link href={path('/dashboard')} className="hover:text-foreground">
-              Home
-            </Link>
-            <span className="mx-1.5">/</span>
-            <span className="text-foreground">Dashboard</span>
-          </p>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            People, sales, and {ticketsLabel.toLowerCase()} — what needs attention today.
+            {setupActive
+              ? 'Complete setup to activate your workspace.'
+              : isAgency
+                ? 'Overview of projects, pipeline, and clients.'
+                : 'Overview of tickets, sales, and operations.'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button asChild size="sm">
-            <Link href={path('/dashboard/tickets/new')}>
-              <Ticket className="h-4 w-4" />
-              New {ticketLabel.toLowerCase()}
-            </Link>
-          </Button>
+          {isAgency ? (
+            <Button asChild size="sm">
+              <Link href={path('/dashboard/projects')}>
+                <FolderKanban className="h-4 w-4" />
+                New project
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild size="sm">
+              <Link href={path('/dashboard/tickets/new')}>
+                <Ticket className="h-4 w-4" />
+                New {ticketLabel.toLowerCase()}
+              </Link>
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -205,6 +217,14 @@ export default function WorkspaceDashboardPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {isAgency ? (
+                <DropdownMenuItem asChild>
+                  <Link href={path('/dashboard/projects')}>
+                    <FolderKanban className="h-4 w-4 mr-2" />
+                    New project
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuItem asChild>
                 <Link href={path('/dashboard/leads/new')}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -217,6 +237,14 @@ export default function WorkspaceDashboardPage() {
                   Add {customerLabel.toLowerCase()}
                 </Link>
               </DropdownMenuItem>
+              {!isAgency ? (
+                <DropdownMenuItem asChild>
+                  <Link href={path('/dashboard/tickets/new')}>
+                    <Ticket className="h-4 w-4 mr-2" />
+                    New {ticketLabel.toLowerCase()}
+                  </Link>
+                </DropdownMenuItem>
+              ) : null}
               {showEquipment && (
                 <DropdownMenuItem asChild>
                   <Link href={path('/dashboard/inventory/new')}>
@@ -225,7 +253,7 @@ export default function WorkspaceDashboardPage() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {showInventory && !showEquipment && (
+              {showInventory && !showEquipment && !isAgency && (
                 <DropdownMenuItem asChild>
                   <Link href={path('/dashboard/inventory')}>
                     <Package className="h-4 w-4 mr-2" />
@@ -244,14 +272,16 @@ export default function WorkspaceDashboardPage() {
         </div>
       </div>
 
+      {profile && <ProfileCompletionBanner isComplete={profile.isComplete} />}
+      <WorkspaceSetupPendingBanner />
+      <GettingStartedChecklist />
+
+      <ModuleHubCards compact={setupActive} />
+
       <DailyEntryBanner
         loading={opsLoading}
         missing={!!opsToday && !opsToday.dailyEntry?.hasSalesActivityToday}
       />
-
-      {profile && <ProfileCompletionBanner isComplete={profile.isComplete} />}
-      <WorkspaceSetupPendingBanner />
-      <GettingStartedChecklist />
 
       <AgentQueueCard />
 
@@ -260,7 +290,6 @@ export default function WorkspaceDashboardPage() {
         name={opsToday?.me?.name}
         attendance={opsToday?.attendance}
       />
-
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {supportLoading ? (
           Array.from({ length: 4 }).map((_, i) => (

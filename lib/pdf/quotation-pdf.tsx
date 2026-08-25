@@ -5,6 +5,7 @@ import {
   Text,
   View,
   StyleSheet,
+  Image,
 } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
@@ -272,9 +273,21 @@ export const QuotationPDF: React.FC<{ quotation: QuotationData }> = ({ quotation
       <View style={styles.header}>
         <View style={styles.row}>
           <View>
-            <Text style={styles.companyName}>
+            {quotation.logoUrl ? (
+              // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image
+              <Image
+                src={quotation.logoUrl}
+                style={{ width: 120, height: 48, objectFit: 'contain', marginBottom: 8 }}
+              />
+            ) : null}
+            <Text style={{ ...styles.companyName, color: primaryColor }}>
               {quotation.companyName || 'Your Company Name'}
             </Text>
+            {quotation.headerText ? (
+              <Text style={{ ...styles.companyDetails, marginBottom: 6 }}>
+                {quotation.headerText}
+              </Text>
+            ) : null}
             {quotation.companyAddress && (
               <Text style={styles.companyDetails}>{quotation.companyAddress}</Text>
             )}
@@ -289,7 +302,7 @@ export const QuotationPDF: React.FC<{ quotation: QuotationData }> = ({ quotation
             )}
           </View>
           <View>
-            <Text style={styles.quotationTitle}>QUOTATION</Text>
+            <Text style={{ ...styles.quotationTitle, color: primaryColor }}>QUOTATION</Text>
             <Text style={styles.quotationNumber}>{quotation.quotationNumber}</Text>
             <View style={getStatusStyle(quotation.status)}>
               <Text>{quotation.status}</Text>

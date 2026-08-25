@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ type Retainer = {
 
 export default function RetainersPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
@@ -144,7 +146,16 @@ export default function RetainersPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      toast.success(`Draft invoice ${data.invoice?.invoiceNumber || ''} created`);
+      const invoiceId = data.invoice?.id as string | undefined;
+      const number = data.invoice?.invoiceNumber || '';
+      toast.success(`Draft invoice ${number} created`, {
+        action: invoiceId
+          ? {
+              label: 'Open invoice',
+              onClick: () => router.push(path(`/dashboard/invoices/${invoiceId}`)),
+            }
+          : undefined,
+      });
       queryClient.invalidateQueries({ queryKey: ['retainers', slug] });
     },
     onError: (e: Error) => toast.error(e.message),

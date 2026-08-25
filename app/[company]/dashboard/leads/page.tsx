@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useLeadsPage } from '@/hooks/use-leads-page';
 import { LeadsToolbar } from '@/components/leads/leads-toolbar';
 import { LeadsFilters } from '@/components/leads/leads-filters';
@@ -11,6 +10,7 @@ import { LeadsDialogs } from '@/components/leads/leads-dialogs';
 import { LeadsBoard } from '@/components/leads/leads-board';
 import { LayoutGrid, List } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 export default function LeadsPage() {
   const leads = useLeadsPage();
@@ -21,26 +21,25 @@ export default function LeadsPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <LeadsToolbar {...leads} />
-        <div className="flex gap-1 self-end sm:self-auto">
-          <Button
-            type="button"
-            size="sm"
-            variant={view === 'list' ? 'default' : 'outline'}
-            onClick={() => setView('list')}
-          >
-            <List className="mr-1.5 h-4 w-4" />
+        <ToggleGroup
+          type="single"
+          value={view}
+          onValueChange={(v) => {
+            if (v === 'list' || v === 'board') setView(v);
+          }}
+          variant="outline"
+          size="sm"
+          className="justify-start self-end sm:self-auto"
+        >
+          <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
+            <List className="size-3.5" />
             List
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={view === 'board' ? 'default' : 'outline'}
-            onClick={() => setView('board')}
-          >
-            <LayoutGrid className="mr-1.5 h-4 w-4" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
+            <LayoutGrid className="size-3.5" />
             Board
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       </div>
 
       {view === 'list' ? (

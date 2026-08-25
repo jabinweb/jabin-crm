@@ -30,12 +30,14 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { DetailSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
-import { AITicketSummary } from '@/components/tickets/AITicketSummary';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
 export default function PortalTicketDetailPage() {
     const { id } = useParams();
     const router = useRouter();
     const queryClient = useQueryClient();
+    const { data: workspaceData } = useWorkspaceConfig();
+    const showEquipment = workspaceData?.config.features?.equipment === true;
     const [newComment, setNewComment] = useState('');
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [csatRating, setCsatRating] = useState(0);
@@ -159,8 +161,6 @@ export default function PortalTicketDetailPage() {
                             </div>
                         </CardContent>
                     </Card>
-                    <AITicketSummary ticketId={id as string} className="mt-6" />
-
                     {isResolved && !ticket.csatRating && (
                         <Card className="border-blue-100 bg-blue-50/30 dark:bg-blue-950/20">
                             <CardHeader>
@@ -205,8 +205,8 @@ export default function PortalTicketDetailPage() {
 
                     <Tabs defaultValue="conversation" className="space-y-6">
                         <TabsList className="bg-slate-100/50 dark:bg-slate-900/50 p-1">
-                            <TabsTrigger value="conversation" className="rounded-md px-6">Support Conversation</TabsTrigger>
-                            <TabsTrigger value="history" className="rounded-md px-6">Service History</TabsTrigger>
+                            <TabsTrigger value="conversation" className="rounded-md px-6">Conversation</TabsTrigger>
+                            <TabsTrigger value="history" className="rounded-md px-6">Activity</TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="conversation" className="space-y-4">
@@ -294,7 +294,7 @@ export default function PortalTicketDetailPage() {
                         </CardHeader>
                         <CardContent className="pt-6 space-y-6">
                             <div className="space-y-2">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Assigned Specialist</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Assigned to</p>
                                 <div className="flex items-center space-x-3 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
                                     <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/10">
                                         {ticket.assignedTechnician?.name?.charAt(0) || <User className="h-4 w-4" />}
@@ -306,8 +306,9 @@ export default function PortalTicketDetailPage() {
                                 </div>
                             </div>
 
+                            {showEquipment && ticket.equipment ? (
                             <div className="space-y-2">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Verified Equipment</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Related asset</p>
                                 <div className="p-4 border border-blue-100/50 dark:border-blue-900/30 rounded-2xl bg-blue-50/30 dark:bg-blue-950/20 group hover:border-blue-200 transition-colors cursor-default">
                                     <div className="flex items-center text-blue-700 dark:text-blue-300 font-bold text-sm mb-1">
                                         <Wrench className="h-3.5 w-3.5 mr-2" />
@@ -316,6 +317,7 @@ export default function PortalTicketDetailPage() {
                                     <p className="text-[10px] font-mono text-blue-600/60 dark:text-blue-400/60">SN: {ticket.equipment?.serialNumber || 'N/A'}</p>
                                 </div>
                             </div>
+                            ) : null}
 
                             <div className="pt-2">
                                 <div className="p-6 bg-foreground text-background border-2 border-foreground shadow-none relative overflow-hidden">

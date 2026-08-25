@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { LeadDocument } from '@/types/lead';
 import { CardListSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface LeadDocumentsProps {
   leadId: string;
@@ -158,7 +159,12 @@ export function LeadDocuments({ leadId, documents: initialDocuments }: LeadDocum
   };
 
   const handleDelete = async (doc: LeadDocument) => {
-    if (!confirm(`Delete "${doc.name}"?`)) return;
+    const ok = await confirmAction({
+      title: `Delete "${doc.name}"?`,
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
     setDeletingId(doc.id);
     try {

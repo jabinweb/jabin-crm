@@ -40,10 +40,12 @@ export default function NewTicketPage() {
     const queryClient = useQueryClient();
     const { slug, path, workspaceFetch } = useWorkspacePaths();
     const initialCustomerId = searchParams.get('customerId') || '';
+    const initialProjectId = searchParams.get('projectId') || '';
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         customerId: initialCustomerId,
+        projectId: initialProjectId,
         ticketType: '',
         equipmentId: '',
         serviceContractId: '',
@@ -141,6 +143,29 @@ export default function NewTicketPage() {
         enabled: !!formData.customerId && !!slug,
     });
 
+    const { data: projectsList = [] } = useQuery({
+        queryKey: ['projects-list-ticket', slug],
+        queryFn: async () => {
+            const res = await workspaceFetch('/api/projects');
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (Array.isArray(data) ? data : data.projects || []) as Array<{
+                id: string;
+                name: string;
+                status: string;
+                customerId?: string | null;
+            }>;
+        },
+        enabled: !!slug,
+    });
+
+    const projectsForCustomer = useMemo(() => {
+        if (!formData.customerId) return projectsList;
+        return projectsList.filter(
+            (p) => !p.customerId || p.customerId === formData.customerId
+        );
+    }, [projectsList, formData.customerId]);
+
     const suggestedContracts = contractSuggest?.contracts ?? [];
 
     useEffect(() => {
@@ -181,6 +206,7 @@ export default function NewTicketPage() {
                     ...formData,
                     equipmentId: selectedType?.showEquipment ? formData.equipmentId : undefined,
                     serviceContractId: formData.serviceContractId || null,
+                    projectId: formData.projectId || null,
                 }),
             });
 
@@ -300,6 +326,15 @@ export default function NewTicketPage() {
                                                 customerId: val,
                                                 equipmentId: '',
                                                 serviceContractId: '',
+                                                projectId:
+                                                    formData.projectId &&
+                                                    projectsList.some(
+                                                        (p) =>
+                                                            p.id === formData.projectId &&
+                                                            (!p.customerId || p.customerId === val)
+                                                    )
+                                                        ? formData.projectId
+                                                        : '',
                                             })
                                         }
                                     >
@@ -310,6 +345,31 @@ export default function NewTicketPage() {
                                             {customerData?.customers?.map((customer: any) => (
                                                 <SelectItem key={customer.id} value={customer.id}>
                                                     {customer.organizationName}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Project (optional)</Label>
+                                    <Select
+                                        value={formData.projectId || '__none__'}
+                                        onValueChange={(val) =>
+                                            setFormData({
+                                                ...formData,
+                                                projectId: val === '__none__' ? '' : val,
+                                            })
+                                        }
+                                    >
+                                        <SelectTrigger className="w-full">
+                                            <SelectValue placeholder="Link to a project" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__none__">No project</SelectItem>
+                                            {projectsForCustomer.map((p) => (
+                                                <SelectItem key={p.id} value={p.id}>
+                                                    {p.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

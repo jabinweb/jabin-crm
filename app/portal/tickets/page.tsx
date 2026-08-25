@@ -31,7 +31,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
 
@@ -69,12 +69,7 @@ function CustomerTicketQueue() {
     );
 
     if (isLoading) {
-        return (
-            <div className="space-y-6">
-                <PageHeaderSkeleton />
-                <FullTableSkeleton columnCount={5} rowCount={5} />
-            </div>
-        );
+        return <FullTableSkeleton columnCount={5} rowCount={5} />;
     }
 
     return (

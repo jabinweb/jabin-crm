@@ -15,6 +15,7 @@ import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 type Article = {
   id: string;
@@ -205,8 +206,17 @@ export default function KnowledgeBaseAdminPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          if (confirm('Delete this article?')) deleteMutation.mutate(a.id);
+                        onClick={async () => {
+                          if (
+                            !(await confirmAction({
+                              title: 'Delete this article?',
+                              description: 'This cannot be undone.',
+                              confirmLabel: 'Delete',
+                              variant: 'destructive',
+                            }))
+                          )
+                            return;
+                          deleteMutation.mutate(a.id);
                         }}
                       >
                         Delete

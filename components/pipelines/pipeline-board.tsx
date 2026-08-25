@@ -21,6 +21,8 @@ type PipelineBoardProps<T extends PipelineBoardCard> = {
   onMove: (id: string, toStage: string, fromStage: string) => void | Promise<void>;
   renderCard: (item: T) => ReactNode;
   columnFooter?: (stageId: string, items: T[]) => ReactNode;
+  /** Shown when every mapped column is empty */
+  emptyState?: ReactNode;
   className?: string;
 };
 
@@ -30,6 +32,7 @@ export function PipelineBoard<T extends PipelineBoardCard>({
   onMove,
   renderCard,
   columnFooter,
+  emptyState,
   className,
 }: PipelineBoardProps<T>) {
   const onDragEnd = (result: DropResult) => {
@@ -44,6 +47,15 @@ export function PipelineBoard<T extends PipelineBoardCard>({
     }
     void onMove(draggableId, destination.droppableId, source.droppableId);
   };
+
+  const totalItems = columns.reduce(
+    (n, c) => n + (itemsByStage[c.id]?.length ?? 0),
+    0
+  );
+
+  if (emptyState && totalItems === 0) {
+    return <div className={className}>{emptyState}</div>;
+  }
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
@@ -60,14 +72,13 @@ export function PipelineBoard<T extends PipelineBoardCard>({
                 </h3>
                 <Badge variant="secondary">{items.length}</Badge>
               </div>
-              {columnFooter?.(stage.id, items)}
               <Droppable droppableId={stage.id} isDropDisabled={isUnmapped}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      'min-h-[280px] space-y-2 rounded-md border bg-muted/40 p-2 transition-colors sm:min-h-[420px]',
+                      'flex min-h-[280px] flex-col gap-2 rounded-md border bg-muted/40 p-2 transition-colors sm:min-h-[420px]',
                       snapshot.isDraggingOver && 'bg-accent/60',
                       isUnmapped && 'border-dashed opacity-90'
                     )}
@@ -90,6 +101,7 @@ export function PipelineBoard<T extends PipelineBoardCard>({
                       </Draggable>
                     ))}
                     {provided.placeholder}
+                    {columnFooter?.(stage.id, items)}
                   </div>
                 )}
               </Droppable>

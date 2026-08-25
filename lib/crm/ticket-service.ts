@@ -19,6 +19,7 @@ export interface CreateTicketData {
     customerId: string;
     equipmentId?: string;
     serviceContractId?: string | null;
+    projectId?: string | null;
     subject: string;
     description: string;
     priority?: TicketPriority;
@@ -156,6 +157,7 @@ export class TicketService {
                 customerId: data.customerId,
                 equipmentId: data.equipmentId || null,
                 serviceContractId,
+                projectId: data.projectId || null,
                 subject: data.subject,
                 description: data.description,
                 priority,
@@ -177,6 +179,9 @@ export class TicketService {
                 },
                 serviceContract: {
                     select: { id: true, title: true, type: true, visitLimit: true },
+                },
+                project: {
+                    select: { id: true, name: true, status: true },
                 },
             },
         });
@@ -342,25 +347,30 @@ export class TicketService {
         }
 
         const notifyStatuses: TicketStatus[] = ['ASSIGNED', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
-        if (notifyStatuses.includes(status) && ticket.customer?.email) {
-            const { notificationService } = await import('@/lib/crm/notification-service');
+        if (notifyStatuses.includes(status) && ticket.customer?.id) {
+            const { notifyPortalCustomer } = await import('@/lib/portal/notify-customer');
             const { sendTicketStatusEmail } = await import('@/lib/email/portal-notifications');
 
-            notificationService.create({
-                type: status === 'RESOLVED' ? 'TICKET_RESOLVED' : 'TICKET_UPDATED',
-                title: status === 'RESOLVED' ? `Ticket Resolved` : `Ticket Update`,
-                body: `Your ticket "${ticket.subject}" status changed to ${status}.`,
+            void notifyPortalCustomer({
                 customerId: ticket.customer.id,
+                category: 'ticketUpdates',
+                type: status === 'RESOLVED' ? 'TICKET_RESOLVED' : 'TICKET_UPDATED',
+                title: status === 'RESOLVED' ? 'Ticket resolved' : 'Ticket update',
+                body: `Your ticket "${ticket.subject}" status changed to ${status}.`,
                 metadata: { ticketId: ticket.id, status },
-            }).catch(err => console.error('[Notification create error]', err));
-
-            sendTicketStatusEmail({
-                customerEmail: ticket.customer.email,
-                customerName: ticket.customer.contactPerson,
-                ticketSubject: ticket.subject,
-                ticketId: ticket.id,
-                newStatus: status,
-            }).catch(err => console.error('[Status email error]', err));
+                email: ticket.customer.email
+                    ? {
+                          send: () =>
+                              sendTicketStatusEmail({
+                                  customerEmail: ticket.customer!.email!,
+                                  customerName: ticket.customer!.contactPerson ?? ticket.customer!.organizationName,
+                                  ticketSubject: ticket.subject,
+                                  ticketId: ticket.id,
+                                  newStatus: status,
+                              }),
+                      }
+                    : undefined,
+            });
         }
 
         return ticket;
@@ -433,8 +443,74 @@ export class TicketService {
                 comment.slice(0, 140),
                 performedById
             );
+            void this.notifyCustomerOfReply(ticketId, comment, performedById);
         }
         return activity;
+    }
+
+    /** Email + in-app alert when staff posts a public reply on a customer ticket. */
+    async notifyCustomerOfReply(
+        ticketId: string,
+        comment: string,
+        performedById?: string
+    ) {
+        try {
+            if (!performedById) return;
+
+            const [performer, ticket] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: performedById },
+                    select: { role: true, name: true },
+                }),
+                prisma.supportTicket.findUnique({
+                    where: { id: ticketId },
+                    select: {
+                        id: true,
+                        subject: true,
+                        customer: {
+                            select: {
+                                id: true,
+                                email: true,
+                                contactPerson: true,
+                                organizationName: true,
+                            },
+                        },
+                    },
+                }),
+            ]);
+
+            if (!performer || performer.role === 'CUSTOMER' || !ticket?.customer?.id) return;
+
+            const { notifyPortalCustomer } = await import('@/lib/portal/notify-customer');
+            const { sendTicketReplyEmail } = await import('@/lib/email/portal-notifications');
+
+            const customer = ticket.customer;
+            const preview = comment.slice(0, 500);
+
+            void notifyPortalCustomer({
+                customerId: customer.id,
+                category: 'ticketUpdates',
+                type: 'TICKET_UPDATED',
+                title: 'New reply on your request',
+                body: `${performer.name ?? 'Support team'} replied to "${ticket.subject}".`,
+                metadata: { ticketId: ticket.id },
+                email: customer.email
+                    ? {
+                          send: () =>
+                              sendTicketReplyEmail({
+                                  customerEmail: customer.email!,
+                                  customerName: customer.contactPerson ?? customer.organizationName,
+                                  ticketSubject: ticket.subject,
+                                  ticketId: ticket.id,
+                                  replyPreview: preview,
+                                  replierName: performer.name ?? 'Support team',
+                              }),
+                      }
+                    : undefined,
+            });
+        } catch (err) {
+            console.error('[notifyCustomerOfReply]', err);
+        }
     }
 
     /** In-app notifications for agents watching a ticket. */
@@ -546,6 +622,9 @@ export class TicketService {
                 customer: true,
                 equipment: {
                     include: { product: true },
+                },
+                project: {
+                    select: { id: true, name: true, status: true },
                 },
                 assignedTechnician: {
                     select: { id: true, name: true, email: true },

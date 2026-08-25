@@ -9,7 +9,9 @@ import { Plus, Play, Pause, Users, Mail, TrendingUp } from 'lucide-react';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface Sequence {
   id: string;
@@ -64,7 +66,12 @@ export default function SequencesPage() {
   };
 
   const deleteSequence = async (id: string, name: string) => {
-    if (!confirm(`Delete sequence "${name}"?`)) return;
+    const ok = await confirmAction({
+      title: `Delete sequence "${name}"?`,
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
     try {
       const res = await fetch(`/api/sequences/${id}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -106,18 +113,14 @@ export default function SequencesPage() {
 
       {sequences.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <Mail className="h-16 w-16 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No sequences yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create your first email sequence to automate outreach
-            </p>
-            <DashboardLink href="/dashboard/sequences/new">
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Create First Sequence
-              </Button>
-            </DashboardLink>
+          <CardContent>
+            <EmptyState
+              icon={Mail}
+              title="No sequences yet"
+              description="Create your first email sequence to automate outreach."
+              actionLabel="Create Sequence"
+              actionHref={path('/dashboard/sequences/new')}
+            />
           </CardContent>
         </Card>
       ) : (

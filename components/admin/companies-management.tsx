@@ -17,6 +17,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface Company {
   id: string;
@@ -96,7 +97,13 @@ export default function CompaniesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this company?')) return;
+    const ok = await confirmAction({
+      title: 'Delete this company?',
+      description: 'Are you sure you want to delete this company?',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/admin/companies/${id}`, {

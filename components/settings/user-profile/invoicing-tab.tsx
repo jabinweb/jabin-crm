@@ -23,12 +23,12 @@ export function InvoicingTab({ formData, handleChange, updateProfileMutation }: 
     <TabsContent value="invoicing" className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-foreground flex items-center gap-3">
-            <FileText className="h-4 w-4" />
-            Financial Documentation Protocols
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileText className="h-4 w-4 text-primary" />
+            Invoicing defaults
           </CardTitle>
           <CardDescription>
-            Configure your company details for invoices and quotations
+            Company details and terms used on invoices and quotations
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

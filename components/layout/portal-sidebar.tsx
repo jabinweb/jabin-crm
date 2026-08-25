@@ -37,6 +37,7 @@ const portalNav: NavigationItem[] = [
     { name: 'Tickets', href: '/portal/tickets', icon: Ticket, workspaceFeature: 'customerPortal' },
     { name: 'Quotations', href: '/portal/quotations', icon: FileCheck2, workspaceFeature: 'customerPortal' },
     { name: 'Invoices', href: '/portal/invoices', icon: Receipt, workspaceFeature: 'customerPortal' },
+    { name: 'Contracts', href: '/portal/contracts', icon: FileText, workspaceFeature: 'customerPortal' },
     { name: 'Documents', href: '/portal/documents', icon: FileText, workspaceFeature: 'customerPortal' },
     { name: 'Service history', href: '/portal/service-history', icon: History, workspaceFeature: 'serviceHistory' },
 ];
@@ -142,7 +143,11 @@ export function PortalSidebar({ onNavigate }: { onNavigate?: () => void }) {
             </div>
 
             <div className="p-4 mt-auto border-t bg-slate-100/30 dark:bg-slate-900/10">
-                <div className="flex items-center space-x-3 p-2 rounded-none hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer">
+                <Link
+                    href="/portal/settings"
+                    onClick={onNavigate}
+                    className="flex items-center space-x-3 p-2 rounded-none hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors"
+                >
                     <div className="h-8 w-8 rounded-none bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs font-bold">{customerName.charAt(0)}</div>
                     <div className="flex-1 overflow-hidden">
                         <p className="text-xs font-semibold truncate">{customerName}</p>
@@ -150,7 +155,7 @@ export function PortalSidebar({ onNavigate }: { onNavigate?: () => void }) {
                           {terminology?.customer ?? 'Customer'} portal
                         </p>
                     </div>
-                </div>
+                </Link>
             </div>
         </div>
     );

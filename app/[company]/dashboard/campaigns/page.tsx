@@ -29,9 +29,12 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { FullTableSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
 import { format } from 'date-fns';
+import { confirmAction } from '@/lib/confirm-action';
 
 export default function CampaignsPage() {
+  const { path } = useWorkspacePaths();
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -65,7 +68,11 @@ export default function CampaignsPage() {
   };
 
   const handleSendCampaign = async (campaignId: string) => {
-    if (!confirm('Are you sure you want to send this campaign?')) return;
+    const ok = await confirmAction({
+      title: 'Send this campaign?',
+      confirmLabel: 'Send',
+    });
+    if (!ok) return;
 
     try {
       const response = await fetch(`/api/campaigns/${campaignId}/send`, {
@@ -154,9 +161,13 @@ export default function CampaignsPage() {
           {isLoading ? (
             <FullTableSkeleton columnCount={8} rowCount={5} />
           ) : !data?.campaigns || data.campaigns.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No campaigns yet. Create your first campaign to get started.
-            </div>
+            <EmptyState
+              icon={Mail}
+              title="No campaigns yet"
+              description="Create your first campaign to get started."
+              actionLabel="New Campaign"
+              actionHref={path('/dashboard/campaigns/new')}
+            />
           ) : (
             <div className="space-y-4">
               <Table>
@@ -230,7 +241,12 @@ export default function CampaignsPage() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={async () => {
-                                  if (!confirm('Delete this draft campaign?')) return;
+                                  const ok = await confirmAction({
+                                    title: 'Delete this draft campaign?',
+                                    confirmLabel: 'Delete',
+                                    variant: 'destructive',
+                                  });
+                                  if (!ok) return;
                                   const res = await fetch(`/api/campaigns/${campaign.id}`, {
                                     method: 'DELETE',
                                   });

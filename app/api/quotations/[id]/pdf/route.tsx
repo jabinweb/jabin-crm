@@ -54,10 +54,16 @@ export async function GET(
       terms: quotation.terms || undefined,
       notes: quotation.notes || undefined,
       companyName: userProfile?.companyName || quotation.user.name || 'Your Company',
-      companyAddress: (userProfile as any)?.companyAddress || undefined,
+      companyAddress: userProfile?.companyAddress || undefined,
       companyEmail: userProfile?.companyEmail || quotation.user.email || undefined,
-      companyPhone: (userProfile as any)?.companyPhone || undefined,
-      companyTaxId: (userProfile as any)?.taxId || undefined,
+      companyPhone: userProfile?.companyPhone || undefined,
+      companyTaxId: userProfile?.taxId || undefined,
+      templateStyle: userProfile?.templateStyle || undefined,
+      primaryColor: userProfile?.primaryColor || undefined,
+      secondaryColor: userProfile?.secondaryColor || undefined,
+      logoUrl: userProfile?.logoUrl || undefined,
+      headerText: userProfile?.headerText || undefined,
+      footerText: userProfile?.footerText || undefined,
     };
 
     // Generate PDF

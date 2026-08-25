@@ -1,7 +1,6 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
 import { useSession } from 'next-auth/react';
 import {
   Database,
@@ -15,7 +14,6 @@ import {
   Send,
   Copy,
   CreditCard,
-  FlaskConical,
   List,
   MailOpen,
   Star,
@@ -29,7 +27,6 @@ import {
   Activity,
   ShieldAlert,
   Building2,
-  CreditCard as BillingIcon,
   MessageCircle,
   Wallet,
   Route,
@@ -51,6 +48,11 @@ import {
   RefreshCw,
   ArrowLeftRight,
   Briefcase,
+  Globe,
+  Gauge,
+  HelpCircle,
+  Plug,
+  type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -58,207 +60,146 @@ import { usePathname, useSearchParams, useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
-import type { WorkspaceFeatureKey } from '@/lib/workspace-templates';
-import { fetchFeatureModules, didFeatureModulesFetchFail } from '@/components/feature-module-guard';
+import {
+  fetchFeatureModules,
+  didFeatureModulesFetchFail,
+} from '@/components/feature-module-guard';
 import { RecentEntitiesList } from '@/components/layout/recent-entities';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  type NavItem,
+  type WorkspaceModuleId,
+  getModuleDef,
+  getAvailableModules,
+  navItemsForModule,
+  peopleNavSectionsForRole,
+  resolveModuleId,
+  resolveModuleSwitchHref,
+  writeLastModule,
+  HOME_WORK_NAV,
+  MAIN_NAV,
+} from '@/lib/navigation/modules';
+import { useRouter } from 'next/navigation';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
-interface NavigationItem {
-  name: string;
-  href: string;
-  icon: any;
-  children?: NavigationItem[];
-  roles?: string[];
-  module?: string;
-  workspaceFeature?: WorkspaceFeatureKey;
-  /**
-   * When true with module INVENTORY: allow Products if workspace `products` is on
-   * even when plan inventory is off (catalog-only verticals like SaaS/agency).
-   */
-  waiveInventoryModuleWhenNoStock?: boolean;
-  /** When set, label is replaced by terminology key at render time */
-  terminologyKey?: keyof import('@/lib/workspace-templates').WorkspaceTerminology;
+const ICON_STROKE = 1.75;
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Database,
+  FileText,
+  Settings,
+  Users,
+  BarChart3,
+  Mail,
+  Send,
+  Copy,
+  CreditCard,
+  List,
+  MailOpen,
+  Star,
+  Trash2,
+  BookOpen,
+  Receipt,
+  FileCheck,
+  LayoutDashboard,
+  Wrench,
+  Package,
+  Activity,
+  ShieldAlert,
+  Building2,
+  MessageCircle,
+  Wallet,
+  Route,
+  MapPin,
+  ClipboardList,
+  Calendar: CalendarIcon,
+  User,
+  LifeBuoy,
+  MessageSquare,
+  Inbox,
+  Clock,
+  Zap,
+  Truck,
+  ShoppingCart,
+  PiggyBank,
+  FolderKanban,
+  Landmark,
+  LayoutGrid,
+  RefreshCw,
+  ArrowLeftRight,
+  Briefcase,
+  Globe,
+  Gauge,
+  Plug,
+};
+
+function resolveIcon(name: string): LucideIcon {
+  return ICON_MAP[name] || LayoutDashboard;
 }
-
-const mainNav: NavigationItem[] = [
-  { name: 'Home', href: '/dashboard', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Client portal', href: '/portal', icon: LayoutDashboard, roles: ['CUSTOMER', 'ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'customerPortal' },
-  { name: 'My field work', href: '/dashboard/technician', icon: Wrench, roles: ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'fieldService' },
-];
-
-const crmNav: NavigationItem[] = [
-  { name: 'Clients', href: '/dashboard/customers', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customers', terminologyKey: 'customers' },
-  { name: 'Products', href: '/dashboard/products', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'products', module: 'INVENTORY', waiveInventoryModuleWhenNoStock: true },
-  {
-    name: 'Inventory',
-    href: '/dashboard/inventory',
-    icon: Database,
-    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
-    workspaceFeature: 'inventory',
-    module: 'INVENTORY',
-    children: [
-      { name: 'Stock overview', href: '/dashboard/inventory', icon: Database, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-      { name: 'Locations', href: '/dashboard/inventory/locations', icon: MapPin, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-      { name: 'Transfers', href: '/dashboard/inventory/transfers', icon: ArrowLeftRight, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-      { name: 'Batches', href: '/dashboard/inventory/batches', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-      { name: 'Stock adjustment', href: '/dashboard/inventory/stock-adjustment', icon: Package, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-    ],
-  },
-  {
-    name: 'Installed equipment',
-    href: '/dashboard/equipment',
-    icon: Wrench,
-    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
-    workspaceFeature: 'equipment',
-    module: 'EQUIPMENT',
-    terminologyKey: 'equipment',
-    children: [
-      { name: 'Fleet', href: '/dashboard/equipment', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-      { name: 'Register unit', href: '/dashboard/inventory/new', icon: Wrench, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-      { name: 'Demo fleet', href: '/dashboard/demo-equipment', icon: Truck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'equipment', module: 'EQUIPMENT' },
-    ],
-  },
-  { name: 'Client insights', href: '/dashboard/customers/analytics', icon: LayoutDashboard, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'customerAnalytics' },
-];
-
-const salesNav: NavigationItem[] = [
-  { name: 'Leads', href: '/dashboard/leads', icon: Activity, module: 'LEADS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], terminologyKey: 'leads' },
-  { name: 'Deals', href: '/dashboard/deals', icon: CreditCard, module: 'DEALS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], terminologyKey: 'deals' },
-  { name: 'Quotations', href: '/dashboard/quotations', icon: FileCheck, module: 'QUOTATIONS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Invoices', href: '/dashboard/invoices', icon: Receipt, module: 'INVOICES', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Calendar', href: '/dashboard/calendar', icon: CalendarIcon, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: ClipboardList, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  {
-    name: 'More sales',
-    href: '/dashboard/analytics',
-    icon: BarChart3,
-    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
-    children: [
-      { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Team performance', href: '/dashboard/team', icon: Users, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Duplicates', href: '/dashboard/duplicates', icon: Copy, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-    ],
-  },
-];
-
-const supportNav: NavigationItem[] = [
-  { name: 'Tickets', href: '/dashboard/tickets', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', terminologyKey: 'tickets' },
-  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'WHATSAPP', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
-  { name: 'Contracts', href: '/dashboard/contracts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], module: 'TICKETS', workspaceFeature: 'warranties' },
-  { name: 'Service reports', href: '/dashboard/service-reports', icon: FileCheck, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'], module: 'SERVICE_REPORTS', workspaceFeature: 'serviceHistory' },
-  { name: 'My tickets', href: '/portal/tickets', icon: List, roles: ['CUSTOMER'] },
-  {
-    name: 'Support tools',
-    href: '/dashboard/support',
-    icon: LifeBuoy,
-    roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'],
-    module: 'TICKETS',
-    children: [
-      { name: 'Support desk', href: '/dashboard/support', icon: LifeBuoy, roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Inbox', href: '/dashboard/support/inbox', icon: Inbox, module: 'SUPPORT_INBOX', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Live chat', href: '/dashboard/support/live-chat', icon: MessageCircle, module: 'SUPPORT_LIVE_CHAT', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'SLA policies', href: '/dashboard/support/sla-policies', icon: Clock, module: 'SUPPORT_SLA', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Knowledge base', href: '/dashboard/support/knowledge', icon: BookOpen, module: 'SUPPORT_KNOWLEDGE', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Canned replies', href: '/dashboard/support/canned-responses', icon: MessageSquare, module: 'SUPPORT_CANNED', roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Agent groups', href: '/dashboard/support/groups', icon: Users, module: 'SUPPORT_GROUPS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Ticket automation', href: '/dashboard/support/automation', icon: Zap, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Custom fields', href: '/dashboard/support/custom-fields', icon: List, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Business hours', href: '/dashboard/support/business-hours', icon: Clock, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Roadmap', href: '/dashboard/support/roadmap', icon: LayoutGrid, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'Freshdesk import', href: '/dashboard/support/migrate', icon: Database, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Analytics', href: '/dashboard/support/analytics', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-    ],
-  },
-  {
-    name: 'Field tools',
-    href: '/dashboard/service/gps',
-    icon: MapPin,
-    roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SUPER_ADMIN'],
-    workspaceFeature: 'fieldService',
-    children: [
-      { name: 'Job board', href: '/dashboard/service/board', icon: LayoutGrid, module: 'TICKETS', workspaceFeature: 'fieldService' },
-      { name: 'Service analytics', href: '/dashboard/service/analytics', icon: BarChart3, module: 'TICKETS', workspaceFeature: 'fieldService', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'] },
-      { name: 'GPS tracking', href: '/dashboard/service/gps', icon: MapPin, module: 'SERVICE_GPS', workspaceFeature: 'fieldService' },
-      { name: 'Expenses', href: '/dashboard/service/expenses', icon: Route, module: 'SERVICE_EXPENSES', workspaceFeature: 'fieldService' },
-      { name: 'Cash on hand', href: '/dashboard/service/cash', icon: Wallet, module: 'SERVICE_CASH', workspaceFeature: 'fieldService' },
-    ],
-  },
-];
-
-const saasNav: NavigationItem[] = [
-  { name: 'SaaS Dashboard', href: '/admin', icon: ShieldAlert, roles: ['SUPER_ADMIN'] },
-  { name: 'Companies', href: '/admin/companies', icon: Building2, roles: ['SUPER_ADMIN'] },
-  { name: 'User Management', href: '/admin/users', icon: Users, roles: ['SUPER_ADMIN'] },
-  { name: 'Subscriptions', href: '/admin/subscriptions', icon: BillingIcon, roles: ['SUPER_ADMIN'] },
-  { name: 'Plans', href: '/admin/plans', icon: CreditCard, roles: ['SUPER_ADMIN'] },
-  { name: 'Email logs', href: '/admin/emails', icon: Mail, roles: ['SUPER_ADMIN'] },
-  { name: 'Activity', href: '/admin/activity', icon: Activity, roles: ['SUPER_ADMIN'] },
-  { name: 'Platform Settings', href: '/admin/settings', icon: Settings, roles: ['SUPER_ADMIN'] },
-];
-
-const emailNav: NavigationItem[] = [
-  {
-    name: 'Email',
-    href: '/dashboard/emails',
-    icon: Mail,
-    module: 'EMAIL_OUTREACH',
-    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
-    children: [
-      { name: 'Inbox', href: '/dashboard/emails?folder=inbox', icon: Mail, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Sent', href: '/dashboard/emails?folder=sent', icon: Send, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Drafts', href: '/dashboard/emails?folder=drafts', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Starred', href: '/dashboard/emails?folder=starred', icon: Star, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Trash', href: '/dashboard/emails?folder=trash', icon: Trash2, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Campaigns', href: '/dashboard/campaigns', icon: MailOpen, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Sequences', href: '/dashboard/sequences', icon: Activity, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Templates', href: '/dashboard/email-templates', icon: FileText, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-      { name: 'Settings', href: '/dashboard/emails/settings', icon: Settings, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-    ]
-  }
-];
-
-const opsNav: NavigationItem[] = [
-  { name: 'Suppliers', href: '/dashboard/suppliers', icon: Truck, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY', workspaceFeature: 'inventory' },
-  { name: 'Purchase orders', href: '/dashboard/purchase-orders', icon: ClipboardList, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY', workspaceFeature: 'inventory' },
-  { name: 'Sales orders', href: '/dashboard/sales-orders', icon: ShoppingCart, roles: ['ADMIN', 'SUPER_ADMIN'], module: 'INVENTORY', workspaceFeature: 'inventory' },
-  { name: 'Assets', href: '/dashboard/assets', icon: Landmark, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'Budgets', href: '/dashboard/budgets', icon: PiggyBank, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'Expenses', href: '/dashboard/expenses', icon: Receipt, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'Projects', href: '/dashboard/projects', icon: FolderKanban, roles: ['ADMIN', 'SUPER_ADMIN', 'SALES'] },
-  { name: 'Retainers', href: '/dashboard/retainers', icon: RefreshCw, roles: ['ADMIN', 'SUPER_ADMIN'] },
-  { name: 'Automations', href: '/dashboard/workflows', icon: Zap, roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },
-];
-
-const workspaceNav: NavigationItem[] = [
-  { name: 'Reporting', href: '/dashboard/reports', icon: BarChart3, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Messages', href: '/dashboard/messages', icon: MessageSquare, roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
-  { name: 'Documentation', href: '/dashboard/docs', icon: BookOpen },
-];
-
-const settingsNav: NavigationItem[] = [
-  {
-    name: 'Settings',
-    href: '/dashboard/settings',
-    icon: Settings,
-    roles: ['ADMIN', 'SUPER_ADMIN'],
-    children: [
-      { name: 'Account', href: '/dashboard/settings', icon: Settings },
-      { name: 'Personal settings', href: '/dashboard/settings/advanced', icon: User },
-      { name: 'Calendar sync', href: '/dashboard/settings/calendar', icon: CalendarIcon },
-      { name: 'Billing', href: '/dashboard/settings/subscription', icon: CreditCard },
-      { name: 'Data migration', href: '/dashboard/settings/migration', icon: Database },
-      { name: 'Pipelines', href: '/dashboard/settings/pipelines', icon: Activity },
-      { name: 'Roles & permissions', href: '/dashboard/settings/roles', icon: Users },
-    ]
-  },
-];
 
 interface SidebarProps {
   onNavigate?: () => void;
 }
 
+function NavSectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 mt-5 first:mt-0 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/65">
+      {children}
+    </p>
+  );
+}
+
+function SidebarNavLink({
+  href,
+  icon: Icon,
+  label,
+  active,
+  onClick,
+  indent,
+}: {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  onClick?: () => void;
+  indent?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
+        indent ? 'pl-8 pr-3' : 'px-3',
+        active
+          ? 'bg-muted font-medium text-foreground'
+          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+      )}
+    >
+      <Icon
+        className={cn('size-4 shrink-0', active ? 'text-foreground' : 'text-muted-foreground')}
+        strokeWidth={ICON_STROKE}
+      />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
 export function Sidebar({ onNavigate }: SidebarProps) {
   const { data: session } = useSession();
-  const userRole = (session?.user as any)?.role || 'SALES';
+  const router = useRouter();
+  const userRole = (session?.user as { role?: string } | undefined)?.role || 'SALES';
   const params = useParams<{ company?: string }>();
   const companySlug =
     (typeof params?.company === 'string' ? params.company : undefined) ??
@@ -271,103 +212,112 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const { data: workspaceData } = useWorkspaceConfig();
   const workspaceFeatures = workspaceData?.config.features;
   const terminology = workspaceData?.config.terminology;
+  const vertical = workspaceData?.config.businessVertical ?? null;
 
-  const resolveHref = (href: string) =>
-    resolveWorkspaceDashboardHref(href, companySlug, userRole);
+  const resolveHref = (href: string) => {
+    if (href.startsWith('/employee')) {
+      return companySlug ? getCompanyUrl(href, companySlug) : href;
+    }
+    if (
+      companySlug &&
+      (href === '/admin' ||
+        href.startsWith('/admin/approvals') ||
+        href.startsWith('/admin/users'))
+    ) {
+      return getCompanyUrl(href === '/admin' ? '/admin' : href, companySlug);
+    }
+    if (href.startsWith('/admin')) {
+      return href;
+    }
+    return resolveWorkspaceDashboardHref(href, companySlug, userRole);
+  };
 
-  const workspaceAdminNav = useMemo((): NavigationItem[] => {
-    if (!companySlug || !['ADMIN', 'SUPER_ADMIN'].includes(userRole)) return [];
-    return [
-      {
-        name: 'Workspace overview',
-        href: getCompanyUrl('/admin', companySlug),
-        icon: Building2,
-        roles: ['ADMIN', 'SUPER_ADMIN'],
-      },
-      {
-        name: 'Approvals',
-        href: getCompanyUrl('/admin/approvals', companySlug),
-        icon: FileCheck,
-        roles: ['ADMIN', 'SUPER_ADMIN'],
-      },
-      {
-        name: 'Workspace users',
-        href: getCompanyUrl('/admin/users', companySlug),
-        icon: Users,
-        roles: ['ADMIN', 'SUPER_ADMIN'],
-      },
-    ];
-  }, [companySlug, userRole]);
+  const activeModuleId = useMemo(
+    () => resolveModuleId(pathname, { vertical }),
+    [pathname, vertical]
+  );
 
-  const hrNav = useMemo((): NavigationItem[] => {
-    if (!companySlug || !['ADMIN', 'SUPER_ADMIN'].includes(userRole)) return [];
-    return [
-      { name: 'Employees', href: '/dashboard/employees', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Directory', href: '/dashboard/directory', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Org chart', href: '/dashboard/org-chart', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Departments', href: '/dashboard/departments', icon: Building2, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Designations', href: '/dashboard/designations', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Branches', href: '/dashboard/branches', icon: MapPin, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Attendance', href: '/dashboard/attendance', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Shifts', href: '/dashboard/shifts', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Regularization', href: '/dashboard/attendance-corrections', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Onboarding', href: '/dashboard/onboarding-hr', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Exit', href: '/dashboard/exit', icon: User, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Recruitment', href: '/dashboard/recruitment', icon: Users, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Approve staff', href: '/dashboard/approve-employees', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Payroll', href: '/dashboard/payroll', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Compliance', href: '/dashboard/payroll/compliance', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Leave requests', href: '/dashboard/leave-requests', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Leave policies', href: '/dashboard/leave-policies', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Letters', href: '/dashboard/letters', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Performance', href: '/dashboard/performance', icon: Briefcase, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Timesheets', href: '/dashboard/timesheets', icon: Clock, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Travel', href: '/dashboard/travel', icon: MapPin, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'HR analytics', href: '/dashboard/hr/analytics', icon: Activity, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'HR tickets', href: '/dashboard/hr-tickets', icon: MessageSquare, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Policies', href: '/dashboard/hr-policies', icon: FileCheck, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Claims', href: '/dashboard/hr-claims', icon: Wallet, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Holidays', href: '/dashboard/holidays', icon: CalendarIcon, roles: ['ADMIN', 'SUPER_ADMIN'] },
-      { name: 'Announcements', href: '/dashboard/announcements', icon: MessageSquare, roles: ['ADMIN', 'SUPER_ADMIN'] },
-    ];
-  }, [companySlug, userRole]);
+  const availableModules = useMemo(
+    () =>
+      getAvailableModules({
+        role: userRole,
+        vertical,
+        features: workspaceFeatures,
+      }),
+    [vertical, userRole, workspaceFeatures]
+  );
 
-  const myHrNav = useMemo((): NavigationItem[] => {
-    if (!companySlug || !['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'].includes(userRole)) return [];
-    return [
-      {
-        name: 'Attendance',
-        href: getCompanyUrl('/employee/attendance', companySlug),
-        icon: Clock,
-        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
-      },
-      {
-        name: 'Leave',
-        href: getCompanyUrl('/employee/leave', companySlug),
-        icon: CalendarIcon,
-        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
-      },
-      {
-        name: 'Payslips',
-        href: getCompanyUrl('/employee/payslips', companySlug),
-        icon: Wallet,
-        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
-      },
-      {
-        name: 'My profile',
-        href: getCompanyUrl('/employee/profile', companySlug),
-        icon: User,
-        roles: ['TECHNICIAN', 'SALES', 'SUPPORT_MANAGER'],
-      },
-    ];
-  }, [companySlug, userRole]);
+  const { railModules, footerRailModule } = useMemo(() => {
+    const workspace = availableModules.find((m) => m.id === 'workspace');
+    const platform = availableModules.find((m) => m.id === 'platform');
+    const main = availableModules.filter((m) => m.id !== 'workspace' && m.id !== 'platform');
+    const footer = platform ?? workspace ?? null;
+    return { railModules: main, footerRailModule: footer };
+  }, [availableModules]);
+
+  const moduleNavItems = useMemo((): NavItem[] => {
+    if (activeModuleId === 'home') {
+      let items = [
+        ...MAIN_NAV.filter((i) => !i.roles || i.roles.includes(userRole)),
+        ...HOME_WORK_NAV.filter((i) => !i.roles || i.roles.includes(userRole)),
+      ];
+      if (vertical === 'web_agency') {
+        items = items.filter((i) => i.href !== '/dashboard/technician');
+      }
+      // Home is selected via the icon rail — avoid duplicating it in the list
+      if (activeModuleId === 'home') {
+        items = items.filter((i) => i.href !== '/dashboard');
+      }
+      return items;
+    }
+
+    let items = navItemsForModule(activeModuleId, {
+      vertical,
+      companySlug,
+      userRole,
+    });
+
+    if (activeModuleId === 'workspace' && companySlug && ['ADMIN', 'SUPER_ADMIN'].includes(userRole)) {
+      items = [
+        {
+          name: 'Workspace overview',
+          href: '/admin',
+          icon: 'Building2',
+          roles: ['ADMIN', 'SUPER_ADMIN'],
+        },
+        {
+          name: 'Approvals',
+          href: '/admin/approvals',
+          icon: 'FileCheck',
+          roles: ['ADMIN', 'SUPER_ADMIN'],
+        },
+        {
+          name: 'Workspace users',
+          href: '/admin/users',
+          icon: 'Users',
+          roles: ['ADMIN', 'SUPER_ADMIN'],
+        },
+        ...items,
+      ];
+    }
+
+    return items;
+  }, [activeModuleId, vertical, companySlug, userRole]);
+
+  useEffect(() => {
+    if (!companySlug || !pathname) return;
+    if (activeModuleId === 'home') return;
+    writeLastModule(companySlug, {
+      id: activeModuleId,
+      lastHref: pathname,
+    });
+  }, [companySlug, pathname, activeModuleId]);
 
   useEffect(() => {
     let cancelled = false;
     fetchFeatureModules()
       .then((modules) => {
         if (cancelled) return;
-        // Empty map after a failed fetch would hide WhatsApp/Leads/etc — keep open instead.
         if (didFeatureModulesFetchFail()) {
           setModuleMap(null);
           return;
@@ -382,10 +332,27 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const toExpand: string[] = [];
+    for (const item of moduleNavItems) {
+      if (!item.children) continue;
+      const childActive = item.children.some((child) => {
+        const resolved = resolveHref(child.href);
+        const [hrefPath] = resolved.split('?');
+        return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
+      });
+      if (childActive) toExpand.push(item.name);
+    }
+    if (toExpand.length) {
+      setExpandedMenus((prev) => Array.from(new Set([...prev, ...toExpand])));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, activeModuleId]);
+
   const toggleMenu = (menuName: string) => {
-    setExpandedMenus(prev =>
+    setExpandedMenus((prev) =>
       prev.includes(menuName)
-        ? prev.filter(name => name !== menuName)
+        ? prev.filter((name) => name !== menuName)
         : [...prev, menuName]
     );
   };
@@ -394,13 +361,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     const resolved = resolveHref(href);
     const [hrefPath, hrefQuery] = resolved.split('?');
     const isDashboardHome =
-      href === '/dashboard' || hrefPath === (companySlug ? `/${companySlug}/dashboard` : '/dashboard');
+      href === '/dashboard' ||
+      hrefPath === (companySlug ? `/${companySlug}/dashboard` : '/dashboard');
     if (hrefQuery) {
       if (pathname !== hrefPath) return false;
       const hrefParams = new URLSearchParams(hrefQuery);
-      const hrefParamsArray = Array.from(hrefParams.entries());
-      for (let i = 0; i < hrefParamsArray.length; i++) {
-        const [key, value] = hrefParamsArray[i];
+      for (const [key, value] of Array.from(hrefParams.entries())) {
         if (searchParams.get(key) !== value) return false;
       }
       return true;
@@ -410,44 +376,41 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     return false;
   };
 
-  const isParentActive = (item: NavigationItem) => {
-    if (item.children) {
-      return item.children.some((child) => {
-        const base = resolveHref(child.href).split('?')[0];
-        return isActive(child.href) || pathname.startsWith(`${base}/`);
-      });
+  const isParentActive = (item: NavItem) => {
+    if (!item.children) return false;
+    return item.children.some((child) => {
+      const base = resolveHref(child.href).split('?')[0];
+      return isActive(child.href) || pathname.startsWith(`${base}/`);
+    });
+  };
+
+  const moduleAllowedFor = (item: NavItem) => {
+    if (!item.module) return true;
+    if (moduleMap === null) return true;
+    if (moduleMap[item.module] === true) return true;
+    if (
+      item.waiveInventoryModuleWhenNoStock &&
+      item.module === 'INVENTORY' &&
+      workspaceFeatures?.inventory !== true &&
+      workspaceFeatures?.products === true
+    ) {
+      return true;
     }
     return false;
   };
 
-  const renderNavGroup = (items: NavigationItem[], title?: string) => {
-    const moduleAllowedFor = (item: NavigationItem) => {
-      if (!item.module) return true;
-      // While entitlements load, keep items visible (avoids WhatsApp/etc vanishing).
-      if (moduleMap === null) return true;
-      if (moduleMap[item.module] === true) return true;
-      if (
-        item.waiveInventoryModuleWhenNoStock &&
-        item.module === 'INVENTORY' &&
-        workspaceFeatures?.inventory !== true &&
-        workspaceFeatures?.products === true
-      ) {
-        return true;
-      }
-      return false;
-    };
+  const childVisible = (child: NavItem) => {
+    const childRoleOk = !child.roles || child.roles.includes(userRole);
+    const childModuleOk = moduleAllowedFor(child);
+    const childWorkspaceOk =
+      !child.workspaceFeature ||
+      !workspaceFeatures ||
+      workspaceFeatures[child.workspaceFeature] === true;
+    return childRoleOk && childModuleOk && childWorkspaceOk;
+  };
 
-    const childVisible = (child: NavigationItem) => {
-      const childRoleOk = !child.roles || child.roles.includes(userRole);
-      const childModuleOk = moduleAllowedFor(child);
-      const childWorkspaceOk =
-        !child.workspaceFeature ||
-        !workspaceFeatures ||
-        workspaceFeatures[child.workspaceFeature] === true;
-      return childRoleOk && childModuleOk && childWorkspaceOk;
-    };
-
-    const filtered = items.filter((item) => {
+  const filterItems = (items: NavItem[]) =>
+    items.filter((item) => {
       const roleAllowed = !item.roles || item.roles.includes(userRole);
       const moduleAllowed = moduleAllowedFor(item);
       const workspaceAllowed =
@@ -455,140 +418,306 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         !workspaceFeatures ||
         workspaceFeatures[item.workspaceFeature] === true;
       if (!roleAllowed || !moduleAllowed || !workspaceAllowed) return false;
-      if (item.children?.length) {
-        return item.children.some(childVisible);
-      }
+      if (item.children?.length) return item.children.some(childVisible);
       return true;
     });
+
+  const labelFor = (item: NavItem) => {
+    if (item.terminologyKey && terminology?.[item.terminologyKey]) {
+      return terminology[item.terminologyKey];
+    }
+    return item.name;
+  };
+
+  const renderNavGroup = (items: NavItem[], title?: string) => {
+    const filtered = filterItems(items);
     if (filtered.length === 0) return null;
 
-    const labelFor = (item: NavigationItem) => {
-      if (item.terminologyKey && terminology?.[item.terminologyKey]) {
-        return terminology[item.terminologyKey];
-      }
-      return item.name;
-    };
-
     return (
-      <div className="py-1.5">
-        {title && (
-          <h3 className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-            {title}
-          </h3>
-        )}
-        <div className="space-y-0.5">
-          {filtered.map((item) => (
-            <div key={item.name}>
-              {item.children ? (
-                <>
-                  <Button
-                    variant={isParentActive(item) ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-between h-8",
-                      isParentActive(item) && "bg-muted/50 font-medium"
-                    )}
-                    onClick={() => toggleMenu(item.name)}
-                  >
-                    <div className="flex items-center">
-                      <item.icon className={cn(
-                        "mr-2.5 h-4 w-4",
-                        isParentActive(item) ? "text-foreground" : "text-muted-foreground"
-                      )} />
-                      <span className="text-sm font-medium">{labelFor(item)}</span>
-                    </div>
+      <div className="py-2">
+        {title ? <NavSectionTitle>{title}</NavSectionTitle> : null}
+        <div className="space-y-1">
+          {filtered.map((item) => {
+            const Icon = resolveIcon(item.icon);
+            return (
+              <div key={`${item.name}-${item.href}`}>
+                {item.children ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => toggleMenu(item.name)}
+                      className={cn(
+                        'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
+                        isParentActive(item)
+                          ? 'bg-muted font-medium text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                      )}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <Icon className="size-4 shrink-0" strokeWidth={ICON_STROKE} />
+                        <span className="font-medium">{labelFor(item)}</span>
+                      </span>
+                      {expandedMenus.includes(item.name) ? (
+                        <ChevronDown className="size-4 opacity-50" strokeWidth={ICON_STROKE} />
+                      ) : (
+                        <ChevronRight className="size-4 opacity-50" strokeWidth={ICON_STROKE} />
+                      )}
+                    </button>
                     {expandedMenus.includes(item.name) ? (
-                      <ChevronDown className="h-4 w-4 opacity-50" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 opacity-50" />
-                    )}
-                  </Button>
-                  {expandedMenus.includes(item.name) && (
-                    <div className="ml-4 mt-0.5 space-y-0.5 border-l pl-2">
-                      {item.children
-                        .filter(childVisible)
-                        .map((child) => (
-                        <Button
-                          key={child.name}
-                          variant={isActive(child.href) ? "secondary" : "ghost"}
-                          className={cn(
-                            "w-full justify-start text-sm h-7",
-                            isActive(child.href) ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground"
-                          )}
-                          asChild
-                          onClick={onNavigate}
-                        >
-                          <Link href={resolveHref(child.href)}>
-                            <child.icon className={cn(
-                              "mr-2 h-3.5 w-3.5",
-                              isActive(child.href) ? "text-foreground" : "text-muted-foreground"
-                            )} />
-                            {child.name}
-                          </Link>
-                        </Button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <Button
-                  variant={isActive(item.href) ? "secondary" : "ghost"}
-                  className={cn(
-                    "w-full justify-start h-8 px-3",
-                    isActive(item.href)
-                      ? "bg-muted font-medium text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  )}
-                  asChild
-                  onClick={onNavigate}
-                >
-                  <Link href={resolveHref(item.href)}>
-                    <item.icon className={cn(
-                      "mr-2.5 h-4 w-4",
-                      isActive(item.href) ? "text-foreground" : "text-muted-foreground"
-                    )} />
-                    <span className="text-sm font-medium">{labelFor(item)}</span>
-                  </Link>
-                </Button>
-              )}
-            </div>
-          ))}
+                      <div className="ml-2 mt-0.5 space-y-0.5 border-l border-border pl-2">
+                        {item.children.filter(childVisible).map((child) => {
+                          const ChildIcon = resolveIcon(child.icon);
+                          return (
+                            <SidebarNavLink
+                              key={`${child.name}-${child.href}`}
+                              href={resolveHref(child.href)}
+                              icon={ChildIcon}
+                              label={child.name}
+                              active={isActive(child.href)}
+                              onClick={onNavigate}
+                              indent
+                            />
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <SidebarNavLink
+                    href={resolveHref(item.href)}
+                    icon={Icon}
+                    label={labelFor(item)}
+                    active={isActive(item.href)}
+                    onClick={onNavigate}
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
 
   const brand = getClientBrandConfig();
+  const activeDef = getModuleDef(activeModuleId);
+  const homeDef = getModuleDef('home');
+  const HomeIcon = resolveIcon(homeDef.icon);
+  const ActiveIcon = resolveIcon(activeDef.icon);
+  const peopleSections = peopleNavSectionsForRole(userRole);
+  const showSettingsFooter = ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER'].includes(
+    userRole
+  );
+
+  const switchModule = (id: string) => {
+    const mod = availableModules.find((m) => m.id === id);
+    if (!mod) return;
+    const preferred = resolveModuleSwitchHref(mod.id, {
+      vertical,
+      companySlug: companySlug || '',
+      landingHref: mod.href,
+    });
+    const pushTarget =
+      companySlug && preferred.startsWith(`/${companySlug}/`)
+        ? preferred
+        : resolveHref(
+            preferred.startsWith('/dashboard') ||
+              preferred.startsWith('/admin') ||
+              preferred.startsWith('/employee') ||
+              preferred.startsWith('/portal')
+              ? preferred
+              : mod.href
+          );
+    router.push(pushTarget);
+    onNavigate?.();
+  };
+
+  const switcherValue = activeModuleId === 'home' ? '__home__' : activeModuleId;
+
+  const renderRailButton = (
+    id: WorkspaceModuleId | 'home',
+    label: string,
+    Icon: LucideIcon,
+    active: boolean,
+    onClick: () => void
+  ) => (
+    <Tooltip key={id}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={label}
+          aria-current={active ? 'page' : undefined}
+          className={cn(
+            'flex size-11 items-center justify-center rounded-xl transition-all duration-150',
+            active
+              ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
+              : 'text-muted-foreground hover:bg-background hover:text-foreground hover:shadow-sm'
+          )}
+        >
+          <Icon className="size-5" strokeWidth={active ? 2 : ICON_STROKE} />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" sideOffset={10}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  const homeMainItems = filterItems(
+    MAIN_NAV.filter((i) => {
+      if (i.href === '/dashboard') return false;
+      if (vertical === 'web_agency' && i.href === '/dashboard/technician') return false;
+      return true;
+    })
+  );
+  const homeWorkItems = filterItems(HOME_WORK_NAV);
 
   return (
-    <div className="w-64 border-r h-full bg-background overflow-y-auto overscroll-contain [scrollbar-width:thin]">
-      <div className="space-y-1 py-3 px-2">
-        <div className="px-2 pb-3 mb-1 border-b">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-teal-600" />
-            <h2 className="text-sm font-semibold text-foreground truncate">
-              {brand.appName}
-            </h2>
+    <div className="flex h-full w-full border-r bg-background">
+      <TooltipProvider delayDuration={200}>
+        <div className="hidden md:flex w-[76px] shrink-0 flex-col border-r border-border/80 bg-muted/40 py-5 px-2.5">
+          <div className="flex flex-col items-center">
+            {renderRailButton('home', homeDef.label, HomeIcon, activeModuleId === 'home', () => {
+              router.push(resolveHref('/dashboard'));
+              onNavigate?.();
+            })}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Sales & service
-          </p>
+          <div className="my-4 h-px w-8 self-center bg-border/80" />
+          <div className="flex flex-1 flex-col items-center gap-2.5 overflow-y-auto overscroll-contain py-1 [scrollbar-width:none]">
+            {railModules.map((m) => {
+              const Icon = resolveIcon(m.icon);
+              return renderRailButton(m.id, m.label, Icon, activeModuleId === m.id, () =>
+                switchModule(m.id)
+              );
+            })}
+          </div>
+          {footerRailModule ? (
+            <div className="mt-4 flex flex-col items-center gap-2.5 border-t border-border/80 pt-4">
+              {renderRailButton(
+                footerRailModule.id,
+                footerRailModule.label,
+                resolveIcon(footerRailModule.icon),
+                activeModuleId === footerRailModule.id,
+                () => switchModule(footerRailModule.id)
+              )}
+            </div>
+          ) : null}
+        </div>
+      </TooltipProvider>
+
+      <div className="flex w-[248px] min-w-[248px] flex-col">
+        <div className="shrink-0 border-b border-border/80 px-4 py-4">
+          <div className="flex items-center gap-3">
+            <div className="size-2.5 shrink-0 rounded-full bg-teal-600" />
+            <div className="min-w-0">
+              <h2 className="truncate text-sm font-semibold text-foreground">{brand.appName}</h2>
+              <p className="truncate text-xs text-muted-foreground mt-0.5">
+                {activeModuleId === 'home' ? 'Workspace' : activeDef.label}
+              </p>
+            </div>
+          </div>
+
+          {availableModules.length > 0 ? (
+            <div className="mt-3 md:hidden">
+              <Select
+                value={switcherValue}
+                onValueChange={(v) => {
+                  if (v === '__home__') {
+                    router.push(resolveHref('/dashboard'));
+                    onNavigate?.();
+                    return;
+                  }
+                  switchModule(v);
+                }}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  <SelectValue>
+                    <span className="flex items-center gap-2 truncate">
+                      {activeModuleId === 'home' ? (
+                        <>
+                          <HomeIcon className="size-3.5 shrink-0" strokeWidth={ICON_STROKE} />
+                          {homeDef.label}
+                        </>
+                      ) : (
+                        <>
+                          <ActiveIcon className="size-3.5 shrink-0" strokeWidth={ICON_STROKE} />
+                          {activeDef.label}
+                        </>
+                      )}
+                    </span>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__home__">
+                    <span className="flex items-center gap-2">
+                      <HomeIcon className="size-3.5" strokeWidth={ICON_STROKE} />
+                      {homeDef.label}
+                    </span>
+                  </SelectItem>
+                  {availableModules.map((m) => {
+                    const Icon = resolveIcon(m.icon);
+                    return (
+                      <SelectItem key={m.id} value={m.id}>
+                        <span className="flex items-center gap-2">
+                          <Icon className="size-3.5" strokeWidth={ICON_STROKE} />
+                          {m.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
 
-        {renderNavGroup(mainNav)}
-        <div className="px-1 py-2">
-          <RecentEntitiesList compact />
+        <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-width:thin]">
+          {activeModuleId === 'home' ? (
+            <>
+              {homeMainItems.length > 0 ? renderNavGroup(homeMainItems, 'Quick links') : null}
+              {homeWorkItems.length > 0 ? renderNavGroup(homeWorkItems, 'Work') : null}
+              <div className="px-1 py-3 mt-2">
+                <RecentEntitiesList compact />
+              </div>
+            </>
+          ) : activeModuleId === 'people' && peopleSections.length > 0 ? (
+            <>
+              {peopleSections.map((section) =>
+                renderNavGroup(section.items, section.title)
+              )}
+              <div className="px-1 py-3 mt-3 border-t border-border/80">
+                <RecentEntitiesList compact />
+              </div>
+            </>
+          ) : (
+            <>
+              {renderNavGroup(moduleNavItems)}
+              <div className="px-1 py-3 mt-3 border-t border-border/80">
+                <RecentEntitiesList compact />
+              </div>
+            </>
+          )}
+        </nav>
+
+        <div className="shrink-0 border-t border-border/80 px-3 py-3 space-y-1">
+          {showSettingsFooter ? (
+            <SidebarNavLink
+              href={resolveHref('/dashboard/settings')}
+              icon={Settings}
+              label="Settings"
+              active={isActive('/dashboard/settings')}
+              onClick={onNavigate}
+            />
+          ) : null}
+          <SidebarNavLink
+            href={resolveHref('/dashboard/docs')}
+            icon={HelpCircle}
+            label="Help & docs"
+            active={isActive('/dashboard/docs')}
+            onClick={onNavigate}
+          />
         </div>
-        {workspaceAdminNav.length > 0 && renderNavGroup(workspaceAdminNav, "Admin")}
-        {hrNav.length > 0 && renderNavGroup(hrNav, "People")}
-        {myHrNav.length > 0 && renderNavGroup(myHrNav, "My HR")}
-        {userRole === 'SUPER_ADMIN' && renderNavGroup(saasNav, "Platform")}
-        {renderNavGroup(crmNav, "Clients & catalog")}
-        {userRole !== 'TECHNICIAN' && renderNavGroup(salesNav, "Sales")}
-        {renderNavGroup(supportNav, "Service")}
-        {['ADMIN', 'SUPER_ADMIN'].includes(userRole) && renderNavGroup(opsNav, "Ops")}
-        {userRole !== 'TECHNICIAN' && userRole !== 'CUSTOMER' && renderNavGroup(emailNav, "Outreach")}
-        {renderNavGroup(workspaceNav, "Workspace")}
-        {renderNavGroup(settingsNav, "Settings")}
       </div>
     </div>
   );

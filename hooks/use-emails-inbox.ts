@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FileText, Mail, Send, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/confirm-action';
 import type {
   ComposeReplyTo,
   Email,
@@ -215,15 +216,26 @@ export function useEmailsInbox() {
 
     const isDraft = selectedFolder === 'drafts';
     const inTrash = selectedFolder === 'trash';
-    const confirmMsg = isDraft
-      ? 'Are you sure you want to delete this draft?'
-      : inTrash
-        ? 'Permanently delete this email?'
-        : 'Move this email to trash?';
 
-    if (!confirm(confirmMsg)) {
-      return;
-    }
+    const ok = await confirmAction(
+      isDraft
+        ? {
+            title: 'Delete this draft?',
+            confirmLabel: 'Delete',
+            variant: 'destructive',
+          }
+        : inTrash
+          ? {
+              title: 'Permanently delete this email?',
+              confirmLabel: 'Delete',
+              variant: 'destructive',
+            }
+          : {
+              title: 'Move this email to trash?',
+              confirmLabel: 'Move',
+            }
+    );
+    if (!ok) return;
 
     const toastId = toast.loading(isDraft ? 'Deleting draft...' : inTrash ? 'Deleting...' : 'Moving to trash...');
 

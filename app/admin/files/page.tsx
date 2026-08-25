@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FullTableSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface FileRecord {
     id: string;
@@ -142,7 +143,12 @@ export default function FileManagerPage() {
     };
 
     const deleteFile = async (fileId: string, filename: string) => {
-        if (!confirm(`Delete ${filename}?`)) return;
+        const ok = await confirmAction({
+            title: `Delete ${filename}?`,
+            confirmLabel: 'Delete',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         setDeleting(fileId);
         try {
@@ -227,7 +233,12 @@ export default function FileManagerPage() {
     const bulkDeleteFiles = async () => {
         if (selectedFiles.size === 0) return;
 
-        if (!confirm(`Delete ${selectedFiles.size} selected files?`)) return;
+        const ok = await confirmAction({
+            title: `Delete ${selectedFiles.size} selected files?`,
+            confirmLabel: 'Delete',
+            variant: 'destructive',
+        });
+        if (!ok) return;
 
         setBulkDeleting(true);
         try {

@@ -7,7 +7,9 @@ export type GlobalSearchEntityType =
   | 'product'
   | 'invoice'
   | 'contract'
-  | 'equipment';
+  | 'equipment'
+  | 'project'
+  | 'retainer';
 
 export type GlobalSearchResult = {
   id: string;

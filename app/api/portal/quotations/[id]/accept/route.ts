@@ -36,6 +36,8 @@ export async function POST(
     }
 
     const quotation = await quotationService.acceptQuotation(id);
+    const { notifyStaffQuotationDecision } = await import('@/lib/portal/notify-staff-quotation');
+    void notifyStaffQuotationDecision({ quotationId: id, decision: 'ACCEPTED' });
     return NextResponse.json(quotation);
   } catch (error) {
     console.error('[api/portal/quotations/[id]/accept]', error);

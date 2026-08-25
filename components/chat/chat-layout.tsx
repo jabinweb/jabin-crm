@@ -22,7 +22,8 @@ interface ChatLayoutProps {
 }
 
 export function ChatLayout({
-  defaultLayout = [320, 480],
+  /** Percentages that sum to ~100 (not pixels). */
+  defaultLayout = [32, 68],
   defaultCollapsed = false,
   navCollapsedSize,
 }: ChatLayoutProps) {
@@ -36,6 +37,16 @@ export function ChatLayout({
   } | null>(null);
   
   const messageStore = useMessageStore();
+
+  const layout = React.useMemo(() => {
+    const raw = defaultLayout?.length === 2 ? defaultLayout : [32, 68];
+    const [a, b] = raw;
+    // Cookie/layout must be percentage units (0–100). Legacy cookies stored px-like values.
+    if (a > 100 || b > 100 || a + b > 110) {
+      return [32, 68] as const;
+    }
+    return [a, b] as const;
+  }, [defaultLayout]);
 
   // Fetch sorted contacts
   useEffect(() => {
@@ -160,7 +171,7 @@ export function ChatLayout({
         className="h-full items-stretch"
       >
         <ResizablePanel
-          defaultSize={defaultLayout[0]}
+          defaultSize={layout[0]}
           collapsedSize={navCollapsedSize}
           collapsible={true}
           minSize={isMobile ? 0 : 24}
@@ -184,7 +195,7 @@ export function ChatLayout({
           />
         </ResizablePanel>
         <ResizableHandle withHandle />
-        <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
+        <ResizablePanel defaultSize={layout[1]} minSize={30}>
           {selectedChatItem && (
             <Chat
               selectedUser={selectedChatItem}

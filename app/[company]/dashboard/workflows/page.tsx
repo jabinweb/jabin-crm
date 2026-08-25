@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +31,7 @@ import { TableSkeleton } from '@/components/loading';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { confirmAction } from '@/lib/confirm-action';
 
 type WorkflowActionDraft = {
   type: 'notify' | 'log' | 'assign' | 'create_task' | 'send_email' | 'send_whatsapp';
@@ -201,6 +202,7 @@ function actionsPayload(actions: WorkflowActionDraft[]) {
 export default function WorkflowsPage() {
   const queryClient = useQueryClient();
   const { path } = useWorkspacePaths();
+  const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [trigger, setTrigger] = useState('lead.created');
@@ -272,6 +274,7 @@ export default function WorkflowsPage() {
       setTrigger('lead.created');
       setConditions(emptyConditions());
       setActions([defaultAction('lead.created')]);
+      setCreateOpen(false);
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -577,146 +580,174 @@ export default function WorkflowsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Workflows</h1>
-        <p className="text-sm text-muted-foreground">
-          Trigger → conditions → actions for CRM events.{' '}
-          <Link
-            href={path('/dashboard/support/automation')}
-            className="text-primary underline underline-offset-2"
-          >
-            Ticket automation
-          </Link>{' '}
-          lives under Support tools.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Automations</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Trigger → conditions → actions for workspace events.{' '}
+            <Link
+              href={path('/dashboard/support/automation')}
+              className="text-primary underline underline-offset-2"
+            >
+              Ticket automation
+            </Link>{' '}
+            lives under Support.
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          New workflow
+        </Button>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">New workflow</CardTitle>
-          <CardDescription>Set trigger, optional filters, and one or more actions.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5 max-w-2xl">
-          <div className="space-y-2">
-            <Label>Name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Notify on new lead"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Trigger</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={trigger}
-              onChange={(e) => {
-                setTrigger(e.target.value);
-                setActions((prev) =>
-                  prev.map((a) =>
-                    a.message.startsWith('Trigger:')
-                      ? { ...a, message: `Trigger: ${e.target.value}` }
-                      : a
-                  )
-                );
-              }}
-            >
-              {TRIGGERS.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Conditions (optional)</Label>
-            <ConditionsFields value={conditions} onChange={setConditions} />
-          </div>
-          <div className="space-y-2">
-            <Label>Actions</Label>
-            <ActionsEditor value={actions} onChange={setActions} />
-          </div>
-          <Button
-            disabled={!name.trim() || createMutation.isPending}
-            onClick={() => createMutation.mutate()}
-          >
-            {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Your workflows</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="p-4">
           {isLoading ? (
             <TableSkeleton columnCount={5} rowCount={5} />
           ) : workflows.length === 0 ? (
             <EmptyState
               icon={Zap}
               title="No workflows yet"
-              description="Create a workflow above to automate CRM steps."
+              description="Create a workflow to automate follow-ups and assignments."
+              actionLabel="New workflow"
+              onAction={() => setCreateOpen(true)}
             />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Trigger</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Runs</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {workflows.map((w) => (
-                  <TableRow key={w.id}>
-                    <TableCell className="font-medium">{w.name}</TableCell>
-                    <TableCell className="font-mono text-xs">{w.trigger}</TableCell>
-                    <TableCell>
-                      <Badge variant={w.isActive ? 'default' : 'secondary'}>
-                        {w.isActive ? 'Active' : 'Paused'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{w._count?.executions ?? 0}</TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setEditId(w.id);
-                          setEditOpen(true);
-                        }}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          toggleMutation.mutate({ id: w.id, isActive: !w.isActive })
-                        }
-                      >
-                        {w.isActive ? 'Pause' : 'Activate'}
-                      </Button>
-                    </TableCell>
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Trigger</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Runs</TableHead>
+                    <TableHead className="w-[180px]" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {workflows.map((w) => (
+                    <TableRow key={w.id}>
+                      <TableCell className="font-medium">{w.name}</TableCell>
+                      <TableCell className="font-mono text-xs">{w.trigger}</TableCell>
+                      <TableCell>
+                        <Badge variant={w.isActive ? 'default' : 'secondary'}>
+                          {w.isActive ? 'Active' : 'Paused'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{w._count?.executions ?? 0}</TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditId(w.id);
+                            setEditOpen(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            toggleMutation.mutate({ id: w.id, isActive: !w.isActive })
+                          }
+                        >
+                          {w.isActive ? 'Pause' : 'Activate'}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setName('');
+            setDescription('');
+            setTrigger('lead.created');
+            setConditions(emptyConditions());
+            setActions([defaultAction('lead.created')]);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>New workflow</DialogTitle>
+            <DialogDescription>
+              Set trigger, optional filters, and one or more actions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 py-2">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Notify on new lead"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Trigger</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={trigger}
+                onChange={(e) => {
+                  setTrigger(e.target.value);
+                  setActions((prev) =>
+                    prev.map((a) =>
+                      a.message.startsWith('Trigger:')
+                        ? { ...a, message: `Trigger: ${e.target.value}` }
+                        : a
+                    )
+                  );
+                }}
+              >
+                {TRIGGERS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Conditions (optional)</Label>
+              <ConditionsFields value={conditions} onChange={setConditions} />
+            </div>
+            <div className="space-y-2">
+              <Label>Actions</Label>
+              <ActionsEditor value={actions} onChange={setActions} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!name.trim() || createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+            >
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={editOpen}
@@ -799,8 +830,16 @@ export default function WorkflowsPage() {
             <Button
               type="button"
               variant="destructive"
-              onClick={() => {
-                if (editId && window.confirm('Delete this workflow?')) {
+              onClick={async () => {
+                if (
+                  editId &&
+                  (await confirmAction({
+                    title: 'Delete this workflow?',
+                    description: 'This cannot be undone.',
+                    confirmLabel: 'Delete',
+                    variant: 'destructive',
+                  }))
+                ) {
                   deleteMutation.mutate(editId);
                 }
               }}

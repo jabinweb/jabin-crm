@@ -20,22 +20,43 @@ import {
     ShieldCheck,
     LogOut,
     Loader2,
+    Lock,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from 'next-auth/react';
-import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FormSkeleton } from '@/components/loading';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
 export default function PortalSettingsPage() {
     const { data: session } = useSession();
     const { toast } = useToast();
     const queryClient = useQueryClient();
+    const { data: workspaceData } = useWorkspaceConfig();
+    const showWarrantyPrefs = workspaceData?.config.features?.warranties === true;
+    const showMaintenancePrefs = workspaceData?.config.features?.serviceHistory === true;
     const [savingProfile, setSavingProfile] = useState(false);
+    const [savingNotifications, setSavingNotifications] = useState(false);
+    const [savingPassword, setSavingPassword] = useState(false);
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
 
     const { data: profileData, isLoading } = useQuery({
         queryKey: ['portal-profile'],
         queryFn: async () => {
             const res = await fetch('/api/portal/profile');
             if (!res.ok) throw new Error('Failed to load profile');
+            return res.json();
+        },
+    });
+
+    const { data: settingsData } = useQuery({
+        queryKey: ['portal-settings'],
+        queryFn: async () => {
+            const res = await fetch('/api/portal/settings');
+            if (!res.ok) throw new Error('Failed to load settings');
             return res.json();
         },
     });
@@ -65,7 +86,14 @@ export default function PortalSettingsPage() {
         warrantyAlerts: true,
         maintenanceReminders: true,
         newsUpdates: false,
+        emailEnabled: true,
     });
+
+    useEffect(() => {
+        if (settingsData?.notifications) {
+            setNotifications((prev) => ({ ...prev, ...settingsData.notifications }));
+        }
+    }, [settingsData]);
 
     const handleSaveProfile = async () => {
         setSavingProfile(true);
@@ -85,19 +113,53 @@ export default function PortalSettingsPage() {
         }
     };
 
-    const handleSaveNotifications = () => {
-        localStorage.setItem('portal-notifications', JSON.stringify(notifications));
-        toast({ title: 'Preferences saved', description: 'Your notification preferences have been updated.' });
+    const handleSaveNotifications = async () => {
+        setSavingNotifications(true);
+        try {
+            const res = await fetch('/api/portal/settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notifications }),
+            });
+            if (!res.ok) throw new Error('Failed to save');
+            queryClient.invalidateQueries({ queryKey: ['portal-settings'] });
+            toast({ title: 'Preferences saved', description: 'Notification settings updated.' });
+        } catch {
+            toast({ title: 'Error', description: 'Could not save preferences.', variant: 'destructive' });
+        } finally {
+            setSavingNotifications(false);
+        }
     };
 
-    useEffect(() => {
-        const saved = localStorage.getItem('portal-notifications');
-        if (saved) {
-            try {
-                setNotifications(JSON.parse(saved));
-            } catch { /* ignore */ }
+    const handleChangePassword = async () => {
+        if (passwordForm.newPassword !== passwordForm.confirm) {
+            toast({ title: 'Passwords do not match', variant: 'destructive' });
+            return;
         }
-    }, []);
+        setSavingPassword(true);
+        try {
+            const res = await fetch('/api/portal/profile/password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    currentPassword: passwordForm.currentPassword,
+                    newPassword: passwordForm.newPassword,
+                }),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.error || 'Failed to update password');
+            setPasswordForm({ currentPassword: '', newPassword: '', confirm: '' });
+            toast({ title: 'Password updated', description: 'Use your new password next time you sign in.' });
+        } catch (err) {
+            toast({
+                title: 'Error',
+                description: err instanceof Error ? err.message : 'Could not update password.',
+                variant: 'destructive',
+            });
+        } finally {
+            setSavingPassword(false);
+        }
+    };
 
     const Toggle = ({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) => (
         <button
@@ -109,21 +171,24 @@ export default function PortalSettingsPage() {
         </button>
     );
 
+    const notificationItems = [
+        { key: 'emailEnabled', label: 'Email notifications', desc: 'Master switch for emails to your portal address.' },
+        { key: 'ticketUpdates', label: 'Ticket updates', desc: 'Status changes and replies from our team.' },
+        ...(showWarrantyPrefs
+            ? [{ key: 'warrantyAlerts', label: 'Warranty alerts', desc: 'Reminders before equipment warranties expire.' }]
+            : []),
+        ...(showMaintenancePrefs
+            ? [{ key: 'maintenanceReminders', label: 'Maintenance reminders', desc: 'Service reports and scheduled maintenance.' }]
+            : []),
+        { key: 'newsUpdates', label: 'News & updates', desc: 'Occasional product and service announcements.' },
+    ] as const;
+
     if (isLoading) {
-        return (
-            <div className="space-y-8 max-w-2xl">
-                <PageHeaderSkeleton />
-                <Card className="border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none">
-                    <CardContent className="pt-6">
-                        <FormSkeleton fields={4} />
-                    </CardContent>
-                </Card>
-            </div>
-        );
+        return <FormSkeleton fields={5} withHeader />;
     }
 
     return (
-        <div className="space-y-8 max-w-2xl">
+        <div className="w-full space-y-8">
             <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" asChild className="rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                     <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
@@ -134,6 +199,7 @@ export default function PortalSettingsPage() {
                 </div>
             </div>
 
+            <div className="grid gap-6 lg:grid-cols-2">
             <Card className="border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none">
                 <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800">
                     <div className="flex items-center gap-3">
@@ -201,17 +267,12 @@ export default function PortalSettingsPage() {
                         </div>
                         <div>
                             <CardTitle className="text-base">Notifications</CardTitle>
-                            <CardDescription>Choose which alerts you want to receive (saved locally).</CardDescription>
+                            <CardDescription>Control in-app alerts and emails for your account.</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent className="pt-6 space-y-5">
-                    {[
-                        { key: 'ticketUpdates', label: 'Ticket Updates', desc: 'Get notified when the status of your support tickets changes.' },
-                        { key: 'warrantyAlerts', label: 'Warranty Alerts', desc: 'Receive alerts 30 days before equipment warranties expire.' },
-                        { key: 'maintenanceReminders', label: 'Maintenance Reminders', desc: 'Get reminded when scheduled maintenance is due.' },
-                        { key: 'newsUpdates', label: 'News & Updates', desc: 'Occasional product and service updates.' },
-                    ].map(({ key, label, desc }) => (
+                    {notificationItems.map(({ key, label, desc }) => (
                         <div key={key} className="flex items-center justify-between">
                             <div className="flex-1 pr-4">
                                 <p className="text-sm font-medium text-slate-900 dark:text-white">{label}</p>
@@ -224,12 +285,14 @@ export default function PortalSettingsPage() {
                         </div>
                     ))}
                     <div className="flex justify-end pt-1">
-                        <Button onClick={handleSaveNotifications} className="bg-blue-600 hover:bg-blue-700 text-white">
-                            <Save className="h-4 w-4 mr-2" /> Save Preferences
+                        <Button onClick={handleSaveNotifications} disabled={savingNotifications} className="bg-blue-600 hover:bg-blue-700 text-white">
+                            {savingNotifications ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                            Save Preferences
                         </Button>
                     </div>
                 </CardContent>
             </Card>
+            </div>
 
             <Card className="border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none">
                 <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800">
@@ -238,13 +301,65 @@ export default function PortalSettingsPage() {
                             <ShieldCheck className="h-5 w-5 text-red-500" />
                         </div>
                         <div>
-                            <CardTitle className="text-base">Account</CardTitle>
-                            <CardDescription>Security and session management.</CardDescription>
+                            <CardTitle className="text-base">Account & security</CardTitle>
+                            <CardDescription>Password and session management.</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="pt-6">
-                    <div className="flex items-center justify-between">
+                <CardContent className="pt-6 space-y-6">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="space-y-1.5">
+                            <Label htmlFor="currentPassword">Current password</Label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                                <Input
+                                    id="currentPassword"
+                                    type={showCurrentPassword ? 'text' : 'password'}
+                                    value={passwordForm.currentPassword}
+                                    onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                                    className="pl-9 pr-9 h-10"
+                                />
+                                <button type="button" className="absolute right-3 top-2.5 text-slate-400" onClick={() => setShowCurrentPassword((v) => !v)}>
+                                    {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="newPassword">New password</Label>
+                            <div className="relative">
+                                <Input
+                                    id="newPassword"
+                                    type={showNewPassword ? 'text' : 'password'}
+                                    value={passwordForm.newPassword}
+                                    onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                                    className="pr-9 h-10"
+                                />
+                                <button type="button" className="absolute right-3 top-2.5 text-slate-400" onClick={() => setShowNewPassword((v) => !v)}>
+                                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="confirmPassword">Confirm new password</Label>
+                            <Input
+                                id="confirmPassword"
+                                type={showNewPassword ? 'text' : 'password'}
+                                value={passwordForm.confirm}
+                                onChange={(e) => setPasswordForm((p) => ({ ...p, confirm: e.target.value }))}
+                                className="h-10"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">
+                            Forgot password?
+                        </Link>
+                        <Button onClick={handleChangePassword} disabled={savingPassword} variant="outline">
+                            {savingPassword ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Lock className="h-4 w-4 mr-2" />}
+                            Update password
+                        </Button>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
                         <div>
                             <p className="text-sm font-medium text-slate-900 dark:text-white">Sign Out</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">End your current portal session.</p>

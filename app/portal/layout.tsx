@@ -41,8 +41,18 @@ function PortalLiveChat() {
     return <LiveChatWidget companyId={companyId} />;
 }
 
+function notificationHref(metadata: unknown): string | null {
+    if (!metadata || typeof metadata !== 'object') return null;
+    const ticketId = (metadata as { ticketId?: string }).ticketId;
+    if (typeof ticketId === 'string' && ticketId) return `/portal/tickets/${ticketId}`;
+    const quotationId = (metadata as { quotationId?: string }).quotationId;
+    if (typeof quotationId === 'string' && quotationId) return `/portal/quotations/${quotationId}`;
+    return null;
+}
+
 // ─── Notification Panel (real data) ──────────────────────────────────────────
 function NotificationPanel({ userId, onClose }: { userId: string; onClose: () => void }) {
+    const router = useRouter();
     const queryClient = useQueryClient();
 
     const { data: notifications = [], isLoading } = useQuery({
@@ -97,12 +107,10 @@ function NotificationPanel({ userId, onClose }: { userId: string; onClose: () =>
                 ) : notifications.length === 0 ? (
                     <p className="text-center text-xs text-slate-400 py-8">No notifications yet</p>
                 ) : (
-                    notifications.map((n: any) => (
-                        <div
-                            key={n.id}
-                            onClick={() => !n.read && markOneMutation.mutate(n.id)}
-                            className={`flex gap-3 px-4 py-3 transition-colors cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60 ${!n.read ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
-                        >
+                    notifications.map((n: any) => {
+                        const href = notificationHref(n.metadata);
+                        const content = (
+                            <>
                             <div className={`mt-1 flex-shrink-0 h-2 w-2 rounded-none ${!n.read ? 'bg-blue-600' : 'bg-transparent'}`} />
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-slate-900 dark:text-white truncate">{n.title}</p>
@@ -111,8 +119,33 @@ function NotificationPanel({ userId, onClose }: { userId: string; onClose: () =>
                                     {new Date(n.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                             </div>
+                            </>
+                        );
+                        return (
+                        <div
+                            key={n.id}
+                            role={href ? 'link' : undefined}
+                            tabIndex={href ? 0 : undefined}
+                            onClick={() => {
+                                if (!n.read) markOneMutation.mutate(n.id);
+                                if (href) {
+                                    onClose();
+                                    router.push(href);
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (href && (e.key === 'Enter' || e.key === ' ')) {
+                                    e.preventDefault();
+                                    if (!n.read) markOneMutation.mutate(n.id);
+                                    onClose();
+                                    router.push(href);
+                                }
+                            }}
+                            className={`flex gap-3 px-4 py-3 transition-colors ${href ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60' : ''} ${!n.read ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
+                        >
+                            {content}
                         </div>
-                    ))
+                    );})
                 )}
             </div>
             <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800">
@@ -195,6 +228,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [notifOpen, setNotifOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
     const notifRef = useRef<HTMLDivElement>(null);
 
     // Real unread count
@@ -251,7 +285,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             {/* Main Wrapper */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden">
                 {/* Top Navbar */}
-                <header className="h-16 border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-20">
+                <header className="h-16 border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between sticky top-0 z-20">
                     <div className="flex items-center gap-3">
                         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                             <SheetTrigger asChild>
@@ -264,13 +298,22 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                             </SheetContent>
                         </Sheet>
 
-                        <div className="hidden md:flex items-center relative">
+                        <form
+                            className="hidden md:flex items-center relative"
+                            onSubmit={(e) => {
+                                e.preventDefault();
+                                const q = searchQuery.trim();
+                                if (q.length >= 2) router.push(`/portal/search?q=${encodeURIComponent(q)}`);
+                            }}
+                        >
                             <Search className="absolute left-3 h-4 w-4 text-slate-400 pointer-events-none" />
                             <Input
-                                placeholder="Search tickets, assets..."
+                                placeholder="Search tickets, projects..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="pl-9 h-9 w-64 bg-slate-100 dark:bg-slate-800 border-none rounded-none text-sm focus-visible:ring-blue-500 placeholder:text-slate-400"
                             />
-                        </div>
+                        </form>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -294,9 +337,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                     </div>
                 </header>
 
-                {/* Page Content */}
+                {/* Page Content — same horizontal padding as header; full width of main pane */}
                 <main className="flex-1 overflow-y-auto">
-                    <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+                    <div className="w-full p-6 lg:p-8">
                         {children}
                     </div>
                 </main>

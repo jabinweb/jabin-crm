@@ -34,6 +34,8 @@ export async function globalSearch(
     invoices,
     contracts,
     equipment,
+    projects,
+    retainers,
   ] = await Promise.all([
     prisma.lead.findMany({
       where: {
@@ -242,6 +244,43 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
+    prisma.project.findMany({
+      where: {
+        companyId,
+        OR: [{ name: text }, { description: text }],
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        status: true,
+        progress: true,
+        customer: { select: { organizationName: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take,
+    }),
+    prisma.clientRetainer.findMany({
+      where: {
+        companyId,
+        OR: [
+          { name: text },
+          { description: text },
+          { customer: { organizationName: text } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        amount: true,
+        currency: true,
+        billingCycle: true,
+        customer: { select: { organizationName: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take,
+    }),
   ]);
 
   const results: GlobalSearchResult[] = [];
@@ -363,6 +402,38 @@ export async function globalSearch(
         .join(' · '),
       href: `/dashboard/customers/${unit.customerId}`,
       meta: unit.status,
+    });
+  }
+
+  for (const project of projects) {
+    results.push({
+      id: project.id,
+      type: 'project',
+      title: project.name,
+      subtitle: [
+        project.customer?.organizationName,
+        project.description?.slice(0, 80) || null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      href: `/dashboard/projects/${project.id}`,
+      meta: `${project.status} · ${project.progress}%`,
+    });
+  }
+
+  for (const retainer of retainers) {
+    results.push({
+      id: retainer.id,
+      type: 'retainer',
+      title: retainer.name,
+      subtitle: [
+        retainer.customer.organizationName,
+        `${retainer.currency} ${retainer.amount}/${retainer.billingCycle.toLowerCase()}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      href: `/dashboard/retainers`,
+      meta: retainer.status,
     });
   }
 

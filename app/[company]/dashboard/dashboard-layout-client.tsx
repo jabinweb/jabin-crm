@@ -71,7 +71,7 @@ export function DashboardLayoutClient({
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64" srOnlyTitle="Navigation menu">
+          <SheetContent side="left" className="p-0 w-[min(100vw,20.5rem)]" srOnlyTitle="Navigation menu">
             <Sidebar onNavigate={() => setSidebarOpen(false)} />
           </SheetContent>
         </Sheet>

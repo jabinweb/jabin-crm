@@ -72,18 +72,26 @@ export async function GET(
         igst?: number;
       } | null) || undefined,
       companyName: userProfile?.companyName || invoice.user.name || 'Your Company',
-      companyAddress: (userProfile as any)?.companyAddress || undefined,
+      companyAddress: userProfile?.companyAddress || undefined,
       companyEmail: userProfile?.companyEmail || invoice.user.email || undefined,
-      companyPhone: (userProfile as any)?.companyPhone || undefined,
-      companyTaxId: (userProfile as any)?.taxId || (invoice as { gstin?: string | null }).gstin || undefined,
+      companyPhone: userProfile?.companyPhone || undefined,
+      companyTaxId: userProfile?.taxId || (invoice as { gstin?: string | null }).gstin || undefined,
+      // Template branding (from Personal settings → Templates)
+      templateStyle: userProfile?.templateStyle || undefined,
+      primaryColor: userProfile?.primaryColor || undefined,
+      secondaryColor: userProfile?.secondaryColor || undefined,
+      logoUrl: userProfile?.logoUrl || undefined,
+      headerText: userProfile?.headerText || undefined,
+      footerText: userProfile?.footerText || undefined,
       // Payment details
-      bankName: paymentDetails.bankName || undefined,
-      accountName: paymentDetails.accountName || undefined,
-      accountNumber: paymentDetails.accountNumber || undefined,
-      routingNumber: paymentDetails.routingNumber || undefined,
-      swiftCode: paymentDetails.swiftCode || undefined,
-      iban: paymentDetails.iban || undefined,
-      paymentInstructions: paymentDetails.paymentInstructions || undefined,
+      bankName: paymentDetails.bankName || userProfile?.bankName || undefined,
+      accountName: paymentDetails.accountName || userProfile?.accountName || undefined,
+      accountNumber: paymentDetails.accountNumber || userProfile?.accountNumber || undefined,
+      routingNumber: paymentDetails.routingNumber || userProfile?.routingNumber || undefined,
+      swiftCode: paymentDetails.swiftCode || userProfile?.swiftCode || undefined,
+      iban: paymentDetails.iban || userProfile?.iban || undefined,
+      paymentInstructions:
+        paymentDetails.paymentInstructions || userProfile?.paymentInstructions || undefined,
     };
 
     // Generate PDF

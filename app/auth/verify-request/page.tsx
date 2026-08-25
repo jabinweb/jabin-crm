@@ -1,32 +1,31 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
+import { AuthShell } from '@/components/auth/auth-shell';
+import { Button } from '@/components/ui/button';
 import { Mail } from 'lucide-react';
 
 export default function VerifyRequest() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <div className="flex justify-center mb-4">
-            <div className="rounded-none bg-blue-100 p-3">
-              <Mail className="h-8 w-8 text-blue-600" />
-            </div>
-          </div>
-          <CardTitle className="text-center">Check your email</CardTitle>
-          <CardDescription className="text-center">
-            A sign-in link has been sent to your email address
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4 text-sm text-muted-foreground">
-            <p>Click the link in the email to complete your sign-in.</p>
-            <p>The link will expire in 24 hours for security purposes.</p>
-            <p className="text-xs text-center pt-4 border-t">
-              If you didn't request this email, you can safely ignore it.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell>
+      <div className="space-y-6 text-center">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-teal-50 ring-1 ring-teal-100">
+          <Mail className="size-7 text-[var(--lp-accent)]" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="font-[family-name:var(--font-landing-display)] text-2xl font-semibold tracking-tight text-[var(--lp-ink)]">
+            Check your email
+          </h2>
+          <p className="text-sm leading-relaxed text-[var(--lp-muted)]">
+            We sent a sign-in link to your inbox. Click it to continue — the link expires in 24
+            hours.
+          </p>
+        </div>
+        <p className="text-xs text-[var(--lp-muted)]">
+          Didn&apos;t request this? You can safely ignore the email.
+        </p>
+        <Button asChild variant="outline" className="h-11 w-full border-slate-200 bg-white">
+          <Link href="/auth/signin">Back to sign in</Link>
+        </Button>
+      </div>
+    </AuthShell>
   );
 }
-
