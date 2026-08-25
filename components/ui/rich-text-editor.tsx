@@ -116,8 +116,13 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm dark:prose-invert max-w-none focus:outline-none px-3 py-2',
-          minHeightClass
+          'max-w-none focus:outline-none px-3 py-2.5 text-sm leading-relaxed text-foreground',
+          minHeightClass,
+          '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2',
+          '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5',
+          '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5',
+          '[&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md',
+          '[&_p]:my-1'
         ),
       },
       handlePaste: (_view, event) => {
@@ -205,14 +210,14 @@ export function RichTextEditor({
 
   const btn = (active?: boolean) =>
     cn(
-      'size-8 shrink-0',
+      'inline-flex size-8 shrink-0 items-center justify-center rounded-md p-0 [&_svg]:size-3.5 [&_svg]:shrink-0',
       active && 'bg-muted text-foreground'
     );
 
   return (
     <div className={cn('overflow-hidden rounded-md border bg-background', className)}>
       {editable ? (
-        <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/30 px-1 py-1">
+        <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/40 px-1.5 py-1">
           <Button
             type="button"
             variant="ghost"
@@ -220,7 +225,7 @@ export function RichTextEditor({
             className={btn(editor.isActive('bold'))}
             onClick={() => editor.chain().focus().toggleBold().run()}
           >
-            <Bold className="size-3.5" />
+            <Bold strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -229,7 +234,7 @@ export function RichTextEditor({
             className={btn(editor.isActive('italic'))}
             onClick={() => editor.chain().focus().toggleItalic().run()}
           >
-            <Italic className="size-3.5" />
+            <Italic strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -238,7 +243,7 @@ export function RichTextEditor({
             className={btn(editor.isActive('bulletList'))}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
           >
-            <List className="size-3.5" />
+            <List strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -247,7 +252,7 @@ export function RichTextEditor({
             className={btn(editor.isActive('orderedList'))}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           >
-            <ListOrdered className="size-3.5" />
+            <ListOrdered strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -265,7 +270,7 @@ export function RichTextEditor({
               editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
             }}
           >
-            <LinkIcon className="size-3.5" />
+            <LinkIcon strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -275,7 +280,7 @@ export function RichTextEditor({
             onClick={() => fileInputRef.current?.click()}
             title="Upload image or file"
           >
-            <ImageIcon className="size-3.5" />
+            <ImageIcon strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -285,9 +290,9 @@ export function RichTextEditor({
             onClick={() => fileInputRef.current?.click()}
             title="Attach file"
           >
-            <Paperclip className="size-3.5" />
+            <Paperclip strokeWidth={2} />
           </Button>
-          <div className="mx-1 h-4 w-px bg-border" />
+          <div className="mx-1 h-4 w-px shrink-0 self-center bg-border" />
           <Button
             type="button"
             variant="ghost"
@@ -295,7 +300,7 @@ export function RichTextEditor({
             className={btn()}
             onClick={() => editor.chain().focus().undo().run()}
           >
-            <Undo className="size-3.5" />
+            <Undo strokeWidth={2} />
           </Button>
           <Button
             type="button"
@@ -304,7 +309,7 @@ export function RichTextEditor({
             className={btn()}
             onClick={() => editor.chain().focus().redo().run()}
           >
-            <Redo className="size-3.5" />
+            <Redo strokeWidth={2} />
           </Button>
           <input
             ref={fileInputRef}
