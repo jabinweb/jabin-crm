@@ -3,10 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import {
-  PROJECT_TASK_STATUSES,
   PROJECT_PRIORITIES,
   computeProgressFromTasks,
 } from '@/lib/projects/task-board';
+import {
+  isAllowedProjectTaskStatus,
+  resolveDoneStatusIds,
+} from '@/lib/projects/task-statuses';
+import { logProjectTaskActivity } from '@/lib/projects/task-activity';
 
 async function assertProject(companyId: string, projectId: string) {
   return prisma.project.findFirst({
@@ -15,12 +19,26 @@ async function assertProject(companyId: string, projectId: string) {
   });
 }
 
-async function syncProgress(projectId: string) {
-  const tasks = await prisma.projectTask.findMany({
-    where: { projectId },
-    select: { status: true },
+async function companySettings(companyId: string) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { settings: true },
   });
-  const progress = computeProgressFromTasks(tasks);
+  return company?.settings;
+}
+
+async function syncProgress(projectId: string, companyId: string) {
+  const [tasks, settings] = await Promise.all([
+    prisma.projectTask.findMany({
+      where: { projectId },
+      select: { status: true },
+    }),
+    companySettings(companyId),
+  ]);
+  const progress = computeProgressFromTasks(
+    tasks,
+    resolveDoneStatusIds(settings)
+  );
   await prisma.project.update({ where: { id: projectId }, data: { progress } });
   return progress;
 }
@@ -52,8 +70,9 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 });
 
+  const settings = await companySettings(companyId);
   const status =
-    typeof body.status === 'string' && PROJECT_TASK_STATUSES.includes(body.status)
+    typeof body.status === 'string' && isAllowedProjectTaskStatus(body.status, settings)
       ? body.status
       : 'TODO';
   const priority =
@@ -67,13 +86,24 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     _max: { sortOrder: true },
   });
 
+  const descriptionHtml =
+    typeof body.descriptionHtml === 'string' ? body.descriptionHtml : null;
+  const description =
+    typeof body.description === 'string'
+      ? body.description
+      : descriptionHtml
+        ? descriptionHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160)
+        : null;
+
   const task = await prisma.projectTask.create({
     data: {
       projectId,
       title,
-      description: typeof body.description === 'string' ? body.description : null,
+      description,
+      descriptionHtml,
       status,
       priority,
+      reporterId: session.user.id,
       assigneeId:
         typeof body.assigneeId === 'string' && body.assigneeId.trim()
           ? body.assigneeId.trim()
@@ -83,10 +113,25 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     },
     include: {
       assignee: { select: { id: true, name: true, email: true, image: true } },
+      reporter: { select: { id: true, name: true, email: true, image: true } },
     },
   });
 
-  const progress = await syncProgress(projectId);
+  const actorName = session.user.name || session.user.email || 'User';
+  await logProjectTaskActivity({
+    taskId: task.id,
+    actorId: session.user.id,
+    eventType: 'CREATED',
+    description: `${actorName} created this task`,
+  });
+
+  await prisma.projectTaskWatcher.upsert({
+    where: { taskId_userId: { taskId: task.id, userId: session.user.id } },
+    create: { taskId: task.id, userId: session.user.id },
+    update: {},
+  });
+
+  const progress = await syncProgress(projectId, companyId);
   return jsonOk({ task, progress }, { status: 201 });
 });
 
@@ -99,6 +144,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
+  const settings = await companySettings(companyId);
 
   /** Bulk reorder after drag: { moves: [{ id, status, sortOrder }] } */
   if (Array.isArray(body.moves)) {
@@ -108,7 +154,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
         prisma.projectTask.updateMany({
           where: { id: m.id, projectId },
           data: {
-            ...(PROJECT_TASK_STATUSES.includes(m.status)
+            ...(isAllowedProjectTaskStatus(m.status, settings)
               ? { status: m.status }
               : {}),
             sortOrder: m.sortOrder,
@@ -116,7 +162,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
         })
       )
     );
-    const progress = await syncProgress(projectId);
+    const progress = await syncProgress(projectId, companyId);
     const tasks = await prisma.projectTask.findMany({
       where: { projectId },
       include: {
@@ -138,7 +184,17 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   const data: Record<string, unknown> = {};
   if (typeof body.title === 'string') data.title = body.title.trim();
   if (typeof body.description === 'string') data.description = body.description;
-  if (typeof body.status === 'string' && PROJECT_TASK_STATUSES.includes(body.status)) {
+  if (typeof body.descriptionHtml === 'string') {
+    data.descriptionHtml = body.descriptionHtml;
+    if (typeof body.description !== 'string') {
+      data.description = body.descriptionHtml
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 160);
+    }
+  }
+  if (typeof body.status === 'string' && isAllowedProjectTaskStatus(body.status, settings)) {
     data.status = body.status;
   }
   if (
@@ -165,7 +221,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
       assignee: { select: { id: true, name: true, email: true, image: true } },
     },
   });
-  const progress = await syncProgress(projectId);
+  const progress = await syncProgress(projectId, companyId);
   return jsonOk({ task, progress });
 });
 
@@ -187,6 +243,6 @@ export const DELETE = withTenantRoute(async (request, { session, companyId }, ro
     where: { id: taskId, projectId },
   });
   if (!deleted.count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const progress = await syncProgress(projectId);
+  const progress = await syncProgress(projectId, companyId);
   return jsonOk({ ok: true, progress });
 });

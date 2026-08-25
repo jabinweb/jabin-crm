@@ -16,10 +16,12 @@ export const PROJECT_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const;
 export type ProjectTaskPriority = (typeof PROJECT_PRIORITIES)[number];
 
 export function computeProgressFromTasks(
-  tasks: Array<{ status: string }>
+  tasks: Array<{ status: string }>,
+  doneStatusIds: string[] = ['DONE']
 ): number {
   if (!tasks.length) return 0;
-  const done = tasks.filter((t) => t.status === 'DONE').length;
+  const doneSet = new Set(doneStatusIds.length ? doneStatusIds : ['DONE']);
+  const done = tasks.filter((t) => doneSet.has(t.status)).length;
   return Math.round((done / tasks.length) * 100);
 }
 

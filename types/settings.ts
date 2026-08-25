@@ -103,6 +103,14 @@ export interface CompanySettings {
       hardBlock?: boolean;
     };
   };
+  /** Kanban columns for project delivery tasks */
+  projectTaskStatuses?: Array<{
+    id: string;
+    label: string;
+    color?: string;
+    order?: number;
+    isDone?: boolean;
+  }>;
 }
 
 export interface SettingsUpdatePayload {

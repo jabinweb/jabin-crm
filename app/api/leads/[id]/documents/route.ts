@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { ApiErrors } from '@/lib/api-error-handler';
 import { prisma } from '@/lib/prisma';
+import {
+  applyPhpUploadAuth,
+  getPhpUploadConfig,
+} from '@/lib/storage/php-upload-config';
 
 const documentInclude = {
   uploadedBy: {
@@ -59,15 +63,16 @@ export const POST = withTenantRoute(async (request, { companyId, employeeId }, r
       throw ApiErrors.badRequest('No file provided');
     }
 
-    const phpUploadUrl =
-      process.env.NEXT_PUBLIC_PHP_UPLOAD_URL || 'https://files.jabin.org/api/upload.php';
+    const { url: phpUploadUrl, password } = await getPhpUploadConfig();
     const phpFormData = new FormData();
     phpFormData.append('file', file);
     phpFormData.append('folder', `leads/${leadId}`);
+    const headers = applyPhpUploadAuth(phpFormData, password);
 
     const uploadRes = await fetch(phpUploadUrl, {
       method: 'POST',
       body: phpFormData,
+      ...(headers ? { headers } : {}),
     });
 
     if (!uploadRes.ok) {

@@ -15,6 +15,7 @@ import { SecuritySection } from "./sections/security"
 import { WorkspaceSection } from "./sections/workspace"
 import { SupportTicketTypesSection } from "./sections/support-ticket-types"
 import { VisitTagsSection } from "./sections/visit-tags"
+import { ProjectTaskStatusesSection } from "./sections/project-task-statuses"
 import { TerminologySection } from "./sections/terminology"
 import { FieldOpsSection } from "./sections/field-ops"
 import { SettingsProvider, useSettings } from "@/contexts/settings-context"
@@ -120,6 +121,7 @@ function CompanySettingsContent() {
           <WorkspaceSection onChange={handleSettingsChange} />
           <TerminologySection onChange={handleSettingsChange} />
           <SupportTicketTypesSection onChange={handleSettingsChange} />
+          <ProjectTaskStatusesSection onChange={handleSettingsChange} />
           <FieldOpsSection onChange={handleSettingsChange} />
           <VisitTagsSection />
         </TabsContent>

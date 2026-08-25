@@ -118,7 +118,13 @@
     "uploadthing": "^7.7.4",
     "vaul": "^0.9.9",
     "zod": "^3.25.76",
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.12",
+    "@tiptap/react": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "@tiptap/extension-image": "^2.11.5",
+    "@tiptap/extension-link": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
+    "@tiptap/pm": "^2.11.5"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1",
