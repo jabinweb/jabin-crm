@@ -17,7 +17,7 @@
     "qa:staging": "node scripts/staging-qa.mjs"
   },
   "dependencies": {
-    "@auth/core": "0.41.2",
+    "@auth/core": "0.41.3",
     "@auth/prisma-adapter": "^2.11.2",
     "@google/genai": "^1.28.0",
     "@hello-pangea/dnd": "^18.0.1",
@@ -148,6 +148,7 @@
     "ts-node": "^10.9.2"
   },
   "overrides": {
+    "@auth/core": "0.41.3",
     "cookie": "^0.7.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
@@ -155,5 +156,10 @@
     "nodemailer": "^9.0.3",
     "postcss": "^8.5.10",
     "sharp": "^0.35.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@auth/core": "0.41.3"
+    }
   }
 }
