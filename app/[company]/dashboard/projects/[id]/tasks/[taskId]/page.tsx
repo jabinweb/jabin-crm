@@ -33,10 +33,7 @@ import { resolveProjectTaskColumns } from '@/lib/projects/task-statuses';
 import {
   Eye,
   EyeOff,
-  History,
   Loader2,
-  MessageSquare,
-  Paperclip,
   Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -290,18 +287,14 @@ export default function ProjectTaskDetailPage() {
           size="sm"
           disabled={watchMutation.isPending}
           onClick={() => watchMutation.mutate(!!task.watching)}
+          className="inline-flex items-center gap-1.5"
         >
           {task.watching ? (
-            <>
-              <EyeOff className="mr-1.5 size-3.5" />
-              Unwatch
-            </>
+            <EyeOff className="size-3.5 shrink-0" />
           ) : (
-            <>
-              <Eye className="mr-1.5 size-3.5" />
-              Watch
-            </>
+            <Eye className="size-3.5 shrink-0" />
           )}
+          {task.watching ? 'Unwatch' : 'Watch'}
         </Button>
       </div>
 
@@ -315,11 +308,12 @@ export default function ProjectTaskDetailPage() {
                 variant="secondary"
                 disabled={patchMutation.isPending}
                 onClick={() => patchMutation.mutate({ descriptionHtml })}
+                className="inline-flex items-center gap-1.5"
               >
                 {patchMutation.isPending ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                  <Loader2 className="size-3.5 shrink-0 animate-spin" />
                 ) : (
-                  <Save className="mr-1.5 size-3.5" />
+                  <Save className="size-3.5 shrink-0" />
                 )}
                 Save
               </Button>
@@ -344,18 +338,9 @@ export default function ProjectTaskDetailPage() {
 
           <Tabs defaultValue="comments">
             <TabsList>
-              <TabsTrigger value="comments" className="gap-1.5">
-                <MessageSquare className="size-3.5" />
-                Comments
-              </TabsTrigger>
-              <TabsTrigger value="history" className="gap-1.5">
-                <History className="size-3.5" />
-                History
-              </TabsTrigger>
-              <TabsTrigger value="files" className="gap-1.5">
-                <Paperclip className="size-3.5" />
-                Files
-              </TabsTrigger>
+              <TabsTrigger value="comments">Comments</TabsTrigger>
+              <TabsTrigger value="history">History</TabsTrigger>
+              <TabsTrigger value="files">Files</TabsTrigger>
             </TabsList>
 
             <TabsContent value="comments" className="space-y-4 pt-4">
@@ -395,9 +380,10 @@ export default function ProjectTaskDetailPage() {
                   size="sm"
                   disabled={commentMutation.isPending || !commentHtml.trim()}
                   onClick={() => commentMutation.mutate()}
+                  className="inline-flex items-center gap-1.5"
                 >
                   {commentMutation.isPending ? (
-                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    <Loader2 className="size-3.5 shrink-0 animate-spin" />
                   ) : null}
                   Comment
                 </Button>
@@ -504,13 +490,13 @@ export default function ProjectTaskDetailPage() {
         </div>
 
         <aside className="space-y-4 rounded-lg border p-4">
-          <div className="space-y-2">
-            <Label>Status</Label>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Status</Label>
             <Select
               value={task.status}
               onValueChange={(status) => patchMutation.mutate({ status })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -525,13 +511,13 @@ export default function ProjectTaskDetailPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Priority</Label>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Priority</Label>
             <Select
               value={task.priority}
               onValueChange={(priority) => patchMutation.mutate({ priority })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -546,8 +532,8 @@ export default function ProjectTaskDetailPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Assignee</Label>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Assignee</Label>
             <Select
               value={task.assigneeId || '__none__'}
               onValueChange={(v) =>
@@ -556,7 +542,7 @@ export default function ProjectTaskDetailPage() {
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-9">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent>
@@ -578,10 +564,11 @@ export default function ProjectTaskDetailPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Due date</Label>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Due date</Label>
             <Input
               type="date"
+              className="h-9"
               defaultValue={toDateInput(task.dueDate)}
               onChange={(e) =>
                 patchMutation.mutate({
@@ -593,9 +580,9 @@ export default function ProjectTaskDetailPage() {
 
           <Separator />
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground">Reporter</Label>
-            <p className="text-sm">
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">Reporter</Label>
+            <p className="text-sm leading-none">
               {task.reporter?.name ||
                 task.reporter?.email ||
                 session?.user?.name ||
@@ -603,8 +590,8 @@ export default function ProjectTaskDetailPage() {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-muted-foreground">Watchers</Label>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Watchers</Label>
             <div className="flex flex-wrap gap-1">
               {(task.watchers || []).map((w) => (
                 <Badge key={w.id} variant="secondary" className="font-normal">
@@ -617,12 +604,12 @@ export default function ProjectTaskDetailPage() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label className="text-muted-foreground">Project</Label>
+          <div className="grid gap-1">
+            <Label className="text-xs text-muted-foreground">Project</Label>
             <Link
               href={path(`/dashboard/projects/${task.project.id}`)}
               className={cn(
-                'block text-sm text-primary underline-offset-4 hover:underline'
+                'text-sm text-primary underline-offset-4 hover:underline'
               )}
             >
               {task.project.name}
