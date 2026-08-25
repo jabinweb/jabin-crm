@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       usage: { reset: 0, errors: 0 },
       pmDue: { created: 0, skipped: 0, companiesEligible: 0, errors: 0 },
       warrantyAlerts: { scanned: 0, sent: 0, skipped: 0, errors: 0 },
+      retainers: { billed: 0, skipped: 0, errors: 0, detail: [] as Array<{ retainerId: string; invoiceId?: string; error?: string }> },
     };
 
     // Task 1: Process email sequences (real send path)
@@ -188,6 +189,115 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       console.error('Error running warranty expiry alerts:', error);
       results.warrantyAlerts.errors += 1;
+    }
+
+    // Task 10: Auto-bill active retainers due for billing
+    try {
+      const { nextBillDate } = await import('@/lib/projects/agency-delivery');
+      const now = new Date();
+      const dueRetainers = await prisma.clientRetainer.findMany({
+        where: {
+          status: 'ACTIVE',
+          nextBillAt: { lte: now },
+        },
+        take: 50,
+        orderBy: { nextBillAt: 'asc' },
+      });
+
+      for (const retainer of dueRetainers) {
+        try {
+          const admin = await prisma.userCompanyRole.findFirst({
+            where: {
+              companyId: retainer.companyId,
+              role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+            },
+            select: { userId: true },
+          });
+          const fallbackUser = await prisma.user.findFirst({
+            where: { companyId: retainer.companyId },
+            select: { id: true },
+          });
+          const userId = admin?.userId || fallbackUser?.id;
+          if (!userId) {
+            results.retainers.skipped += 1;
+            results.retainers.detail.push({
+              retainerId: retainer.id,
+              error: 'No billing user for company',
+            });
+            continue;
+          }
+
+          const customer = await prisma.customer.findUnique({
+            where: { id: retainer.customerId },
+            select: {
+              organizationName: true,
+              email: true,
+              phone: true,
+              address: true,
+            },
+          });
+
+          const invoiceNumber = `RET-${Date.now().toString(36).toUpperCase()}-${retainer.id.slice(-4)}`;
+          const due = new Date();
+          due.setDate(due.getDate() + 14);
+
+          const invoice = await prisma.invoice.create({
+            data: {
+              invoiceNumber,
+              userId,
+              customerId: retainer.customerId,
+              title: retainer.name,
+              description: retainer.description || `Retainer: ${retainer.name}`,
+              dueDate: due,
+              currency: retainer.currency,
+              subtotal: retainer.amount,
+              total: retainer.amount,
+              amountDue: retainer.amount,
+              status: 'DRAFT',
+              customerName: customer?.organizationName || 'Client',
+              customerEmail: customer?.email || '',
+              customerPhone: customer?.phone,
+              customerAddress: customer?.address,
+              items: {
+                create: [
+                  {
+                    name: retainer.name,
+                    description: `${retainer.billingCycle} retainer`,
+                    quantity: 1,
+                    unitPrice: retainer.amount,
+                    amount: retainer.amount,
+                  },
+                ],
+              },
+            },
+          });
+
+          const billedAt = new Date();
+          await prisma.clientRetainer.update({
+            where: { id: retainer.id },
+            data: {
+              lastBilledAt: billedAt,
+              nextBillAt: nextBillDate(billedAt, retainer.billingCycle),
+            },
+          });
+
+          results.retainers.billed += 1;
+          results.retainers.detail.push({
+            retainerId: retainer.id,
+            invoiceId: invoice.id,
+          });
+        } catch (err) {
+          console.error(`Error auto-billing retainer ${retainer.id}:`, err);
+          results.retainers.errors += 1;
+          results.retainers.detail.push({
+            retainerId: retainer.id,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error auto-billing retainers:', error);
+      results.retainers.errors += 1;
     }
 
     return NextResponse.json({

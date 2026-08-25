@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import {
   PROJECT_PRIORITIES,
   computeProgressFromTasks,
@@ -96,6 +96,28 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
           subtasks: true,
         },
       },
+      labels: {
+        include: {
+          label: { select: { id: true, name: true, color: true } },
+        },
+      },
+      linksFrom: {
+        include: {
+          targetTask: { select: { id: true, title: true, status: true } },
+        },
+      },
+      linksTo: {
+        include: {
+          sourceTask: { select: { id: true, title: true, status: true } },
+        },
+      },
+      worklogs: {
+        orderBy: { loggedAt: 'desc' },
+        take: 20,
+        include: {
+          user: { select: { id: true, name: true, email: true, image: true } },
+        },
+      },
     },
   });
 
@@ -119,12 +141,12 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
 });
 
 export const PATCH = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const params = await routeContext!.params;
+  const projectId = params.id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const params = await routeContext!.params;
-  const projectId = params.id;
   const taskId = params.taskId;
 
   const existing = await assertProjectTask(companyId, projectId, taskId);
@@ -192,12 +214,14 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     });
   }
 
+  let assigneeChangedTo: string | null | undefined;
   if (body.assigneeId !== undefined) {
     const nextAssignee =
       typeof body.assigneeId === 'string' && body.assigneeId.trim()
         ? body.assigneeId.trim()
         : null;
     if (nextAssignee !== existing.assigneeId) {
+      assigneeChangedTo = nextAssignee;
       data.assigneeId = nextAssignee;
       await logProjectTaskActivity({
         taskId,
@@ -239,16 +263,52 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     },
   });
 
+  const notifyBase = {
+    companyId,
+    projectId,
+    taskId,
+    taskTitle: task.title,
+    actorId: session.user.id,
+    actorName,
+  };
+
+  if (assigneeChangedTo) {
+    const { notifyProjectTaskAssigned } = await import('@/lib/projects/task-notifications');
+    void notifyProjectTaskAssigned({ ...notifyBase, assigneeId: assigneeChangedTo });
+  }
+
+  if (typeof body.status === 'string' && body.status !== existing.status) {
+    const { notifyProjectTaskUpdated } = await import('@/lib/projects/task-notifications');
+    void notifyProjectTaskUpdated({
+      ...notifyBase,
+      summary: `status → ${body.status}`,
+    });
+
+    const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+    void dispatchWorkflowEvent('project.task.status_changed', {
+      userId: session.user.id,
+      companyId,
+      title: task.title,
+      summary: `${actorName} changed status to ${body.status}`,
+      metadata: {
+        projectId,
+        taskId,
+        status: body.status,
+        previousStatus: existing.status,
+      },
+    });
+  }
+
   const progress = await syncProgress(projectId, companyId);
   return jsonOk({ task, progress });
 });
 
 export const DELETE = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
   const params = await routeContext!.params;
   const projectId = params.id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
   const taskId = params.taskId;
 
   const existing = await assertProjectTask(companyId, projectId, taskId);

@@ -8,6 +8,8 @@ export type WorkflowEvent =
   | 'ticket.created'
   | 'ticket.updated'
   | 'deal.won'
+  | 'project.task.created'
+  | 'project.task.status_changed'
   | 'manual';
 
 export type WorkflowAction =

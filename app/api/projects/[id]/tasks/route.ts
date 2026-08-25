@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import {
   PROJECT_PRIORITIES,
   computeProgressFromTasks,
@@ -67,10 +67,10 @@ export const GET = withTenantRoute(async (request, { companyId }, routeContext) 
 });
 
 export const POST = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const projectId = (await routeContext!.params).id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -172,14 +172,37 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   });
 
   const progress = await syncProgress(projectId, companyId);
+
+  if (task.assigneeId && task.assigneeId !== session.user.id) {
+    const { notifyProjectTaskAssigned } = await import('@/lib/projects/task-notifications');
+    void notifyProjectTaskAssigned({
+      companyId,
+      projectId,
+      taskId: task.id,
+      taskTitle: task.title,
+      actorId: session.user.id,
+      actorName,
+      assigneeId: task.assigneeId,
+    });
+  }
+
+  const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+  void dispatchWorkflowEvent('project.task.created', {
+    userId: session.user.id,
+    companyId,
+    title: task.title,
+    summary: `${actorName} created “${task.title}”`,
+    metadata: { projectId, taskId: task.id, status: task.status, priority: task.priority },
+  });
+
   return jsonOk({ task, progress }, { status: 201 });
 });
 
 export const PATCH = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const projectId = (await routeContext!.params).id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -266,10 +289,10 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 });
 
 export const DELETE = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const projectId = (await routeContext!.params).id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

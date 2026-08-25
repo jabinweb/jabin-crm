@@ -36,6 +36,9 @@ import {
   Plus,
   Save,
   Square,
+  Tag,
+  Link2,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -94,6 +97,24 @@ type TaskDetail = {
     createdAt: string;
   }>;
   projectTaskStatuses?: unknown;
+  labels?: Array<{ label: { id: string; name: string; color: string } }>;
+  linksFrom?: Array<{
+    id: string;
+    type: string;
+    targetTask: { id: string; title: string; status: string };
+  }>;
+  linksTo?: Array<{
+    id: string;
+    type: string;
+    sourceTask: { id: string; title: string; status: string };
+  }>;
+  worklogs?: Array<{
+    id: string;
+    hours: number;
+    note: string | null;
+    loggedAt: string;
+    user: Person;
+  }>;
 };
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -180,6 +201,12 @@ export default function ProjectTaskDetailPage() {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState('');
   const [activityOpen, setActivityOpen] = useState(true);
+  const [labelsOpen, setLabelsOpen] = useState(true);
+  const [linksOpen, setLinksOpen] = useState(true);
+  const [worklogsOpen, setWorklogsOpen] = useState(true);
+  const [newLabelName, setNewLabelName] = useState('');
+  const [worklogHours, setWorklogHours] = useState('');
+  const [worklogNote, setWorklogNote] = useState('');
   const [activityTab, setActivityTab] = useState<'all' | 'comments' | 'history'>(
     'comments'
   );
@@ -317,6 +344,58 @@ export default function ProjectTaskDetailPage() {
     },
     onSuccess: () => {
       toast.success('Attachment added');
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const labelMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await workspaceFetch(
+        `/api/projects/${projectId}/tasks/${taskId}/labels`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, color: 'slate' }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add label');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setNewLabelName('');
+      toast.success('Label added');
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const worklogMutation = useMutation({
+    mutationFn: async () => {
+      const res = await workspaceFetch(
+        `/api/projects/${projectId}/tasks/${taskId}/worklogs`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hours: Number(worklogHours),
+            note: worklogNote.trim() || undefined,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to log time');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setWorklogHours('');
+      setWorklogNote('');
+      toast.success('Time logged');
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -770,6 +849,173 @@ export default function ProjectTaskDetailPage() {
               ) : null}
             </section>
           ) : null}
+
+          {/* Labels */}
+          <section className="space-y-3 border-t pt-4">
+            <SectionHeader
+              open={labelsOpen}
+              onToggle={() => setLabelsOpen((v) => !v)}
+              title="Labels"
+              count={task.labels?.length ?? 0}
+            />
+            {labelsOpen ? (
+              <div className="space-y-3">
+                {(task.labels?.length ?? 0) > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {task.labels!.map((entry) => (
+                      <span
+                        key={entry.label.id}
+                        className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-0.5 text-xs font-medium"
+                      >
+                        <Tag className="h-3 w-3 text-muted-foreground" />
+                        {entry.label.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No labels</p>
+                )}
+                <div className="flex gap-2">
+                  <Input
+                    value={newLabelName}
+                    onChange={(e) => setNewLabelName(e.target.value)}
+                    placeholder="Add label…"
+                    className="h-8 max-w-xs"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newLabelName.trim()) {
+                        labelMutation.mutate(newLabelName.trim());
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    disabled={labelMutation.isPending || !newLabelName.trim()}
+                    onClick={() => labelMutation.mutate(newLabelName.trim())}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          {/* Linked work items */}
+          <section className="space-y-3 border-t pt-4">
+            <SectionHeader
+              open={linksOpen}
+              onToggle={() => setLinksOpen((v) => !v)}
+              title="Linked work items"
+              count={(task.linksFrom?.length ?? 0) + (task.linksTo?.length ?? 0)}
+            />
+            {linksOpen ? (
+              (task.linksFrom?.length ?? 0) + (task.linksTo?.length ?? 0) > 0 ? (
+                <ul className="space-y-2 text-sm">
+                  {(task.linksFrom || []).map((link) => (
+                    <li key={link.id} className="flex items-center gap-2">
+                      <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{link.type.replace(/_/g, ' ')}</span>
+                      <Link
+                        href={path(
+                          `/dashboard/projects/${projectId}/tasks/${link.targetTask.id}`
+                        )}
+                        className="truncate hover:underline"
+                      >
+                        {link.targetTask.title}
+                      </Link>
+                    </li>
+                  ))}
+                  {(task.linksTo || []).map((link) => (
+                    <li key={link.id} className="flex items-center gap-2">
+                      <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">{link.type.replace(/_/g, ' ')} (from)</span>
+                      <Link
+                        href={path(
+                          `/dashboard/projects/${projectId}/tasks/${link.sourceTask.id}`
+                        )}
+                        className="truncate hover:underline"
+                      >
+                        {link.sourceTask.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">No linked items</p>
+              )
+            ) : null}
+          </section>
+
+          {/* Log time */}
+          <section className="space-y-3 border-t pt-4">
+            <SectionHeader
+              open={worklogsOpen}
+              onToggle={() => setWorklogsOpen((v) => !v)}
+              title="Log time"
+              count={task.worklogs?.length ?? 0}
+            />
+            {worklogsOpen ? (
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Hours</label>
+                    <Input
+                      type="number"
+                      min="0.25"
+                      step="0.25"
+                      value={worklogHours}
+                      onChange={(e) => setWorklogHours(e.target.value)}
+                      placeholder="1.5"
+                      className="h-8 w-24"
+                    />
+                  </div>
+                  <div className="min-w-[200px] flex-1 space-y-1">
+                    <label className="text-xs text-muted-foreground">Note</label>
+                    <Input
+                      value={worklogNote}
+                      onChange={(e) => setWorklogNote(e.target.value)}
+                      placeholder="Optional note"
+                      className="h-8"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-8 gap-1"
+                    disabled={
+                      worklogMutation.isPending ||
+                      !worklogHours ||
+                      Number(worklogHours) <= 0
+                    }
+                    onClick={() => worklogMutation.mutate()}
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    Log
+                  </Button>
+                </div>
+                {(task.worklogs?.length ?? 0) > 0 ? (
+                  <ul className="divide-y rounded-md border text-sm">
+                    {task.worklogs!.map((w) => (
+                      <li key={w.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <div className="min-w-0">
+                          <span className="font-medium tabular-nums">{w.hours}h</span>
+                          {w.note ? (
+                            <span className="ml-2 text-muted-foreground">{w.note}</span>
+                          ) : null}
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {w.user.name || w.user.email} ·{' '}
+                          {new Date(w.loggedAt).toLocaleDateString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No time logged yet</p>
+                )}
+              </div>
+            ) : null}
+          </section>
 
           {/* Activity */}
           <section className="space-y-4 border-t pt-4">
