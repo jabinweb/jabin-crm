@@ -48,7 +48,20 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
 
   const hoursLogged = project.timesheetEntries.reduce((s, e) => s + e.hours, 0);
 
-  return jsonOk({ ...project, hoursLogged });
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { settings: true },
+  });
+  const settings =
+    company?.settings && typeof company.settings === 'object'
+      ? (company.settings as Record<string, unknown>)
+      : {};
+
+  return jsonOk({
+    ...project,
+    hoursLogged,
+    projectTaskStatuses: settings.projectTaskStatuses ?? null,
+  });
 });
 
 export const PATCH = withTenantRoute(async (request, { session, companyId }, routeContext) => {

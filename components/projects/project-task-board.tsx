@@ -1,14 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   PipelineBoard,
   buildBoardState,
   type PipelineBoardCard,
 } from '@/components/pipelines/pipeline-board';
-import { UNMAPPED_STAGE_ID } from '@/lib/pipelines';
-import { PROJECT_TASK_COLUMNS, PROJECT_PRIORITIES } from '@/lib/projects/task-board';
+import { UNMAPPED_STAGE_ID, type PipelineStageDef } from '@/lib/pipelines';
+import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
+import { resolveProjectTaskColumns } from '@/lib/projects/task-statuses';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
+  ExternalLink,
   LayoutGrid,
   List,
   Loader2,
@@ -88,6 +91,12 @@ export type ProjectTaskRow = PipelineBoardCard & {
     email: string | null;
     image?: string | null;
   } | null;
+};
+
+export type ProjectMemberOption = {
+  id: string;
+  name: string | null;
+  email: string | null;
 };
 
 const PRIORITY_CLASS: Record<string, string> = {
@@ -128,6 +137,7 @@ type TaskFormState = {
   status: string;
   priority: string;
   dueDate: string;
+  assigneeId: string;
 };
 
 const emptyForm = (status = 'TODO'): TaskFormState => ({
@@ -136,16 +146,26 @@ const emptyForm = (status = 'TODO'): TaskFormState => ({
   status,
   priority: 'MEDIUM',
   dueDate: '',
+  assigneeId: '',
 });
 
 type Props = {
   projectId: string;
   tasks: ProjectTaskRow[];
   progress?: number;
+  members?: ProjectMemberOption[];
+  statusColumns?: PipelineStageDef[] | null;
+  projectTaskStatuses?: unknown;
 };
 
-export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
-  const { slug, workspaceFetch } = useWorkspacePaths();
+export function ProjectTaskBoard({
+  projectId,
+  tasks: initialTasks,
+  members = [],
+  statusColumns,
+  projectTaskStatuses,
+}: Props) {
+  const { slug, workspaceFetch, path } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [view, setView] = useState<'board' | 'list'>('board');
   const [createOpen, setCreateOpen] = useState(false);
@@ -153,11 +173,18 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<TaskFormState>(emptyForm());
 
+  const boardColumns = useMemo(() => {
+    if (statusColumns && statusColumns.length > 0) return statusColumns;
+    return resolveProjectTaskColumns(
+      projectTaskStatuses ? { projectTaskStatuses } : undefined
+    );
+  }, [statusColumns, projectTaskStatuses]);
+
   const tasks = initialTasks.map((t) => ({ ...t, stage: t.status }));
 
   const { columns, itemsByStage } = useMemo(
-    () => buildBoardState(tasks, PROJECT_TASK_COLUMNS),
-    [tasks]
+    () => buildBoardState(tasks, boardColumns),
+    [tasks, boardColumns]
   );
 
   const invalidate = () => {
@@ -178,8 +205,12 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
       status: task.status,
       priority: task.priority,
       dueDate: toDateInput(task.dueDate),
+      assigneeId: task.assigneeId || '',
     });
   };
+
+  const taskHref = (taskId: string) =>
+    path(`/dashboard/projects/${projectId}/tasks/${taskId}`);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -192,6 +223,7 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
           status: form.status,
           priority: form.priority,
           dueDate: form.dueDate || null,
+          assigneeId: form.assigneeId || null,
         }),
       });
       if (!res.ok) {
@@ -222,6 +254,7 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
           status: form.status,
           priority: form.priority,
           dueDate: form.dueDate || null,
+          assigneeId: form.assigneeId || null,
         }),
       });
       if (!res.ok) throw new Error('Failed to update task');
@@ -308,16 +341,41 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const assigneeField = (
+    <div className="grid gap-2">
+      <Label>Assignee</Label>
+      <Select
+        value={form.assigneeId || '__none__'}
+        onValueChange={(v) =>
+          setForm((f) => ({ ...f, assigneeId: v === '__none__' ? '' : v }))
+        }
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Unassigned" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            <SelectItem value="__none__">Unassigned</SelectItem>
+            {members.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name || m.email}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   const renderCard = (item: ProjectTaskRow & { stage: string }) => (
     <div className="group relative flex flex-col gap-2 p-3">
       <div className="flex items-start justify-between gap-2">
-        <button
-          type="button"
+        <Link
+          href={taskHref(item.id)}
           className="min-w-0 flex-1 text-left text-sm font-medium leading-snug hover:underline underline-offset-2"
-          onClick={() => openEdit(item)}
         >
           {item.title}
-        </button>
+        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -331,11 +389,17 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
               <span className="sr-only">Task actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href={taskHref(item.id)}>
+                  <ExternalLink className="mr-2 size-4" />
+                  Open
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => openEdit(item)}>
                 <Pencil className="mr-2 size-4" />
-                Edit
+                Quick edit
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -402,7 +466,7 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label>Status</Label>
           <Select
@@ -414,7 +478,7 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
             </SelectTrigger>
             <SelectContent>
               <SelectGroup>
-                {PROJECT_TASK_COLUMNS.map((c) => (
+                {boardColumns.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.label}
                   </SelectItem>
@@ -452,6 +516,7 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
             onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
           />
         </div>
+        {assigneeField}
       </div>
     </div>
   );
@@ -550,13 +615,12 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
                 tasks.map((t) => (
                   <TableRow key={t.id} className="group">
                     <TableCell>
-                      <button
-                        type="button"
-                        className="max-w-[260px] truncate text-left font-medium hover:underline underline-offset-2"
-                        onClick={() => openEdit(t)}
+                      <Link
+                        href={taskHref(t.id)}
+                        className="max-w-[260px] truncate font-medium hover:underline underline-offset-2"
                       >
                         {t.title}
-                      </button>
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Select
@@ -570,7 +634,7 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectGroup>
-                            {PROJECT_TASK_COLUMNS.map((c) => (
+                            {boardColumns.map((c) => (
                               <SelectItem key={c.id} value={c.id}>
                                 {c.label}
                               </SelectItem>
@@ -601,21 +665,29 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      {t.assignee ? (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="size-6">
-                            <AvatarImage src={t.assignee.image || undefined} alt="" />
-                            <AvatarFallback className="text-[10px]">
-                              {initials(t.assignee.name, t.assignee.email)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="max-w-[120px] truncate text-sm text-muted-foreground">
-                            {t.assignee.name || t.assignee.email}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
+                      <Select
+                        value={t.assigneeId || '__none__'}
+                        onValueChange={(v) =>
+                          patchMutation.mutate({
+                            id: t.id,
+                            assigneeId: v === '__none__' ? null : v,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[160px]">
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem value="__none__">Unassigned</SelectItem>
+                            {members.map((m) => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name || m.email}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatDue(t.dueDate) || '—'}
@@ -623,28 +695,21 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 opacity-70 group-hover:opacity-100"
-                          >
+                          <Button variant="ghost" size="icon" className="size-8">
                             <MoreHorizontal className="size-4" />
-                            <span className="sr-only">Actions</span>
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuGroup>
-                            <DropdownMenuItem onClick={() => openEdit(t)}>
-                              <Pencil className="mr-2 size-4" />
-                              Edit
-                            </DropdownMenuItem>
-                          </DropdownMenuGroup>
-                          <DropdownMenuSeparator />
+                          <DropdownMenuItem asChild>
+                            <Link href={taskHref(t.id)}>Open</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openEdit(t)}>
+                            Quick edit
+                          </DropdownMenuItem>
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
+                            className="text-destructive"
                             onClick={() => setDeleteId(t.id)}
                           >
-                            <Trash2 className="mr-2 size-4" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -659,11 +724,11 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>New task</DialogTitle>
             <DialogDescription>
-              Add work to this project. You can drag it across the board anytime.
+              Add work to the board. Open the task afterward for comments and attachments.
             </DialogDescription>
           </DialogHeader>
           {taskFormFields}
@@ -676,11 +741,9 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
               onClick={() => createMutation.mutate()}
             >
               {createMutation.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <Plus className="mr-2 size-4" />
-              )}
-              Create task
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : null}
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -692,37 +755,34 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
           if (!open) setEditTask(null);
         }}
       >
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit task</DialogTitle>
+            <DialogTitle>Quick edit</DialogTitle>
             <DialogDescription>
-              Update status, priority, or details for this work item.
+              {editTask ? (
+                <Link
+                  href={taskHref(editTask.id)}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  Open full task view
+                </Link>
+              ) : null}
             </DialogDescription>
           </DialogHeader>
           {taskFormFields}
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              onClick={() => editTask && setDeleteId(editTask.id)}
-            >
-              <Trash2 className="mr-2 size-4" />
-              Delete
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTask(null)}>
+              Cancel
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setEditTask(null)}>
-                Cancel
-              </Button>
-              <Button
-                disabled={!form.title.trim() || updateMutation.isPending}
-                onClick={() => updateMutation.mutate()}
-              >
-                {updateMutation.isPending ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : null}
-                Save changes
-              </Button>
-            </div>
+            <Button
+              disabled={!form.title.trim() || updateMutation.isPending}
+              onClick={() => updateMutation.mutate()}
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+              ) : null}
+              Save
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -735,10 +795,9 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+            <AlertDialogTitle>Delete task?</AlertDialogTitle>
             <AlertDialogDescription>
-              This cannot be undone. The task will be removed from the board and
-              list.
+              This removes the task and its comments, watchers, and history.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -747,9 +806,6 @@ export function ProjectTaskBoard({ projectId, tasks: initialTasks }: Props) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
             >
-              {deleteMutation.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : null}
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

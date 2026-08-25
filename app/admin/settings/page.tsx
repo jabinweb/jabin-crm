@@ -1,4 +1,5 @@
 import { PlatformTenancySettings } from '@/components/admin/platform-tenancy-settings';
+import { PlatformPhpUploadSettings } from '@/components/admin/platform-php-upload-settings';
 
 export default function SettingsPage() {
   return (
@@ -6,12 +7,12 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Global SaaS configuration. Branding and secrets still live in environment
-          variables.
+          Global SaaS configuration stored in the database for Super Admins.
         </p>
       </div>
 
       <PlatformTenancySettings />
+      <PlatformPhpUploadSettings />
     </div>
   );
 }

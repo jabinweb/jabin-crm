@@ -52,6 +52,7 @@ type ProjectDetail = {
   deal?: { id: string; title: string; stage?: string; value?: number } | null;
   pmUser?: { id: string; name: string | null; email: string | null } | null;
   tasks?: ProjectTaskRow[];
+  projectTaskStatuses?: unknown;
   milestones: Array<{
     id: string;
     title: string;
@@ -405,6 +406,25 @@ export default function ProjectDetailPage() {
             projectId={project.id}
             tasks={tasks}
             progress={project.progress}
+            projectTaskStatuses={project.projectTaskStatuses}
+            members={[
+              ...(project.pmUser
+                ? [
+                    {
+                      id: project.pmUser.id,
+                      name: project.pmUser.name,
+                      email: project.pmUser.email,
+                    },
+                  ]
+                : []),
+              ...project.members.map((m) => ({
+                id: m.user.id,
+                name: m.user.name,
+                email: m.user.email,
+              })),
+            ].filter(
+              (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i
+            )}
           />
         </CardContent>
       </Card>
