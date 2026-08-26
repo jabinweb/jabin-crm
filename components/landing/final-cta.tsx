@@ -26,7 +26,7 @@ export function FinalCta() {
         </h2>
         <p className="mt-4 text-[var(--lp-muted)] leading-relaxed max-w-xl mx-auto">
           Spin up {brand.appName} today. Admins get a short setup; everyone else lands on a Home
-          screen that shows what needs attention — tickets, SLAs, renewals.
+          screen that shows what needs attention — deals, projects, tickets, and renewals.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button

@@ -1,15 +1,15 @@
 const roles = [
   {
     title: 'Owners & admins',
-    body: 'See open work, SLA risk, and renewals on Home. Invite the team when ready.',
+    body: 'See open work across sales, projects, tickets, and renewals. Invite the team when ready.',
   },
   {
-    title: 'Technicians',
-    body: 'Field tools, tickets, and service reports — without digging through ten menus.',
+    title: 'Sales & delivery',
+    body: 'Move deals through the pipeline, run project boards, and keep retainers and timesheets in sync.',
   },
   {
-    title: 'Clients',
-    body: 'Portal and QR service links so sites can raise requests without chasing WhatsApp.',
+    title: 'Support & clients',
+    body: 'Tickets, SLA, WhatsApp, and a client portal so requests don’t live only in chat threads.',
   },
 ];
 

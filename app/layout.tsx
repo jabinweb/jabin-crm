@@ -6,7 +6,6 @@ import { QueryProvider } from '@/components/providers/query-provider';
 import { Toaster } from '@/components/ui/sonner';
 import { ConfirmActionHost } from '@/components/ui/confirm-action-host';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { ServiceWorkerRegistration } from '@/components/pwa/service-worker-registration';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -66,7 +65,6 @@ export default function RootLayout({
         <ErrorBoundary>
           <AuthProvider>
             <QueryProvider>
-              <ServiceWorkerRegistration />
               {children}
               <Toaster />
               <ConfirmActionHost />

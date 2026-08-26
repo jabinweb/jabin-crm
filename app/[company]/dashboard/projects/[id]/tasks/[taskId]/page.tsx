@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -8,7 +9,6 @@ import { useSession } from 'next-auth/react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailChrome } from '@/components/layout/detail-chrome';
 import { ProjectTaskDetailSkeleton } from '@/components/loading';
-import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,14 @@ import {
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { resolveDoneStatusIds } from '@/lib/projects/task-statuses';
+
+const RichTextEditor = dynamic(
+  () => import('@/components/ui/rich-text-editor').then((mod) => mod.RichTextEditor),
+  {
+    ssr: false,
+    loading: () => <div className="min-h-[140px] animate-pulse rounded-md border bg-muted/40" />,
+  }
+);
 
 type Person = {
   id: string;
@@ -97,6 +105,7 @@ type TaskDetail = {
     createdAt: string;
   }>;
   projectTaskStatuses?: unknown;
+  memberOptions?: Person[];
   labels?: Array<{ label: { id: string; name: string; color: string } }>;
   linksFrom?: Array<{
     id: string;
@@ -238,20 +247,17 @@ export default function ProjectTaskDetailPage() {
     [task?.projectTaskStatuses]
   );
 
-  const members = useQuery({
-    queryKey: ['project-members', slug, projectId],
-    enabled: !!projectId,
-    queryFn: async () => {
-      const res = await workspaceFetch(`/api/projects/${projectId}`);
-      if (!res.ok) return [] as Person[];
-      const data = await res.json();
-      const list = (data.members || []) as Array<{ user: Person }>;
-      const people = list.map((m) => m.user);
-      if (data.pmUser) people.unshift(data.pmUser);
-      const byId = new Map(people.map((p) => [p.id, p]));
-      return Array.from(byId.values());
-    },
-  });
+  const doneStatusIds = useMemo(
+    () =>
+      resolveDoneStatusIds(
+        task?.projectTaskStatuses
+          ? { projectTaskStatuses: task.projectTaskStatuses }
+          : undefined
+      ),
+    [task?.projectTaskStatuses]
+  );
+
+  const members = useMemo(() => task?.memberOptions ?? [], [task?.memberOptions]);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({
@@ -475,16 +481,6 @@ export default function ProjectTaskDetailPage() {
 
   const columns =
     statusColumns.length > 0 ? statusColumns : PROJECT_TASK_COLUMNS;
-
-  const doneStatusIds = useMemo(
-    () =>
-      resolveDoneStatusIds(
-        task.projectTaskStatuses
-          ? { projectTaskStatuses: task.projectTaskStatuses }
-          : undefined
-      ),
-    [task.projectTaskStatuses]
-  );
 
   const subtasks = task.subtasks || [];
   const subtasksDone = subtasks.filter((s) =>
@@ -1250,13 +1246,13 @@ export default function ProjectTaskDetailPage() {
                   <SelectContent>
                     <SelectGroup>
                       <SelectItem value="__none__">Unassigned</SelectItem>
-                      {(members.data || []).map((m) => (
+                      {members.map((m) => (
                         <SelectItem key={m.id} value={m.id}>
                           {m.name || m.email}
                         </SelectItem>
                       ))}
                       {task.assignee &&
-                      !(members.data || []).some(
+                      !members.some(
                         (m) => m.id === task.assignee!.id
                       ) ? (
                         <SelectItem value={task.assignee.id}>

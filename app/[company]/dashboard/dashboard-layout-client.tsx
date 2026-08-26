@@ -1,21 +1,39 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Navbar } from '@/components/layout/navbar';
 import { Sidebar } from '@/components/layout/sidebar';
 import { UsageBanner } from '@/components/subscription/usage-banner';
-import { EmailReplyChecker } from '@/components/email/email-reply-checker';
-import { PWAInstallPrompt } from '@/components/pwa/install-prompt';
 import { OnboardingRedirect } from '@/components/onboarding/onboarding-redirect';
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ShellSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
-import { OpsAgentPanel } from '@/components/agent/ops-agent-panel';
 import '@/types/auth';
+
+const EmailReplyChecker = dynamic(
+  () => import('@/components/email/email-reply-checker').then((mod) => mod.EmailReplyChecker),
+  { ssr: false }
+);
+const PWAInstallPrompt = dynamic(
+  () => import('@/components/pwa/install-prompt').then((mod) => mod.PWAInstallPrompt),
+  { ssr: false }
+);
+const OpsAgentPanel = dynamic(
+  () => import('@/components/agent/ops-agent-panel').then((mod) => mod.OpsAgentPanel),
+  { ssr: false }
+);
+const ServiceWorkerRegistration = dynamic(
+  () =>
+    import('@/components/pwa/service-worker-registration').then(
+      (mod) => mod.ServiceWorkerRegistration
+    ),
+  { ssr: false }
+);
 
 function isFlushDashboardPath(pathname: string | null): boolean {
   if (!pathname) return false;
@@ -57,10 +75,11 @@ export function DashboardLayoutClient({
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
       <OnboardingRedirect />
+      <ServiceWorkerRegistration />
       <PWAInstallPrompt />
       <div className="shrink-0">
         <Navbar />
-        <EmailReplyChecker />
+        {pathname?.includes('/dashboard/emails') ? <EmailReplyChecker /> : null}
       </div>
 
       {/* Mobile Header */}

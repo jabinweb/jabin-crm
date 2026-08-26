@@ -6,37 +6,41 @@ const highlights = [
   {
     title: 'Command Home',
     description:
-      'Open tickets, SLA risk, contract renewals, and recent work — what needs attention today.',
+      'Open tickets, project work, renewals, and recent activity — what needs attention today.',
   },
   {
-    title: 'Tickets & SLA',
+    title: 'CRM & sales',
     description:
-      'Priority queues with response and resolution timers so breaches are visible before they happen.',
+      'Leads, deals, quotations, and invoices in one pipeline so sales stays connected to delivery.',
   },
   {
-    title: 'Field & equipment',
+    title: 'Projects & tasks',
     description:
-      'Installations, QR service links, GPS tools, and service reports for technicians on site.',
+      'Delivery boards, subtasks, comments, and My work so agencies and teams ship without another tool.',
   },
   {
-    title: 'AMC / CMC',
+    title: 'Tickets & portal',
     description:
-      'Track maintenance contracts and surface renewals on Home before coverage lapses.',
+      'SLA queues, WhatsApp, knowledge base, and a client portal for requests without chasing chat apps.',
   },
 ];
 
 const modules = [
   {
-    title: 'Sales & outreach',
-    items: ['Leads & deals', 'Quotations & invoices', 'Email sequences', 'Campaigns', 'WhatsApp'],
+    title: 'Sales & CRM',
+    items: ['Leads & deals', 'Quotations & invoices', 'Campaigns', 'Sequences', 'WhatsApp'],
   },
   {
-    title: 'Service operations',
-    items: ['Tickets', 'SLA policies', 'Omnichannel inbox', 'Knowledge base', 'Client portal'],
+    title: 'Delivery',
+    items: ['Projects & tasks', 'My work', 'Retainers', 'Timesheets', 'Service reports'],
   },
   {
-    title: 'People & field',
-    items: ['Attendance', 'Leave & payroll', 'Technician app', 'GPS tracking', 'Expenses'],
+    title: 'Support',
+    items: ['Tickets & SLA', 'Inbox', 'Knowledge base', 'Client portal', 'Live chat'],
+  },
+  {
+    title: 'People & ops',
+    items: ['Attendance', 'Leave & payroll', 'Inventory', 'Field tools', 'Contracts / AMC'],
   },
 ];
 
@@ -55,8 +59,8 @@ export function Features() {
               Full operations — without the complexity tax
             </h2>
             <p className="mt-4 text-[var(--lp-muted)] leading-relaxed">
-              {brand.appName} covers the same jobs as heavier platforms: queues, renewals,
-              field, sales, and portal. The difference is shorter paths and clearer screens.
+              {brand.appName} covers the same jobs as heavier platforms: CRM, projects, tickets,
+              HR, and portal. The difference is shorter paths and clearer screens.
             </p>
           </div>
 
@@ -89,7 +93,7 @@ export function Features() {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {modules.map((mod) => (
               <div
                 key={mod.title}

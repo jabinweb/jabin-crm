@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { TicketPhotoEvidence } from '@/components/tickets/ticket-photo-evidence';
-import { Customer360Strip } from '@/components/crm/customer-360-strip';
 import { useRealtime } from '@/hooks/use-realtime';
 import { REALTIME_EVENTS } from '@/lib/realtime/events';
 import { pushRecentEntity } from '@/lib/crm/recent-entities';
@@ -65,10 +64,25 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { AITicketSummary } from '@/components/tickets/AITicketSummary';
-import { SignaturePad } from '@/components/service/signature-pad';
 import { useFeatureModule } from '@/components/feature-module-guard';
 import { DetailSkeleton } from '@/components/loading';
+
+const TicketPhotoEvidence = dynamic(
+  () => import('@/components/tickets/ticket-photo-evidence').then((mod) => mod.TicketPhotoEvidence),
+  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-lg border bg-muted/40" /> }
+);
+const Customer360Strip = dynamic(
+  () => import('@/components/crm/customer-360-strip').then((mod) => mod.Customer360Strip),
+  { ssr: false, loading: () => <div className="h-24 animate-pulse rounded-lg border bg-muted/40" /> }
+);
+const AITicketSummary = dynamic(
+  () => import('@/components/tickets/AITicketSummary').then((mod) => mod.AITicketSummary),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-lg border bg-muted/40" /> }
+);
+const SignaturePad = dynamic(
+  () => import('@/components/service/signature-pad').then((mod) => mod.SignaturePad),
+  { ssr: false, loading: () => <div className="h-28 animate-pulse rounded-lg border bg-muted/40" /> }
+);
 
 export default function TicketDetailPage() {
     const { id } = useParams();
@@ -122,6 +136,10 @@ export default function TicketDetailPage() {
     const [guestBusy, setGuestBusy] = useState(false);
     const [companyFieldEdits, setCompanyFieldEdits] = useState<Record<string, string>>({});
     const [savingFields, setSavingFields] = useState(false);
+    const [ticketTab, setTicketTab] = useState('activity');
+    const [projectsSelectOpen, setProjectsSelectOpen] = useState(false);
+    const [deferHeavyPanels, setDeferHeavyPanels] = useState(false);
+    const typingRef = useRef(false);
 
     const { data: ticket, isLoading } = useQuery({
         queryKey: ['ticket', id],
@@ -159,8 +177,8 @@ export default function TicketDetailPage() {
                 hasGuestLink?: boolean;
             }>;
         },
-        refetchInterval: 15_000,
-        staleTime: 10_000,
+        // Heartbeat + realtime keep presence fresh; avoid a second 15s poll storm.
+        staleTime: 30_000,
     });
 
     const { data: companyFieldDefs = [] } = useQuery({
@@ -195,7 +213,7 @@ export default function TicketDetailPage() {
                 status: string;
             }>;
         },
-        enabled: !!slug,
+        enabled: !!slug && projectsSelectOpen,
         staleTime: 60_000,
     });
 
@@ -227,14 +245,28 @@ export default function TicketDetailPage() {
     }, [ticket?.metadata]);
 
     useEffect(() => {
+        typingRef.current = newComment.trim().length > 0;
+    }, [newComment]);
+
+    useEffect(() => {
+        if (!ticket?.id) {
+            setDeferHeavyPanels(false);
+            return;
+        }
+        const timer = window.setTimeout(() => setDeferHeavyPanels(true), 350);
+        return () => window.clearTimeout(timer);
+    }, [ticket?.id]);
+
+    useEffect(() => {
         if (!id) return;
         const tick = async () => {
             try {
                 await workspaceFetch(`/api/tickets/${id}/presence`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'heartbeat', typing: newComment.trim().length > 0 }),
+                    body: JSON.stringify({ action: 'heartbeat', typing: typingRef.current }),
                 });
+                void refetchPresence();
             } catch {
                 /* ignore */
             }
@@ -242,7 +274,7 @@ export default function TicketDetailPage() {
         tick();
         const interval = setInterval(tick, 15_000);
         return () => clearInterval(interval);
-    }, [id, workspaceFetch, newComment]);
+    }, [id, workspaceFetch, refetchPresence]);
 
     useRealtime({
         types: [
@@ -267,6 +299,10 @@ export default function TicketDetailPage() {
                     if (typing) return Array.from(new Set([...prev, name]));
                     return prev.filter((n) => n !== name);
                 });
+                return;
+            }
+            if (e.type === REALTIME_EVENTS.TICKET_PRESENCE) {
+                void queryClient.invalidateQueries({ queryKey: ['ticket-presence', id] });
                 return;
             }
             void queryClient.invalidateQueries({ queryKey: ['ticket', id] });
@@ -407,6 +443,7 @@ export default function TicketDetailPage() {
 
     const { data: cannedResponses } = useQuery({
         queryKey: ['canned-responses'],
+        enabled: ticketTab === 'comments',
         queryFn: async () => {
             const response = await workspaceFetch('/api/support/canned-responses');
             if (!response.ok) return [];
@@ -534,11 +571,13 @@ export default function TicketDetailPage() {
 
     const { data: technicians } = useQuery({
         queryKey: ['technicians'],
+        enabled: showTransferDialog,
         queryFn: async () => {
             const response = await workspaceFetch('/api/users/technicians');
             if (!response.ok) return [];
             return response.json();
-        }
+        },
+        staleTime: 60_000,
     });
 
     const { data: consumableProducts = [] } = useQuery({
@@ -706,13 +745,19 @@ export default function TicketDetailPage() {
                         </CardContent>
                     </Card>
 
+                    {deferHeavyPanels && ticket.customer?.id ? (
                     <Customer360Strip customerId={ticket.customer?.id} />
+                    ) : null}
 
                     {/* AI Insights Card */}
                     <AITicketSummary ticketId={id as string} />
 
                     {/* Activity/Comments Tabs */}
-                    <Tabs defaultValue="activity" className="space-y-4">
+                    <Tabs
+                        value={ticketTab}
+                        onValueChange={setTicketTab}
+                        className="space-y-4"
+                    >
                         <TabsList>
                             <TabsTrigger value="activity">Activity Timeline</TabsTrigger>
                             <TabsTrigger value="comments">Comments & Notes</TabsTrigger>
@@ -890,6 +935,7 @@ export default function TicketDetailPage() {
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Project</p>
                                 <Select
                                     value={ticket.projectId || ticket.project?.id || '__none__'}
+                                    onOpenChange={setProjectsSelectOpen}
                                     onValueChange={(val) =>
                                         void saveProjectLink(val === '__none__' ? null : val)
                                     }
@@ -1080,7 +1126,7 @@ export default function TicketDetailPage() {
                         </Card>
                     )}
 
-                    <TicketPhotoEvidence ticketId={String(id)} />
+                    {deferHeavyPanels ? <TicketPhotoEvidence ticketId={String(id)} /> : null}
 
                     <Card>
                         <CardHeader className="pb-3">

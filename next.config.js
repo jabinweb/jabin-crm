@@ -1,7 +1,10 @@
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: { 
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -9,11 +12,6 @@ const nextConfig = {
       },
     ],
   },
-  
-  experimental: {
-    optimizePackageImports: ['@/components/ui'],
-  },
-  
   // Security headers — strict CSP only in production (blocks Razorpay on localhost during dev)
   async headers() {
     const securityHeaders = [
@@ -87,4 +85,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withBundleAnalyzer(nextConfig);

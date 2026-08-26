@@ -1,8 +1,8 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { StatsCards } from '@/components/dashboard/stats-cards';
-import { LeadsChart } from '@/components/dashboard/leads-chart';
 import { ProfileCompletionBanner } from '@/components/dashboard/profile-completion-banner';
 import {
   GettingStartedChecklist,
@@ -40,8 +40,18 @@ import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { renewalUrgency } from '@/lib/crm/service-contract-utils';
 import { DailyEntryBanner } from '@/components/dashboard/daily-entry-banner';
 import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-card';
-import { AgentQueueCard } from '@/components/dashboard/agent-queue-card';
-import { ModuleHubCards } from '@/components/dashboard/module-hub-cards';
+const LeadsChart = dynamic(
+  () => import('@/components/dashboard/leads-chart').then((mod) => mod.LeadsChart),
+  { ssr: false, loading: () => <Skeleton className="h-80 w-full" /> }
+);
+const AgentQueueCard = dynamic(
+  () => import('@/components/dashboard/agent-queue-card').then((mod) => mod.AgentQueueCard),
+  { ssr: false, loading: () => <Skeleton className="h-40 w-full" /> }
+);
+const ModuleHubCards = dynamic(
+  () => import('@/components/dashboard/module-hub-cards').then((mod) => mod.ModuleHubCards),
+  { ssr: false, loading: () => <Skeleton className="h-48 w-full" /> }
+);
 
 export default function WorkspaceDashboardPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();

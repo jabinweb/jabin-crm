@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -34,9 +35,16 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { cn } from '@/lib/utils';
 import { DetailChrome } from '@/components/layout/detail-chrome';
 import {
-  ProjectTaskBoard,
   type ProjectTaskRow,
 } from '@/components/projects/project-task-board';
+
+const ProjectTaskBoard = dynamic(
+  () => import('@/components/projects/project-task-board').then((mod) => mod.ProjectTaskBoard),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[420px] w-full" />,
+  }
+);
 
 type ProjectDetail = {
   id: string;

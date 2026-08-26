@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/file-upload';
@@ -53,11 +54,13 @@ export function TicketPhotoEvidence({ ticketId }: { ticketId: string }) {
                 rel="noreferrer"
                 className="block rounded-md border overflow-hidden bg-muted/40 aspect-square"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={a.url}
                   alt={a.fileName || 'Evidence'}
+                  width={480}
+                  height={480}
                   className="h-full w-full object-cover"
+                  sizes="(max-width: 640px) 50vw, 33vw"
                 />
               </a>
             ))}

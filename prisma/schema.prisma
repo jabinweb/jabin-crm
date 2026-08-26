@@ -1371,6 +1371,7 @@ model SupportTicket {
   @@index([groupId])
   @@index([serviceContractId])
   @@index([assignedTechnicianId])
+  @@index([assignedTechnicianId, status, createdAt])
   @@index([status])
   @@index([priority])
   @@index([channel])
@@ -1380,6 +1381,8 @@ model SupportTicket {
   @@index([resolvedAt])
   @@index([guestAccessToken])
   @@index([projectId])
+  @@index([projectId, status, createdAt])
+  @@index([status, priority, createdAt])
 }
 
 model TicketWatcher {
@@ -2190,7 +2193,10 @@ model Notification {
   customer   Customer?        @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt])
+  @@index([userId, read, createdAt])
   @@index([customerId])
+  @@index([customerId, createdAt])
   @@index([read])
   @@index([createdAt])
 }
@@ -3269,6 +3275,7 @@ model ProjectTask {
   @@index([parentTaskId])
   @@index([status])
   @@index([assigneeId])
+  @@index([assigneeId, updatedAt])
   @@index([reporterId])
   @@index([dueDate])
   @@index([projectId, status, sortOrder])
@@ -3287,6 +3294,7 @@ model ProjectTaskComment {
   attachments ProjectTaskAttachment[]
 
   @@index([taskId])
+  @@index([taskId, createdAt])
   @@index([authorId])
   @@index([createdAt])
 }
@@ -3316,6 +3324,7 @@ model ProjectTaskActivity {
   actor       User?    @relation("ProjectTaskActivities", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([taskId])
+  @@index([taskId, createdAt])
   @@index([createdAt])
   @@index([eventType])
 }
@@ -3338,6 +3347,7 @@ model ProjectTaskAttachment {
   uploadedBy   User?    @relation("ProjectTaskAttachments", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([taskId])
+  @@index([taskId, createdAt])
   @@index([commentId])
   @@index([uploadedById])
 }
@@ -3403,6 +3413,7 @@ model ProjectTaskWorklog {
   user      User        @relation("ProjectTaskWorklogs", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([taskId])
+  @@index([taskId, loggedAt])
   @@index([userId])
   @@index([loggedAt])
 }

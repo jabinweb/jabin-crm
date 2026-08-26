@@ -6,6 +6,7 @@ import { getClientBrandConfig } from '@/lib/branding';
 
 const tabs = [
   { id: 'home', label: 'Home' },
+  { id: 'projects', label: 'Projects' },
   { id: 'ticket', label: 'Ticket + SLA' },
   { id: 'amc', label: 'AMC renewals' },
 ] as const;
@@ -43,8 +44,8 @@ function HomeScreen() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { l: 'Open tickets', v: '24' },
-          { l: 'SLA on track', v: '94%' },
-          { l: 'At risk', v: '3' },
+          { l: 'Active projects', v: '12' },
+          { l: 'Deals open', v: '8' },
           { l: 'AMC due', v: '7' },
         ].map((s) => (
           <div key={s.l} className="rounded-xl border border-[var(--lp-line)] bg-white p-3">
@@ -108,6 +109,47 @@ function TicketScreen() {
   );
 }
 
+function ProjectsScreen() {
+  return (
+    <div className="p-4 sm:p-6 space-y-4 bg-stone-50/80 min-h-[320px]">
+      <div>
+        <p className="text-lg font-semibold text-[var(--lp-ink)]">Website redesign</p>
+        <p className="text-xs text-[var(--lp-muted)]">Board · 12 tasks · 68% done</p>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          {
+            col: 'To do',
+            cards: ['Homepage wireframes', 'SEO keyword map'],
+          },
+          {
+            col: 'In progress',
+            cards: ['CMS templates', 'Staging deploy'],
+          },
+          {
+            col: 'Done',
+            cards: ['Kickoff brief', 'Brand assets'],
+          },
+        ].map((column) => (
+          <div key={column.col} className="rounded-xl border border-[var(--lp-line)] bg-white p-2.5 space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--lp-muted)] px-1">
+              {column.col}
+            </p>
+            {column.cards.map((card) => (
+              <div
+                key={card}
+                className="rounded-lg border border-[var(--lp-line)] bg-[var(--lp-bg)] px-2.5 py-2 text-xs text-[var(--lp-ink)]"
+              >
+                {card}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AmcScreen() {
   return (
     <div className="p-4 sm:p-6 space-y-4 bg-stone-50/80 min-h-[320px]">
@@ -152,8 +194,8 @@ export function ProductScreens() {
             See {brand.appName} the way your team will
           </h2>
           <p className="mt-4 text-[var(--lp-muted)] leading-relaxed">
-            Home shows risk first. Tickets carry SLA timers. Contracts surface renewals before
-            coverage ends.
+            Home shows what needs attention. Projects keep delivery boards moving. Tickets carry
+            SLA timers. Contracts surface renewals before coverage ends.
           </p>
         </div>
 
@@ -177,6 +219,7 @@ export function ProductScreens() {
 
         <Chrome title={`${brand.appName.toLowerCase()} · ${tab}`}>
           {tab === 'home' && <HomeScreen />}
+          {tab === 'projects' && <ProjectsScreen />}
           {tab === 'ticket' && <TicketScreen />}
           {tab === 'amc' && <AmcScreen />}
         </Chrome>

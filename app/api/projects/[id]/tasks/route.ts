@@ -28,13 +28,17 @@ async function companySettings(companyId: string) {
 }
 
 async function syncProgress(projectId: string, companyId: string) {
-  const [tasks, settings] = await Promise.all([
-    prisma.projectTask.findMany({
+  const [statusCounts, settings] = await Promise.all([
+    prisma.projectTask.groupBy({
+      by: ['status'],
       where: { projectId },
-      select: { status: true },
+      _count: { _all: true },
     }),
     companySettings(companyId),
   ]);
+  const tasks = statusCounts.flatMap((row) =>
+    Array.from({ length: row._count._all }, () => ({ status: row.status }))
+  );
   const progress = computeProgressFromTasks(
     tasks,
     resolveDoneStatusIds(settings)
@@ -227,11 +231,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     );
     const progress = await syncProgress(projectId, companyId);
     const tasks = await prisma.projectTask.findMany({
-      where: { projectId },
+      where: { projectId, parentTaskId: null },
       include: {
         assignee: { select: { id: true, name: true, email: true, image: true } },
+        _count: { select: { subtasks: true } },
       },
-      orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }],
+      orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
     return jsonOk({ tasks, progress });
   }

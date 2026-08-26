@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Notification } from '@/types/notifications'
 import { toast } from '@/hooks/use-toast'
 import { addDismissedNotification, isDismissed } from '@/lib/dismissed-notifications'
@@ -13,6 +13,7 @@ export function useNotifications(_userRole: string) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const lastFetchAtRef = useRef(0)
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -41,6 +42,7 @@ export function useNotifications(_userRole: string) {
         (notification: Notification) => !isDismissed(notification.id)
       )
       setNotifications(filteredNotifications)
+      lastFetchAtRef.current = Date.now()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load notifications'
       console.error('Notification error:', message)
@@ -73,12 +75,34 @@ export function useNotifications(_userRole: string) {
   }, [])
 
   useEffect(() => {
+    if (!session?.user) {
+      setNotifications([])
+      setLoading(false)
+      return
+    }
+
     void fetchNotifications()
+
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
       void fetchNotifications()
     }, 120_000)
-    return () => clearInterval(interval)
-  }, [fetchNotifications])
+
+    const onVisibilityOrFocus = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastFetchAtRef.current < 30_000) return
+      void fetchNotifications()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityOrFocus)
+    window.addEventListener('focus', onVisibilityOrFocus)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityOrFocus)
+      window.removeEventListener('focus', onVisibilityOrFocus)
+    }
+  }, [fetchNotifications, session?.user])
 
   useRealtime({
     types: [REALTIME_EVENTS.NOTIFICATION_CREATED],
@@ -86,6 +110,7 @@ export function useNotifications(_userRole: string) {
       const myId = session?.user?.id
       if (e.userId && myId && e.userId !== myId) return
       void fetchNotifications()
+      lastFetchAtRef.current = Date.now()
       const title =
         typeof e.payload?.title === 'string' ? e.payload.title : 'New notification'
       const description =

@@ -42,8 +42,8 @@ export function LandingHero() {
             </h1>
 
             <p className="mt-5 text-base sm:text-lg text-[var(--lp-muted)] leading-relaxed max-w-md">
-              Sales, tickets, field work, and renewals — without a week of training. Admins set
-              up once; technicians and clients just get work done.
+              CRM, projects, tickets, HR, and a client portal — without a week of training.
+              Admins set up once; sales, delivery, and support just get work done.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
@@ -85,9 +85,9 @@ export function LandingHero() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   {[
                     { label: 'Open tickets', value: '24', delta: '+3 today' },
-                    { label: 'SLA on track', value: '94%', delta: '+1.3%' },
-                    { label: 'AMC due', value: '7', delta: '60 days' },
-                    { label: 'Agents', value: '18', delta: '4 idle' },
+                    { label: 'Active projects', value: '12', delta: '4 due soon' },
+                    { label: 'Pipeline', value: '₹18L', delta: '8 deals' },
+                    { label: 'My work', value: '9', delta: 'tasks due' },
                   ].map((stat) => (
                     <div
                       key={stat.label}
@@ -104,8 +104,8 @@ export function LandingHero() {
                 <div className="rounded-lg border border-white/10 overflow-hidden">
                   <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 px-3 py-2 text-[10px] uppercase tracking-wider text-slate-500 border-b border-white/10 bg-white/[0.03]">
                     <span>ID</span>
-                    <span>Issue</span>
-                    <span>SLA</span>
+                    <span>Work</span>
+                    <span>Status</span>
                   </div>
                   {[
                     {
@@ -115,15 +115,15 @@ export function LandingHero() {
                       tone: 'text-rose-400',
                     },
                     {
-                      id: 'TK-1839',
-                      title: 'Sensor replacement — Line B',
-                      sla: '5h 30m',
+                      id: 'PRJ-042',
+                      title: 'Website redesign — board tasks',
+                      sla: 'In review',
                       tone: 'text-amber-400',
                     },
                     {
-                      id: 'TK-1836',
-                      title: 'Monthly PM — Unit C',
-                      sla: '1 day',
+                      id: 'DL-318',
+                      title: 'Enterprise deal — proposal sent',
+                      sla: 'Follow-up',
                       tone: 'text-slate-400',
                     },
                   ].map((row) => (
@@ -149,8 +149,8 @@ export function LandingHero() {
           {[
             { value: 'Simple', label: 'Plain language, not IT jargon' },
             { value: 'Self-serve', label: 'Live in minutes, no sales call' },
-            { value: 'SLA & AMC', label: 'Timers and renewals on Home' },
-            { value: 'For everyone', label: 'Admin, tech, sales, clients' },
+            { value: 'Full stack', label: 'CRM, projects, tickets, HR' },
+            { value: 'For everyone', label: 'Sales, delivery, support, clients' },
           ].map((item) => (
             <div key={item.label}>
               <p className="text-sm font-semibold text-[var(--lp-ink)]">{item.value}</p>

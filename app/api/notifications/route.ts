@@ -35,19 +35,26 @@ export async function GET(request: NextRequest) {
     const notifications: NotificationItem[] = []
 
     // Persistent DB notifications (CRM / tickets / workflows)
-    const dbNotes = await notificationService.getForUser(session.user.id, 40)
-    for (const n of dbNotes) {
-      notifications.push({
-        id: n.id,
-        title: n.title,
-        message: n.body,
-        type: n.type,
-        targetRole: [role || 'USER'],
-        metadata: (n.metadata as Record<string, unknown>) || {},
-        createdAt: n.createdAt.toISOString(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        read: n.read,
-      })
+    try {
+      const dbNotes = await notificationService.getForUser(session.user.id, 40)
+      for (const n of dbNotes) {
+        notifications.push({
+          id: n.id,
+          title: n.title,
+          message: n.body,
+          type: n.type,
+          targetRole: [role || 'USER'],
+          metadata: (n.metadata as Record<string, unknown>) || {},
+          createdAt: n.createdAt.toISOString(),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          read: n.read,
+        })
+      }
+    } catch (error) {
+      console.error(
+        'Notifications feed degraded:',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
     }
 
     const employeeId =

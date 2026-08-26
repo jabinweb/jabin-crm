@@ -22,13 +22,17 @@ async function companySettings(companyId: string) {
 }
 
 async function syncProgress(projectId: string, companyId: string) {
-  const [tasks, settings] = await Promise.all([
-    prisma.projectTask.findMany({
+  const [statusCounts, settings] = await Promise.all([
+    prisma.projectTask.groupBy({
+      by: ['status'],
       where: { projectId },
-      select: { status: true },
+      _count: { _all: true },
     }),
     companySettings(companyId),
   ]);
+  const tasks = statusCounts.flatMap((row) =>
+    Array.from({ length: row._count._all }, () => ({ status: row.status }))
+  );
   const progress = computeProgressFromTasks(
     tasks,
     resolveDoneStatusIds(settings)
@@ -51,7 +55,18 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
     include: {
       assignee: { select: { id: true, name: true, email: true, image: true } },
       reporter: { select: { id: true, name: true, email: true, image: true } },
-      project: { select: { id: true, name: true } },
+      project: {
+        select: {
+          id: true,
+          name: true,
+          pmUser: { select: { id: true, name: true, email: true, image: true } },
+          members: {
+            select: {
+              user: { select: { id: true, name: true, email: true, image: true } },
+            },
+          },
+        },
+      },
       parentTask: {
         select: { id: true, title: true },
       },
@@ -133,9 +148,16 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
       : {};
 
   const watching = task.watchers.some((w) => w.userId === session.user.id);
+  const memberOptions = [
+    ...(task.project.pmUser ? [task.project.pmUser] : []),
+    ...task.project.members.map((member) => member.user),
+  ].filter(
+    (person, index, arr) => arr.findIndex((candidate) => candidate.id === person.id) === index
+  );
   return jsonOk({
     ...task,
     watching,
+    memberOptions,
     projectTaskStatuses: settings.projectTaskStatuses ?? null,
   });
 });

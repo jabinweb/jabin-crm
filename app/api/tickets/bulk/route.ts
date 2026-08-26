@@ -52,19 +52,34 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     })
     updated = validIds.length
   } else if (action === 'add_tag' && typeof body.tag === 'string') {
-    for (const id of validIds) {
-      const t = await prisma.supportTicket.findUnique({ where: { id }, select: { tags: true } })
-      const tags = Array.from(new Set([...(t?.tags || []), body.tag.trim()]))
-      await prisma.supportTicket.update({ where: { id }, data: { tags } })
-      updated++
-    }
+    const tag = body.tag.trim()
+    const existing = await prisma.supportTicket.findMany({
+      where: { id: { in: validIds } },
+      select: { id: true, tags: true },
+    })
+    await prisma.$transaction(
+      existing.map((ticket) =>
+        prisma.supportTicket.update({
+          where: { id: ticket.id },
+          data: { tags: Array.from(new Set([...ticket.tags, tag])) },
+        })
+      )
+    )
+    updated = existing.length
   } else if (action === 'remove_tag' && typeof body.tag === 'string') {
-    for (const id of validIds) {
-      const t = await prisma.supportTicket.findUnique({ where: { id }, select: { tags: true } })
-      const tags = (t?.tags || []).filter((x) => x !== body.tag)
-      await prisma.supportTicket.update({ where: { id }, data: { tags } })
-      updated++
-    }
+    const existing = await prisma.supportTicket.findMany({
+      where: { id: { in: validIds } },
+      select: { id: true, tags: true },
+    })
+    await prisma.$transaction(
+      existing.map((ticket) =>
+        prisma.supportTicket.update({
+          where: { id: ticket.id },
+          data: { tags: ticket.tags.filter((tag) => tag !== body.tag) },
+        })
+      )
+    )
+    updated = existing.length
   } else {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   }
