@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Project" ADD COLUMN IF NOT EXISTS "budgetHours" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "ClientRetainer" ADD COLUMN IF NOT EXISTS "includedHours" DOUBLE PRECISION;

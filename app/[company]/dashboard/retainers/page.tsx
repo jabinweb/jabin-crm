@@ -47,6 +47,7 @@ type Retainer = {
   billingCycle: string;
   status: string;
   nextBillAt: string | null;
+  includedHours?: number | null;
   customer?: { id: string; organizationName: string } | null;
   project?: { id: string; name: string } | null;
 };
@@ -61,6 +62,7 @@ export default function RetainersPage() {
   const [customerId, setCustomerId] = useState('');
   const [billingCycle, setBillingCycle] = useState('MONTHLY');
   const [projectId, setProjectId] = useState('');
+  const [includedHours, setIncludedHours] = useState('');
 
   const { data: retainers = [], isLoading } = useQuery({
     queryKey: ['retainers', slug],
@@ -102,10 +104,13 @@ export default function RetainersPage() {
     setCustomerId('');
     setBillingCycle('MONTHLY');
     setProjectId('');
+    setIncludedHours('');
   };
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const hours =
+        includedHours.trim() === '' ? null : Number(includedHours);
       const res = await workspaceFetch('/api/retainers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,6 +120,10 @@ export default function RetainersPage() {
           customerId,
           billingCycle,
           projectId: projectId || null,
+          includedHours:
+            hours != null && Number.isFinite(hours) && hours >= 0
+              ? hours
+              : null,
         }),
       });
       if (!res.ok) {
@@ -269,6 +278,11 @@ export default function RetainersPage() {
                           {' '}
                           / {r.billingCycle.toLowerCase()}
                         </span>
+                        {r.includedHours != null ? (
+                          <p className="text-xs text-muted-foreground">
+                            {r.includedHours}h included
+                          </p>
+                        ) : null}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {r.nextBillAt
@@ -393,6 +407,17 @@ export default function RetainersPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Included hours / cycle (optional)</Label>
+              <Input
+                type="number"
+                min={0}
+                step={0.5}
+                value={includedHours}
+                onChange={(e) => setIncludedHours(e.target.value)}
+                placeholder="e.g. 10"
+              />
             </div>
           </div>
           <DialogFooter>

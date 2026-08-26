@@ -96,6 +96,7 @@ export const WORKSPACE_MODULES: WorkspaceModuleDef[] = [
       '/dashboard/analytics',
       '/dashboard/team',
       '/dashboard/duplicates',
+      '/dashboard/tasks',
     ],
     agencyOrder: 2,
     defaultOrder: 2,
@@ -221,7 +222,6 @@ export const WORKSPACE_MODULES: WorkspaceModuleDef[] = [
       '/dashboard/docs',
       '/dashboard/settings',
       '/dashboard/calendar',
-      '/dashboard/tasks',
       '/admin',
     ],
     agencyOrder: 7,
@@ -301,9 +301,12 @@ export function resolveModuleId(
     return vertical === 'web_agency' ? 'projects' : 'people';
   }
 
-  // Calendar / tasks live under workspace (cross-cutting work)
-  if (path.startsWith('/dashboard/calendar') || path.startsWith('/dashboard/tasks')) {
+  // Calendar under workspace; CRM follow-up tasks under sales
+  if (path.startsWith('/dashboard/calendar')) {
     return 'workspace';
+  }
+  if (path.startsWith('/dashboard/tasks')) {
+    return 'sales';
   }
 
   let best: { id: WorkspaceModuleId; priority: number; prefixLen: number } | null = null;
@@ -378,6 +381,7 @@ export const CLIENTS_NAV: NavItem[] = [
 export const SALES_NAV: NavItem[] = [
   { name: 'Leads', href: '/dashboard/leads', icon: 'Activity', module: 'LEADS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], terminologyKey: 'leads' },
   { name: 'Deals', href: '/dashboard/deals', icon: 'CreditCard', module: 'DEALS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], terminologyKey: 'deals' },
+  { name: 'Follow-ups', href: '/dashboard/tasks', icon: 'ClipboardList', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Quotations', href: '/dashboard/quotations', icon: 'FileCheck', module: 'QUOTATIONS', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Invoices', href: '/dashboard/invoices', icon: 'Receipt', module: 'INVOICES', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   {
@@ -396,6 +400,7 @@ export const SALES_NAV: NavItem[] = [
 export const PROJECTS_NAV: NavItem[] = [
   { name: 'Projects', href: '/dashboard/projects', icon: 'FolderKanban', roles: ['ADMIN', 'SUPER_ADMIN', 'SALES', 'TECHNICIAN', 'SUPPORT_MANAGER'] },
   { name: 'My work', href: '/dashboard/projects/my-work', icon: 'ListTodo', roles: ['ADMIN', 'SUPER_ADMIN', 'SALES', 'TECHNICIAN', 'SUPPORT_MANAGER'] },
+  { name: 'Backlog', href: '/dashboard/projects/backlog', icon: 'List', roles: ['ADMIN', 'SUPER_ADMIN', 'SALES', 'TECHNICIAN', 'SUPPORT_MANAGER'] },
   { name: 'Retainers', href: '/dashboard/retainers', icon: 'RefreshCw', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Budgets', href: '/dashboard/budgets', icon: 'PiggyBank', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Timesheets', href: '/dashboard/timesheets', icon: 'Clock', roles: ['ADMIN', 'SUPER_ADMIN'] },
@@ -404,7 +409,6 @@ export const PROJECTS_NAV: NavItem[] = [
 
 export const HOME_WORK_NAV: NavItem[] = [
   { name: 'Calendar', href: '/dashboard/calendar', icon: 'Calendar', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: 'ClipboardList', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
 ];
 
 export const SUPPORT_NAV: NavItem[] = [
@@ -576,7 +580,6 @@ export const PEOPLE_ADMIN_NAV: NavItem[] = PEOPLE_NAV_SECTIONS.flatMap((s) => s.
 export const WORKSPACE_NAV: NavItem[] = [
   { name: 'Reporting', href: '/dashboard/reports', icon: 'BarChart3', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: 'Calendar', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: 'ClipboardList', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Messages', href: '/dashboard/messages', icon: 'MessageSquare', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
   { name: 'Documentation', href: '/dashboard/docs', icon: 'BookOpen' },
   { name: 'Automations', href: '/dashboard/workflows', icon: 'Zap', roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },

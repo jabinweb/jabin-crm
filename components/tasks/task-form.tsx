@@ -73,7 +73,7 @@ export function TaskForm({ employees, onSuccess, onCancel }: TaskFormProps) {
 
       toast({
         title: "Success",
-        description: "CompanyTask created successfully",
+        description: "Follow-up created successfully",
       })
 
       onSuccess?.()
@@ -125,7 +125,7 @@ export function TaskForm({ employees, onSuccess, onCancel }: TaskFormProps) {
             name="priority"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>CompanyTaskPriority</FormLabel>
+                <FormLabel>Priority</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -250,7 +250,7 @@ export function TaskForm({ employees, onSuccess, onCancel }: TaskFormProps) {
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>
-            Create CompanyTask
+            Create follow-up
           </Button>
         </div>
       </form>

@@ -3189,6 +3189,8 @@ model Project {
   /// website | webapp | seo | branding | retainer | other
   projectType String    @default("other")
   progress    Int       @default(0)
+  /// Optional delivery hour budget for burn tracking
+  budgetHours Float?
   startDate   DateTime
   endDate     DateTime
   companyId   String
@@ -3445,6 +3447,8 @@ model ClientRetainer {
   currency      String    @default("USD")
   /// MONTHLY | QUARTERLY | YEARLY
   billingCycle  String    @default("MONTHLY")
+  /// Optional included hours per billing cycle (for burn vs retainer)
+  includedHours Float?
   /// ACTIVE | PAUSED | CANCELLED | ENDED
   status        String    @default("ACTIVE")
   startDate     DateTime  @default(now())

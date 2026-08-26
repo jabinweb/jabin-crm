@@ -117,15 +117,34 @@ export async function proxy(req: NextRequest) {
     });
   }
 
+  // Skip JWT decode on pure public marketing/static API paths — it was adding
+  // hundreds of ms to every landing hit even when auth is unused.
+  const skipJwt =
+    PUBLIC_EXACT.has(pathname) ||
+    pathname.startsWith('/pricing') ||
+    pathname.startsWith('/start') ||
+    pathname.startsWith('/privacy') ||
+    pathname.startsWith('/terms') ||
+    pathname.startsWith('/api/pricing') ||
+    pathname.startsWith('/api/platform') ||
+    pathname.startsWith('/api/webhooks') ||
+    pathname.startsWith('/api/whatsapp/webhook') ||
+    pathname.startsWith('/api/uploadthing') ||
+    pathname.startsWith('/api/payment/callback') ||
+    pathname.startsWith('/service-request') ||
+    pathname.startsWith('/api/service-request');
+
   // --- Auth gate ---
 
-  const token = await getToken({
-    req,
-    secret: process.env.AUTH_SECRET,
-    secureCookie: process.env.NODE_ENV === 'production',
-  });
+  const token = skipJwt
+    ? null
+    : await getToken({
+        req,
+        secret: process.env.AUTH_SECRET,
+        secureCookie: process.env.NODE_ENV === 'production',
+      });
   const isLoggedIn = !!token;
-  const user = token as Record<string, unknown>;
+  const user = (token || {}) as Record<string, unknown>;
   const role = user?.role as string | undefined;
 
   const isCompanyScopedRegister =

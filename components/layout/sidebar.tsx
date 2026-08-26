@@ -52,6 +52,7 @@ import {
   Gauge,
   HelpCircle,
   Plug,
+  ListTodo,
   type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -136,6 +137,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   FolderKanban,
   Landmark,
   LayoutGrid,
+  ListTodo,
   RefreshCw,
   ArrowLeftRight,
   Briefcase,

@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -37,6 +37,9 @@ import { DetailChrome } from '@/components/layout/detail-chrome';
 import {
   type ProjectTaskRow,
 } from '@/components/projects/project-task-board';
+import { burnPercent } from '@/lib/projects/delivery-hours-math';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const ProjectTaskBoard = dynamic(
   () => import('@/components/projects/project-task-board').then((mod) => mod.ProjectTaskBoard),
@@ -53,9 +56,12 @@ type ProjectDetail = {
   status: string;
   projectType: string;
   progress: number;
+  budgetHours?: number | null;
   startDate: string;
   endDate: string;
   hoursLogged?: number;
+  timesheetHours?: number;
+  worklogHours?: number;
   customer?: { id: string; organizationName: string } | null;
   deal?: { id: string; title: string; stage?: string; value?: number } | null;
   pmUser?: { id: string; name: string | null; email: string | null } | null;
@@ -88,6 +94,7 @@ type ProjectDetail = {
     billingCycle: string;
     status: string;
     nextBillAt: string | null;
+    includedHours?: number | null;
   }>;
 };
 
@@ -134,6 +141,7 @@ export default function ProjectDetailPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [descExpanded, setDescExpanded] = useState(false);
+  const [budgetDraft, setBudgetDraft] = useState('');
 
   const { data: project, isLoading, isError } = useQuery({
     queryKey: ['project', slug, projectId],
@@ -165,10 +173,40 @@ export default function ProjectDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const budgetMutation = useMutation({
+    mutationFn: async (budgetHours: number | null) => {
+      const res = await workspaceFetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ budgetHours }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update budget');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project', slug, projectId] });
+      toast.success('Hour budget saved');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const liveUrl = useMemo(
     () => (project?.description ? extractLiveUrl(project.description) : null),
     [project?.description]
   );
+
+  // Sync budget draft when project loads
+  useEffect(() => {
+    if (project) {
+      setBudgetDraft(
+        project.budgetHours != null ? String(project.budgetHours) : ''
+      );
+    }
+  }, [project?.id, project?.budgetHours]);
+
 
   const descPreview = useMemo(() => {
     if (!project?.description) return '';
@@ -334,14 +372,94 @@ export default function ProjectDetailPage() {
                     className="block hover:opacity-80"
                   >
                     <p className="text-lg font-semibold tabular-nums">
-                      {(project.hoursLogged ?? 0).toFixed(0)}
+                      {(project.hoursLogged ?? 0).toFixed(1)}
                     </p>
                     <p className="text-[11px] text-muted-foreground underline-offset-2 hover:underline">
-                      Hours
+                      Hours (burn)
                     </p>
                   </Link>
                 </div>
               </div>
+              {(project.timesheetHours != null || project.worklogHours != null) && (
+                <p className="text-[11px] text-muted-foreground text-center">
+                  {(project.timesheetHours ?? 0).toFixed(1)}h timesheets ·{' '}
+                  {(project.worklogHours ?? 0).toFixed(1)}h worklogs
+                  <span className="block opacity-80">
+                    Burn prefers worklogs over task-linked timesheets
+                  </span>
+                </p>
+              )}
+              {(() => {
+                const pct = burnPercent(
+                  project.hoursLogged ?? 0,
+                  project.budgetHours
+                );
+                const retainerHours = (project.retainers ?? []).reduce(
+                  (s, r) => s + (r.includedHours ?? 0),
+                  0
+                );
+                return (
+                  <div className="space-y-2 border-t pt-3">
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1">
+                        <Label htmlFor="budget-hours" className="text-[11px]">
+                          Hour budget
+                        </Label>
+                        <Input
+                          id="budget-hours"
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          className="h-8"
+                          value={budgetDraft}
+                          placeholder="e.g. 80"
+                          onChange={(e) => setBudgetDraft(e.target.value)}
+                          onBlur={() => {
+                            const raw = budgetDraft.trim();
+                            const next =
+                              raw === '' ? null : Number(raw);
+                            if (raw !== '' && (!Number.isFinite(next) || (next as number) < 0)) {
+                              toast.error('Enter a valid hour budget');
+                              return;
+                            }
+                            const current = project.budgetHours ?? null;
+                            if (next === current) return;
+                            budgetMutation.mutate(next);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {pct != null ? (
+                      <>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-muted-foreground">Burn</span>
+                          <span
+                            className={cn(
+                              'font-medium tabular-nums',
+                              pct >= 100 && 'text-destructive'
+                            )}
+                          >
+                            {pct}%
+                          </span>
+                        </div>
+                        <Progress
+                          value={Math.min(100, pct)}
+                          className={cn('h-1.5', pct >= 100 && '[&>div]:bg-destructive')}
+                        />
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground">
+                        Set a budget to track burn vs logged hours.
+                      </p>
+                    )}
+                    {retainerHours > 0 ? (
+                      <p className="text-[11px] text-muted-foreground">
+                        Retainer includes {retainerHours}h / cycle
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>

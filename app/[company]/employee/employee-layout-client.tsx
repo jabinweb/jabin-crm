@@ -32,7 +32,7 @@ export function EmployeeLayoutClient({
 }) {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const { employeePath, slug } = useWorkspacePaths()
+  const { employeePath, path, slug } = useWorkspacePaths()
   const [moduleMap, setModuleMap] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
@@ -67,11 +67,13 @@ export function EmployeeLayoutClient({
   const topBarItems = useMemo(
     () =>
       employeeNav.map((item) => ({
-        href: employeePath(item.href),
+        href: item.href.startsWith('/dashboard')
+          ? path(item.href)
+          : employeePath(item.href),
         label: item.title,
         icon: item.icon,
       })),
-    [employeeNav, employeePath]
+    [employeeNav, employeePath, path]
   )
 
   const allowed = canAccessEmployeePortal(session)

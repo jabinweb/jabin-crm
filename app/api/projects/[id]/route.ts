@@ -4,6 +4,10 @@ import { Prisma } from '@prisma/client';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { PROJECT_INCLUDE } from '@/lib/projects/agency-delivery';
+import { aggregateProjectHours } from '@/lib/projects/delivery-hours';
+import {
+  getCompanyProjectTaskSettings,
+} from '@/lib/projects/sync-project-progress';
 
 export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
   const id = (await routeContext!.params).id;
@@ -25,7 +29,7 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
         },
       },
       timesheetEntries: {
-        take: 50,
+        take: 20,
         orderBy: { date: 'desc' },
         select: {
           id: true,
@@ -46,19 +50,21 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const hoursLogged = project.timesheetEntries.reduce((s, e) => s + e.hours, 0);
+  const [{ timesheetHours, worklogHours, hoursLogged }, settingsRaw] =
+    await Promise.all([
+      aggregateProjectHours(id),
+      getCompanyProjectTaskSettings(companyId),
+    ]);
 
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { settings: true },
-  });
   const settings =
-    company?.settings && typeof company.settings === 'object'
-      ? (company.settings as Record<string, unknown>)
+    settingsRaw && typeof settingsRaw === 'object'
+      ? (settingsRaw as Record<string, unknown>)
       : {};
 
   return jsonOk({
     ...project,
+    timesheetHours,
+    worklogHours,
     hoursLogged,
     projectTaskStatuses: settings.projectTaskStatuses ?? null,
   });
@@ -79,6 +85,14 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (typeof body.projectType === 'string') data.projectType = body.projectType.trim();
   if (typeof body.progress === 'number') {
     data.progress = Math.max(0, Math.min(100, Math.round(body.progress)));
+  }
+  if (body.budgetHours !== undefined) {
+    if (body.budgetHours === null || body.budgetHours === '') {
+      data.budgetHours = null;
+    } else {
+      const n = Number(body.budgetHours);
+      if (Number.isFinite(n) && n >= 0) data.budgetHours = n;
+    }
   }
   if (body.startDate) {
     const d = new Date(body.startDate);

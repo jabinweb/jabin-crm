@@ -2,49 +2,20 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
-import {
-  PROJECT_PRIORITIES,
-  computeProgressFromTasks,
-} from '@/lib/projects/task-board';
-import {
-  isAllowedProjectTaskStatus,
-  resolveDoneStatusIds,
-} from '@/lib/projects/task-statuses';
+import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
+import { isAllowedProjectTaskStatus } from '@/lib/projects/task-statuses';
 import { logProjectTaskActivity } from '@/lib/projects/task-activity';
+import {
+  getCompanyProjectTaskSettings,
+  syncProjectProgress,
+} from '@/lib/projects/sync-project-progress';
+import { PROJECT_TASK_LIST_INCLUDE } from '@/lib/projects/agency-delivery';
 
 async function assertProject(companyId: string, projectId: string) {
   return prisma.project.findFirst({
     where: { id: projectId, companyId },
     select: { id: true },
   });
-}
-
-async function companySettings(companyId: string) {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { settings: true },
-  });
-  return company?.settings;
-}
-
-async function syncProgress(projectId: string, companyId: string) {
-  const [statusCounts, settings] = await Promise.all([
-    prisma.projectTask.groupBy({
-      by: ['status'],
-      where: { projectId },
-      _count: { _all: true },
-    }),
-    companySettings(companyId),
-  ]);
-  const tasks = statusCounts.flatMap((row) =>
-    Array.from({ length: row._count._all }, () => ({ status: row.status }))
-  );
-  const progress = computeProgressFromTasks(
-    tasks,
-    resolveDoneStatusIds(settings)
-  );
-  await prisma.project.update({ where: { id: projectId }, data: { progress } });
-  return progress;
 }
 
 export const GET = withTenantRoute(async (request, { companyId }, routeContext) => {
@@ -61,10 +32,7 @@ export const GET = withTenantRoute(async (request, { companyId }, routeContext) 
       projectId,
       ...(includeSubtasks ? {} : { parentTaskId: null }),
     },
-    include: {
-      assignee: { select: { id: true, name: true, email: true, image: true } },
-      _count: { select: { subtasks: true } },
-    },
+    include: PROJECT_TASK_LIST_INCLUDE,
     orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
   return jsonOk(tasks);
@@ -82,7 +50,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   const title = typeof body.title === 'string' ? body.title.trim() : '';
   if (!title) return NextResponse.json({ error: 'Title required' }, { status: 400 });
 
-  const settings = await companySettings(companyId);
+  const settings = await getCompanyProjectTaskSettings(companyId);
   const status =
     typeof body.status === 'string' && isAllowedProjectTaskStatus(body.status, settings)
       ? body.status
@@ -175,7 +143,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     update: {},
   });
 
-  const progress = await syncProgress(projectId, companyId);
+  const progress = await syncProjectProgress(projectId, companyId);
 
   if (task.assigneeId && task.assigneeId !== session.user.id) {
     const { notifyProjectTaskAssigned } = await import('@/lib/projects/task-notifications');
@@ -211,7 +179,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
-  const settings = await companySettings(companyId);
+  const settings = await getCompanyProjectTaskSettings(companyId);
 
   /** Bulk reorder after drag: { moves: [{ id, status, sortOrder }] } */
   if (Array.isArray(body.moves)) {
@@ -229,7 +197,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
         })
       )
     );
-    const progress = await syncProgress(projectId, companyId);
+    const progress = await syncProjectProgress(projectId, companyId);
     const tasks = await prisma.projectTask.findMany({
       where: { projectId, parentTaskId: null },
       include: {
@@ -289,7 +257,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
       assignee: { select: { id: true, name: true, email: true, image: true } },
     },
   });
-  const progress = await syncProgress(projectId, companyId);
+  const progress = await syncProjectProgress(projectId, companyId);
   return jsonOk({ task, progress });
 });
 
@@ -311,6 +279,6 @@ export const DELETE = withTenantRoute(async (request, { session, companyId }, ro
     where: { id: taskId, projectId },
   });
   if (!deleted.count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const progress = await syncProgress(projectId, companyId);
+  const progress = await syncProjectProgress(projectId, companyId);
   return jsonOk({ ok: true, progress });
 });

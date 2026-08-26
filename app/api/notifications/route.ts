@@ -34,155 +34,181 @@ export async function GET(request: NextRequest) {
 
     const notifications: NotificationItem[] = []
 
-    // Persistent DB notifications (CRM / tickets / workflows)
-    try {
-      const dbNotes = await notificationService.getForUser(session.user.id, 40)
-      for (const n of dbNotes) {
-        notifications.push({
-          id: n.id,
-          title: n.title,
-          message: n.body,
-          type: n.type,
-          targetRole: [role || 'USER'],
-          metadata: (n.metadata as Record<string, unknown>) || {},
-          createdAt: n.createdAt.toISOString(),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          read: n.read,
-        })
-      }
-    } catch (error) {
-      console.error(
-        'Notifications feed degraded:',
-        error instanceof Error ? error.message : 'Unknown error'
-      )
-    }
-
     const employeeId =
       typeof session.user.employeeId === 'string' && session.user.employeeId.trim()
         ? session.user.employeeId.trim()
         : undefined
+    const customerId =
+      typeof session.user.customerId === 'string' && session.user.customerId.trim()
+        ? session.user.customerId.trim()
+        : undefined
+    const sessionCompanyId =
+      typeof session.user.companyId === 'string' && session.user.companyId.trim()
+        ? session.user.companyId.trim()
+        : undefined
 
-    if (employeeId) {
-      const recentTasks = await prisma.companyTask.findMany({
-        where: {
-          assignedToId: employeeId,
-          createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    // Run the expensive feed sources in parallel — sequential awaits were stacking Neon latency.
+    const [dbNotes, recentTasks, recentMessages, recentLeaveRequests, pendingLeave] =
+      await Promise.all([
+        notificationService
+          .getForUser(session.user.id, 40, customerId)
+          .catch((error) => {
+            console.error(
+              'Notifications feed degraded:',
+              error instanceof Error ? error.message : 'Unknown error'
+            )
+            return [] as Awaited<ReturnType<typeof notificationService.getForUser>>
+          }),
+        // Delivery assignments (ProjectTask) — replaces legacy CompanyTask feed
+        prisma.projectTask.findMany({
+          where: {
+            assigneeId: session.user.id,
+            createdAt: { gte: sevenDaysAgo },
           },
-        },
-        include: {
-          creator: { select: { name: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 15,
-      })
-
-      notifications.push(
-        ...recentTasks.map((task) => ({
-          id: `task-${task.id}`,
-          title: 'New task assignment',
-          message: `${task.creator.name} assigned you a task: ${task.title}`,
-          type: 'TASK_ASSIGNED',
-          targetRole: ['EMPLOYEE'],
-          metadata: {
-            taskId: task.id,
-            title: task.title,
-            priority: task.priority,
-            status: task.status,
-            assignedBy: task.creator.name,
+          include: {
+            project: { select: { id: true, name: true } },
+            reporter: { select: { name: true } },
           },
-          createdAt: task.createdAt.toISOString(),
-          expiresAt:
-            task.dueDate?.toISOString() ||
-            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          read: false,
-        }))
-      )
+          orderBy: { createdAt: 'desc' },
+          take: 15,
+        }),
+        employeeId
+          ? prisma.employeeMessage.findMany({
+              where: {
+                receiverId: employeeId,
+                createdAt: { gte: sevenDaysAgo },
+              },
+              include: { sender: { select: { name: true } } },
+              orderBy: { createdAt: 'desc' },
+              take: 10,
+            })
+          : Promise.resolve([]),
+        employeeId
+          ? prisma.leaveRequest.findMany({
+              where: {
+                employeeId,
+                status: { in: [LeaveStatus.APPROVED, LeaveStatus.REJECTED] },
+                actionAt: { gte: thirtyDaysAgo },
+              },
+              include: { actor: { select: { name: true } } },
+              orderBy: { actionAt: 'desc' },
+              take: 10,
+            })
+          : Promise.resolve([]),
+        isWorkspaceAdmin
+          ? (async () => {
+              try {
+                const companyId =
+                  sessionCompanyId ||
+                  (await resolveCompanyContextFromRequest(session, request)).companyId
+                return {
+                  companyId,
+                  count: await prisma.leaveRequest.count({
+                    where: {
+                      employee: { companyId },
+                      status: LeaveStatus.PENDING,
+                    },
+                  }),
+                }
+              } catch (e) {
+                if (!(e instanceof TenantError)) throw e
+                return null
+              }
+            })()
+          : Promise.resolve(null),
+      ])
 
-      const recentMessages = await prisma.employeeMessage.findMany({
-        where: {
-          receiverId: employeeId,
-          createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-        },
-        include: { sender: { select: { name: true } } },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
+    for (const n of dbNotes) {
+      notifications.push({
+        id: n.id,
+        title: n.title,
+        message: n.body,
+        type: n.type,
+        targetRole: [role || 'USER'],
+        metadata: (n.metadata as Record<string, unknown>) || {},
+        createdAt: n.createdAt.toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        read: n.read,
       })
-
-      notifications.push(
-        ...recentMessages.map((msg) => ({
-          id: `message-${msg.id}`,
-          title: 'New message',
-          message: `${msg.sender.name}: ${msg.content.slice(0, 120)}`,
-          type: 'MESSAGE',
-          targetRole: ['EMPLOYEE'],
-          metadata: { messageId: msg.id },
-          createdAt: msg.createdAt.toISOString(),
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          read: msg.status === EmployeeMessageStatus.READ,
-        }))
-      )
-
-      const recentLeaveRequests = await prisma.leaveRequest.findMany({
-        where: {
-          employeeId,
-          status: { in: [LeaveStatus.APPROVED, LeaveStatus.REJECTED] },
-          actionAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        },
-        include: { actor: { select: { name: true } } },
-        orderBy: { actionAt: 'desc' },
-        take: 10,
-      })
-
-      notifications.push(
-        ...recentLeaveRequests.map((leaveRequest) => ({
-          id: `leave-status-${leaveRequest.id}`,
-          title: `Leave request ${leaveRequest.status}`,
-          message: `Your leave request has been ${leaveRequest.status.toLowerCase()}${
-            leaveRequest.comment ? `: ${leaveRequest.comment}` : ''
-          }`,
-          type:
-            leaveRequest.status === LeaveStatus.APPROVED
-              ? 'LEAVE_APPROVED'
-              : 'LEAVE_REJECTED',
-          targetRole: ['EMPLOYEE'],
-          metadata: {
-            requestId: leaveRequest.id,
-            status: leaveRequest.status,
-            comment: leaveRequest.comment,
-            actionBy: leaveRequest.actor?.name,
-          },
-          createdAt:
-            leaveRequest.actionAt?.toISOString() ||
-            leaveRequest.updatedAt.toISOString(),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-          read: false,
-        }))
-      )
     }
 
-    if (isWorkspaceAdmin) {
-      try {
-        const { companyId } = await resolveCompanyContextFromRequest(session, request)
-        const pendingLeave = await prisma.leaveRequest.count({
-          where: { employee: { companyId }, status: LeaveStatus.PENDING },
-        })
-        if (pendingLeave > 0) {
-          notifications.push({
-            id: `admin-leave-pending-${companyId}`,
-            title: 'Pending leave requests',
-            message: `${pendingLeave} leave request(s) awaiting approval`,
-            type: 'LEAVE_PENDING',
-            targetRole: ['ADMIN'],
-            metadata: { count: pendingLeave },
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            read: false,
-          })
-        }
-      } catch (e) {
-        if (!(e instanceof TenantError)) throw e
-      }
+    notifications.push(
+      ...recentTasks.map((task) => ({
+        id: `project-task-${task.id}`,
+        title: 'Project task assigned',
+        message: `${task.reporter?.name || 'Someone'} assigned you: ${task.title} (${task.project.name})`,
+        type: 'PROJECT_TASK_ASSIGNED',
+        targetRole: ['EMPLOYEE', 'SALES', 'TECHNICIAN', 'ADMIN'],
+        metadata: {
+          taskId: task.id,
+          projectId: task.project.id,
+          title: task.title,
+          priority: task.priority,
+          status: task.status,
+          projectName: task.project.name,
+          assignedBy: task.reporter?.name,
+        },
+        createdAt: task.createdAt.toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        read: false,
+      }))
+    )
+
+    notifications.push(
+      ...recentMessages.map((msg) => ({
+        id: `message-${msg.id}`,
+        title: 'New message',
+        message: `${msg.sender.name}: ${msg.content.slice(0, 120)}`,
+        type: 'MESSAGE',
+        targetRole: ['EMPLOYEE'],
+        metadata: { messageId: msg.id },
+        createdAt: msg.createdAt.toISOString(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        read: msg.status === EmployeeMessageStatus.READ,
+      }))
+    )
+
+    notifications.push(
+      ...recentLeaveRequests.map((leaveRequest) => ({
+        id: `leave-status-${leaveRequest.id}`,
+        title: `Leave request ${leaveRequest.status}`,
+        message: `Your leave request has been ${leaveRequest.status.toLowerCase()}${
+          leaveRequest.comment ? `: ${leaveRequest.comment}` : ''
+        }`,
+        type:
+          leaveRequest.status === LeaveStatus.APPROVED
+            ? 'LEAVE_APPROVED'
+            : 'LEAVE_REJECTED',
+        targetRole: ['EMPLOYEE'],
+        metadata: {
+          requestId: leaveRequest.id,
+          status: leaveRequest.status,
+          comment: leaveRequest.comment,
+          actionBy: leaveRequest.actor?.name,
+        },
+        createdAt:
+          leaveRequest.actionAt?.toISOString() ||
+          leaveRequest.updatedAt.toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        read: false,
+      }))
+    )
+
+    if (pendingLeave && pendingLeave.count > 0) {
+      notifications.push({
+        id: `admin-leave-pending-${pendingLeave.companyId}`,
+        title: 'Pending leave requests',
+        message: `${pendingLeave.count} leave request(s) awaiting approval`,
+        type: 'LEAVE_PENDING',
+        targetRole: ['ADMIN'],
+        metadata: { count: pendingLeave.count },
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        read: false,
+      })
     }
 
     notifications.sort(

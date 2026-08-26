@@ -85,8 +85,8 @@ export const NAV_ITEMS: NavItems = {
       module: 'LEADS',
     },
     {
-      href: '/employee/tasks',
-      title: 'Tasks',
+      href: '/dashboard/projects/my-work',
+      title: 'My work',
       icon: <ClipboardList className="mr-2 h-4 w-4" />
     },
     {

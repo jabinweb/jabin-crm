@@ -23,6 +23,7 @@ describe('navigation modules', () => {
   it('resolves projects and retainers', () => {
     expect(resolveModuleId('/acme/dashboard/projects')).toBe('projects');
     expect(resolveModuleId('/acme/dashboard/retainers')).toBe('projects');
+    expect(resolveModuleId('/acme/dashboard/projects/backlog')).toBe('projects');
   });
 
   it('puts workflows under projects for web_agency', () => {
@@ -34,9 +35,9 @@ describe('navigation modules', () => {
     );
   });
 
-  it('puts calendar and tasks under workspace', () => {
+  it('puts calendar under workspace and follow-ups under sales', () => {
     expect(resolveModuleId('/acme/dashboard/calendar')).toBe('workspace');
-    expect(resolveModuleId('/acme/dashboard/tasks')).toBe('workspace');
+    expect(resolveModuleId('/acme/dashboard/tasks')).toBe('sales');
   });
 
   it('puts timesheets under projects for agency', () => {
@@ -81,9 +82,23 @@ describe('navigation modules', () => {
     expect(support.find((i) => i.href === '/dashboard/contracts')).toBeUndefined();
   });
 
-  it('keeps sales free of calendar/tasks', () => {
+  it('keeps CRM follow-ups under sales, not home/workspace', () => {
     const sales = navItemsForModule('sales', { vertical: 'general', userRole: 'ADMIN' });
-    expect(sales.find((i) => i.href === '/dashboard/calendar')).toBeUndefined();
-    expect(sales.find((i) => i.href === '/dashboard/tasks')).toBeUndefined();
+    expect(sales.find((i) => i.href === '/dashboard/tasks')?.name).toBe('Follow-ups');
+    const home = navItemsForModule('home', { vertical: 'web_agency', userRole: 'ADMIN' });
+    expect(home.find((i) => i.href === '/dashboard/tasks')).toBeUndefined();
+    const workspace = navItemsForModule('workspace', {
+      vertical: 'general',
+      userRole: 'ADMIN',
+    });
+    expect(workspace.find((i) => i.href === '/dashboard/tasks')).toBeUndefined();
+  });
+
+  it('exposes backlog under projects', () => {
+    const projects = navItemsForModule('projects', {
+      vertical: 'web_agency',
+      userRole: 'ADMIN',
+    });
+    expect(projects.find((i) => i.href === '/dashboard/projects/backlog')).toBeTruthy();
   });
 });

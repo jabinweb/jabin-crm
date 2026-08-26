@@ -31,7 +31,11 @@ export default function DashboardSidebar({
   const userRole = session?.user?.role as ('ADMIN' | 'MANAGER' | 'USER' | 'EMPLOYEE') || 'USER';
 
   const resolveHref = (href: string) =>
-    variant === 'employee' ? employeePath(href) : path(href);
+    href.startsWith('/dashboard')
+      ? path(href)
+      : variant === 'employee'
+        ? employeePath(href)
+        : path(href);
 
   return (
     <nav className={cn('w-64 min-w-[16rem] max-w-[16rem] border-r bg-background hidden lg:block', className)}>

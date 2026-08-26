@@ -45,7 +45,10 @@ export async function GET(
           },
         },
         tasks: {
-          where: { status: { not: 'BACKLOG' } },
+          where: {
+            parentTaskId: null,
+            status: { notIn: ['BACKLOG', 'CANCELLED'] },
+          },
           orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }],
           select: {
             id: true,
@@ -53,8 +56,30 @@ export async function GET(
             status: true,
             priority: true,
             dueDate: true,
+            comments: {
+              orderBy: { createdAt: 'desc' },
+              take: 5,
+              select: {
+                id: true,
+                body: true,
+                createdAt: true,
+                author: { select: { name: true } },
+              },
+            },
+            attachments: {
+              where: { source: { in: ['SIDEBAR', 'DESCRIPTION'] } },
+              orderBy: { createdAt: 'desc' },
+              take: 8,
+              select: {
+                id: true,
+                url: true,
+                name: true,
+                mimeType: true,
+                createdAt: true,
+              },
+            },
           },
-          take: 50,
+          take: 40,
         },
         retainers: {
           where: { status: 'ACTIVE' },

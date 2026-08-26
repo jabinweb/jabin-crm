@@ -56,6 +56,12 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       ? body.projectId.trim()
       : null;
 
+  let includedHours: number | null = null;
+  if (body.includedHours !== undefined && body.includedHours !== null && body.includedHours !== '') {
+    const n = Number(body.includedHours);
+    if (Number.isFinite(n) && n >= 0) includedHours = n;
+  }
+
   const retainer = await prisma.clientRetainer.create({
     data: {
       companyId,
@@ -69,6 +75,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
           ? body.currency
           : customer.billingCurrency || 'USD',
       billingCycle,
+      includedHours,
       status: 'ACTIVE',
       startDate,
       nextBillAt: nextBillDate(startDate, billingCycle),

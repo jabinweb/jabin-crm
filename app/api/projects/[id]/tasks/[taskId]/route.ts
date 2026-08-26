@@ -2,44 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
-import {
-  PROJECT_PRIORITIES,
-  computeProgressFromTasks,
-} from '@/lib/projects/task-board';
-import { isAllowedProjectTaskStatus, resolveDoneStatusIds } from '@/lib/projects/task-statuses';
+import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
+import { isAllowedProjectTaskStatus } from '@/lib/projects/task-statuses';
 import {
   assertProjectTask,
   logProjectTaskActivity,
   stripHtmlToPreview,
 } from '@/lib/projects/task-activity';
-
-async function companySettings(companyId: string) {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    select: { settings: true },
-  });
-  return company?.settings;
-}
-
-async function syncProgress(projectId: string, companyId: string) {
-  const [statusCounts, settings] = await Promise.all([
-    prisma.projectTask.groupBy({
-      by: ['status'],
-      where: { projectId },
-      _count: { _all: true },
-    }),
-    companySettings(companyId),
-  ]);
-  const tasks = statusCounts.flatMap((row) =>
-    Array.from({ length: row._count._all }, () => ({ status: row.status }))
-  );
-  const progress = computeProgressFromTasks(
-    tasks,
-    resolveDoneStatusIds(settings)
-  );
-  await prisma.project.update({ where: { id: projectId }, data: { progress } });
-  return progress;
-}
+import {
+  getCompanyProjectTaskSettings,
+  syncProjectProgress,
+} from '@/lib/projects/sync-project-progress';
 
 export const GET = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
   const params = await routeContext!.params;
@@ -175,7 +148,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await request.json();
-  const settings = await companySettings(companyId);
+  const settings = await getCompanyProjectTaskSettings(companyId);
   const data: Record<string, unknown> = {};
   const actorName = session.user.name || session.user.email || 'User';
 
@@ -321,7 +294,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     });
   }
 
-  const progress = await syncProgress(projectId, companyId);
+  const progress = await syncProjectProgress(projectId, companyId);
   return jsonOk({ task, progress });
 });
 
@@ -337,6 +310,6 @@ export const DELETE = withTenantRoute(async (_request, { session, companyId }, r
   if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   await prisma.projectTask.delete({ where: { id: taskId } });
-  const progress = await syncProgress(projectId, companyId);
+  const progress = await syncProjectProgress(projectId, companyId);
   return jsonOk({ ok: true, progress });
 });

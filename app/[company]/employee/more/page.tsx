@@ -29,7 +29,7 @@ type MoreItem = {
 
 export default function EmployeeMorePage() {
   const { data: session } = useSession()
-  const { employeePath } = useWorkspacePaths()
+  const { employeePath, path } = useWorkspacePaths()
   const leadsEnabled = useFeatureModule('LEADS')
 
   const { data: isManager } = useQuery({
@@ -114,9 +114,9 @@ export default function EmployeeMorePage() {
       icon: MessageSquare,
     },
     {
-      href: employeePath('/employee/tasks'),
-      label: 'Tasks',
-      hint: 'Your to-dos',
+      href: path('/dashboard/projects/my-work'),
+      label: 'My work',
+      hint: 'Project delivery tasks assigned to you',
       icon: ClipboardList,
     }
   )

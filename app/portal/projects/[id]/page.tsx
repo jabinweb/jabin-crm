@@ -34,6 +34,19 @@ type PortalProject = {
     status: string;
     priority: string;
     dueDate: string | null;
+    comments?: Array<{
+      id: string;
+      body: string;
+      createdAt: string;
+      author: { name: string | null };
+    }>;
+    attachments?: Array<{
+      id: string;
+      url: string;
+      name: string | null;
+      mimeType: string | null;
+      createdAt: string;
+    }>;
   }>;
   retainers: Array<{
     id: string;
@@ -196,17 +209,52 @@ export default function PortalProjectDetailPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Active work</CardTitle>
-            <CardDescription>What the team is working on now.</CardDescription>
+            <CardDescription>
+              Delivery tasks with recent updates and shared files.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {project.tasks.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">No tasks shared yet.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-3">
                 {project.tasks.map((t) => (
-                  <li key={t.id} className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm">
-                    <span className="font-medium">{t.title}</span>
-                    <Badge variant="secondary">{TASK_STATUS_LABEL[t.status] ?? t.status}</Badge>
+                  <li key={t.id} className="rounded-lg border px-3 py-2.5 text-sm space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-medium">{t.title}</span>
+                      <Badge variant="secondary">{TASK_STATUS_LABEL[t.status] ?? t.status}</Badge>
+                    </div>
+                    {(t.comments?.length ?? 0) > 0 ? (
+                      <div className="space-y-1.5 border-t pt-2">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                          Recent updates
+                        </p>
+                        {t.comments!.slice(0, 3).map((c) => (
+                          <p key={c.id} className="text-xs text-muted-foreground">
+                            <span className="font-medium text-foreground">
+                              {c.author?.name || 'Team'}
+                            </span>
+                            {': '}
+                            {c.body.length > 160 ? `${c.body.slice(0, 160)}…` : c.body}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {(t.attachments?.length ?? 0) > 0 ? (
+                      <div className="flex flex-wrap gap-2 border-t pt-2">
+                        {t.attachments!.map((a) => (
+                          <a
+                            key={a.id}
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary underline-offset-2 hover:underline"
+                          >
+                            {a.name || 'Attachment'}
+                          </a>
+                        ))}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>

@@ -1,14 +1,17 @@
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { LeadStatus, CompanyTaskStatus, AttendanceStatus, ActivityType } from '@prisma/client'
+import { LeadStatus, AttendanceStatus, ActivityType } from '@prisma/client'
 import { NextRequest } from 'next/server'
 
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()
-    if (!session?.user?.employeeId) {
+    if (!session?.user?.employeeId || !session.user.id) {
       return new Response('Unauthorized', { status: 401 })
     }
+
+    const userId = session.user.id
+    const employeeId = session.user.employeeId
 
     // Get today's date range
     const today = new Date()
@@ -20,6 +23,8 @@ export async function GET(req: NextRequest) {
     // Get last week for leads
     const lastWeek = new Date(today)
     lastWeek.setDate(lastWeek.getDate() - 7)
+
+    const openStatuses = { notIn: ['DONE', 'CANCELLED'] }
 
     const [
       totalLeads,
@@ -35,73 +40,64 @@ export async function GET(req: NextRequest) {
       unreadMessages,
       todayAttendance
     ] = await Promise.all([
-      // Total leads
       prisma.lead.count({
-        where: { employeeId: session.user.employeeId }
+        where: { employeeId }
       }),
-      // New leads this week
       prisma.lead.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId,
           createdAt: { gte: lastWeek }
         }
       }),
-      // Won leads
       prisma.lead.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId,
           status: LeadStatus.WON
         }
       }),
-      // Qualified leads
       prisma.lead.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId,
           status: { in: [LeadStatus.QUALIFIED, LeadStatus.PROPOSAL, LeadStatus.NEGOTIATION] }
         }
       }),
-      // Active tasks
-      prisma.companyTask.count({
+      // Delivery ProjectTasks assigned to this user
+      prisma.projectTask.count({
         where: {
-          assignedToId: session.user.employeeId,
-          status: { in: [CompanyTaskStatus.TODO, CompanyTaskStatus.IN_PROGRESS] }
+          assigneeId: userId,
+          status: openStatuses,
         }
       }),
-      // Upcoming tasks
-      prisma.companyTask.count({
+      prisma.projectTask.count({
         where: {
-          assignedToId: session.user.employeeId,
-          status: CompanyTaskStatus.TODO,
+          assigneeId: userId,
+          status: { in: ['TODO', 'BACKLOG'] },
           dueDate: { lte: new Date(today.getTime() + 24 * 60 * 60 * 1000) }
         }
       }),
-      // Completed tasks
-      prisma.companyTask.count({
+      prisma.projectTask.count({
         where: {
-          assignedToId: session.user.employeeId,
-          status: CompanyTaskStatus.COMPLETED,
+          assigneeId: userId,
+          status: 'DONE',
         }
       }),
-      // Overdue tasks
-      prisma.companyTask.count({
+      prisma.projectTask.count({
         where: {
-          assignedToId: session.user.employeeId,
-          status: { in: [CompanyTaskStatus.TODO, CompanyTaskStatus.IN_PROGRESS] },
+          assigneeId: userId,
+          status: openStatuses,
           dueDate: { lt: today },
         }
       }),
-      // Pending follow-ups (using leadActivity)
       prisma.leadActivity.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId,
           activityType: ActivityType.FOLLOW_UP,
           completed: false,
         }
       }),
-      // Today's follow-ups
       prisma.leadActivity.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId,
           activityType: ActivityType.FOLLOW_UP,
           completed: false,
           dueDate: {
@@ -110,28 +106,18 @@ export async function GET(req: NextRequest) {
           }
         }
       }),
-      // Unread messages
       prisma.employeeMessage.count({
         where: {
-          receiverId: session.user.employeeId,
-          status: 'SENT' // Use status instead of readAt
+          receiverId: employeeId,
+          status: 'SENT'
         }
       }),
-      // Today's attendance - Updated to match schema
       prisma.attendance.findFirst({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId,
           AND: [
-            {
-              createdAt: {
-                gte: startOfDay,
-              }
-            },
-            {
-              createdAt: {
-                lte: endOfDay,
-              }
-            }
+            { createdAt: { gte: startOfDay } },
+            { createdAt: { lte: endOfDay } }
           ]
         },
         select: {

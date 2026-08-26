@@ -15,7 +15,12 @@ import {
 } from 'lucide-react'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 
-const routes = [
+const routes: Array<{
+  label: string
+  icon: typeof LayoutDashboard
+  href: string
+  dashboard?: boolean
+}> = [
   {
     label: 'Dashboard',
     icon: LayoutDashboard,
@@ -27,9 +32,10 @@ const routes = [
     href: '/employee/profile',
   },
   {
-    label: 'Tasks',
+    label: 'My work',
     icon: ClipboardList,
-    href: '/employee/tasks',
+    href: '/dashboard/projects/my-work',
+    dashboard: true,
   },
   {
     label: 'Attendance',
@@ -60,7 +66,7 @@ const routes = [
 
 export function EmployeeSidebar() {
   const pathname = usePathname()
-  const { employeePath } = useWorkspacePaths()
+  const { employeePath, path } = useWorkspacePaths()
 
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-white border-r">
@@ -68,7 +74,10 @@ export function EmployeeSidebar() {
         <h2 className="mb-2 px-4 text-lg font-semibold">Employee Portal</h2>
         <div className="space-y-1">
           {routes.map((route) => {
-            const href = employeePath(route.href)
+            const href =
+              'dashboard' in route && route.dashboard
+                ? path(route.href)
+                : employeePath(route.href)
             return (
               <Link
                 key={route.href}

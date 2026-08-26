@@ -79,14 +79,22 @@ export class NotificationService {
         }
     }
 
-    async getForUser(userId: string, limit = 20) {
-        const user = await prisma.user.findUnique({ where: { id: userId }, select: { customerId: true } });
+    async getForUser(userId: string, limit = 20, knownCustomerId?: string | null) {
+        const customerId =
+            knownCustomerId !== undefined
+                ? knownCustomerId
+                : (
+                      await prisma.user.findUnique({
+                          where: { id: userId },
+                          select: { customerId: true },
+                      })
+                  )?.customerId;
 
         return prisma.notification.findMany({
             where: {
                 OR: [
                     { userId },
-                    ...(user?.customerId ? [{ customerId: user.customerId }] : []),
+                    ...(customerId ? [{ customerId }] : []),
                 ],
             },
             orderBy: { createdAt: 'desc' },

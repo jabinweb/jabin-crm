@@ -27,6 +27,12 @@ export function nextBillDate(
   return d;
 }
 
+/** Shared include for board / project-detail task lists (top-level cards). */
+export const PROJECT_TASK_LIST_INCLUDE = {
+  assignee: { select: { id: true, name: true, email: true, image: true } },
+  _count: { select: { subtasks: true } },
+} as const;
+
 export const PROJECT_INCLUDE = {
   customer: { select: { id: true, organizationName: true } },
   deal: { select: { id: true, title: true, stage: true, value: true } },
@@ -34,10 +40,7 @@ export const PROJECT_INCLUDE = {
   milestones: { orderBy: { sortOrder: 'asc' as const } },
   tasks: {
     where: { parentTaskId: null },
-    include: {
-      assignee: { select: { id: true, name: true, email: true, image: true } },
-      _count: { select: { subtasks: true } },
-    },
+    include: PROJECT_TASK_LIST_INCLUDE,
     orderBy: [{ status: 'asc' as const }, { sortOrder: 'asc' as const }],
   },
   members: {
