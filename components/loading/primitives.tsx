@@ -158,6 +158,58 @@ export function DetailSkeleton({ className }: ClassNameProps) {
   );
 }
 
+/** Matches project task detail layout to avoid layout shift on load. */
+export function ProjectTaskDetailSkeleton({ className }: ClassNameProps) {
+  return (
+    <div className={cn('flex flex-col gap-4', className)}>
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-4 w-72 max-w-full" />
+        <Skeleton className="h-8 w-36" />
+      </div>
+
+      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-6 lg:pr-8">
+          <Skeleton className="h-8 w-3/4 max-w-xl" />
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-40 w-full rounded-md" />
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="space-y-3 border-t pt-4">
+            <Skeleton className="h-5 w-20" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-14" />
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+            <div className="flex gap-3">
+              <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+              <Skeleton className="h-10 flex-1" />
+            </div>
+          </div>
+        </div>
+
+        <aside className="space-y-4 border-t pt-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-36" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+          <Skeleton className="h-5 w-16" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="grid grid-cols-[120px_1fr] gap-3">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-28" />
+            </div>
+          ))}
+        </aside>
+      </div>
+    </div>
+  );
+}
+
 export function SectionSkeleton({
   className,
   lines = 4,

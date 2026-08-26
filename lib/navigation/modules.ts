@@ -394,7 +394,8 @@ export const SALES_NAV: NavItem[] = [
 ];
 
 export const PROJECTS_NAV: NavItem[] = [
-  { name: 'Projects', href: '/dashboard/projects', icon: 'FolderKanban', roles: ['ADMIN', 'SUPER_ADMIN', 'SALES'] },
+  { name: 'Projects', href: '/dashboard/projects', icon: 'FolderKanban', roles: ['ADMIN', 'SUPER_ADMIN', 'SALES', 'TECHNICIAN', 'SUPPORT_MANAGER'] },
+  { name: 'My work', href: '/dashboard/projects/my-work', icon: 'ListTodo', roles: ['ADMIN', 'SUPER_ADMIN', 'SALES', 'TECHNICIAN', 'SUPPORT_MANAGER'] },
   { name: 'Retainers', href: '/dashboard/retainers', icon: 'RefreshCw', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Budgets', href: '/dashboard/budgets', icon: 'PiggyBank', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { name: 'Timesheets', href: '/dashboard/timesheets', icon: 'Clock', roles: ['ADMIN', 'SUPER_ADMIN'] },

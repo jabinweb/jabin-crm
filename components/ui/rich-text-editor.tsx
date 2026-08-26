@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -13,13 +13,12 @@ import {
   ListOrdered,
   Link as LinkIcon,
   ImageIcon,
-  Undo,
-  Redo,
+  Undo2,
+  Redo2,
   Paperclip,
-  Loader2,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
@@ -46,6 +45,43 @@ async function fileToFormData(file: File, folder: string) {
   form.append('folder', folder);
   form.append('isPublic', 'true');
   return form;
+}
+
+const ICON = 'h-4 w-4 shrink-0';
+
+function ToolbarBtn({
+  title,
+  active,
+  onClick,
+  children,
+}: {
+  title: string;
+  active?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      aria-pressed={!!active}
+      onClick={onClick}
+      className={cn(
+        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+        'text-muted-foreground transition-colors',
+        'hover:bg-accent hover:text-accent-foreground',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        active && 'bg-muted text-foreground'
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ToolbarDivider() {
+  return <div className="mx-1 h-5 w-px shrink-0 bg-border" aria-hidden />;
 }
 
 export function RichTextEditor({
@@ -116,13 +152,8 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'max-w-none focus:outline-none px-3 py-2.5 text-sm leading-relaxed text-foreground',
-          minHeightClass,
-          '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2',
-          '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5',
-          '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5',
-          '[&_img]:my-2 [&_img]:max-w-full [&_img]:rounded-md',
-          '[&_p]:my-1'
+          'rich-text-editor-body focus:outline-none px-3 py-2.5 text-sm leading-relaxed',
+          minHeightClass
         ),
       },
       handlePaste: (_view, event) => {
@@ -197,68 +228,63 @@ export function RichTextEditor({
   if (!editor) {
     return (
       <div
-        className={cn(
-          'flex items-center justify-center rounded-md border bg-muted/30',
-          minHeightClass,
-          className
-        )}
+        className={cn('overflow-hidden rounded-md border bg-background', className)}
       >
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        {editable ? (
+          <div className="flex h-10 items-center gap-1 border-b bg-muted/40 px-2">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <Skeleton key={i} className="h-8 w-8 rounded-md" />
+            ))}
+          </div>
+        ) : null}
+        <Skeleton className={cn('w-full rounded-none', minHeightClass)} />
       </div>
     );
   }
 
-  const btn = (active?: boolean) =>
-    cn(
-      'inline-flex size-8 shrink-0 items-center justify-center rounded-md p-0 [&_svg]:size-3.5 [&_svg]:shrink-0',
-      active && 'bg-muted text-foreground'
-    );
-
   return (
-    <div className={cn('overflow-hidden rounded-md border bg-background', className)}>
+    <div
+      className={cn(
+        'rich-text-editor overflow-hidden rounded-md border bg-background',
+        className
+      )}
+    >
       {editable ? (
-        <div className="flex flex-wrap items-center gap-0.5 border-b bg-muted/40 px-1.5 py-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn(editor.isActive('bold'))}
+        <div className="flex h-10 items-center gap-0.5 overflow-x-auto border-b bg-muted/40 px-1.5">
+          <ToolbarBtn
+            title="Bold"
+            active={editor.isActive('bold')}
             onClick={() => editor.chain().focus().toggleBold().run()}
           >
-            <Bold strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn(editor.isActive('italic'))}
+            <Bold className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            title="Italic"
+            active={editor.isActive('italic')}
             onClick={() => editor.chain().focus().toggleItalic().run()}
           >
-            <Italic strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn(editor.isActive('bulletList'))}
+            <Italic className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            title="Bullet list"
+            active={editor.isActive('bulletList')}
             onClick={() => editor.chain().focus().toggleBulletList().run()}
           >
-            <List strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn(editor.isActive('orderedList'))}
+            <List className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            title="Numbered list"
+            active={editor.isActive('orderedList')}
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           >
-            <ListOrdered strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn(editor.isActive('link'))}
+            <ListOrdered className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+
+          <ToolbarDivider />
+
+          <ToolbarBtn
+            title="Link"
+            active={editor.isActive('link')}
             onClick={() => {
               const prev = editor.getAttributes('link').href as string | undefined;
               const url = window.prompt('Link URL', prev || 'https://');
@@ -267,50 +293,44 @@ export function RichTextEditor({
                 editor.chain().focus().extendMarkRange('link').unsetLink().run();
                 return;
               }
-              editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+              editor
+                .chain()
+                .focus()
+                .extendMarkRange('link')
+                .setLink({ href: url })
+                .run();
             }}
           >
-            <LinkIcon strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn()}
+            <LinkIcon className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            title="Insert image"
             onClick={() => fileInputRef.current?.click()}
-            title="Upload image or file"
           >
-            <ImageIcon strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn()}
-            onClick={() => fileInputRef.current?.click()}
+            <ImageIcon className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
             title="Attach file"
+            onClick={() => fileInputRef.current?.click()}
           >
-            <Paperclip strokeWidth={2} />
-          </Button>
-          <div className="mx-1 h-4 w-px shrink-0 self-center bg-border" />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn()}
+            <Paperclip className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+
+          <ToolbarDivider />
+
+          <ToolbarBtn
+            title="Undo"
             onClick={() => editor.chain().focus().undo().run()}
           >
-            <Undo strokeWidth={2} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={btn()}
+            <Undo2 className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            title="Redo"
             onClick={() => editor.chain().focus().redo().run()}
           >
-            <Redo strokeWidth={2} />
-          </Button>
+            <Redo2 className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+
           <input
             ref={fileInputRef}
             type="file"

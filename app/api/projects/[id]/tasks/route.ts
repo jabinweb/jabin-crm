@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import {
   PROJECT_PRIORITIES,
   computeProgressFromTasks,
@@ -43,15 +43,23 @@ async function syncProgress(projectId: string, companyId: string) {
   return progress;
 }
 
-export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
+export const GET = withTenantRoute(async (request, { companyId }, routeContext) => {
   const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+  const url = new URL(request.url);
+  /** Board shows top-level only; pass ?all=1 to include subtasks */
+  const includeSubtasks = url.searchParams.get('all') === '1';
+
   const tasks = await prisma.projectTask.findMany({
-    where: { projectId },
+    where: {
+      projectId,
+      ...(includeSubtasks ? {} : { parentTaskId: null }),
+    },
     include: {
       assignee: { select: { id: true, name: true, email: true, image: true } },
+      _count: { select: { subtasks: true } },
     },
     orderBy: [{ status: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
@@ -59,10 +67,10 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
 });
 
 export const POST = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const projectId = (await routeContext!.params).id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -86,6 +94,25 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     _max: { sortOrder: true },
   });
 
+  let parentTaskId: string | null = null;
+  if (typeof body.parentTaskId === 'string' && body.parentTaskId.trim()) {
+    const parent = await prisma.projectTask.findFirst({
+      where: { id: body.parentTaskId.trim(), projectId },
+      select: { id: true, parentTaskId: true, title: true },
+    });
+    if (!parent) {
+      return NextResponse.json({ error: 'Parent task not found' }, { status: 400 });
+    }
+    // One level only (no nested subtasks)
+    if (parent.parentTaskId) {
+      return NextResponse.json(
+        { error: 'Cannot add subtasks to a subtask' },
+        { status: 400 }
+      );
+    }
+    parentTaskId = parent.id;
+  }
+
   const descriptionHtml =
     typeof body.descriptionHtml === 'string' ? body.descriptionHtml : null;
   const description =
@@ -98,6 +125,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   const task = await prisma.projectTask.create({
     data: {
       projectId,
+      parentTaskId,
       title,
       description,
       descriptionHtml,
@@ -122,8 +150,20 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     taskId: task.id,
     actorId: session.user.id,
     eventType: 'CREATED',
-    description: `${actorName} created this task`,
+    description: parentTaskId
+      ? `${actorName} created subtask`
+      : `${actorName} created this task`,
   });
+
+  if (parentTaskId) {
+    await logProjectTaskActivity({
+      taskId: parentTaskId,
+      actorId: session.user.id,
+      eventType: 'SUBTASK_ADDED',
+      description: `${actorName} added subtask “${task.title}”`,
+      metadata: { subtaskId: task.id },
+    });
+  }
 
   await prisma.projectTaskWatcher.upsert({
     where: { taskId_userId: { taskId: task.id, userId: session.user.id } },
@@ -132,14 +172,37 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   });
 
   const progress = await syncProgress(projectId, companyId);
+
+  if (task.assigneeId && task.assigneeId !== session.user.id) {
+    const { notifyProjectTaskAssigned } = await import('@/lib/projects/task-notifications');
+    void notifyProjectTaskAssigned({
+      companyId,
+      projectId,
+      taskId: task.id,
+      taskTitle: task.title,
+      actorId: session.user.id,
+      actorName,
+      assigneeId: task.assigneeId,
+    });
+  }
+
+  const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+  void dispatchWorkflowEvent('project.task.created', {
+    userId: session.user.id,
+    companyId,
+    title: task.title,
+    summary: `${actorName} created “${task.title}”`,
+    metadata: { projectId, taskId: task.id, status: task.status, priority: task.priority },
+  });
+
   return jsonOk({ task, progress }, { status: 201 });
 });
 
 export const PATCH = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const projectId = (await routeContext!.params).id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -226,10 +289,10 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 });
 
 export const DELETE = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const projectId = (await routeContext!.params).id;
+  if (!(await canWriteProjectDelivery(session, companyId, projectId))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const projectId = (await routeContext!.params).id;
   const project = await assertProject(companyId, projectId);
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

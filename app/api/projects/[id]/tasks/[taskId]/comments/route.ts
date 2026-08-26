@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import {
   assertProjectTask,
   logProjectTaskActivity,
@@ -24,10 +24,10 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
 });
 
 export const POST = withTenantRoute(async (request, { session, companyId }, routeContext) => {
-  if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
+  const params = await routeContext!.params;
+  if (!(await canWriteProjectDelivery(session, companyId, params.id))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const params = await routeContext!.params;
   const task = await assertProjectTask(companyId, params.id, params.taskId);
   if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
@@ -96,6 +96,20 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     },
     create: { taskId: params.taskId, userId: session.user.id },
     update: {},
+  });
+
+  const taskRow = await prisma.projectTask.findUnique({
+    where: { id: params.taskId },
+    select: { title: true },
+  });
+  const { notifyProjectTaskCommented } = await import('@/lib/projects/task-notifications');
+  void notifyProjectTaskCommented({
+    companyId,
+    projectId: params.id,
+    taskId: params.taskId,
+    taskTitle: taskRow?.title || 'Task',
+    actorId: session.user.id,
+    actorName,
   });
 
   return jsonOk(comment, { status: 201 });
