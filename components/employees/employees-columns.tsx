@@ -9,6 +9,7 @@ import { ActionButtons } from '@/components/ui/action-buttons'
 import { useRouter } from 'next/navigation'
 import { toast } from '@/hooks/use-toast'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
+import { DataTableColumnHeader } from '@/components/table/data-table-column-header'
 
 export type Employee = {
   id: string
@@ -46,14 +47,14 @@ function EmployeeNameCell({ employee }: { employee: Employee }) {
 export const columns: ColumnDef<Employee>[] = [
   {
     accessorKey: 'name',
-    header: 'Name',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Name" />,
     enableColumnFilter: true,
     enableSorting: true,
     cell: ({ row }) => <EmployeeNameCell employee={row.original} />,
   },
   {
     accessorKey: 'department',
-    header: 'Department',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Department" />,
     enableColumnFilter: true,
     enableSorting: true,
     filterFn: (row, id, filterValues: string[]) => {
@@ -63,7 +64,8 @@ export const columns: ColumnDef<Employee>[] = [
   },
   {
     id: 'contact',
-    header: 'Contact',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Contact" />,
+    enableSorting: false,
     cell: ({ row }) => {
       const employee = row.original
       if (!employee) return null
@@ -78,7 +80,7 @@ export const columns: ColumnDef<Employee>[] = [
   },
   {
     accessorKey: 'status',
-    header: 'Status',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
     enableColumnFilter: true,
     enableSorting: true,
     filterFn: (row, id, filterValues: string[]) => {
@@ -113,7 +115,8 @@ export const columns: ColumnDef<Employee>[] = [
   },
   {
     accessorKey: 'dateJoined',
-    header: 'Hire Date',
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Hire Date" />,
+    enableSorting: true,
     cell: ({ row }) => {
       const date = row.original.dateJoined
       if (!date) return null

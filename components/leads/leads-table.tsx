@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { LeadScoreBadge } from '@/components/crm/lead-score-badge';
 import { FullTableSkeleton } from '@/components/loading';
+import { useDelayedLoading } from '@/hooks/use-delayed-loading';
 import { type useLeadsPage } from '@/hooks/use-leads-page';
 
 type LeadsPageState = ReturnType<typeof useLeadsPage>;
@@ -67,7 +68,9 @@ export function LeadsTable({
   handleStatusChange,
   handleConvertLead,
 }: LeadsTableProps) {
-  if (isLoading) {
+  const showSkeleton = useDelayedLoading(isLoading && !(data?.leads?.length));
+
+  if (showSkeleton) {
     return <FullTableSkeleton columnCount={9} rowCount={5} />;
   }
 

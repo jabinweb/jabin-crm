@@ -27,12 +27,14 @@ import { DataTablePagination } from './data-table-pagination'
 import { DataTableToolbar } from './data-table-toolbar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { TableSkeleton } from './table-skeleton'
+import { useDelayedLoading } from '@/hooks/use-delayed-loading'
+import { cn } from '@/lib/utils'
 
 export interface DataTableProps<TData> {
   columns: ColumnDef<TData>[]
   data: TData[]
   isLoading?: boolean
-  searchableColumn?: string // Changed from keyof TData to string
+  searchableColumn?: string
   filterableColumns?: {
     [key: string]: {
       title: string
@@ -43,19 +45,20 @@ export interface DataTableProps<TData> {
   onSearch?: (searchTerm: string) => void
 }
 
-export function DataTable<TData>({ 
-  columns, 
+export function DataTable<TData>({
+  columns,
   data,
   isLoading = false,
   searchableColumn,
   filterableColumns,
   onFiltersChange,
-  onSearch
+  onSearch,
 }: DataTableProps<TData>) {
   const [rowSelection, setRowSelection] = useState({})
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [sorting, setSorting] = useState<SortingState>([])
+  const showSkeleton = useDelayedLoading(isLoading && data.length === 0)
 
   const table = useReactTable({
     data,
@@ -70,16 +73,13 @@ export function DataTable<TData>({
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: (updater) => {
-      // Handle both function and value updates
-      const newFilters = typeof updater === 'function' 
-        ? updater(columnFilters) 
-        : updater;
-      
+      const newFilters = typeof updater === 'function' ? updater(columnFilters) : updater
+
       setColumnFilters(newFilters)
 
       if (onFiltersChange) {
         const activeFilters: { [key: string]: string[] } = {}
-        newFilters.forEach(filter => {
+        newFilters.forEach((filter) => {
           const value = filter.value
           if (typeof value === 'string') {
             activeFilters[filter.id] = [value]
@@ -99,32 +99,20 @@ export function DataTable<TData>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
-  const handleFilterChange = (columnId: string, selectedValues: string[]) => {
-    const newFilters = {
-      ...table.getState().columnFilters.reduce((acc, filter) => ({
-        ...acc,
-        [filter.id]: filter.value
-      }), {}),
-      [columnId]: selectedValues
-    }
-    
-    onFiltersChange?.(newFilters)
-  }
-
-  if (isLoading) {
+  if (showSkeleton) {
     return <TableSkeleton columnCount={columns.length} />
   }
 
   return (
-    <div className='space-y-4'>
-      <DataTableToolbar 
+    <div className={cn('space-y-4', isLoading && data.length > 0 && 'opacity-70 transition-opacity')}>
+      <DataTableToolbar
         table={table}
         filterableColumns={filterableColumns}
         searchableColumn={searchableColumn}
         onSearch={onSearch}
       />
       <ScrollArea className="h-[calc(100vh-17rem)]">
-        <div className='rounded-none border'>
+        <div className="rounded-none border">
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -133,10 +121,7 @@ export function DataTable<TData>({
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -145,27 +130,18 @@ export function DataTable<TData>({
             <TableBody>
               {table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && 'selected'}
-                  >
+                  <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className='h-24 text-center'
-                  >
-                    No results.
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                    {isLoading ? '' : 'No results.'}
                   </TableCell>
                 </TableRow>
               )}
@@ -177,4 +153,3 @@ export function DataTable<TData>({
     </div>
   )
 }
-

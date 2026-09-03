@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { LeadStatus, CompanyTaskPriority } from "@prisma/client"
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
+import { DataTableColumnHeader } from "@/components/table/data-table-column-header"
 
 export interface LeadTableItem {
   id: string
@@ -28,7 +29,6 @@ export interface LeadTableItem {
 
 function LeadTitleCell({ lead }: { lead: LeadTableItem }) {
   const { path } = useWorkspacePaths()
-  // No employee lead-detail route yet — open workspace CRM lead.
   return (
     <div className="flex items-center gap-2">
       <Link
@@ -47,12 +47,13 @@ function LeadTitleCell({ lead }: { lead: LeadTableItem }) {
 export const columns: ColumnDef<LeadTableItem>[] = [
   {
     accessorKey: "title",
-    header: "Lead",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Lead" />,
     cell: ({ row }) => <LeadTitleCell lead={row.original} />,
   },
   {
     id: "contact",
-    header: "Contact",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Contact" />,
+    enableSorting: false,
     cell: ({ row }) => {
       const lead = row.original
       return (
@@ -67,7 +68,8 @@ export const columns: ColumnDef<LeadTableItem>[] = [
   },
   {
     accessorKey: "assignedTo",
-    header: "Owner",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Owner" />,
+    enableSorting: false,
     cell: ({ row }) => {
       const assignee = row.original.assignedTo
       return (
@@ -83,7 +85,7 @@ export const columns: ColumnDef<LeadTableItem>[] = [
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
     cell: ({ row }) => {
       const status = row.getValue("status") as LeadStatus
       return (
@@ -101,7 +103,7 @@ export const columns: ColumnDef<LeadTableItem>[] = [
   },
   {
     accessorKey: "priority",
-    header: "Priority",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Priority" />,
     cell: ({ row }) => {
       const priority = row.getValue("priority") as CompanyTaskPriority
       return (
@@ -118,7 +120,7 @@ export const columns: ColumnDef<LeadTableItem>[] = [
   },
   {
     accessorKey: "value",
-    header: "Value",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Value" />,
     cell: ({ row }) => {
       const value = row.getValue("value") as number | null
       if (!value) return '-'
@@ -131,7 +133,7 @@ export const columns: ColumnDef<LeadTableItem>[] = [
   },
   {
     accessorKey: "lastContactedAt",
-    header: "Last Contact",
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Last Contact" />,
     cell: ({ row }) => {
       const date = row.getValue("lastContactedAt") as Date | null
       if (!date) return 'Never'

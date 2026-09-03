@@ -185,12 +185,12 @@ function SidebarNavLink({
         'flex items-center gap-3 rounded-lg py-2.5 text-sm transition-colors',
         indent ? 'pl-8 pr-3' : 'px-3',
         active
-          ? 'bg-muted font-medium text-foreground'
+          ? 'bg-teal-600/10 font-medium text-teal-800'
           : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
       )}
     >
       <Icon
-        className={cn('size-4 shrink-0', active ? 'text-foreground' : 'text-muted-foreground')}
+        className={cn('size-4 shrink-0', active ? 'text-teal-700' : 'text-muted-foreground')}
         strokeWidth={ICON_STROKE}
       />
       <span className="truncate">{label}</span>
@@ -451,12 +451,18 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                       className={cn(
                         'flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors',
                         isParentActive(item)
-                          ? 'bg-muted font-medium text-foreground'
+                          ? 'bg-teal-600/10 font-medium text-teal-800'
                           : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                       )}
                     >
                       <span className="flex items-center gap-2.5">
-                        <Icon className="size-4 shrink-0" strokeWidth={ICON_STROKE} />
+                        <Icon
+                          className={cn(
+                            'size-4 shrink-0',
+                            isParentActive(item) ? 'text-teal-700' : undefined
+                          )}
+                          strokeWidth={ICON_STROKE}
+                        />
                         <span className="font-medium">{labelFor(item)}</span>
                       </span>
                       {expandedMenus.includes(item.name) ? (

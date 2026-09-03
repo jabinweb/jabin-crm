@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { CheckIcon, PlusCircledIcon } from '@radix-ui/react-icons'
+import { CheckIcon } from '@radix-ui/react-icons'
+import { ListFilter } from 'lucide-react'
 import { Column } from '@tanstack/react-table'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -40,8 +41,8 @@ export function DataTableFacetedFilter<TData, TValue>({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant='outline' size='sm' className='h-8 border-dashed gap-1'>
-          <PlusCircledIcon className='h-4 w-4' />
+        <Button variant="outline" size="sm" className="h-8 border-dashed gap-1.5">
+          <ListFilter className="h-3.5 w-3.5" />
           {title}
           {selectedValues?.size > 0 && (
             <>

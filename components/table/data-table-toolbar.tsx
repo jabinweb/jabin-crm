@@ -1,6 +1,7 @@
 'use client'
 
 import { Cross2Icon } from '@radix-ui/react-icons'
+import { Search } from 'lucide-react'
 import { Table } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,35 +24,40 @@ export function DataTableToolbar<TData>({
   table,
   filterableColumns,
   searchableColumn,
-  onSearch
+  onSearch,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-1 flex-wrap items-center gap-2">
         {searchableColumn && (
-          <Input
-            placeholder={`Search by ${searchableColumn.toLowerCase()}...`}
-            value={(table.getColumn(searchableColumn)?.getFilterValue() as string) ?? ""}
-            onChange={(event) => {
-              table.getColumn(searchableColumn)?.setFilterValue(event.target.value)
-              onSearch?.(event.target.value)
-            }}
-            className="h-8 w-[150px] lg:w-[250px]"
-          />
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={`Search ${searchableColumn.toLowerCase()}…`}
+              value={(table.getColumn(searchableColumn)?.getFilterValue() as string) ?? ''}
+              onChange={(event) => {
+                table.getColumn(searchableColumn)?.setFilterValue(event.target.value)
+                onSearch?.(event.target.value)
+              }}
+              className="h-8 w-[150px] pl-8 lg:w-[250px]"
+            />
+          </div>
         )}
 
-        {filterableColumns && Object.entries(filterableColumns).map(([key, column]) => (
-          table.getColumn(key) && (
-            <DataTableFacetedFilter
-              key={key}
-              column={table.getColumn(key)}
-              title={column.title}
-              options={column.options}
-            />
-          )
-        ))}
+        {filterableColumns &&
+          Object.entries(filterableColumns).map(
+            ([key, column]) =>
+              table.getColumn(key) && (
+                <DataTableFacetedFilter
+                  key={key}
+                  column={table.getColumn(key)}
+                  title={column.title}
+                  options={column.options}
+                />
+              )
+          )}
 
         {isFiltered && (
           <Button

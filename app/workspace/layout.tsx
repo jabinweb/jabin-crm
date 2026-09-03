@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Navbar } from '@/components/layout/navbar';
-import { ShellSkeleton } from '@/components/loading';
+import { DelayedShellSkeleton } from '@/components/loading';
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -28,7 +28,7 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   }, [session, status, router]);
 
   if (status === 'loading') {
-    return <ShellSkeleton />;
+    return <DelayedShellSkeleton />;
   }
 
   if (!session) {

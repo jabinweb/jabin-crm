@@ -11,6 +11,8 @@ export {
   ShellSkeleton,
 } from './primitives';
 
+export { DelayedShellSkeleton } from './delayed-shell-skeleton';
+
 export {
   TableSkeleton,
   FullTableSkeleton,
