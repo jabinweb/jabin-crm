@@ -113,6 +113,7 @@ export function PortalTicketForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const equipmentIdParam = searchParams.get('equipmentId');
+  const projectIdParam = searchParams.get('projectId');
 
   const { data, isLoading } = useQuery<TicketTypesResponse>({
     queryKey: ['portal-ticket-types'],
@@ -131,6 +132,7 @@ export function PortalTicketForm() {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('');
   const [equipmentId, setEquipmentId] = useState(equipmentIdParam || '');
+  const [projectId, setProjectId] = useState(projectIdParam || '');
   const [customFields, setCustomFields] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [issueResolved, setIssueResolved] = useState(false);
@@ -158,6 +160,22 @@ export function PortalTicketForm() {
       setEquipmentId(equipmentIdParam);
     }
   }, [equipmentIdParam]);
+
+  useEffect(() => {
+    if (projectIdParam) {
+      setProjectId(projectIdParam);
+    }
+  }, [projectIdParam]);
+
+  const { data: projectOptions = [] } = useQuery({
+    queryKey: ['portal-projects-options'],
+    queryFn: async () => {
+      const res = await fetch('/api/portal/projects');
+      if (!res.ok) return [];
+      const body = await res.json();
+      return (Array.isArray(body) ? body : []) as Array<{ id: string; name: string }>;
+    },
+  });
 
   const { data: equipmentOptions } = useQuery({
     queryKey: ['portal-equipment-options'],
@@ -198,6 +216,7 @@ export function PortalTicketForm() {
           description: description.trim(),
           priority: priority || selectedType.defaultPriority,
           equipmentId: selectedType.showEquipment ? equipmentId : undefined,
+          projectId: projectId && projectId !== 'NONE' ? projectId : undefined,
           customFields,
         }),
       });
@@ -288,6 +307,30 @@ export function PortalTicketForm() {
                     </SelectContent>
                   </Select>
                 </div>
+
+                {projectOptions.length > 0 ? (
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-slate-400">
+                      Related project (optional)
+                    </Label>
+                    <Select
+                      value={projectId || 'NONE'}
+                      onValueChange={(v) => setProjectId(v === 'NONE' ? '' : v)}
+                    >
+                      <SelectTrigger className="h-11 border-slate-100 bg-slate-50/50">
+                        <SelectValue placeholder="Select a project…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="NONE">Not project-specific</SelectItem>
+                        {projectOptions.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
 
                 {selectedType?.showEquipment ? (
                   <div className="space-y-2">

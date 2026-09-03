@@ -64,7 +64,8 @@ export async function startOnboardingForEmployee(
       subject: `Welcome to the team, ${emp.name}`,
       html: createEmailHTML(
         `<h2>Welcome, ${emp.name}</h2>
-         <p>Your onboarding checklist has started. Please complete the required items in the employee portal.</p>
+         <p>Your HR onboarding checklist has been started by your company.</p>
+         <p>Your manager or HR will guide you through the required items (ID proof, bank details, policy acknowledgement, and more). Reach out to them if you have questions.</p>
          <p>Employee ID: <strong>${emp.employeeId}</strong></p>`
       ),
     })

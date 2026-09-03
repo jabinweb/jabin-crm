@@ -72,7 +72,9 @@ export default function TeamPerformancePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-2">Team Performance</h1>
-        <p className="text-gray-500">Track your team's sales and task performance</p>
+        <p className="text-gray-500">
+          Track sales pipeline and CRM follow-up tasks (not project delivery work)
+        </p>
       </div>
 
       {/* Team Summary Cards */}
@@ -179,7 +181,7 @@ export default function TeamPerformancePage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-500 mb-1">Tasks</p>
+                      <p className="text-sm text-gray-500 mb-1">Sales follow-ups</p>
                       <p className="text-2xl font-bold">
                         {member.stats.assignedTasks}
                       </p>
@@ -192,10 +194,10 @@ export default function TeamPerformancePage() {
                     </div>
                   </div>
 
-                  {/* Task Completion Progress */}
+                  {/* Sales follow-up completion (CRM Task model) */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">Task Completion Rate</p>
+                      <p className="text-sm font-medium">Follow-up completion rate</p>
                       <span className="text-sm font-bold">
                         {member.stats.taskCompletionRate.toFixed(1)}%
                       </span>
@@ -206,7 +208,7 @@ export default function TeamPerformancePage() {
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       {member.stats.completedTasks} of {member.stats.assignedTasks}{' '}
-                      tasks completed
+                      sales follow-ups completed
                     </p>
                   </div>
                 </div>

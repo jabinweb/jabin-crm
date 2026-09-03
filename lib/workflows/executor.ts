@@ -28,6 +28,14 @@ export type WorkflowAction =
       assigneeId?: string;
     }
   | {
+      type: 'create_project_task';
+      projectId?: string;
+      title?: string;
+      message?: string;
+      dueInDays?: number;
+      assigneeId?: string;
+    }
+  | {
       type: 'send_email';
       to?: string;
       subject?: string;
@@ -58,6 +66,7 @@ export type WorkflowEventPayload = {
   leadId?: string;
   ticketId?: string;
   dealId?: string;
+  projectId?: string;
   title?: string;
   summary?: string;
   metadata?: Record<string, unknown>;
@@ -226,6 +235,58 @@ async function runAction(
       type: 'FOLLOW_UP',
     });
     return { type, ok: true, taskId: task.id };
+  }
+
+  if (type === 'create_project_task') {
+    const cfg = action as {
+      projectId?: string;
+      title?: string;
+      message?: string;
+      dueInDays?: number;
+      assigneeId?: string;
+    };
+    const projectId =
+      cfg.projectId?.trim() ||
+      payload.projectId?.trim() ||
+      (typeof payload.metadata?.projectId === 'string'
+        ? payload.metadata.projectId.trim()
+        : '');
+    if (!projectId) {
+      return { type, ok: false, error: 'No projectId in action config or payload' };
+    }
+
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        ...(payload.companyId ? { companyId: payload.companyId } : {}),
+      },
+      select: { id: true },
+    });
+    if (!project) {
+      return { type, ok: false, error: 'Project not found' };
+    }
+
+    const dueInDays = Number(cfg.dueInDays);
+    const dueDate =
+      Number.isFinite(dueInDays) && dueInDays > 0
+        ? new Date(Date.now() + dueInDays * 24 * 60 * 60 * 1000)
+        : undefined;
+
+    const task = await prisma.projectTask.create({
+      data: {
+        projectId: project.id,
+        title:
+          substitute(cfg.title || payload.title || `Project task (${event})`, payload) ||
+          `Project task (${event})`,
+        description: cfg.message || payload.summary || null,
+        assigneeId: cfg.assigneeId?.trim() || null,
+        reporterId: payload.userId,
+        dueDate: dueDate ?? null,
+        status: 'TODO',
+        priority: 'MEDIUM',
+      },
+    });
+    return { type, ok: true, taskId: task.id, projectId: project.id };
   }
 
   if (type === 'send_email') {

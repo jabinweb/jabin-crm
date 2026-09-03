@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -14,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, Download, CreditCard } from 'lucide-react';
+import { ChevronLeft, Download, CreditCard, Building2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { SectionSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
@@ -57,6 +58,7 @@ type InvoiceDetail = {
 function InvoiceDetailView() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const paySectionRef = useRef<HTMLDivElement>(null);
 
   const { data: invoice, isLoading, error } = useQuery({
     queryKey: ['portal-invoice', id],
@@ -83,9 +85,14 @@ function InvoiceDetailView() {
   }
 
   const pay = invoice.paymentDetailsParsed;
+  const hasBankDetails = !!(pay && Object.keys(pay).length > 0);
   const showPay =
     invoice.amountDue > 0 &&
     !['PAID', 'CANCELLED', 'REFUNDED'].includes(invoice.status);
+
+  const scrollToPay = () => {
+    paySectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div className="space-y-6">
@@ -107,12 +114,20 @@ function InvoiceDetailView() {
             <p className="text-sm text-muted-foreground">{invoice.title}</p>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <a href={`/api/portal/invoices/${invoice.id}/pdf`} target="_blank" rel="noreferrer">
-            <Download className="mr-2 h-4 w-4" />
-            Download PDF
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {showPay && hasBankDetails ? (
+            <Button type="button" onClick={scrollToPay}>
+              <CreditCard className="mr-2 h-4 w-4" />
+              How to pay
+            </Button>
+          ) : null}
+          <Button variant="outline" asChild>
+            <a href={`/api/portal/invoices/${invoice.id}/pdf`} target="_blank" rel="noreferrer">
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -192,88 +207,96 @@ function InvoiceDetailView() {
           </Card>
 
           {showPay ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  How to pay
-                </CardTitle>
-                <CardDescription>
-                  Transfer the amount due using the details below. Your provider will mark the
-                  invoice paid once funds clear.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm">
-                {invoice.paymentMethod ? (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Method</p>
-                    <p className="font-medium">{invoice.paymentMethod}</p>
-                  </div>
-                ) : null}
-                {pay && Object.keys(pay).length > 0 ? (
-                  <>
-                    {pay.bankName ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">Bank</p>
-                        <p className="font-medium">{pay.bankName}</p>
-                      </div>
-                    ) : null}
-                    {pay.accountName ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                          Account name
-                        </p>
-                        <p className="font-medium">{pay.accountName}</p>
-                      </div>
-                    ) : null}
-                    {pay.accountNumber ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                          Account number
-                        </p>
-                        <p className="font-mono font-medium">{pay.accountNumber}</p>
-                      </div>
-                    ) : null}
-                    {pay.iban ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">IBAN</p>
-                        <p className="font-mono font-medium">{pay.iban}</p>
-                      </div>
-                    ) : null}
-                    {pay.routingNumber ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                          Routing
-                        </p>
-                        <p className="font-mono font-medium">{pay.routingNumber}</p>
-                      </div>
-                    ) : null}
-                    {pay.swiftCode ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">SWIFT</p>
-                        <p className="font-mono font-medium">{pay.swiftCode}</p>
-                      </div>
-                    ) : null}
-                    {pay.paymentInstructions ? (
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                          Instructions
-                        </p>
-                        <p className="whitespace-pre-wrap">{pay.paymentInstructions}</p>
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
-                  <p className="text-muted-foreground">
-                    Payment details are not listed on this invoice. Contact your provider or check
-                    the PDF for bank instructions.
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground pt-2">
-                  Reference: {invoice.invoiceNumber}
-                </p>
-              </CardContent>
-            </Card>
+            <div ref={paySectionRef} id="how-to-pay">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    How to pay
+                  </CardTitle>
+                  <CardDescription>
+                    {hasBankDetails
+                      ? 'Transfer the amount due using the bank details below. Your provider will mark the invoice paid once funds clear.'
+                      : 'Online card payment is not available on this invoice.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  {invoice.paymentMethod ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide">Method</p>
+                      <p className="font-medium">{invoice.paymentMethod}</p>
+                    </div>
+                  ) : null}
+                  {hasBankDetails ? (
+                    <>
+                      {pay!.bankName ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">Bank</p>
+                          <p className="font-medium">{pay!.bankName}</p>
+                        </div>
+                      ) : null}
+                      {pay!.accountName ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Account name
+                          </p>
+                          <p className="font-medium">{pay!.accountName}</p>
+                        </div>
+                      ) : null}
+                      {pay!.accountNumber ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Account number
+                          </p>
+                          <p className="font-mono font-medium">{pay!.accountNumber}</p>
+                        </div>
+                      ) : null}
+                      {pay!.iban ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">IBAN</p>
+                          <p className="font-mono font-medium">{pay!.iban}</p>
+                        </div>
+                      ) : null}
+                      {pay!.routingNumber ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Routing
+                          </p>
+                          <p className="font-mono font-medium">{pay!.routingNumber}</p>
+                        </div>
+                      ) : null}
+                      {pay!.swiftCode ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">SWIFT</p>
+                          <p className="font-mono font-medium">{pay!.swiftCode}</p>
+                        </div>
+                      ) : null}
+                      {pay!.paymentInstructions ? (
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                            Instructions
+                          </p>
+                          <p className="whitespace-pre-wrap">{pay!.paymentInstructions}</p>
+                        </div>
+                      ) : null}
+                      <p className="text-xs text-muted-foreground pt-2">
+                        Reference: {invoice.invoiceNumber}
+                      </p>
+                    </>
+                  ) : (
+                    <div className="rounded-md border bg-muted/40 p-3 space-y-2">
+                      <p className="flex items-start gap-2 text-muted-foreground">
+                        <Building2 className="h-4 w-4 mt-0.5 shrink-0" />
+                        <span>
+                          Payment details are not listed here. Contact your provider for bank
+                          instructions, or check the PDF if one was attached.
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           ) : null}
 
           {invoice.payments?.length > 0 ? (

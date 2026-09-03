@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 
-// Get team performance analytics
+/**
+ * Team performance analytics (sales-focused).
+ * `assignedTasks` / `completedTasks` count CRM follow-up Tasks only — not ProjectTasks.
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -36,6 +39,7 @@ export async function GET(request: NextRequest) {
           prisma.deal.count({
             where: { assignedToId: member.id },
           }),
+          // Sales follow-up tasks (Task model), not delivery ProjectTasks
           prisma.task.count({
             where: { assignedToId: member.id },
           }),
@@ -67,6 +71,7 @@ export async function GET(request: NextRequest) {
           stats: {
             assignedLeads: assignedLeadsCount,
             assignedDeals: assignedDealsCount,
+            /** CRM sales follow-ups (Task), not project delivery tasks */
             assignedTasks: assignedTasksCount,
             completedTasks: completedTasksCount,
             wonDeals: wonDealsCount,

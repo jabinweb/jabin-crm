@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
                     description: String(data.description),
                     priority: data.priority,
                     equipmentId: data.equipmentId,
+                    projectId: data.projectId,
                     customFields: data.customFields,
                 });
             } catch (err) {

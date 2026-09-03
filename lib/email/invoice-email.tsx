@@ -2,6 +2,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { InvoicePDF } from '../pdf/invoice-pdf';
 import { getUserSmtpConfig } from '../smtp-config';
 import { EmailService, type EmailConfig } from './email-service';
+import { getAppBaseUrl } from '../app-url';
 import logger from '../logger';
 
 export async function sendInvoiceEmail(invoice: any) {
@@ -218,7 +219,7 @@ function generateInvoiceEmailHTML(invoice: any): string {
         <p>Please review the attached PDF for complete details. If you have already made the payment, please disregard this notice.</p>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="#" class="button">Pay Now</a>
+          <a href="${getAppBaseUrl()}/portal/invoices/${invoice.id}" class="button">Pay Now</a>
         </div>
 
         <p>For any questions regarding this invoice, please contact us.</p>

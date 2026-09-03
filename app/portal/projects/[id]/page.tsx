@@ -1,16 +1,19 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ArrowLeft, FolderKanban, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type PortalProject = {
   id: string;
@@ -72,6 +75,63 @@ const TASK_STATUS_LABEL: Record<string, string> = {
   DONE: 'Done',
 };
 
+function TaskCommentForm({
+  projectId,
+  taskId,
+}: {
+  projectId: string;
+  taskId: string;
+}) {
+  const [body, setBody] = useState('');
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: async (comment: string) => {
+      const res = await fetch(
+        `/api/portal/projects/${projectId}/tasks/${taskId}/comments`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body: comment }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to post comment');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setBody('');
+      toast.success('Comment sent');
+      queryClient.invalidateQueries({ queryKey: ['portal-project', projectId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <form
+      className="flex gap-2 pt-1"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (!body.trim()) return;
+        mutation.mutate(body.trim());
+      }}
+    >
+      <Input
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="Add a note for the team…"
+        className="h-8 text-xs"
+        disabled={mutation.isPending}
+      />
+      <Button type="submit" size="sm" className="h-8 shrink-0" disabled={mutation.isPending || !body.trim()}>
+        Send
+      </Button>
+    </form>
+  );
+}
+
 export default function PortalProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
@@ -106,6 +166,8 @@ export default function PortalProjectDetailPage() {
       />
     );
   }
+
+  const newTicketHref = `/portal/tickets/new?projectId=${encodeURIComponent(project.id)}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -146,7 +208,12 @@ export default function PortalProjectDetailPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Retainer</CardTitle>
-              <CardDescription>Active billing plan for this engagement.</CardDescription>
+              <CardDescription>
+                Active billing plan.{' '}
+                <Link href="/portal/retainers" className="text-primary underline-offset-2 hover:underline">
+                  View all
+                </Link>
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {project.retainers.map((r) => (
@@ -210,7 +277,7 @@ export default function PortalProjectDetailPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Active work</CardTitle>
             <CardDescription>
-              Delivery tasks with recent updates and shared files.
+              Delivery tasks — leave a note if you need to acknowledge or clarify.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -255,6 +322,7 @@ export default function PortalProjectDetailPage() {
                         ))}
                       </div>
                     ) : null}
+                    <TaskCommentForm projectId={project.id} taskId={t.id} />
                   </li>
                 ))}
               </ul>
@@ -276,7 +344,7 @@ export default function PortalProjectDetailPage() {
             <div className="flex flex-col items-center gap-3 py-6 text-center">
               <p className="text-sm text-muted-foreground">No linked requests yet.</p>
               <Button asChild size="sm">
-                <Link href="/portal/tickets/new">Submit a brief / change request</Link>
+                <Link href={newTicketHref}>Submit a brief / change request</Link>
               </Button>
             </div>
           ) : (
@@ -292,6 +360,11 @@ export default function PortalProjectDetailPage() {
                   </Link>
                 </li>
               ))}
+              <li className="pt-1">
+                <Button asChild size="sm" variant="outline">
+                  <Link href={newTicketHref}>New request for this project</Link>
+                </Button>
+              </li>
             </ul>
           )}
         </CardContent>

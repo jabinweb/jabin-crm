@@ -7,6 +7,7 @@ export interface CreateInvoiceInput {
   leadId?: string;
   dealId?: string;
   customerId?: string;
+  projectId?: string;
   quotationId?: string;
   title: string;
   description?: string;
@@ -187,6 +188,7 @@ export class InvoiceService {
           leadId,
           dealId: input.dealId,
           customerId: customerId || null,
+          projectId: input.projectId || null,
           quotationId: input.quotationId,
           title: input.title,
           description: input.description,
@@ -582,6 +584,7 @@ export class InvoiceService {
     customerEmail?: string;
     leadId?: string;
     dealId?: string;
+    projectId?: string;
     status?: InvoiceStatus;
     overdue?: boolean;
     page?: number;
@@ -615,6 +618,7 @@ export class InvoiceService {
       }
       if (filters.leadId) where.leadId = filters.leadId;
       if (filters.dealId) where.dealId = filters.dealId;
+      if (filters.projectId) where.projectId = filters.projectId;
       if (filters.status) where.status = filters.status;
       if (filters.overdue) {
         where.status = 'OVERDUE';

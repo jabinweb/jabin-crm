@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { CompanyTaskStatus } from '@prisma/client'
 import { z } from 'zod'
 
 const addressSchema = z.object({
@@ -52,10 +51,6 @@ export async function GET() {
           orderBy: { createdAt: 'desc' },
           take: 5,
         },
-        assignedTasks: {
-          where: { status: CompanyTaskStatus.TODO },
-          take: 5,
-        },
       },
     })
 
@@ -63,7 +58,30 @@ export async function GET() {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    return NextResponse.json(employee)
+    const userId = employee.userId ?? session.user.id
+    const openProjectTasks = userId
+      ? await prisma.projectTask.findMany({
+          where: {
+            assigneeId: userId,
+            status: { not: 'DONE' },
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            priority: true,
+            dueDate: true,
+            projectId: true,
+          },
+        })
+      : []
+
+    return NextResponse.json({
+      ...employee,
+      assignedTasks: openProjectTasks,
+    })
   } catch (error) {
     console.error('Profile fetch error:', error)
     return NextResponse.json({ error: 'Error fetching profile' }, { status: 500 })
@@ -99,25 +117,18 @@ export async function PATCH(request: Request) {
       if (data.dateOfBirth === null || data.dateOfBirth === '') {
         update.dateOfBirth = null
       } else {
-        const d = new Date(data.dateOfBirth)
-        if (Number.isNaN(d.getTime())) {
-          return NextResponse.json({ error: 'Invalid dateOfBirth' }, { status: 400 })
-        }
-        update.dateOfBirth = d
+        update.dateOfBirth = new Date(data.dateOfBirth)
       }
     }
 
     const employee = await prisma.employee.update({
       where: { id: session.user.employeeId },
       data: update,
-      include: {
-        company: { select: { id: true, name: true, status: true } },
-      },
     })
 
     return NextResponse.json(employee)
   } catch (error) {
     console.error('Profile update error:', error)
-    return NextResponse.json({ error: 'Failed to update profile' }, { status: 500 })
+    return NextResponse.json({ error: 'Error updating profile' }, { status: 500 })
   }
 }

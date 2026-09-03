@@ -61,7 +61,7 @@ export function EmployeeLeadTable({ pageSize = 10, showPagination = true }: Empl
           <TableRow>
             <TableHead>Title</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>CompanyTaskPriority</TableHead>
+            <TableHead>Priority</TableHead>
             <TableHead>Next Follow-up</TableHead>
             <TableHead>Value</TableHead>
             <TableHead>Actions</TableHead>

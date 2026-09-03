@@ -68,7 +68,11 @@ export function AnnouncementsCard({ companyId }: AnnouncementsCardProps) {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium">{announcement.title}</h3>
                     <Badge variant={getPriorityBadge(announcement.priority)}>
-                      CompanyTaskPriority {announcement.priority}
+                      {announcement.priority === 2
+                        ? 'High'
+                        : announcement.priority === 1
+                          ? 'Medium'
+                          : 'Low'}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">

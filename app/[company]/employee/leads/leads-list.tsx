@@ -39,7 +39,7 @@ export function LeadsList() {
       }))
     },
     priority: {
-      title: "CompanyTaskPriority",
+      title: "Priority",
       options: Object.values(CompanyTaskPriority).map(priority => ({
         label: priority.toLowerCase(),
         value: priority

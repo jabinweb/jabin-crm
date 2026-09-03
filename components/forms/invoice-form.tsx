@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,17 +63,22 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: InvoiceFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ company?: string }>();
   const workspaceSlug = typeof params?.company === 'string' ? params.company : undefined;
   const { path } = useWorkspacePaths();
   const { currency: defaultCurrency } = useCurrency();
   const [isInitialized, setIsInitialized] = useState(false);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
+  const [dealId, setDealId] = useState<string>(searchParams.get('dealId') || '');
+  const [customerId, setCustomerId] = useState<string>(searchParams.get('customerId') || '');
+  const [projectId, setProjectId] = useState<string>(searchParams.get('projectId') || '');
+  const [leadId, setLeadId] = useState<string>(searchParams.get('leadId') || '');
   const [formData, setFormData] = useState<InvoiceFormData>({
     title: '',
     description: '',
     customerName: '',
-    customerEmail: '',
+    customerEmail: searchParams.get('customerEmail') || '',
     customerPhone: '',
     customerAddress: '',
     dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -118,6 +123,72 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       return response.json();
     },
   });
+
+  const { data: dealsData } = useQuery({
+    queryKey: ['deals-for-invoice'],
+    queryFn: async () => {
+      const response = await fetch('/api/deals?limit=100');
+      if (!response.ok) throw new Error('Failed to fetch deals');
+      return response.json();
+    },
+    enabled: mode === 'create',
+  });
+
+  // Prefill from deal query param
+  useEffect(() => {
+    if (mode !== 'create' || !dealId) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(`/api/deals/${dealId}`);
+      if (!res.ok || cancelled) return;
+      const deal = await res.json();
+      if (cancelled) return;
+      setFormData((prev) => ({
+        ...prev,
+        title: prev.title || `Invoice — ${deal.title || ''}`.trim(),
+        customerName:
+          prev.customerName ||
+          deal.lead?.companyName ||
+          deal.lead?.contactName ||
+          '',
+        customerEmail: prev.customerEmail || deal.lead?.email || '',
+        customerPhone: prev.customerPhone || deal.lead?.phone || '',
+      }));
+      if (deal.leadId) setLeadId(deal.leadId);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dealId, mode]);
+
+  // Prefill from project query param
+  useEffect(() => {
+    if (mode !== 'create' || !projectId) return;
+    let cancelled = false;
+    void (async () => {
+      const res = await fetch(`/api/projects/${projectId}`);
+      if (!res.ok || cancelled) return;
+      const project = await res.json();
+      if (cancelled) return;
+      setFormData((prev) => ({
+        ...prev,
+        title: prev.title || `Invoice — ${project.name || ''}`.trim(),
+        customerName:
+          prev.customerName ||
+          project.customer?.organizationName ||
+          project.customer?.contactPerson ||
+          '',
+        customerEmail: prev.customerEmail || project.customer?.email || '',
+        customerPhone: prev.customerPhone || project.customer?.phone || '',
+        customerAddress: prev.customerAddress || project.customer?.address || '',
+      }));
+      if (project.customerId) setCustomerId(project.customerId);
+      if (project.dealId) setDealId(project.dealId);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, mode]);
 
   // Default currency from company (or user) when creating
   useEffect(() => {
@@ -258,14 +329,36 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     }
   };
 
-  const selectLead = (leadId: string) => {
-    const lead = leads?.leads.find((l: any) => l.id === leadId);
+  const selectLead = (selectedLeadId: string) => {
+    setLeadId(selectedLeadId);
+    const lead = leads?.leads.find((l: any) => l.id === selectedLeadId);
     if (lead) {
       handleChange('customerName', lead.name);
       handleChange('customerEmail', lead.email);
       handleChange('customerPhone', lead.phone || '');
       handleChange('customerAddress', lead.address || '');
     }
+  };
+
+  const selectDeal = (selectedDealId: string) => {
+    setDealId(selectedDealId);
+    const deals = Array.isArray(dealsData)
+      ? dealsData
+      : dealsData?.deals || [];
+    const deal = deals.find((d: any) => d.id === selectedDealId);
+    if (!deal) return;
+    setFormData((prev) => ({
+      ...prev,
+      title: prev.title || `Invoice — ${deal.title || ''}`.trim(),
+      customerName:
+        prev.customerName ||
+        deal.lead?.companyName ||
+        deal.lead?.contactName ||
+        '',
+      customerEmail: prev.customerEmail || deal.lead?.email || '',
+      customerPhone: prev.customerPhone || deal.lead?.phone || '',
+    }));
+    if (deal.leadId) setLeadId(deal.leadId);
   };
 
   const selectQuotation = (quotationId: string) => {
@@ -322,6 +415,10 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       total: calculateTotal(),
       amountPaid: 0,
       amountDue: calculateTotal(),
+      ...(dealId ? { dealId } : {}),
+      ...(customerId ? { customerId } : {}),
+      ...(projectId ? { projectId } : {}),
+      ...(leadId ? { leadId } : {}),
     };
 
     if (mode === 'edit') {
@@ -343,6 +440,10 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       total: calculateTotal(),
       amountPaid: 0,
       amountDue: calculateTotal(),
+      ...(dealId ? { dealId } : {}),
+      ...(customerId ? { customerId } : {}),
+      ...(projectId ? { projectId } : {}),
+      ...(leadId ? { leadId } : {}),
     };
 
     if (mode === 'edit') {
@@ -470,6 +571,28 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
               <CardDescription>Who is this invoice for?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {mode === 'create' && (
+                <div className="space-y-2">
+                  <Label htmlFor="selectDeal">Link to deal (optional)</Label>
+                  <Select value={dealId || undefined} onValueChange={selectDeal}>
+                    <SelectTrigger id="selectDeal">
+                      <SelectValue placeholder="Choose a deal" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(Array.isArray(dealsData)
+                        ? dealsData
+                        : dealsData?.deals || []
+                      ).map((deal: any) => (
+                        <SelectItem key={deal.id} value={deal.id}>
+                          {deal.title}
+                          {deal.lead?.companyName ? ` — ${deal.lead.companyName}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               {mode === 'create' && leads?.leads && (
                 <div className="space-y-2">
                   <Label htmlFor="selectLead">Select from Leads</Label>

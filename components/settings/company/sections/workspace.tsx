@@ -134,6 +134,39 @@ export function WorkspaceSection({
               {selectedOption?.description ??
                 WORKSPACE_TEMPLATES[workspace.businessVertical]?.description}
             </p>
+            {(() => {
+              const honestyId = selectedOption?.id ?? resolved.businessVertical;
+              const terminologyOnly = new Set([
+                'retail',
+                'education',
+                'hospitality',
+                'saas',
+              ]);
+              const deepOps = new Set([
+                'field_service',
+                'web_agency',
+                'manufacturing',
+              ]);
+              if (terminologyOnly.has(honestyId)) {
+                return (
+                  <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                    This pack mainly adjusts <span className="font-medium text-foreground">terminology</span>{' '}
+                    and support presets. Core CRM modules stay the same — it is not a full vertical ops
+                    rebuild.
+                  </p>
+                );
+              }
+              if (deepOps.has(honestyId) || selectedOption?.deepTemplate) {
+                return (
+                  <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                    Deep ops pack: enables richer delivery, field, or agency workflows beyond labels
+                    alone (features from{' '}
+                    <span className="font-medium text-foreground">{packLabel}</span>).
+                  </p>
+                );
+              }
+              return null;
+            })()}
             {selectedOption && selectedOption.pack !== selectedOption.id && (
               <p className="text-xs text-muted-foreground">
                 Uses product pack: <span className="font-medium text-foreground">{packLabel}</span>

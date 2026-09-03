@@ -72,7 +72,7 @@ export function Announcements() {
                   }
                 >
                   {announcement.priority === 2 ? 'High' :
-                   announcement.priority === 1 ? 'Medium' : 'Low'} CompanyTaskPriority
+                   announcement.priority === 1 ? 'Medium' : 'Low'}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">

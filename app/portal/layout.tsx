@@ -43,10 +43,22 @@ function PortalLiveChat() {
 
 function notificationHref(metadata: unknown): string | null {
     if (!metadata || typeof metadata !== 'object') return null;
-    const ticketId = (metadata as { ticketId?: string }).ticketId;
-    if (typeof ticketId === 'string' && ticketId) return `/portal/tickets/${ticketId}`;
-    const quotationId = (metadata as { quotationId?: string }).quotationId;
-    if (typeof quotationId === 'string' && quotationId) return `/portal/quotations/${quotationId}`;
+    const meta = metadata as {
+        ticketId?: string;
+        quotationId?: string;
+        invoiceId?: string;
+        projectId?: string;
+    };
+    if (typeof meta.ticketId === 'string' && meta.ticketId) return `/portal/tickets/${meta.ticketId}`;
+    if (typeof meta.quotationId === 'string' && meta.quotationId) {
+        return `/portal/quotations/${meta.quotationId}`;
+    }
+    if (typeof meta.invoiceId === 'string' && meta.invoiceId) {
+        return `/portal/invoices/${meta.invoiceId}`;
+    }
+    if (typeof meta.projectId === 'string' && meta.projectId) {
+        return `/portal/projects/${meta.projectId}`;
+    }
     return null;
 }
 

@@ -2,6 +2,7 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { QuotationPDF } from '../pdf/quotation-pdf';
 import { getUserSmtpConfig } from '../smtp-config';
 import { EmailService, type EmailConfig } from './email-service';
+import { getAppBaseUrl } from '../app-url';
 import logger from '../logger';
 
 export async function sendQuotationEmail(quotation: any) {
@@ -194,7 +195,7 @@ function generateQuotationEmailHTML(quotation: any): string {
         <p>Please review the attached PDF for complete details. If you have any questions or would like to proceed, please don't hesitate to contact us.</p>
 
         <div style="text-align: center; margin: 30px 0;">
-          <a href="#" class="button">Review Quotation</a>
+          <a href="${getAppBaseUrl()}/portal/quotations/${quotation.id}" class="button">Review Quotation</a>
         </div>
 
         <p>Best regards,<br>

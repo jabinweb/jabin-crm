@@ -871,6 +871,7 @@ model Invoice {
   leadId          String?
   dealId          String?
   customerId      String?
+  projectId       String?
   quotationId     String?       @unique
   title           String
   description     String?
@@ -906,6 +907,7 @@ model Invoice {
   customer        Customer?     @relation(fields: [customerId], references: [id])
   deal            Deal?         @relation(fields: [dealId], references: [id])
   lead            Lead?         @relation(fields: [leadId], references: [id])
+  project         Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   quotation       Quotation?    @relation(fields: [quotationId], references: [id])
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   items           InvoiceItem[]
@@ -915,6 +917,7 @@ model Invoice {
   @@index([leadId])
   @@index([dealId])
   @@index([customerId])
+  @@index([projectId])
   @@index([quotationId])
   @@index([status])
   @@index([invoiceNumber])
@@ -3210,6 +3213,7 @@ model Project {
   tickets     SupportTicket[]
   timesheetEntries TimesheetEntry[]
   retainers   ClientRetainer[]
+  invoices    Invoice[]
 
   @@index([companyId])
   @@index([customerId])

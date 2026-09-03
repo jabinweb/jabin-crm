@@ -88,7 +88,7 @@ export async function getUserFromEmail(userId: string): Promise<string> {
       return process.env.SMTP_FROM || process.env.SMTP_USER || '';
     }
 
-    // CompanyTaskPriority: smtpFrom > companyEmail > smtpUser > admin email
+    // Priority: smtpFrom > companyEmail > smtpUser > admin email
     return (
       profile.smtpFrom ||
       profile.companyEmail ||

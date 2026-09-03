@@ -34,12 +34,13 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
 
 type WorkflowActionDraft = {
-  type: 'notify' | 'log' | 'assign' | 'create_task' | 'send_email' | 'send_whatsapp';
+  type: 'notify' | 'log' | 'assign' | 'create_task' | 'create_project_task' | 'send_email' | 'send_whatsapp';
   title: string;
   message: string;
   assigneeId: string;
   assigneeMode: 'fixed' | 'round_robin';
   dueInDays: string;
+  projectId: string;
   to: string;
   subject: string;
   toPhone: string;
@@ -97,6 +98,7 @@ const defaultAction = (trigger: string): WorkflowActionDraft => ({
   assigneeId: '',
   assigneeMode: 'round_robin',
   dueInDays: '1',
+  projectId: '',
   to: '',
   subject: '',
   toPhone: '',
@@ -108,7 +110,15 @@ function parseActions(raw: unknown): WorkflowActionDraft[] {
     const row = (a || {}) as Record<string, unknown>;
     const typeRaw = String(row.type || 'notify');
     const type = (
-      ['notify', 'log', 'assign', 'create_task', 'send_email', 'send_whatsapp'].includes(typeRaw)
+      [
+        'notify',
+        'log',
+        'assign',
+        'create_task',
+        'create_project_task',
+        'send_email',
+        'send_whatsapp',
+      ].includes(typeRaw)
         ? typeRaw
         : 'notify'
     ) as WorkflowActionDraft['type'];
@@ -129,6 +139,7 @@ function parseActions(raw: unknown): WorkflowActionDraft[] {
           : typeof row.dueInDays === 'string'
             ? row.dueInDays
             : '1',
+      projectId: typeof row.projectId === 'string' ? row.projectId : '',
       to: typeof row.to === 'string' ? row.to : '',
       subject: typeof row.subject === 'string' ? row.subject : '',
       toPhone: typeof row.toPhone === 'string' ? row.toPhone : '',
@@ -170,6 +181,16 @@ function actionsPayload(actions: WorkflowActionDraft[]) {
     if (a.type === 'create_task') {
       return {
         type: 'create_task',
+        title: a.title.trim() || undefined,
+        message: a.message.trim() || undefined,
+        dueInDays: Number(a.dueInDays) || 1,
+        assigneeId: a.assigneeId.trim() || undefined,
+      };
+    }
+    if (a.type === 'create_project_task') {
+      return {
+        type: 'create_project_task',
+        projectId: a.projectId.trim() || undefined,
         title: a.title.trim() || undefined,
         message: a.message.trim() || undefined,
         dueInDays: Number(a.dueInDays) || 1,
@@ -422,7 +443,8 @@ export default function WorkflowsPage() {
               <option value="notify">Notify (in-app)</option>
               <option value="log">Log only</option>
               <option value="assign">Assign lead / ticket</option>
-              <option value="create_task">Create task</option>
+              <option value="create_task">Create CRM task</option>
+              <option value="create_project_task">Create project task</option>
               <option value="send_email">Send email</option>
               <option value="send_whatsapp">Send WhatsApp</option>
             </select>
@@ -438,7 +460,9 @@ export default function WorkflowsPage() {
             </Button>
           </div>
 
-          {action.type === 'notify' || action.type === 'create_task' ? (
+          {action.type === 'notify' ||
+          action.type === 'create_task' ||
+          action.type === 'create_project_task' ? (
             <Input
               value={action.title}
               onChange={(e) => {
@@ -446,7 +470,24 @@ export default function WorkflowsPage() {
                 next[idx] = { ...action, title: e.target.value };
                 onChange(next);
               }}
-              placeholder={action.type === 'create_task' ? 'Task title' : 'Notification title'}
+              placeholder={
+                action.type === 'create_task' || action.type === 'create_project_task'
+                  ? 'Task title'
+                  : 'Notification title'
+              }
+              className="h-9"
+            />
+          ) : null}
+
+          {action.type === 'create_project_task' ? (
+            <Input
+              value={action.projectId}
+              onChange={(e) => {
+                const next = [...value];
+                next[idx] = { ...action, projectId: e.target.value };
+                onChange(next);
+              }}
+              placeholder="Project ID (or from event payload)"
               className="h-9"
             />
           ) : null}
@@ -483,7 +524,7 @@ export default function WorkflowsPage() {
             </div>
           ) : null}
 
-          {action.type === 'create_task' ? (
+          {action.type === 'create_task' || action.type === 'create_project_task' ? (
             <div className="grid gap-2 sm:grid-cols-2">
               <Input
                 value={action.dueInDays}
@@ -502,7 +543,7 @@ export default function WorkflowsPage() {
                   next[idx] = { ...action, assigneeId: e.target.value };
                   onChange(next);
                 }}
-                placeholder="Owner user ID (optional)"
+                placeholder="Assignee user ID (optional)"
                 className="h-9"
               />
             </div>
@@ -582,16 +623,16 @@ export default function WorkflowsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Automations</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Workflows</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Trigger → conditions → actions for workspace events.{' '}
+            Event workflows (leads, deals, tickets) — separate from{' '}
             <Link
               href={path('/dashboard/support/automation')}
               className="text-primary underline underline-offset-2"
             >
-              Ticket automation
+              ticket automation
             </Link>{' '}
-            lives under Support.
+            under Support.
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>

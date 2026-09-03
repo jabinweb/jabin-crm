@@ -151,6 +151,19 @@ export function GettingStartedChecklist() {
     enabled: enabled && isAgency,
   });
 
+  const { data: integrationsData } = useQuery({
+    queryKey: ['getting-started-integrations', slug],
+    queryFn: async () => {
+      const res = await workspaceFetch('/api/dashboard/integrations');
+      if (!res.ok) return null;
+      return res.json() as Promise<{
+        integrations?: Array<{ id: string; status: string }>;
+      }>;
+    },
+    enabled,
+    staleTime: 60_000,
+  });
+
   const dismiss = useMutation({
     mutationFn: async () => {
       const res = await fetch('/api/onboarding', {
@@ -177,7 +190,14 @@ export function GettingStartedChecklist() {
     customersData?.pagination?.total ??
     customersData?.customers?.length ??
     0;
+  // Owner/admin is often already an employee — require a second teammate
   const teammateCount = employeesData ?? 0;
+  const whatsappConnected =
+    integrationsData?.integrations?.some(
+      (i) =>
+        i.id === 'whatsapp' &&
+        (i.status === 'connected' || i.status === 'configured')
+    ) ?? false;
 
   const items: ChecklistItem[] = isAgency
     ? [
@@ -206,14 +226,14 @@ export function GettingStartedChecklist() {
           id: 'invite',
           label: 'Invite a teammate',
           href: path('/dashboard/employees/new'),
-          done: teammateCount > 0,
+          done: teammateCount > 1,
           icon: UserPlus,
         },
         {
           id: 'whatsapp',
           label: 'Connect WhatsApp (optional)',
           href: path('/dashboard/whatsapp'),
-          done: false,
+          done: whatsappConnected,
           icon: MessageSquare,
           optional: true,
         },
@@ -258,7 +278,7 @@ export function GettingStartedChecklist() {
           id: 'whatsapp',
           label: 'Configure WhatsApp (optional)',
           href: path('/dashboard/whatsapp'),
-          done: false,
+          done: whatsappConnected,
           icon: MessageSquare,
           optional: true,
         },
@@ -266,7 +286,7 @@ export function GettingStartedChecklist() {
           id: 'invite',
           label: 'Invite a teammate',
           href: path('/dashboard/employees/new'),
-          done: teammateCount > 0,
+          done: teammateCount > 1,
           icon: UserPlus,
         },
       ];

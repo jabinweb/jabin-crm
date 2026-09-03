@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, FolderKanban, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderKanban, FileText, Receipt, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -45,6 +45,23 @@ type DealDetail = {
   user?: { id: string; name?: string | null; email?: string };
   tasks?: Array<{ id: string; title: string; status: string }>;
   projects?: Array<{ id: string; name: string; status: string; progress: number }>;
+  quotations?: Array<{
+    id: string;
+    quotationNumber: string;
+    title: string;
+    status: string;
+    total: number;
+    currency: string;
+  }>;
+  invoices?: Array<{
+    id: string;
+    invoiceNumber: string;
+    title: string;
+    status: string;
+    total: number;
+    amountDue: number;
+    currency: string;
+  }>;
   createdProjectId?: string;
 };
 
@@ -294,17 +311,97 @@ export default function DealDetailPage() {
         </Card>
       )}
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Quotations
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const q = new URLSearchParams({ dealId: deal.id });
+              if (deal.lead?.email) q.set('customerEmail', deal.lead.email);
+              router.push(path(`/dashboard/quotations/new?${q.toString()}`));
+            }}
+          >
+            Create quote
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(deal.quotations?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground">No quotations linked yet.</p>
+          ) : (
+            deal.quotations!.map((q) => (
+              <DashboardLink
+                key={q.id}
+                href={`/dashboard/quotations/${q.id}`}
+                className="flex items-center justify-between gap-3 text-sm hover:underline"
+              >
+                <span className="truncate">
+                  {q.quotationNumber} · {q.title}
+                </span>
+                <Badge variant="outline">{q.status}</Badge>
+              </DashboardLink>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Receipt className="h-4 w-4" />
+            Invoices
+          </CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const q = new URLSearchParams({ dealId: deal.id });
+              if (deal.lead?.email) q.set('customerEmail', deal.lead.email);
+              router.push(path(`/dashboard/invoices/new?${q.toString()}`));
+            }}
+          >
+            Create invoice
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(deal.invoices?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground">No invoices linked yet.</p>
+          ) : (
+            deal.invoices!.map((inv) => (
+              <DashboardLink
+                key={inv.id}
+                href={`/dashboard/invoices/${inv.id}`}
+                className="flex items-center justify-between gap-3 text-sm hover:underline"
+              >
+                <span className="truncate">
+                  {inv.invoiceNumber} · {inv.title}
+                </span>
+                <Badge variant="outline">{inv.status}</Badge>
+              </DashboardLink>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
       {deal.tasks && deal.tasks.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Related tasks</CardTitle>
+            <CardTitle className="text-base">Related follow-ups</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {deal.tasks.map((t) => (
-              <div key={t.id} className="flex justify-between text-sm">
+              <DashboardLink
+                key={t.id}
+                href={path(`/dashboard/tasks`)}
+                className="flex justify-between text-sm hover:underline"
+              >
                 <span>{t.title}</span>
                 <Badge variant="outline">{t.status}</Badge>
-              </div>
+              </DashboardLink>
             ))}
           </CardContent>
         </Card>

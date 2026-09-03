@@ -26,7 +26,7 @@ export function LeadPriorityChart() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Leads by CompanyTaskPriority</CardTitle>
+          <CardTitle>Leads by Priority</CardTitle>
         </CardHeader>
         <CardContent>
           <SectionSkeleton lines={8} className="h-[300px] py-8" />
@@ -44,7 +44,7 @@ export function LeadPriorityChart() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Leads by CompanyTaskPriority</CardTitle>
+        <CardTitle>Leads by Priority</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">

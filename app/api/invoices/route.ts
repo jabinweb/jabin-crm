@@ -9,6 +9,8 @@ import { z } from 'zod';
 const createInvoiceSchema = z.object({
   leadId: z.string().optional(),
   dealId: z.string().optional(),
+  customerId: z.string().optional(),
+  projectId: z.string().optional(),
   quotationId: z.string().optional(),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
@@ -66,6 +68,8 @@ export async function POST(req: NextRequest) {
 const listInvoicesSchema = z.object({
   leadId: z.string().optional(),
   dealId: z.string().optional(),
+  customerId: z.string().optional(),
+  projectId: z.string().optional(),
   status: z.enum(['DRAFT', 'SENT', 'VIEWED', 'PARTIAL', 'PAID', 'OVERDUE', 'CANCELLED', 'REFUNDED']).optional(),
   overdue: z.string().optional().transform(val => val === 'true'),
   page: z.string().optional().transform(val => val ? parseInt(val) : 1),

@@ -167,6 +167,31 @@ export class DealService {
         projects: {
           select: { id: true, name: true, status: true, progress: true },
         },
+        quotations: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            quotationNumber: true,
+            title: true,
+            status: true,
+            total: true,
+            currency: true,
+          },
+        },
+        invoices: {
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+          select: {
+            id: true,
+            invoiceNumber: true,
+            title: true,
+            status: true,
+            total: true,
+            amountDue: true,
+            currency: true,
+          },
+        },
       },
     });
 

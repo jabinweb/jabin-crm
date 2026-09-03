@@ -115,8 +115,8 @@ export default function EmployeeMorePage() {
     },
     {
       href: path('/dashboard/projects/my-work'),
-      label: 'My work',
-      hint: 'Project delivery tasks assigned to you',
+      label: 'My work (Projects)',
+      hint: 'Opens dashboard → Projects → My work for delivery tasks assigned to you',
       icon: ClipboardList,
     }
   )

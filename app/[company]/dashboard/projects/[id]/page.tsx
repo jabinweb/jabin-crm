@@ -29,6 +29,8 @@ import {
   ExternalLink,
   Ticket,
   Users,
+  FileText,
+  Receipt,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -40,6 +42,7 @@ import {
 import { burnPercent } from '@/lib/projects/delivery-hours-math';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useRouter } from 'next/navigation';
 
 const ProjectTaskBoard = dynamic(
   () => import('@/components/projects/project-task-board').then((mod) => mod.ProjectTaskBoard),
@@ -138,6 +141,7 @@ function initials(name?: string | null, email?: string | null) {
 export default function ProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const projectId = params.id;
+  const router = useRouter();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [descExpanded, setDescExpanded] = useState(false);
@@ -151,6 +155,83 @@ export default function ProjectDetailPage() {
       return (await res.json()) as ProjectDetail;
     },
     enabled: !!slug && !!projectId,
+  });
+
+  const invoiceQueryKey = ['project-invoices', slug, projectId, project?.customer?.id] as const;
+  const { data: linkedInvoices = [] } = useQuery({
+    queryKey: invoiceQueryKey,
+    queryFn: async () => {
+      type Inv = {
+        id: string;
+        invoiceNumber: string;
+        title: string;
+        status: string;
+        total: number;
+        currency: string;
+        projectId?: string | null;
+      };
+      const parse = async (res: Response) => {
+        if (!res.ok) return [] as Inv[];
+        const body = await res.json();
+        return (body.invoices ?? body ?? []) as Inv[];
+      };
+
+      const byProject = await parse(
+        await workspaceFetch(`/api/invoices?projectId=${encodeURIComponent(projectId)}&limit=50`)
+      );
+      if (byProject.length > 0) return byProject;
+
+      if (project?.customer?.id) {
+        return parse(
+          await workspaceFetch(
+            `/api/invoices?customerId=${encodeURIComponent(project.customer.id)}&limit=50`
+          )
+        );
+      }
+      return [];
+    },
+    enabled: !!slug && !!projectId && !!project,
+  });
+
+  const projectInvoices = linkedInvoices;
+
+  const createInvoiceHref = useMemo(() => {
+    if (!project) return path('/dashboard/invoices/new');
+    const q = new URLSearchParams();
+    q.set('projectId', project.id);
+    if (project.customer?.id) q.set('customerId', project.customer.id);
+    if (project.deal?.id) q.set('dealId', project.deal.id);
+    return path(`/dashboard/invoices/new?${q.toString()}`);
+  }, [project, path]);
+
+  const billMutation = useMutation({
+    mutationFn: async (retainerId: string) => {
+      const res = await workspaceFetch(`/api/retainers/${retainerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'bill_now' }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to bill');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const invoiceId = data.invoice?.id as string | undefined;
+      const number = data.invoice?.invoiceNumber || '';
+      toast.success(`Draft invoice ${number} created`, {
+        action: invoiceId
+          ? {
+              label: 'Open invoice',
+              onClick: () => router.push(path(`/dashboard/invoices/${invoiceId}`)),
+            }
+          : undefined,
+      });
+      queryClient.invalidateQueries({ queryKey: ['project', slug, projectId] });
+      queryClient.invalidateQueries({ queryKey: invoiceQueryKey });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const milestoneMutation = useMutation({
@@ -653,26 +734,95 @@ export default function ProjectDetailPage() {
             {project.retainers.length > 0 ? (
               <div className="mt-4 flex flex-col gap-2 border-t pt-4">
                 {project.retainers.map((r) => (
-                  <Link
+                  <div
                     key={r.id}
-                    href={path('/dashboard/retainers')}
-                    className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors hover:bg-muted/50"
+                    className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm"
                   >
-                    <div>
+                    <Link
+                      href={path('/dashboard/retainers')}
+                      className="min-w-0 flex-1 transition-colors hover:opacity-80"
+                    >
                       <p className="font-medium">{r.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {r.currency} {r.amount.toLocaleString()} /{' '}
                         {r.billingCycle.toLowerCase()}
                       </p>
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge variant="outline">{r.status}</Badge>
+                      {r.status === 'ACTIVE' ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-7"
+                          disabled={billMutation.isPending}
+                          onClick={() => billMutation.mutate(r.id)}
+                        >
+                          Bill
+                        </Button>
+                      ) : null}
                     </div>
-                    <Badge variant="outline">{r.status}</Badge>
-                  </Link>
+                  </div>
                 ))}
               </div>
             ) : null}
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+          <div>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Receipt className="size-4" />
+              Invoices
+            </CardTitle>
+            <CardDescription>Billing linked to this project or customer.</CardDescription>
+          </div>
+          <Button size="sm" asChild>
+            <Link href={createInvoiceHref}>
+              <FileText className="mr-1.5 size-3.5" />
+              Create invoice
+            </Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {projectInvoices.length === 0 ? (
+            <EmptyState
+              icon={Receipt}
+              title="No invoices yet"
+              description="Create an invoice for this engagement or bill a retainer above."
+              actionLabel="Create invoice"
+              actionHref={createInvoiceHref}
+              className="py-8"
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {projectInvoices.map((inv) => (
+                <Link
+                  key={inv.id}
+                  href={path(`/dashboard/invoices/${inv.id}`)}
+                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-muted/50"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
+                      {inv.invoiceNumber}
+                      {inv.title ? ` · ${inv.title}` : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {inv.currency} {Number(inv.total).toLocaleString()}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="shrink-0 font-normal">
+                    {inv.status}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

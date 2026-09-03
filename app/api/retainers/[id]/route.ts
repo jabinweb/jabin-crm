@@ -60,6 +60,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
         invoiceNumber,
         userId: session.user!.id,
         customerId: existing.customerId,
+        projectId: existing.projectId || null,
         title: existing.name,
         description: existing.description || `Retainer: ${existing.name}`,
         dueDate: due,

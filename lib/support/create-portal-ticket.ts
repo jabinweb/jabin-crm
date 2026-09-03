@@ -15,6 +15,7 @@ export type PortalTicketPayload = {
   description: string;
   priority?: CreateTicketData['priority'];
   equipmentId?: string;
+  projectId?: string;
   customFields?: Record<string, string>;
 };
 
@@ -53,6 +54,22 @@ export async function createPortalTicket(
     }
   }
 
+  let projectId: string | undefined;
+  if (payload.projectId?.trim()) {
+    const project = await prisma.project.findFirst({
+      where: {
+        id: payload.projectId.trim(),
+        customerId,
+        companyId: customer.companyId,
+      },
+      select: { id: true },
+    });
+    if (!project) {
+      throw new Error('Invalid project selection');
+    }
+    projectId = project.id;
+  }
+
   const groupId = await resolveGroupIdForTicketType(customer.companyId, typeDef);
 
   return ticketService.createTicket({
@@ -64,6 +81,7 @@ export async function createPortalTicket(
     ticketType: typeDef.id,
     groupId,
     companyId: customer.companyId,
+    projectId: projectId || null,
     equipmentId:
       typeDef.showEquipment && payload.equipmentId && payload.equipmentId !== 'GENERAL'
         ? payload.equipmentId

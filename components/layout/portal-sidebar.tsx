@@ -16,6 +16,7 @@ import {
     Receipt,
     FileCheck2,
     FolderKanban,
+    RefreshCw,
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
@@ -34,6 +35,7 @@ const portalNav: NavigationItem[] = [
     { name: 'Dashboard', href: '/portal', icon: LayoutDashboard },
     { name: 'Assets', href: '/portal/equipment', icon: Wrench, workspaceFeature: 'equipment' },
     { name: 'Projects', href: '/portal/projects', icon: FolderKanban, workspaceFeature: 'customerPortal' },
+    { name: 'Retainers', href: '/portal/retainers', icon: RefreshCw, workspaceFeature: 'customerPortal' },
     { name: 'Tickets', href: '/portal/tickets', icon: Ticket, workspaceFeature: 'customerPortal' },
     { name: 'Quotations', href: '/portal/quotations', icon: FileCheck2, workspaceFeature: 'customerPortal' },
     { name: 'Invoices', href: '/portal/invoices', icon: Receipt, workspaceFeature: 'customerPortal' },
