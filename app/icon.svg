@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Opslane">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <rect width="64" height="64" rx="14" fill="#0f766e"/>
   <path
     d="M32 12c-9.389 0-17 7.611-17 17s7.611 17 17 17 17-7.611 17-17-7.611-17-17-17zm0 6.5c5.799 0 10.5 4.701 10.5 10.5S37.799 39.5 32 39.5 21.5 34.799 21.5 29 26.201 18.5 32 18.5z"

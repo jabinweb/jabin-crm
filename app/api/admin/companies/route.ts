@@ -113,7 +113,10 @@ export async function GET(req: NextRequest) {
     console.error('[API] Get companies error:', error);
     return NextResponse.json({
       success: false,
-      message: 'Failed to fetch companies'
+      message: 'Failed to fetch companies',
+      details: process.env.NODE_ENV === 'development'
+        ? (error instanceof Error ? error.message : String(error))
+        : undefined,
     }, { status: 500 });
   }
 }

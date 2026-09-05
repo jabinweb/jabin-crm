@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { getClientBrandConfig } from '@/lib/branding';
+import { OpslaneLogo } from '@/components/brand/opslane-logo';
 
 const NAV = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -53,12 +54,14 @@ export function PlatformAdminShell({ email, name, exitHref, children }: Props) {
     <div className="fixed inset-0 flex overflow-hidden bg-background">
       <aside className="w-60 shrink-0 border-r bg-background flex flex-col">
         <div className="px-4 py-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-teal-700" />
-            <p className="text-sm font-semibold tracking-tight truncate">{brand.appName}</p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <OpslaneLogo size={28} priority />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold tracking-tight truncate">{brand.appName}</p>
+              <p className="text-[11px] font-medium text-muted-foreground">Platform admin</p>
+            </div>
           </div>
-          <p className="mt-1 text-[11px] font-medium text-muted-foreground">Platform admin</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground/80 truncate">{email}</p>
+          <p className="mt-2 text-[11px] text-muted-foreground/80 truncate">{email}</p>
         </div>
 
         <nav className="flex-1 overflow-y-auto overscroll-contain px-2 py-3 space-y-0.5 [scrollbar-width:thin]">

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
 import { getClientBrandConfig } from '@/lib/branding';
+import { OpslaneLogo } from '@/components/brand/opslane-logo';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 const navigation = [
@@ -45,8 +46,9 @@ export function LandingHeader() {
         <div className="flex h-16 items-center justify-between">
           <Link
             href="/"
-            className="font-[family-name:var(--font-landing-display)] text-lg font-semibold tracking-tight text-[var(--lp-ink)]"
+            className="inline-flex items-center gap-2.5 font-[family-name:var(--font-landing-display)] text-lg font-semibold tracking-tight text-[var(--lp-ink)]"
           >
+            <OpslaneLogo size={32} priority />
             {brand.appName}
           </Link>
 

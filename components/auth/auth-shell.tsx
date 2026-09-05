@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, CheckCircle2 } from 'lucide-react';
 import { getClientBrandConfig } from '@/lib/branding';
+import { OpslaneLogo } from '@/components/brand/opslane-logo';
 import { cn } from '@/lib/utils';
 
 const HIGHLIGHTS = [
@@ -64,8 +65,9 @@ export function AuthShell({ children, className }: AuthShellProps) {
           <div className="relative">
             <Link
               href="/"
-              className="font-[family-name:var(--font-landing-display)] text-xl font-semibold tracking-tight text-[var(--lp-ink)] hover:opacity-80 transition-opacity"
+              className="inline-flex items-center gap-2.5 font-[family-name:var(--font-landing-display)] text-xl font-semibold tracking-tight text-[var(--lp-ink)] hover:opacity-80 transition-opacity"
             >
+              <OpslaneLogo size={36} />
               {brand.appName}
             </Link>
           </div>
@@ -107,8 +109,9 @@ export function AuthShell({ children, className }: AuthShellProps) {
           <div className="mb-8 flex items-center justify-between lg:hidden">
             <Link
               href="/"
-              className="font-[family-name:var(--font-landing-display)] text-lg font-semibold tracking-tight text-[var(--lp-ink)]"
+              className="inline-flex items-center gap-2 font-[family-name:var(--font-landing-display)] text-lg font-semibold tracking-tight text-[var(--lp-ink)]"
             >
+              <OpslaneLogo size={28} />
               {brand.appName}
             </Link>
             <Link

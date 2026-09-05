@@ -32,6 +32,11 @@ export const metadata: Metadata = {
   description:
     'Sales pipeline, delivery projects, tickets, HR, invoicing, and a client portal in one workspace. Pick your industry — terminology and defaults follow.',
   manifest: '/manifest.json',
+  icons: {
+    icon: [{ url: '/brand/opslane-mark.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icons/icon.svg' }],
+    shortcut: ['/brand/opslane-mark.svg'],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -42,7 +47,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#000000',
+  themeColor: '#0f766e',
 };
 
 export default function RootLayout({
@@ -53,6 +58,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/brand/opslane-mark.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

@@ -19,6 +19,7 @@ import {
   PRIMARY_INDUSTRY_PICKER_OPTIONS,
 } from '@/lib/industry-aliases';
 import { getClientBrandConfig } from '@/lib/branding';
+import { OpslaneLogo } from '@/components/brand/opslane-logo';
 import { cn } from '@/lib/utils';
 import {
   getEnvTenancyMode,
@@ -219,9 +220,12 @@ export default function StartPage() {
               'radial-gradient(ellipse 80% 60% at 20% 20%, rgba(13,148,136,0.35), transparent 55%), radial-gradient(ellipse 50% 40% at 90% 80%, rgba(15,23,42,0.5), transparent)',
           }}
         />
-        <div className="relative">
-          <p className="text-xl font-semibold tracking-tight">{brand.appName}</p>
-          <p className="mt-1 text-sm text-slate-400">Service ops, simplified</p>
+        <div className="relative flex items-center gap-3">
+          <OpslaneLogo size={36} />
+          <div>
+            <p className="text-xl font-semibold tracking-tight">{brand.appName}</p>
+            <p className="mt-0.5 text-sm text-slate-400">Service ops, simplified</p>
+          </div>
         </div>
         <div className="relative space-y-8 max-w-md">
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">
@@ -249,9 +253,12 @@ export default function StartPage() {
       {/* Form — only this column scrolls */}
       <main className="h-full min-h-0 overflow-y-auto overscroll-contain px-6 py-12 sm:px-10 lg:px-16 bg-stone-50">
         <div className="mx-auto w-full max-w-lg lg:min-h-full lg:flex lg:flex-col lg:justify-center">
-          <div className="lg:hidden mb-8">
-            <p className="text-lg font-semibold">{brand.appName}</p>
-            <p className="text-sm text-muted-foreground">Get started free</p>
+          <div className="lg:hidden mb-8 flex items-center gap-2.5">
+            <OpslaneLogo size={32} />
+            <div>
+              <p className="text-lg font-semibold">{brand.appName}</p>
+              <p className="text-sm text-muted-foreground">Get started free</p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-8">

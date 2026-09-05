@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
+import { OpslaneLogo } from '@/components/brand/opslane-logo';
 import { usePathname, useSearchParams, useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
@@ -617,7 +618,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       <div className="flex w-[248px] min-w-[248px] flex-col">
         <div className="shrink-0 border-b border-border/80 px-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="size-2.5 shrink-0 rounded-full bg-teal-600" />
+            <OpslaneLogo size={28} priority />
             <div className="min-w-0">
               <h2 className="truncate text-sm font-semibold text-foreground">{brand.appName}</h2>
               <p className="truncate text-xs text-muted-foreground mt-0.5">

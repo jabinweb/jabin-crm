@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
+import { OpslaneLogo } from '@/components/brand/opslane-logo';
 import { usePathname } from 'next/navigation';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import type { WorkspaceFeatureKey } from '@/lib/workspace-templates';
@@ -121,11 +122,11 @@ export function PortalSidebar({ onNavigate }: { onNavigate?: () => void }) {
     return (
         <div className="pb-12 w-64 border-r h-full bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-xl flex flex-col">
             <div className="p-6">
-                <Link href="/portal" className="flex items-center space-x-2">
-                    <div className="h-8 w-8 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-none flex items-center justify-center text-white font-bold shadow-none shadow-blue-500/20">
-                      {brand.appName.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400">{brand.appName}</span>
+                <Link href="/portal" className="flex items-center gap-2.5">
+                    <OpslaneLogo size={32} priority />
+                    <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                      {brand.appName}
+                    </span>
                 </Link>
             </div>
 

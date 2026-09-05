@@ -3,6 +3,9 @@
  */
 import { getAppBaseUrl } from '@/lib/app-url';
 
+/** Default Opslane mark (SVG) when NEXT_PUBLIC_APP_LOGO_URL is unset */
+export const OPSLANE_DEFAULT_LOGO_PATH = '/brand/opslane-mark.svg';
+
 export function getBrandConfig() {
   const appName = process.env.NEXT_PUBLIC_APP_NAME?.trim() || 'Opslane';
   const appUrl = getAppBaseUrl();
@@ -13,7 +16,8 @@ export function getBrandConfig() {
       process.env.NEXT_PUBLIC_SUPPORT_TEAM_NAME?.trim() || `${appName} Support`,
     systemName: process.env.NEXT_PUBLIC_SYSTEM_NAME?.trim() || `${appName} System`,
     appUrl,
-    logoUrl: process.env.NEXT_PUBLIC_APP_LOGO_URL?.trim() || null,
+    logoUrl:
+      process.env.NEXT_PUBLIC_APP_LOGO_URL?.trim() || OPSLANE_DEFAULT_LOGO_PATH,
     primaryColor: process.env.NEXT_PUBLIC_BRAND_PRIMARY?.trim() || '#0f766e',
   };
 }
@@ -30,7 +34,8 @@ export function getClientBrandConfig() {
     supportTeamName:
       process.env.NEXT_PUBLIC_SUPPORT_TEAM_NAME?.trim() || `${appName} Support`,
     appUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || '',
-    logoUrl: process.env.NEXT_PUBLIC_APP_LOGO_URL?.trim() || null,
+    logoUrl:
+      process.env.NEXT_PUBLIC_APP_LOGO_URL?.trim() || OPSLANE_DEFAULT_LOGO_PATH,
     primaryColor: process.env.NEXT_PUBLIC_BRAND_PRIMARY?.trim() || '#0f766e',
   };
 }
