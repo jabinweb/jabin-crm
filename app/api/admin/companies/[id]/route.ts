@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { UserRole, CompanyStatus } from '@prisma/client';
+import { UserRole, CompanyStatus, Prisma } from '@prisma/client';
+import {
+  CompanyNotFoundError,
+  deleteCompanyCascade,
+} from '@/lib/admin/delete-company';
 
 export async function DELETE(
   req: NextRequest,
@@ -9,39 +13,94 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    
+
     if (!session?.user || session.user.role !== UserRole.SUPER_ADMIN) {
-      return NextResponse.json({
-        success: false,
-        message: 'Unauthorized'
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Unauthorized',
+        },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
     const companyId = id?.trim();
 
     if (!companyId) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid company ID'
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid company ID',
+        },
+        { status: 400 }
+      );
     }
 
-    // Delete the company (this will cascade to related records)
-    await prisma.company.delete({
-      where: { id: companyId }
-    });
+    const result = await deleteCompanyCascade(companyId);
 
     return NextResponse.json({
       success: true,
-      message: 'Company deleted successfully'
+      message: 'Company deleted successfully',
+      data: result,
     });
   } catch (error) {
     console.error('[API] Delete company error:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to delete company'
-    }, { status: 500 });
+
+    if (error instanceof CompanyNotFoundError) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Company not found',
+          code: 'NOT_FOUND',
+        },
+        { status: 404 }
+      );
+    }
+
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Company not found',
+            code: 'NOT_FOUND',
+          },
+          { status: 404 }
+        );
+      }
+      if (error.code === 'P2003') {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              'Cannot delete company: related records still reference it. Check foreign-key constraints and try again.',
+            code: 'FK_CONSTRAINT',
+            details: error.meta,
+          },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Database error while deleting company',
+          code: error.code,
+        },
+        { status: 500 }
+      );
+    }
+
+    const message =
+      error instanceof Error ? error.message : 'Failed to delete company';
+
+    return NextResponse.json(
+      {
+        success: false,
+        message,
+      },
+      { status: 500 }
+    );
   }
 }
 
@@ -51,12 +110,15 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    
+
     if (!session?.user || session.user.role !== UserRole.SUPER_ADMIN) {
-      return NextResponse.json({
-        success: false,
-        message: 'Unauthorized'
-      }, { status: 401 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Unauthorized',
+        },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
@@ -64,10 +126,13 @@ export async function PATCH(
     const body = await req.json();
 
     if (!companyId) {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid company ID'
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Invalid company ID',
+        },
+        { status: 400 }
+      );
     }
 
     const updatedCompany = await prisma.company.update({
@@ -101,13 +166,16 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      data: updatedCompany
+      data: updatedCompany,
     });
   } catch (error) {
     console.error('[API] Update company error:', error);
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to update company'
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Failed to update company',
+      },
+      { status: 500 }
+    );
   }
 }

@@ -2221,6 +2221,14 @@ model Company {
   status    CompanyStatus @default(PENDING)
   settings  Json?         @default("{}")
   adminId   String?       @unique
+  /// SHARED = data on Opslane DB (default). BYO_* = company-owned Postgres.
+  databaseMode           String    @default("SHARED")
+  /// AES-GCM JSON {encrypted,iv,tag} — never return decrypted to clients
+  databaseUrlEncrypted   String?   @db.Text
+  databaseHostMasked     String?
+  databaseConnectedAt    DateTime?
+  databaseLastHealthAt   DateTime?
+  databaseLastError      String?   @db.Text
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 

@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "databaseMode" TEXT NOT NULL DEFAULT 'SHARED';
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "databaseUrlEncrypted" TEXT;
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "databaseHostMasked" TEXT;
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "databaseConnectedAt" TIMESTAMP(3);
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "databaseLastHealthAt" TIMESTAMP(3);
+ALTER TABLE "Company" ADD COLUMN IF NOT EXISTS "databaseLastError" TEXT;

@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { getDataPrisma } from '@/lib/prisma-tenant';
 import {
   DEFAULT_MILESTONE_TEMPLATES,
   PROJECT_INCLUDE,
 } from '@/lib/projects/agency-delivery';
 
 export const GET = withTenantRoute(async (_request, { companyId }) => {
-  const projects = await prisma.project.findMany({
+  const db = await getDataPrisma(companyId);
+  const projects = await db.project.findMany({
     where: { companyId },
     include: {
       customer: { select: { id: true, organizationName: true } },
@@ -25,6 +26,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const db = await getDataPrisma(companyId);
 
   const body = await request.json();
   const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -58,7 +60,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       : null;
   const withMilestones = body.withMilestones !== false;
 
-  const project = await prisma.project.create({
+  const project = await db.project.create({
     data: {
       name,
       description,

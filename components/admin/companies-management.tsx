@@ -18,6 +18,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
 import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
 import { confirmAction } from '@/lib/confirm-action';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { CompanyDatabasePanel } from '@/components/settings/company/sections/database';
 
 interface Company {
   id: string;
@@ -47,9 +54,9 @@ interface ApiResponse {
 export default function CompaniesPage() {
   const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dbCompany, setDbCompany] = useState<Company | null>(null);
   const { data: session } = useSession();
   const { toast } = useToast();
 
@@ -96,34 +103,52 @@ export default function CompaniesPage() {
     });
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (company: Company) => {
+    const confirmToken = (company.slug || company.name || '').trim();
+    if (!confirmToken) {
+      toast({
+        title: 'Error',
+        description: 'Company has no slug or name to confirm deletion.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const ok = await confirmAction({
       title: 'Delete this company?',
-      description: 'Are you sure you want to delete this company?',
+      description:
+        'This permanently deletes the workspace and company-scoped data. Users who only belong to this company will also be deleted. Type the company slug to confirm.',
       confirmLabel: 'Delete',
       variant: 'destructive',
+      confirmText: confirmToken,
+      confirmTextLabel: `Type "${confirmToken}" to confirm`,
     });
     if (!ok) return;
 
     try {
-      const response = await fetch(`/api/admin/companies/${id}`, {
+      const response = await fetch(`/api/admin/companies/${company.id}`, {
         method: 'DELETE',
       });
+      const result = await response.json().catch(() => null);
 
-      if (!response.ok) throw new Error('Failed to delete company');
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.message || `Failed to delete company (HTTP ${response.status})`
+        );
+      }
 
       toast({
-        title: "Success",
-        description: "Company deleted successfully"
+        title: 'Success',
+        description: 'Company deleted successfully',
       });
 
-      // Refresh companies list
       fetchCompanies();
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to delete company",
-        variant: "destructive"
+        title: 'Error',
+        description:
+          error instanceof Error ? error.message : 'Failed to delete company',
+        variant: 'destructive',
       });
     }
   };
@@ -142,7 +167,6 @@ export default function CompaniesPage() {
     }
   };
 
-  // Check if user has permission
   if (session?.user?.role !== 'SUPER_ADMIN') {
     return (
       <div className="p-8">
@@ -154,7 +178,6 @@ export default function CompaniesPage() {
     );
   }
 
-  // Render loading state only during initial load
   if (isInitialLoad) {
     return (
       <div className="p-8 space-y-6">
@@ -222,7 +245,7 @@ export default function CompaniesPage() {
                     {company.admin ? (
                       <div>
                         <div>{company.admin.name}</div>
-                <div className="text-sm text-muted-foreground">{company.admin.email}</div>
+                        <div className="text-sm text-muted-foreground">{company.admin.email}</div>
                       </div>
                     ) : (
                       <span className="text-gray-400">No admin assigned</span>
@@ -235,13 +258,20 @@ export default function CompaniesPage() {
                     {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleEdit(company.id)}
                       >
                         View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDbCompany(company)}
+                      >
+                        Database
                       </Button>
                       <Button
                         variant="outline"
@@ -258,7 +288,7 @@ export default function CompaniesPage() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDelete(company.id)}
+                        onClick={() => handleDelete(company)}
                       >
                         Delete
                       </Button>
@@ -270,6 +300,19 @@ export default function CompaniesPage() {
           </TableBody>
         </Table>
       </Card>
+
+      <Dialog open={!!dbCompany} onOpenChange={(open) => !open && setDbCompany(null)}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Database — {dbCompany?.name ?? 'Company'}
+            </DialogTitle>
+          </DialogHeader>
+          {dbCompany ? (
+            <CompanyDatabasePanel companyId={dbCompany.id} />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

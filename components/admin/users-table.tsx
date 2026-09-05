@@ -13,12 +13,23 @@ import {
 import { Edit, Trash2, Eye } from "lucide-react";
 import Link from "next/link";
 
+interface CompanyRef {
+  id: string;
+  name: string;
+  status?: string;
+  slug?: string;
+}
+
 interface User {
   id: string;
   name: string | null;
   email: string;
   role: string;
   createdAt: string;
+  status?: string;
+  isOrphan?: boolean;
+  primaryCompany?: CompanyRef | null;
+  companies?: CompanyRef[];
   subscription?: {
     status: string;
     plan: {
@@ -47,23 +58,11 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
   const rows = Array.isArray(users) ? users : [];
   const getRoleColor = (role: string) => {
     switch (role) {
+      case "ADMIN":
       case "admin":
         return "bg-red-100 text-red-700";
       case "user":
         return "bg-blue-100 text-blue-700";
-      default:
-        return "bg-gray-100 text-gray-700";
-    }
-  };
-
-  const getStatusColor = (status?: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "bg-green-100 text-green-700";
-      case "TRIALING":
-        return "bg-blue-100 text-blue-700";
-      case "CANCELED":
-        return "bg-red-100 text-red-700";
       default:
         return "bg-gray-100 text-gray-700";
     }
@@ -75,86 +74,94 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
+            <TableHead>Company</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Subscription</TableHead>
-            <TableHead>Stats</TableHead>
             <TableHead>Joined</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((user) => (
-            <TableRow key={user.id}>
-              <TableCell>
-                <div>
-                  <p className="font-medium">{user.name || "N/A"}</p>
-                  <p className="text-sm text-gray-600">{user.email}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge className={getRoleColor(user.role)}>
-                  {user.role}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {user.subscription ? (
-                  <div>
-                    <p className="text-sm font-medium">
-                      {user.subscription.plan.displayName}
-                    </p>
-                    <Badge className={getStatusColor(user.subscription.status)}>
-                      {user.subscription.status}
-                    </Badge>
-                  </div>
-                ) : (
-                  <span className="text-sm text-gray-500">No subscription</span>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="text-sm">
-                  <p>Leads: {user._count?.leads || 0}</p>
-                  <p>Emails: {user.usage?.emailsSent || 0}</p>
-                  <p>Campaigns: {user._count?.emailCampaigns || 0}</p>
-                </div>
-              </TableCell>
-              <TableCell>
-                <span className="text-sm text-gray-600">
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Link href={`/admin/users/${user.id}`}>
-                    <Button variant="ghost" size="sm">
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </Link>
-                  {onEdit && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(user.id)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  )}
-                  {onDelete && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onDelete(user.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  )}
-                </div>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                No users found
               </TableCell>
             </TableRow>
-          ))}
+          ) : (
+            rows.map((user) => {
+              const companyLabel =
+                user.primaryCompany?.name ||
+                user.companies?.[0]?.name ||
+                null;
+              const membershipCount = user.companies?.length ?? 0;
+
+              return (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <p className="font-medium">{user.name || "N/A"}</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                      {user.isOrphan ? (
+                        <Badge variant="outline" className="border-amber-500 text-amber-700">
+                          Orphan
+                        </Badge>
+                      ) : null}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {companyLabel ? (
+                      <div className="text-sm">
+                        <p className="font-medium">{companyLabel}</p>
+                        {membershipCount > 1 ? (
+                          <p className="text-xs text-muted-foreground">
+                            +{membershipCount - 1} more
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-muted-foreground">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Link href={`/admin/users/${user.id}`}>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                      {onEdit && (
+                        <Button variant="ghost" size="sm" onClick={() => onEdit(user.id)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDelete(user.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
+          )}
         </TableBody>
       </Table>
     </div>
   );
 }
-

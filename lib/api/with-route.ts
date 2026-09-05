@@ -31,6 +31,10 @@ type Handler = (
 /**
  * Standard API route wrapper: auth → tenant context → handler → unified errors.
  *
+ * Data-plane queries for a tenant should use `getDataPrisma(companyId)` from
+ * `@/lib/prisma-tenant` (BYO-aware). Control-plane (Company, User, membership)
+ * stays on `getControlPrisma()` / `@/lib/prisma`.
+ *
  * @example
  * export const GET = withApiRoute({ auth: 'tenant', handler: async (req, { companyId }) => { ... } });
  */

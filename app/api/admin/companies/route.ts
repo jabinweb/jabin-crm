@@ -89,6 +89,7 @@ export async function GET(req: NextRequest) {
     const formattedCompanies = companies.map((company) => ({
       id: company.id,
       name: company.name,
+      slug: company.slug,
       website: company.website,
       status: company.status,
       createdAt: company.createdAt.toISOString(),

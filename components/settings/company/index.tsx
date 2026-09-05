@@ -18,6 +18,7 @@ import { VisitTagsSection } from "./sections/visit-tags"
 import { ProjectTaskStatusesSection } from "./sections/project-task-statuses"
 import { TerminologySection } from "./sections/terminology"
 import { FieldOpsSection } from "./sections/field-ops"
+import { CompanyDatabasePanel } from "./sections/database"
 import { SettingsProvider, useSettings } from "@/contexts/settings-context"
 import { SettingsLayout } from "../settings-layout"
 import { FormSkeleton } from '@/components/loading'
@@ -112,6 +113,7 @@ function CompanySettingsContent() {
           <TabsTrigger value="notifications" className="shrink-0">Notifications</TabsTrigger>
           <TabsTrigger value="payment" className="shrink-0">Payment</TabsTrigger>
           <TabsTrigger value="security" className="shrink-0">Security</TabsTrigger>
+          <TabsTrigger value="database" className="shrink-0">Database</TabsTrigger>
         </TabsList>
 
         <TabsContent value="basic">
@@ -136,6 +138,9 @@ function CompanySettingsContent() {
         </TabsContent>
         <TabsContent value="security">
           <SecuritySection onChange={handleSettingsChange} />
+        </TabsContent>
+        <TabsContent value="database">
+          <CompanyDatabasePanel />
         </TabsContent>
       </Tabs>
     </SettingsLayout>

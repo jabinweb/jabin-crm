@@ -7,6 +7,13 @@ type ConfirmOptions = {
   cancelLabel?: string;
   /** destructive styling for delete / irreversible actions */
   variant?: 'default' | 'destructive';
+  /**
+   * When set, the user must type this exact string (trimmed) before Confirm is enabled.
+   * Use for irreversible deletes (e.g. company slug).
+   */
+  confirmText?: string;
+  /** Placeholder / hint under the input when confirmText is set */
+  confirmTextLabel?: string;
 };
 
 type PendingConfirm = ConfirmOptions & {

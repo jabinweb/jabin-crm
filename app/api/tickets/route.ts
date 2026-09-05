@@ -5,6 +5,7 @@ import { ticketService } from '@/lib/crm/ticket-service';
 import { ticketNotifications } from '@/lib/email/ticket-notifications';
 import { notificationService } from '@/lib/crm/notification-service';
 import { prisma } from '@/lib/prisma';
+import { getDataPrisma } from '@/lib/prisma-tenant';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { handleApiError } from '@/lib/api-error-handler';
 import { createPortalTicket } from '@/lib/support/create-portal-ticket';
@@ -51,12 +52,16 @@ export async function GET(request: NextRequest) {
         }
 
         const where: Record<string, unknown> = {};
+        let dataCompanyId: string | undefined;
         if (session.user.role === 'CUSTOMER') {
             where.customerId = session.user.customerId;
+            dataCompanyId =
+              (session.user as { companyId?: string }).companyId || undefined;
         } else {
             const companyId = await resolveStaffCompanyScope(session, request, {
               allowGlobalForSuperAdmin: true,
             });
+            dataCompanyId = companyId ?? undefined;
             if (companyId) {
               Object.assign(where, customerBelongsToCompanyFilter(companyId));
             } else if (session.user.role !== 'SUPER_ADMIN') {
@@ -78,7 +83,11 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        const tickets = await prisma.supportTicket.findMany({
+        const db = dataCompanyId
+          ? await getDataPrisma(dataCompanyId)
+          : prisma;
+
+        const tickets = await db.supportTicket.findMany({
             where,
             include: {
                 customer: { select: { organizationName: true, companyId: true } },
