@@ -17,8 +17,10 @@ import {
   type CompanyDatabasePublicStatus,
 } from '@/lib/tenancy/company-database';
 import { provisionCompanyDatabaseSchema } from '@/lib/tenancy/provision-company-database';
-import { createTenantPrismaClientForUrl } from '@/lib/tenancy/create-tenant-client';
-import { evictTenantPrisma } from '@/lib/prisma-tenant';
+import {
+  createTenantPrismaClientForUrl,
+  evictTenantPrisma,
+} from '@/lib/prisma-tenant';
 
 export type MigrateCompanyToByoResult = {
   status: CompanyDatabasePublicStatus;

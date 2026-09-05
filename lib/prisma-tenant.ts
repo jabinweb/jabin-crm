@@ -45,6 +45,13 @@ function createTenantPrismaClient(connectionString: string): AppPrismaClient {
   return new PrismaClient({ adapter }) as AppPrismaClient;
 }
 
+/** One-off tenant client for migrate/provision (not request-path cache). */
+export function createTenantPrismaClientForUrl(
+  connectionString: string
+): AppPrismaClient {
+  return createTenantPrismaClient(connectionString);
+}
+
 /** Platform / Opslane control-plane client. */
 export function getControlPrisma(): AppPrismaClient {
   return prisma;
