@@ -62,7 +62,7 @@ export function EmailDetailPanel({
 }: EmailDetailPanelProps) {
   if (!selectedEmail) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
+      <div className="flex h-full items-center justify-center p-6 w-full">
         <div className="text-center">
           <Mail className="mx-auto h-16 w-16 text-muted-foreground" />
           <p className="mt-4 text-lg font-medium">No email selected</p>
