@@ -23,8 +23,8 @@ describe('company-onboarding', () => {
     expect(normalizeOnboardingStep('welcome')).toBe('welcome');
   });
 
-  it('has three wizard steps', () => {
-    expect(ONBOARDING_STEPS.map((s) => s.id)).toEqual(['welcome', 'support', 'complete']);
+  it('has four wizard steps', () => {
+    expect(ONBOARDING_STEPS.map((s) => s.id)).toEqual(['welcome', 'support', 'business', 'complete']);
   });
 
   it('parses checklist dismiss and completed SaaS seed', () => {

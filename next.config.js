@@ -4,6 +4,12 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Types are checked by `pnpm typecheck` in CI. Repeating the check inside `next build`
+  // pushed the deploy build past Node's heap limit (OOM during "Running TypeScript"), so
+  // it only runs here when asked for with BUILD_TYPECHECK=1.
+  typescript: {
+    ignoreBuildErrors: process.env.BUILD_TYPECHECK !== '1',
+  },
   images: { 
     remotePatterns: [
       {

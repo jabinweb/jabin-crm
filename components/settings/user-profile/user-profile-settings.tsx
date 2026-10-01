@@ -2,8 +2,10 @@
 
 import { useSession } from 'next-auth/react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, CreditCard, FileText, Info, Key, Palette, Sparkles } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building, CreditCard, FileText, Info, Key, Palette, Slack, Sparkles } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SlackDestinations } from '@/components/settings/integrations/slack-destinations';
 import { useUserProfileSettings } from '@/hooks/use-user-profile-settings';
 import { FormSkeleton } from '@/components/loading';
 import { BusinessTab } from './business-tab';
@@ -66,6 +68,10 @@ export default function UserProfileSettings() {
             <Key className="h-4 w-4" />
             <span className="hidden sm:inline">API Keys</span>
           </TabsTrigger>
+          <TabsTrigger value="slack-alerts" className="gap-2">
+            <Slack className="h-4 w-4" />
+            <span className="hidden sm:inline">Slack alerts</span>
+          </TabsTrigger>
         </TabsList>
 
         <form onSubmit={settings.handleSubmit}>
@@ -76,6 +82,22 @@ export default function UserProfileSettings() {
           <AiPersonalizationTab {...settings} />
           <ApiKeysTab {...settings} />
         </form>
+
+        {/* Outside the profile form: Slack alerts save on their own */}
+        <TabsContent value="slack-alerts">
+          <Card>
+            <CardHeader>
+              <CardTitle>Slack alerts</CardTitle>
+              <CardDescription>
+                Send your own notifications — assignments, mentions, comments, ticket updates —
+                to Slack.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SlackDestinations scope="personal" />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );

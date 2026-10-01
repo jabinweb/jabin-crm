@@ -62,6 +62,16 @@ export class NotificationService {
 
             if (!companyId) return;
 
+            if (params.userId) {
+                const href = params.metadata?.href;
+                const { sendPersonalSlackAlert } = await import('@/lib/integrations/slack');
+                void sendPersonalSlackAlert(companyId, params.userId, notification.type, {
+                    title: notification.title,
+                    text: notification.body,
+                    href: typeof href === 'string' ? href : null,
+                });
+            }
+
             await publishRealtime(
                 REALTIME_EVENTS.NOTIFICATION_CREATED,
                 companyId,

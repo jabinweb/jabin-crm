@@ -403,10 +403,33 @@ async function runAction(
  * Run all active workflows for a trigger key owned by the user.
  * Failures are recorded per execution and never throw to callers.
  */
+/** Where a workflow event's subject lives in the dashboard (for the Slack "Open" button). */
+function eventHref(payload: WorkflowEventPayload): string | null {
+  const meta = payload.metadata ?? {};
+  const projectId = payload.projectId ?? meta.projectId;
+  if (typeof projectId === 'string' && typeof meta.taskId === 'string') {
+    return `/dashboard/projects/${projectId}/tasks/${meta.taskId}`;
+  }
+  if (payload.ticketId) return `/dashboard/tickets/${payload.ticketId}`;
+  if (payload.dealId) return `/dashboard/deals/${payload.dealId}`;
+  if (payload.leadId) return `/dashboard/leads/${payload.leadId}`;
+  return null;
+}
+
 export async function dispatchWorkflowEvent(
   event: WorkflowEvent,
   payload: WorkflowEventPayload
 ) {
+  // Workspace Slack channels subscribe to the same events, whether or not a workflow exists
+  if (event !== 'manual' && payload.companyId) {
+    const { sendWorkspaceSlackEvent } = await import('@/lib/integrations/slack');
+    await sendWorkspaceSlackEvent(payload.companyId, event, {
+      title: payload.title || event,
+      text: payload.summary,
+      href: eventHref(payload),
+    });
+  }
+
   try {
     const workflows = await prisma.workflow.findMany({
       where: {

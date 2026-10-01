@@ -12,6 +12,7 @@ import {
   Mail,
   MessageSquare,
   Plug,
+  Slack,
   Webhook,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +23,7 @@ import { SettingsLayout } from '@/components/settings/settings-layout';
 import { RazorpayIntegrationForm } from '@/components/settings/integrations/razorpay-integration-form';
 import { WebhooksIntegrationForm } from '@/components/settings/integrations/webhooks-integration-form';
 import { EmailIntegrationForm } from '@/components/settings/integrations/email-integration-form';
+import { SlackDestinations } from '@/components/settings/integrations/slack-destinations';
 import { GoogleCalendarSettings } from '@/components/crm/google-calendar-settings';
 import { INTEGRATION_CATEGORY_LABELS } from '@/lib/integrations/catalog';
 import type { IntegrationStatusRow } from '@/lib/integrations/types';
@@ -35,11 +37,13 @@ const PANEL_IDS = new Set([
   'webhooks',
   'email',
   'google_calendar',
+  'slack',
 ]);
 
 const ICONS: Record<string, typeof Plug> = {
   razorpay: CreditCard,
   whatsapp: MessageSquare,
+  slack: Slack,
   email: Mail,
   google_calendar: Calendar,
   webhooks: Webhook,
@@ -277,6 +281,21 @@ function IntegrationsHubContent() {
           </CardHeader>
           <CardContent>
             <EmailIntegrationForm embedded onSaved={() => void refetch()} />
+          </CardContent>
+        </Card>
+      )}
+
+      {activePanel === 'slack' && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle>Slack</CardTitle>
+            <CardDescription>
+              Workspace channels. Changes here save immediately. Teammates can also set up
+              personal alerts under Settings → Personal → Slack alerts.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SlackDestinations scope="workspace" onChanged={() => void refetch()} />
           </CardContent>
         </Card>
       )}

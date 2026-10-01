@@ -118,6 +118,7 @@ model User {
   projectDocsCreated      ProjectDoc[]           @relation("ProjectDocCreator")
   projectDocsEdited       ProjectDoc[]           @relation("ProjectDocEditor")
   projectDocPresence      ProjectDocPresence[]
+  slackDestinations       SlackDestination[]
 
   // ── Company Management Integration ──
   password         String?
@@ -2262,6 +2263,7 @@ model Company {
   locations         Location[]
   projects          Project[]
   projectLabels     ProjectLabel[]
+  slackDestinations SlackDestination[]
   clientRetainers   ClientRetainer[]
   hrLetterTemplates HrLetterTemplate[]
   hrLetters         HrLetter[]
@@ -3253,6 +3255,30 @@ model ProjectMilestone {
   @@index([projectId])
   @@index([status])
   @@index([dueDate])
+}
+
+/// A Slack incoming webhook that receives alerts.
+/// userId null = workspace channel (admin managed); userId set = that user's personal alerts.
+model SlackDestination {
+  id              String    @id @default(cuid())
+  companyId       String
+  userId          String?
+  /// Label shown in settings, e.g. "#delivery"
+  name            String
+  /// Incoming-webhook URL, encrypted with lib/encryption (JSON string)
+  webhookUrl      String    @db.Text
+  /// Event keys this destination receives (see lib/integrations/slack-events.ts)
+  events          String[]
+  enabled         Boolean   @default(true)
+  lastDeliveredAt DateTime?
+  lastError       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, userId])
+  @@index([userId])
 }
 
 /// Project knowledge base — folders and pages in one tree (Notion style)

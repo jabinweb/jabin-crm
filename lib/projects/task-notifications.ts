@@ -64,7 +64,18 @@ async function deliver(params: {
   href: string;
   metadata?: Record<string, unknown>;
   email?: ProjectEmailContent;
+  /** Workspace Slack channels: posted once per event, regardless of recipients */
+  slack?: { event: string; title: string; text: string };
 }) {
+  if (params.slack) {
+    const { sendWorkspaceSlackEvent } = await import('@/lib/integrations/slack');
+    await sendWorkspaceSlackEvent(params.companyId, params.slack.event, {
+      title: params.slack.title,
+      text: params.slack.text,
+      href: params.href,
+    });
+  }
+
   const userIds = Array.from(new Set(params.userIds.filter(Boolean)));
   if (userIds.length === 0) return;
 
@@ -144,6 +155,11 @@ export async function notifyProjectTaskAssigned(
     userIds: [opts.assigneeId],
     title: 'Task assigned to you',
     body: `${opts.actorName} assigned you “${opts.taskTitle}”`,
+    slack: {
+      event: 'project.task.assigned',
+      title: 'Task assigned',
+      text: `${opts.actorName} assigned “${opts.taskTitle}”`,
+    },
     href: taskHref(opts.projectId, opts.taskId),
     metadata: { taskId: opts.taskId },
     email: {
@@ -178,6 +194,11 @@ export async function notifyProjectTaskCommented(
     companyId: opts.companyId,
     projectId: opts.projectId,
     userIds: Array.from(recipients),
+    slack: {
+      event: 'project.task.commented',
+      title: 'New task comment',
+      text: `${opts.actorName} on “${opts.taskTitle}”${opts.excerpt ? `: ${opts.excerpt}` : ''}`,
+    },
     title: 'New comment on task',
     body: `${opts.actorName} commented on “${opts.taskTitle}”`,
     href: taskHref(opts.projectId, opts.taskId),
@@ -260,6 +281,11 @@ export async function notifyProjectMentions(opts: {
     companyId: opts.companyId,
     projectId: opts.projectId,
     userIds,
+    slack: {
+      event: 'project.mention',
+      title: 'Mention',
+      text: `${opts.actorName} mentioned a teammate in ${where}`,
+    },
     title: 'You were mentioned',
     body: `${opts.actorName} mentioned you in ${where}`,
     href:

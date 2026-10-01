@@ -161,10 +161,14 @@ export async function resolveCompanyIntegrationStatuses(input: {
       : null
   );
 
-  const [whatsapp, email, calendar] = await Promise.all([
+  const [whatsapp, email, calendar, slackChannels] = await Promise.all([
     resolveWhatsAppStatus(adminIds),
     resolveEmailStatus(adminIds),
     resolveCalendarStatus(adminIds),
+    prisma.slackDestination.findMany({
+      where: { companyId, userId: null },
+      select: { enabled: true, lastError: true },
+    }),
   ]);
 
   const rows: IntegrationStatusRow[] = [];
@@ -217,6 +221,15 @@ export async function resolveCompanyIntegrationStatuses(input: {
         status = whatsapp.status;
         detail = whatsapp.detail;
         break;
+      case 'slack': {
+        const active = slackChannels.filter((c) => c.enabled);
+        const failing = active.filter((c) => c.lastError).length;
+        status = active.length ? 'connected' : slackChannels.length ? 'configured' : 'disabled';
+        detail = slackChannels.length
+          ? `${active.length} active channel(s)${failing ? ` · ${failing} failing` : ''}`
+          : undefined;
+        break;
+      }
       case 'email':
         status = email.status;
         detail = email.detail;

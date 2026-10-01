@@ -29,10 +29,10 @@ Tickets, SLA, omnichannel inbox, live chat, knowledge base, canned responses, cu
 ```bash
 git clone <repo>
 cd jabin-crm
-npm install
+pnpm install
 cp .env.example .env   # fill in values
 npx prisma migrate dev
-npm run dev
+pnpm dev
 ```
 
 Open `http://localhost:3000`.
@@ -43,12 +43,12 @@ Default product name is **Opslane** (`NEXT_PUBLIC_APP_NAME`).
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Development server |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
+| `pnpm dev` | Development server |
+| `pnpm build` | Production build |
+| `pnpm lint` | ESLint |
 | `npm test` | Jest unit tests |
-| `npm run test:e2e` | Playwright API/smoke tests |
-| `npm run qa:staging` | Staging QA automation + manual checklist |
+| `pnpm test:e2e` | Playwright API/smoke tests |
+| `pnpm qa:staging` | Staging QA automation + manual checklist |
 
 ## Production deployment
 
@@ -63,13 +63,13 @@ Environment variables are validated on server boot in production (`lib/env-valid
 **E2E smoke** (`tests/e2e/`): health endpoint, auth pages, API 401 guards.
 
 ```bash
-PLAYWRIGHT_BASE_URL=http://localhost:3000 npm run test:e2e
+PLAYWRIGHT_BASE_URL=http://localhost:3000 pnpm test:e2e
 ```
 
 **Staging QA** (full flow checklist per plan tier):
 
 ```bash
-STAGING_BASE_URL=https://staging.example.com npm run qa:staging
+STAGING_BASE_URL=https://staging.example.com pnpm qa:staging
 ```
 
 ## Project structure
