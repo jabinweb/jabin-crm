@@ -167,6 +167,9 @@ importers:
       cmdk:
         specifier: ^1.0.0
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      cross-env:
+        specifier: ^10.1.0
+        version: 10.1.0
       csv-writer:
         specifier: ^1.6.0
         version: 1.6.0
@@ -300,9 +303,6 @@ importers:
       '@types/react-big-calendar':
         specifier: ^1.16.3
         version: 1.16.3
-      cross-env:
-        specifier: ^10.1.0
-        version: 10.1.0
       jest:
         specifier: ^30.2.0
         version: 30.4.2(@types/node@26.3.0)(ts-node@10.9.2(@types/node@26.3.0)(typescript@5.9.3))
