@@ -1,90 +1,86 @@
-import { NextRequest } from 'next/server';
-import { auth } from '@/auth';import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { withTenantRoute } from '@/lib/api/with-route';
+import { isWorkspaceStaff } from '@/lib/auth/workspace-staff';
+import { publishRealtime } from '@/lib/realtime/hub';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.employeeId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+const MAX_LENGTH = 5000;
 
-    const { id: otherId } = await params;
+type Row = {
+  id: string;
+  content: string;
+  senderId: string;
+  receiverId: string;
+  readAt: Date | null;
+  createdAt: Date;
+};
 
-    const messages = await prisma.employeeMessage.findMany({
-      where: {
-        OR: [
-          { senderId: session.user.employeeId, receiverId: otherId },
-          { senderId: otherId, receiverId: session.user.employeeId }
-        ]
-      },
-      orderBy: { createdAt: 'asc' }, // Changed to ascending order
-      take: 50,
-      select: {
-        id: true,
-        content: true,
-        senderId: true,
-        receiverId: true,
-        status: true,
-        createdAt: true
-      }
-    });
-
-    // Return messages array directly
-    return new Response(JSON.stringify(messages), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store'
-      }
-    });
-  } catch (error) {
-    console.error('[API] Get messages error:', error);
-    return new Response(JSON.stringify({ error: 'Failed to fetch messages' }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
+/** Shape the chat UI expects. */
+function toClient(message: Row) {
+  return {
+    id: message.id,
+    content: message.content,
+    senderId: message.senderId,
+    receiverId: message.receiverId,
+    status: message.readAt ? 'READ' : 'SENT',
+    type: 'TEXT',
+    createdAt: message.createdAt.toISOString(),
+    timestamp: message.createdAt.toISOString(),
+  };
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.employeeId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+/** GET /api/chats/[userId] — the latest 200 messages with that teammate in this workspace. */
+export const GET = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
+  const otherId = (await routeContext!.params).id;
+  const me = session.user.id;
 
-    const { content } = await request.json();
-    const { id: receiverId } = await params;
+  const latest = await prisma.directMessage.findMany({
+    where: {
+      companyId,
+      OR: [
+        { senderId: me, receiverId: otherId },
+        { senderId: otherId, receiverId: me },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+  });
 
-    const message = await prisma.employeeMessage.create({
-      data: {
-        content,
-        senderId: session.user.employeeId,
-        receiverId,
-        status: 'SENT',
-      }
-    });
+  return NextResponse.json((latest as Row[]).reverse().map(toClient), {
+    headers: { 'Cache-Control': 'no-store' },
+  });
+});
 
-    return new Response(JSON.stringify(message), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+/** POST /api/chats/[userId] — send a message to a teammate in this workspace. */
+export const POST = withTenantRoute(async (request, { session, companyId }, routeContext) => {
+  const receiverId = (await routeContext!.params).id;
+  const me = session.user.id;
 
-  } catch (error) {
-    console.error('[API] Send message error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal Server Error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+  const body = await request.json().catch(() => ({}));
+  const content = typeof body.content === 'string' ? body.content.trim() : '';
+  if (!content) return NextResponse.json({ error: 'Message is empty' }, { status: 400 });
+  if (content.length > MAX_LENGTH) {
+    return NextResponse.json({ error: `Messages are limited to ${MAX_LENGTH} characters` }, { status: 400 });
   }
-}
+  if (receiverId === me) {
+    return NextResponse.json({ error: 'You cannot message yourself' }, { status: 400 });
+  }
+  if (!(await isWorkspaceStaff(companyId, receiverId))) {
+    return NextResponse.json({ error: 'That person is not in this workspace' }, { status: 404 });
+  }
+
+  const message = (await prisma.directMessage.create({
+    data: { companyId, senderId: me, receiverId, content },
+  })) as Row;
+
+  const payload = toClient(message);
+  void publishRealtime(
+    REALTIME_EVENTS.DIRECT_MESSAGE,
+    companyId,
+    { ...payload, senderName: session.user.name || session.user.email || 'Teammate' },
+    receiverId
+  ).catch(() => undefined);
+
+  return NextResponse.json(payload, { status: 201 });
+});

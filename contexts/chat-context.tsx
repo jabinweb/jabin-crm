@@ -7,6 +7,7 @@ import { useSSE } from '@/hooks/use-sse'
 import type { EmployeeMessage, MessageAPIPayload } from '@/types/messages'
 import type { CallData } from '@/types/call'
 import { generateId } from '@/lib/utils'
+import { toast } from 'sonner'
 import type { ChatUser } from '@/types/chat'
 
 interface ChatContextType {
@@ -131,13 +132,20 @@ function ChatProviderInner({ children, currentUser }: ChatProviderProps) {
     try {
       setPendingMessages((prev) => new Set(prev).add(tempId))
 
-      await fetch(`/api/chats/${receiverId}`, {
+      const res = await fetch(`/api/chats/${receiverId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Message not sent')
+      }
+      const saved = await res.json()
+      useMessageStore.getState().addMessage(receiverId, saved)
     } catch (error) {
       console.error('[Chat] Failed to send message:', error)
+      toast.error(error instanceof Error ? error.message : 'Message not sent')
     } finally {
       setPendingMessages((prev) => {
         const next = new Set(prev)

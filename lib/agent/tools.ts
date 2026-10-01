@@ -652,26 +652,21 @@ export const AGENT_TOOLS_BASE: AgentToolDef[] = [
         throw new Error('Could not resolve teammate — provide employeeId, userId, or nameOrEmail');
       }
 
-      const senderEmployee = await prisma.employee.findFirst({
-        where: { userId: ctx.userId, companyId: ctx.companyId },
-        select: { id: true },
-      });
-
       const channels: string[] = [];
       let dmId: string | null = null;
 
-      if (senderEmployee?.id && receiverEmployeeId) {
-        const dm = await prisma.employeeMessage.create({
+      // Team chat (Messages page) is between user accounts in the workspace
+      if (receiverUserId && receiverUserId !== ctx.userId) {
+        const dm = await prisma.directMessage.create({
           data: {
+            companyId: ctx.companyId,
+            senderId: ctx.userId,
+            receiverId: receiverUserId,
             content: `[OPS] ${body}`,
-            senderId: senderEmployee.id,
-            receiverId: receiverEmployeeId,
-            type: 'TEXT',
-            status: 'SENT',
           },
         });
         dmId = dm.id;
-        channels.push('employee_dm');
+        channels.push('team_chat');
       }
 
       if (receiverUserId) {

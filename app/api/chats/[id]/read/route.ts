@@ -1,40 +1,15 @@
-import { NextRequest } from 'next/server';
-import { auth } from '@/auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { EmployeeMessageStatus } from '@prisma/client';
+import { withTenantRoute } from '@/lib/api/with-route';
 
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth();
-    if (!session?.user?.employeeId) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
+/** POST /api/chats/[userId]/read — mark that teammate's messages to me as read. */
+export const POST = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
+  const otherId = (await routeContext!.params).id;
 
-    const { id: otherId } = await params;
+  const result = await prisma.directMessage.updateMany({
+    where: { companyId, senderId: otherId, receiverId: session.user.id, readAt: null },
+    data: { readAt: new Date() },
+  });
 
-    await prisma.employeeMessage.updateMany({
-      where: {
-        senderId: otherId,
-        receiverId: session.user.employeeId,
-        status: EmployeeMessageStatus.SENT,
-      },
-      data: { status: EmployeeMessageStatus.DELIVERED },
-    });
-
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  } catch (error) {
-    console.error('[api/chats/[id]/read POST]', error);
-    return new Response(JSON.stringify({ error: 'Failed to mark as read' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-}
+  return NextResponse.json({ success: true, marked: result.count });
+});

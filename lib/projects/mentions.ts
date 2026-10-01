@@ -2,16 +2,7 @@ import { prisma } from '@/lib/prisma';
 
 export { extractMentionIds, newMentionIds } from '@/lib/projects/mention-html';
 
-function companyStaffWhere(companyId: string) {
-  return {
-    role: { not: 'CUSTOMER' as const },
-    OR: [
-      { companyId },
-      { primaryCompanyId: companyId },
-      { userCompanies: { some: { companyId } } },
-    ],
-  };
-}
+import { workspaceStaffWhere as companyStaffWhere } from '@/lib/auth/workspace-staff';
 
 /** Keep only ids that are staff users of this company (drops forged / cross-tenant ids). */
 export async function filterCompanyStaffIds(

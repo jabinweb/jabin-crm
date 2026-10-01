@@ -7,6 +7,8 @@ export const REALTIME_EVENTS = {
   TICKET_MOVED: 'ticket.moved',
   NOTIFICATION_CREATED: 'notification.created',
   CHAT_MESSAGE: 'chat.message',
+  /** Team chat (Messages page) — payload carries senderId/receiverId user ids. */
+  DIRECT_MESSAGE: 'direct.message',
   CHAT_SESSION: 'chat.session',
   BOARD_MOVED: 'board.moved',
   /** A project doc was saved, created, moved or deleted. */

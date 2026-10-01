@@ -9,6 +9,9 @@ import { Chat } from "./chat";
 import { ChatProvider } from '@/contexts/chat-context';
 import { useMessageStore } from '@/lib/stores/message-store';
 import { DEFAULT_AVATAR_SRC } from '@/lib/default-avatar';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useRealtime } from '@/hooks/use-realtime';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
 
 function resolveAvatar(src: string | null | undefined): string {
   if (!src || src === '/avatars/default.png') return DEFAULT_AVATAR_SRC;
@@ -36,7 +39,6 @@ export function ChatLayout({
     avatar: string
   } | null>(null);
   
-  const messageStore = useMessageStore();
 
   const layout = React.useMemo(() => {
     const raw = defaultLayout?.length === 2 ? defaultLayout : [32, 68];
@@ -48,89 +50,82 @@ export function ChatLayout({
     return [a, b] as const;
   }, [defaultLayout]);
 
-  // Fetch sorted contacts
+  const { workspaceFetch, slug } = useWorkspacePaths();
+  const myId = session?.user?.id;
+  const selectedIdRef = React.useRef<string | null>(null);
   useEffect(() => {
-    const fetchSortedContacts = async () => {      
-      try {
-        const response = await fetch('/api/chats/sorted-contacts');
-        if (!response.ok) throw new Error('Failed to fetch contacts');
-        const data = await response.json();
-        
-        const formattedContacts = data.map((contact: any) => ({
-          id: contact.id,
-          name: contact.name,
-          avatar: resolveAvatar(contact.avatar),
-          lastMessage: contact.lastMessageContent ? {
-            content: contact.lastMessageContent,
-            timestamp: contact.lastMessageTimestamp,
-            unread: contact.isUnread
-          } : undefined
-        }));
-        
-        messageStore.setContacts(formattedContacts);
+    selectedIdRef.current = selectedChatItem?.id ?? null;
+  }, [selectedChatItem?.id]);
 
-        // Set first contact as default if none selected
-        if (!selectedChatItem && formattedContacts.length > 0) {
-          setSelectedChatItem({
-            id: formattedContacts[0].id,
-            name: formattedContacts[0].name,
-            avatar: formattedContacts[0].avatar,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching contacts:', error);
-      }
-    };
+  // Contacts = everyone in this workspace, most recent conversation first
+  const fetchSortedContacts = React.useCallback(async () => {
+    try {
+      const response = await workspaceFetch('/api/chats/sorted-contacts');
+      if (!response.ok) throw new Error('Failed to fetch contacts');
+      const data = await response.json();
 
-    if (session?.user?.primaryCompanyId) {
-      fetchSortedContacts();
+      const formattedContacts = data.map((contact: any) => ({
+        id: contact.id,
+        name: contact.name,
+        avatar: resolveAvatar(contact.avatar),
+        unreadCount: contact.unreadCount ?? 0,
+        lastMessage: contact.lastMessageContent ? {
+          content: contact.lastMessageContent,
+          timestamp: contact.lastMessageTimestamp,
+          unread: contact.isUnread
+        } : undefined
+      }));
+
+      useMessageStore.getState().setContacts(formattedContacts);
+
+      setSelectedChatItem((current) => {
+        if (current || formattedContacts.length === 0) return current;
+        const first = formattedContacts[0];
+        return { id: first.id, name: first.name, avatar: first.avatar };
+      });
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
     }
-  }, [session?.user?.primaryCompanyId, messageStore, selectedChatItem]);
+  }, [workspaceFetch]);
 
-  // Listen for SSE messages
   useEffect(() => {
-    if (!session?.user?.employeeId) return;
+    if (myId && slug) void fetchSortedContacts();
+  }, [myId, slug, fetchSortedContacts]);
 
-    let eventSource = new EventSource('/api/sse');
-    
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'message') {
-          const isSender = data.senderId === session.user.employeeId;
-          const contactId = isSender ? data.receiverId : data.senderId;
-          
-          messageStore.addMessage(contactId, {
-            id: data.id,
-            content: data.content,
-            senderId: data.senderId,
-            receiverId: contactId,
-            timestamp: data.timestamp,
-            status: 'SENT'
-          });
-
-          if (selectedChatItem?.id === contactId) {
-            messageStore.markAsRead(contactId);
-          }
-        }
-      } catch (error) {
-        console.error('Error processing SSE message:', error);
+  // Incoming messages, pushed by POST /api/chats/[id]
+  useRealtime({
+    types: [REALTIME_EVENTS.DIRECT_MESSAGE],
+    onEvent: (event) => {
+      const data = event.payload as Record<string, string>;
+      if (!myId || (data.receiverId !== myId && data.senderId !== myId)) return;
+      const contactId = data.senderId === myId ? data.receiverId : data.senderId;
+      useMessageStore.getState().addMessage(contactId, {
+        id: data.id,
+        content: data.content,
+        senderId: data.senderId,
+        receiverId: data.receiverId,
+        timestamp: data.timestamp,
+        createdAt: data.createdAt,
+        status: 'SENT',
+      });
+      if (selectedIdRef.current === contactId) {
+        void useMessageStore.getState().markAsRead(contactId);
       }
-    };
+      void fetchSortedContacts();
+    },
+  });
 
-    // Add error and reconnection handling
-    eventSource.onerror = () => {
-      eventSource.close();
-      setTimeout(() => {
-        // Reconnect after 5 seconds
-        const newEventSource = new EventSource('/api/sse');
-        eventSource = newEventSource;
-      }, 5000);
-    };
-
-    return () => eventSource.close();
-  }, [session?.user?.employeeId, selectedChatItem, messageStore]);
+  // Fallback when realtime is not connected: refresh the open conversation and the list
+  useEffect(() => {
+    if (!myId) return;
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      const open = selectedIdRef.current;
+      if (open) void useMessageStore.getState().fetchMessages(open);
+      void fetchSortedContacts();
+    }, 20_000);
+    return () => clearInterval(interval);
+  }, [myId, fetchSortedContacts]);
 
   // Mobile responsiveness
   useEffect(() => {
@@ -144,11 +139,9 @@ export function ChatLayout({
 
   function handleSelectUser(user: { id: string; name: string; avatar: string }) {
     setSelectedChatItem(user);
-    if (messageStore.markAsRead) {
-      messageStore.markAsRead(user.id).catch(error => {
-        console.error('Failed to mark messages as read:', error);
-      });
-    }
+    useMessageStore.getState().markAsRead(user.id).catch(error => {
+      console.error('Failed to mark messages as read:', error);
+    });
   }
 
   if (!session?.user) return null;
@@ -158,7 +151,7 @@ export function ChatLayout({
   return (
     <ChatProvider 
       currentUser={{
-        id: currentUser.employeeId!,
+        id: currentUser.id,
         name: currentUser.name!,
         avatar: resolveAvatar(currentUser.image)
       }}

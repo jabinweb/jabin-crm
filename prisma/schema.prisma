@@ -119,6 +119,8 @@ model User {
   projectDocsEdited       ProjectDoc[]           @relation("ProjectDocEditor")
   projectDocPresence      ProjectDocPresence[]
   slackDestinations       SlackDestination[]
+  directMessagesSent      DirectMessage[]        @relation("DirectMessageSender")
+  directMessagesReceived  DirectMessage[]        @relation("DirectMessageReceiver")
 
   // ── Company Management Integration ──
   password         String?
@@ -2264,6 +2266,7 @@ model Company {
   projects          Project[]
   projectLabels     ProjectLabel[]
   slackDestinations SlackDestination[]
+  directMessages    DirectMessage[]
   clientRetainers   ClientRetainer[]
   hrLetterTemplates HrLetterTemplate[]
   hrLetters         HrLetter[]
@@ -3255,6 +3258,24 @@ model ProjectMilestone {
   @@index([projectId])
   @@index([status])
   @@index([dueDate])
+}
+
+/// One-to-one chat between two staff users, inside one workspace.
+/// The same two people in two workspaces have two separate conversations.
+model DirectMessage {
+  id         String    @id @default(cuid())
+  companyId  String
+  senderId   String
+  receiverId String
+  content    String    @db.Text
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sender     User      @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User      @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, senderId, receiverId, createdAt])
+  @@index([companyId, receiverId, readAt])
 }
 
 /// A Slack incoming webhook that receives alerts.

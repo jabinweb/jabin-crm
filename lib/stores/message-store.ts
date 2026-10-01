@@ -166,7 +166,13 @@ export const useMessageStore = create<MessagesState>()(
             ...state,
             contacts: state.contacts.map((contact: any) => 
               contact.id === chatId 
-                ? { ...contact, unreadCount: 0 }
+                ? {
+                    ...contact,
+                    unreadCount: 0,
+                    lastMessage: contact.lastMessage
+                      ? { ...contact.lastMessage, unread: false }
+                      : contact.lastMessage,
+                  }
                 : contact
             )
           }));

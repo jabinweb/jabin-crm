@@ -5,7 +5,7 @@ import {
   resolveCompanyContextFromRequest,
   TenantError,
 } from '@/lib/auth/company-membership'
-import { LeaveStatus, EmployeeMessageStatus } from '@prisma/client'
+import { LeaveStatus } from '@prisma/client'
 import { notificationService } from '@/lib/crm/notification-service'
 
 export async function GET(request: NextRequest) {
@@ -85,17 +85,16 @@ export async function GET(request: NextRequest) {
           orderBy: { createdAt: 'desc' },
           take: 15,
         }),
-        employeeId
-          ? prisma.employeeMessage.findMany({
-              where: {
-                receiverId: employeeId,
-                createdAt: { gte: sevenDaysAgo },
-              },
-              include: { sender: { select: { name: true } } },
-              orderBy: { createdAt: 'desc' },
-              take: 10,
-            })
-          : Promise.resolve([]),
+        prisma.directMessage.findMany({
+          where: {
+            receiverId: session.user.id,
+            createdAt: { gte: sevenDaysAgo },
+            ...(activeCompanyId ? { companyId: activeCompanyId } : {}),
+          },
+          include: { sender: { select: { name: true, email: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        }),
         employeeId
           ? prisma.leaveRequest.findMany({
               where: {
@@ -189,13 +188,13 @@ export async function GET(request: NextRequest) {
       ...recentMessages.map((msg) => ({
         id: `message-${msg.id}`,
         title: 'New message',
-        message: `${msg.sender.name}: ${msg.content.slice(0, 120)}`,
+        message: `${msg.sender.name || msg.sender.email}: ${msg.content.slice(0, 120)}`,
         type: 'MESSAGE',
         targetRole: ['EMPLOYEE'],
-        metadata: { messageId: msg.id },
+        metadata: { messageId: msg.id, href: '/dashboard/messages' },
         createdAt: msg.createdAt.toISOString(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        read: msg.status === EmployeeMessageStatus.READ,
+        read: !!msg.readAt,
       }))
     )
 

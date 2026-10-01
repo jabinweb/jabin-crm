@@ -1,127 +1,74 @@
-import { NextRequest } from 'next/server';
-import { auth } from '@/auth';
-import { handleRouteError } from '@/lib/api/tenant-response';
-import { EmployeeMessage, Employee, EmployeeMessageStatus } from '@prisma/client';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { cache } from 'react';
-import "@/types/auth";
-import {
-  resolveCompanyContextFromRequest,
-  TenantError,
-} from '@/lib/auth/company-membership';
+import { withTenantRoute } from '@/lib/api/with-route';
+import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 
-// Cache duration in seconds
-const CACHE_DURATION = 30;
+type Contact = { id: string; name: string | null; email: string; image: string | null };
+type LastMessage = { senderId: string; receiverId: string; content: string; createdAt: Date };
 
-// Cache the database query with user-specific key
-const getCachedContacts = cache(async (userId: string, companyId: string) => {
-  return prisma.employee.findMany({
-    where: {
-      NOT: { id: userId },
-      companyId,
-    },
-    include: {
-      receivedMessages: {
-        where: { senderId: userId },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
-      sentMessages: {
-        where: { receiverId: userId },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
-    },
-  });
-});
+/**
+ * Team chat contacts: every active staff member of the current workspace (no employee
+ * profile needed), most recent conversation first.
+ */
+export const GET = withTenantRoute(async (_request, { session, companyId }) => {
+  const me = session.user.id;
 
-interface ContactWithMessages extends Employee {
-  receivedMessages: EmployeeMessage[];
-  sentMessages: EmployeeMessage[];
-}
+  const [people, recent, unread] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { not: me }, userStatus: 'ACTIVE', ...workspaceStaffWhere(companyId) },
+      select: { id: true, name: true, email: true, image: true },
+      orderBy: { name: 'asc' },
+    }),
+    // Newest message per conversation partner
+    prisma.directMessage.findMany({
+      where: { companyId, OR: [{ senderId: me }, { receiverId: me }] },
+      orderBy: { createdAt: 'desc' },
+      distinct: ['senderId', 'receiverId'],
+      select: { senderId: true, receiverId: true, content: true, createdAt: true },
+      take: 500,
+    }),
+    prisma.directMessage.groupBy({
+      by: ['senderId'],
+      where: { companyId, receiverId: me, readAt: null },
+      _count: { _all: true },
+    }),
+  ]);
 
-interface FormattedContact {
-  id: string;
-  name: string;
-  avatar: string | null;
-  lastMessageContent: string | null;
-  lastMessageTimestamp: Date | null;
-  isUnread: boolean;
-}
-
-export async function GET(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.employeeId) {
-      return new Response('Unauthorized', { status: 401 });
-    }
-
-    const userId = session.user.employeeId;
-    let companyId: string
-    try {
-      companyId = (await resolveCompanyContextFromRequest(session, req)).companyId
-    } catch (e) {
-      if (e instanceof TenantError) {
-        return new Response(JSON.stringify({ error: e.message }), { status: e.status });
-      }
-      throw e
-    }
-
-    // Add cache headers with ETag support
-    const headers = {
-      'Content-Type': 'application/json',
-      'Cache-Control': `public, max-age=${CACHE_DURATION}, stale-while-revalidate=60`,
-      'ETag': `"contacts-${session.user.employeeId}-${Date.now()}"`
-    };
-
-    // Check if we can return 304 Not Modified
-    const ifNoneMatch = req.headers.get('if-none-match');
-    if (ifNoneMatch && ifNoneMatch === headers.ETag) {
-      return new Response(null, { status: 304, headers });
-    }
-
-    // Use cached query
-    const contacts = await getCachedContacts(userId, companyId) as ContactWithMessages[];
-
-    const formattedContacts = contacts.map((contact: ContactWithMessages): FormattedContact => {
-      const lastReceivedMessage = contact.receivedMessages[0];
-      const lastSentMessage = contact.sentMessages[0];
-      
-      let lastMessage: EmployeeMessage | null = null;
-      if (lastReceivedMessage && lastSentMessage) {
-        lastMessage = lastReceivedMessage.createdAt > lastSentMessage.createdAt
-          ? lastReceivedMessage
-          : lastSentMessage;
-      } else {
-        lastMessage = lastReceivedMessage || lastSentMessage;
-      }
-
-      return {
-        id: contact.id,
-        name: contact.name,
-        avatar: contact.avatar,
-        lastMessageContent: lastMessage?.content || null,
-        lastMessageTimestamp: lastMessage?.createdAt || null,
-        isUnread: lastMessage 
-          ? lastMessage.receiverId === userId && lastMessage.status === EmployeeMessageStatus.SENT
-          : false
-      };
-    });
-
-    // Sort by last message timestamp
-    const sortedContacts = formattedContacts.sort((a, b) => {
-      if (!a.lastMessageTimestamp) return 1;
-      if (!b.lastMessageTimestamp) return -1;
-      return b.lastMessageTimestamp.getTime() - a.lastMessageTimestamp.getTime();
-    });
-
-    return new Response(JSON.stringify(sortedContacts), { headers });
-  } catch (error) {
-    if (error instanceof TenantError) {
-      return new Response(JSON.stringify({ error: error.message }), { status: error.status });
-    }
-    console.error('Error fetching sorted contacts:', error);
-    return new Response('Internal Server Error', { status: 500 });
+  const lastByContact = new Map<string, LastMessage>();
+  for (const message of recent as LastMessage[]) {
+    const other = message.senderId === me ? message.receiverId : message.senderId;
+    const current = lastByContact.get(other);
+    if (!current || current.createdAt < message.createdAt) lastByContact.set(other, message);
   }
-}
+  const unreadBy = new Map<string, number>(
+    (unread as Array<{ senderId: string; _count: { _all: number } }>).map((row) => [
+      row.senderId,
+      row._count._all,
+    ])
+  );
 
+  const contacts = (people as Contact[])
+    .map((person) => {
+      const last = lastByContact.get(person.id);
+      const unreadCount = unreadBy.get(person.id) ?? 0;
+      return {
+        id: person.id,
+        name: person.name || person.email,
+        avatar: person.image,
+        lastMessageContent: last?.content ?? null,
+        lastMessageTimestamp: last?.createdAt ?? null,
+        isUnread: unreadCount > 0,
+        unreadCount,
+      };
+    })
+    .sort((a, b) => {
+      if (a.lastMessageTimestamp && b.lastMessageTimestamp) {
+        return b.lastMessageTimestamp.getTime() - a.lastMessageTimestamp.getTime();
+      }
+      if (a.lastMessageTimestamp) return -1;
+      if (b.lastMessageTimestamp) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+  return NextResponse.json(contacts, { headers: { 'Cache-Control': 'no-store' } });
+});
