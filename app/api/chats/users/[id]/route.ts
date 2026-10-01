@@ -15,8 +15,12 @@ export async function GET(
     }
 
     const { id } = await params;
-    const user = await prisma.employee.findUnique({
-      where: { id },
+    const me = await prisma.employee.findUnique({
+      where: { id: session.user.employeeId },
+      select: { companyId: true },
+    });
+    const user = !me?.companyId ? null : await prisma.employee.findFirst({
+      where: { id, companyId: me.companyId },
       select: {
         id: true,
         name: true,

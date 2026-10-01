@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { clientHistoryService } from '@/lib/crm/client-history-service';
+import { assertCustomerTenantAccess } from '@/lib/tenant/scope-staff-query';
+import { handleRouteError } from '@/lib/api/tenant-response';
+import { TenantError } from '@/lib/auth/company-membership';
 
 export async function GET(
     request: NextRequest,
@@ -9,8 +12,13 @@ export async function GET(
     try {
         const { id } = await params;
         const session = await auth();
-        if (!session) {
+        if (!session?.user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const access = await assertCustomerTenantAccess(session, request, id);
+        if (!access) {
+            return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -29,6 +37,7 @@ export async function GET(
         const history = await clientHistoryService.getFormattedHistory(id);
         return NextResponse.json(history);
     } catch (error) {
+        if (error instanceof TenantError) return handleRouteError(error);
         console.error('Error exporting history:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }

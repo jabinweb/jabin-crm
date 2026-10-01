@@ -1,17 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { resolveCompanyContextFromRequest } from "@/lib/auth/company-membership";
+import { handleRouteError } from "@/lib/api/tenant-response";
 
 /**
  * Back-compat endpoint used by `components/dashboard/leads-chart.tsx`.
  * Returns monthly lead counts for the last 7 months.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // A user can belong to several workspaces — count only this one's leads
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
 
     const months = [
       "Jan",
@@ -43,6 +48,7 @@ export async function GET() {
       const leadsCount = await prisma.lead.count({
         where: {
           userId: session.user.id,
+          companyId,
           createdAt: {
             gte: startDate,
             lte: endDate,
@@ -55,6 +61,7 @@ export async function GET() {
 
     return NextResponse.json(chartData);
   } catch (error) {
+    if (error instanceof Error && error.name === "TenantError") return handleRouteError(error);
     console.error("Error fetching chart data:", error);
     return NextResponse.json(
       { error: "Failed to fetch chart data" },

@@ -47,6 +47,15 @@ export async function GET(request: NextRequest) {
         ? session.user.companyId.trim()
         : undefined
 
+    // The workspace being viewed. A user in several workspaces should only see this one's
+    // notifications here; left undefined (no filtering) when no workspace can be resolved.
+    let activeCompanyId: string | undefined
+    try {
+      activeCompanyId = (await resolveCompanyContextFromRequest(session, request)).companyId
+    } catch (e) {
+      if (!(e instanceof TenantError)) throw e
+    }
+
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
@@ -67,6 +76,7 @@ export async function GET(request: NextRequest) {
           where: {
             assigneeId: session.user.id,
             createdAt: { gte: sevenDaysAgo },
+            ...(activeCompanyId ? { project: { companyId: activeCompanyId } } : {}),
           },
           include: {
             project: { select: { id: true, name: true } },
@@ -122,6 +132,10 @@ export async function GET(request: NextRequest) {
       ])
 
     for (const n of dbNotes) {
+      const noteCompanyId = (n.metadata as Record<string, unknown> | null)?.companyId
+      if (activeCompanyId && typeof noteCompanyId === 'string' && noteCompanyId !== activeCompanyId) {
+        continue
+      }
       notifications.push({
         id: n.id,
         title: n.title,

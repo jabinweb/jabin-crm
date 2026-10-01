@@ -10,6 +10,8 @@ import {
 } from '@/lib/tenant-dashboard-routes';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { getEnvTenancyMode, RESERVED_SUBDOMAINS } from '@/lib/tenancy/mode';
+import { REFERER_WORKSPACE_HEADER } from '@/lib/api/workspace-slug';
+import { workspaceSlugFromReferer } from '@/lib/tenant/referer-workspace';
 
 const PUBLIC_PREFIXES = [
   '/auth',
@@ -255,6 +257,18 @@ export async function proxy(req: NextRequest) {
 
   const requestHeaders = new Headers(req.headers);
   requestHeaders.set('x-pathname', pathname);
+
+  // Never trust a client-sent value for this one — it is always recomputed here
+  requestHeaders.delete(REFERER_WORKSPACE_HEADER);
+  if (pathname.startsWith('/api/')) {
+    const refererWorkspace = workspaceSlugFromReferer({
+      referer: req.headers.get('referer'),
+      host: req.headers.get('x-forwarded-host') || req.headers.get('host'),
+      subdomainMode: getEnvTenancyMode() === 'subdomain',
+      reservedSubdomains: RESERVED_SUBDOMAINS,
+    });
+    if (refererWorkspace) requestHeaders.set(REFERER_WORKSPACE_HEADER, refererWorkspace);
+  }
 
   const geoCountry =
     req.headers.get('x-vercel-ip-country') ||

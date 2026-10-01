@@ -49,6 +49,7 @@ import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { getClientBrandConfig } from '@/lib/branding';
 import { PunchButton } from '@/components/dashboard/punch-button';
 import { NotificationsPanel } from '@/components/notifications/notifications-panel';
+import { WorkspaceSwitcherItems } from '@/components/layout/workspace-switcher';
 import type { GlobalSearchEntityType, GlobalSearchResult } from '@/lib/crm/global-search-types';
 import { Clock } from 'lucide-react';
 import { getRecentEntities, pushRecentEntity } from '@/lib/crm/recent-entities';
@@ -270,6 +271,7 @@ export function Navbar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <WorkspaceSwitcherItems />
               {(session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'ADMIN') && (
                 <>
                   <DropdownMenuItem asChild>

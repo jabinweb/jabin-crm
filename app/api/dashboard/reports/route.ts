@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { LeadStatus, CampaignStatus } from '@prisma/client';
 import {
   endOfMonth,
@@ -51,9 +53,12 @@ export async function GET(req: NextRequest) {
     const range = (req.nextUrl.searchParams.get('range') || '30d') as DateRange;
     const { start, end, prevStart, prevEnd } = resolveRange(range);
     const userId = session.user.id;
+    // A user can belong to several workspaces — report only on this one's leads
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
 
     const leadWhere = (from: Date, to: Date) => ({
       userId,
+      companyId,
       createdAt: { gte: from, lte: to },
     });
 
@@ -80,6 +85,7 @@ export async function GET(req: NextRequest) {
       prisma.lead.count({
         where: {
           userId,
+          companyId,
           status: { not: LeadStatus.NEW },
           updatedAt: { gte: start, lte: end },
         },
@@ -87,13 +93,14 @@ export async function GET(req: NextRequest) {
       prisma.lead.count({
         where: {
           userId,
+          companyId,
           status: { in: [LeadStatus.WON, LeadStatus.CONVERTED] },
           updatedAt: { gte: start, lte: end },
         },
       }),
       prisma.lead.groupBy({
         by: ['status'],
-        where: { userId, createdAt: { gte: start, lte: end } },
+        where: { userId, companyId, createdAt: { gte: start, lte: end } },
         _count: true,
       }),
       prisma.emailLog.count({
@@ -117,14 +124,14 @@ export async function GET(req: NextRequest) {
       }),
       prisma.lead.groupBy({
         by: ['source'],
-        where: { userId, createdAt: { gte: start, lte: end } },
+        where: { userId, companyId, createdAt: { gte: start, lte: end } },
         _count: true,
         orderBy: { _count: { source: 'desc' } },
         take: 8,
       }),
       prisma.lead.groupBy({
         by: ['industry'],
-        where: { userId, industry: { not: null }, createdAt: { gte: start, lte: end } },
+        where: { userId, companyId, industry: { not: null }, createdAt: { gte: start, lte: end } },
         _count: true,
         orderBy: { _count: { industry: 'desc' } },
         take: 8,
@@ -195,6 +202,7 @@ export async function GET(req: NextRequest) {
       })),
     });
   } catch (error) {
+    if (error instanceof TenantError) return handleRouteError(error);
     console.error('[api/dashboard/reports]', error);
     return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });
   }

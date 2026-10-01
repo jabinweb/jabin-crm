@@ -461,7 +461,7 @@ export class DealService {
   /**
    * Get revenue forecast
    */
-  async getRevenueForecast(userId: string, months: number = 3) {
+  async getRevenueForecast(userId: string, months: number = 3, companyId?: string) {
     const startDate = new Date();
     const endDate = new Date();
     endDate.setMonth(endDate.getMonth() + months);
@@ -469,6 +469,7 @@ export class DealService {
     const deals = await prisma.deal.findMany({
       where: {
         userId,
+        ...(companyId ? { lead: { companyId } } : {}),
         expectedCloseDate: {
           gte: startDate,
           lte: endDate,
@@ -496,13 +497,14 @@ export class DealService {
   /**
    * Get win/loss analysis
    */
-  async getWinLossAnalysis(userId: string, days: number = 90) {
+  async getWinLossAnalysis(userId: string, days: number = 90, companyId?: string) {
     const since = new Date();
     since.setDate(since.getDate() - days);
 
     const closedDeals = await prisma.deal.findMany({
       where: {
         userId,
+        ...(companyId ? { lead: { companyId } } : {}),
         actualCloseDate: {
           gte: since,
         },

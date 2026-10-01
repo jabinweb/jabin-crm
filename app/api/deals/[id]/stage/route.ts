@@ -3,15 +3,27 @@ import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
 import { dealService } from '@/lib/crm/deal-service';
+import { prisma } from '@/lib/prisma';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
+import { handleRouteError } from '@/lib/api/tenant-response';
 
 export async function POST(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('DEALS');
+    const session = await withModuleAccess('DEALS');
 
     const params = await context.params;
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
+    const owned = await prisma.deal.findFirst({
+      where: { id: params.id, lead: { companyId } },
+      select: { id: true },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+    }
+
     const body = await req.json();
     const { action, lostReason } = body;
 
@@ -29,6 +41,7 @@ export async function POST(
     return NextResponse.json(deal);
   } catch (error: any) {
     if (isApiException(error)) return handleApiError(error);
+    if (error instanceof TenantError) return handleRouteError(error);
     console.error('Error moving deal stage:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

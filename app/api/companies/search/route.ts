@@ -4,10 +4,16 @@ import { prisma } from '@/lib/prisma';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get('q') || '';
+    const query = (searchParams.get('q') || '').trim();
+
+    // Unauthenticated endpoint: an empty query must not list every tenant
+    if (query.length < 2) {
+      return NextResponse.json({ companies: [] });
+    }
 
     const companies = await prisma.company.findMany({
       where: {
+        status: 'APPROVED',
         name: {
           contains: query,
           mode: 'insensitive',

@@ -1,6 +1,7 @@
 import type { CompanyStatus } from "@prisma/client"
 import { prisma } from "@/lib/prisma"
 import {
+  REFERER_WORKSPACE_HEADER,
   SESSION_COMPANY_ID_HEADER,
   SESSION_COMPANY_SLUG_HEADER,
   WORKSPACE_SLUG_HEADER,
@@ -28,28 +29,27 @@ type CompanyContext = {
   employeeId?: string
 }
 
-async function getPrimaryCompanyIdFromJoinTables(userId: string): Promise<string | null> {
-  const membership = await prisma.userCompany.findFirst({
-    where: { userId },
-    select: { companyId: true },
-  })
-  return membership?.companyId ?? null
-}
-
 /**
- * Canonical: join tables (`UserCompany`) with legacy fallback to cached user fields.
+ * The user's home workspace.
  *
- * During migration, many users may still only have `User.primaryCompanyId` populated.
+ * `User.primaryCompanyId` wins when set: a user can belong to several workspaces, and
+ * picking "the first membership row" (no ordering) could return a different company from
+ * one request to the next. Users without it fall back to their earliest membership, then
+ * the legacy `companyId`.
  */
 export async function getUserPrimaryCompanyId(userId: string): Promise<string | null> {
-  const fromJoin = await getPrimaryCompanyIdFromJoinTables(userId)
-  if (fromJoin) return fromJoin
-
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { primaryCompanyId: true, companyId: true },
   })
-  return user?.primaryCompanyId ?? user?.companyId ?? null
+  if (user?.primaryCompanyId) return user.primaryCompanyId
+
+  const membership = await prisma.userCompany.findFirst({
+    where: { userId },
+    orderBy: { id: "asc" },
+    select: { companyId: true },
+  })
+  return membership?.companyId ?? user?.companyId ?? null
 }
 
 export async function userHasCompanyAccess(userId: string, companyId: string): Promise<boolean> {
@@ -123,19 +123,44 @@ export async function requireCompanyContext(session: Session | null): Promise<Co
 }
 
 /**
- * Prefer `x-workspace-slug` (or `?workspace=` query) when present so the active URL tenant
- * matches API scope (e.g. SUPER_ADMIN working inside another company’s dashboard).
- * Then `x-company-slug` / `x-company-id` from `proxy.ts` (JWT) so `/dashboard` fetches work without
- * every client passing `x-workspace-slug`.
- * Otherwise falls back to `requireCompanyContext(session)`.
+ * Order of precedence:
+ * 1. `x-workspace-slug` (or `?workspace=`) — the client named the workspace explicitly.
+ * 2. `x-referer-workspace` — the workspace of the page that made the call (set by `proxy.ts`).
+ *    A hint only: used when the user belongs to that workspace, ignored otherwise.
+ * 3. `x-company-slug` / `x-company-id` from `proxy.ts` (JWT sign-in company).
+ * 4. `requireCompanyContext(session)` — the user's home workspace.
  */
 export async function resolveCompanyContextFromRequest(
   session: Session | null,
   request: NextRequest
 ): Promise<CompanyContext> {
-  let workspaceSlug =
+  const explicitSlug =
     request.headers.get(WORKSPACE_SLUG_HEADER)?.trim() ||
     request.nextUrl.searchParams.get("workspace")?.trim() ||
+    null
+
+  if (!explicitSlug && session?.user?.id) {
+    const hinted = request.headers.get(REFERER_WORKSPACE_HEADER)?.trim()
+    if (hinted) {
+      const company = await prisma.company.findUnique({
+        where: { slug: hinted },
+        select: { id: true, status: true },
+      })
+      if (company && company.status !== "REJECTED") {
+        const role = (session.user as any)?.role as string | undefined
+        if (role === "SUPER_ADMIN" || (await userHasCompanyAccess(session.user.id, company.id))) {
+          return {
+            userId: session.user.id,
+            companyId: company.id,
+            employeeId: (session.user as any)?.employeeId as string | undefined,
+          }
+        }
+      }
+    }
+  }
+
+  let workspaceSlug =
+    explicitSlug ||
     request.headers.get(SESSION_COMPANY_SLUG_HEADER)?.trim() ||
     null
 
