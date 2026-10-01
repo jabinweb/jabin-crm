@@ -20,7 +20,7 @@ export type IntegrationCatalogEntry = {
   /** Dashboard-relative configure path (scoped by tenant in UI). */
   configurePath?: string;
   /** Configure inline on the integrations page instead of navigating away. */
-  inlinePanel?: 'razorpay' | 'webhooks' | 'email' | 'google_calendar';
+  inlinePanel?: 'razorpay' | 'webhooks' | 'email' | 'google_calendar' | 'slack';
   docsPath?: string;
 };
 

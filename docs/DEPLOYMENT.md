@@ -26,7 +26,7 @@ npx prisma migrate deploy
 
 1. Import the Git repository
 2. Set **Root Directory** to repo root
-3. Build command: `npm run build` (default)
+3. Build command: `pnpm build` (default)
 4. Add all variables from `.env.example` (Production environment)
 
 ### Required in production
@@ -115,7 +115,7 @@ STAGING_BASE_URL=https://staging.example.com \
 QA_SESSION_COOKIE="next-auth.session-token=..." \
 QA_WORKSPACE_SLUG=your-company \
 INBOUND_EMAIL_WEBHOOK_SECRET=... \
-npm run qa:staging
+pnpm qa:staging
 ```
 
 Run the printed **manual checklist once per plan tier** (free, starter, professional, enterprise).

@@ -19,6 +19,14 @@ export const INTEGRATION_CATALOG: IntegrationCatalogEntry[] = [
     configurePath: '/dashboard/whatsapp?tab=provider',
   },
   {
+    id: 'slack',
+    name: 'Slack',
+    description: 'Post new leads, tickets, won deals and project activity to your Slack channels.',
+    category: 'messaging',
+    scope: 'company',
+    inlinePanel: 'slack',
+  },
+  {
     id: 'email',
     name: 'Email (SMTP / IMAP)',
     description: 'Send quotes, invoices, and outreach from your company mailbox.',
