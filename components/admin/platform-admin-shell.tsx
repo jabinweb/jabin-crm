@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { getClientBrandConfig } from '@/lib/branding';
 import { OpslaneLogo } from '@/components/brand/opslane-logo';
 
@@ -43,7 +43,6 @@ type Props = {
 export function PlatformAdminShell({ email, name, exitHref, children }: Props) {
   const pathname = usePathname();
   const brand = getClientBrandConfig();
-  const initial = (name || email || 'A').charAt(0).toUpperCase();
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -122,11 +121,7 @@ export function PlatformAdminShell({ email, name, exitHref, children }: Props) {
                 {email}
               </p>
             </div>
-            <Avatar className="h-8 w-8 rounded-md">
-              <AvatarFallback className="rounded-md bg-teal-700 text-white text-xs">
-                {initial}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar person={{ name, email }} size="md" />
           </div>
         </header>
 

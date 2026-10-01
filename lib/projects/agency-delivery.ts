@@ -36,7 +36,7 @@ export const PROJECT_TASK_LIST_INCLUDE = {
 export const PROJECT_INCLUDE = {
   customer: { select: { id: true, organizationName: true } },
   deal: { select: { id: true, title: true, stage: true, value: true } },
-  pmUser: { select: { id: true, name: true, email: true } },
+  pmUser: { select: { id: true, name: true, email: true, image: true } },
   milestones: { orderBy: { sortOrder: 'asc' as const } },
   tasks: {
     where: { parentTaskId: null },
@@ -45,7 +45,7 @@ export const PROJECT_INCLUDE = {
   },
   members: {
     include: {
-      user: { select: { id: true, name: true, email: true } },
+      user: { select: { id: true, name: true, email: true, image: true } },
     },
   },
   retainers: {

@@ -29,6 +29,7 @@ import {
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { DetailSkeleton } from '@/components/loading';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { cn } from '@/lib/utils';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
@@ -296,9 +297,13 @@ export default function PortalTicketDetailPage() {
                             <div className="space-y-2">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Assigned to</p>
                                 <div className="flex items-center space-x-3 p-4 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-800/20">
-                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/10">
-                                        {ticket.assignedTechnician?.name?.charAt(0) || <User className="h-4 w-4" />}
-                                    </div>
+                                    {ticket.assignedTechnician ? (
+                                        <UserAvatar person={ticket.assignedTechnician} size="lg" />
+                                    ) : (
+                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-blue-500/10">
+                                            <User className="h-4 w-4" />
+                                        </div>
+                                    )}
                                     <div>
                                         <p className="text-sm font-bold text-slate-900 dark:text-white">{ticket.assignedTechnician?.name || 'Triage in Progress'}</p>
                                         <p className="text-xs text-slate-500">{ticket.assignedTechnician?.email || 'Support team'}</p>

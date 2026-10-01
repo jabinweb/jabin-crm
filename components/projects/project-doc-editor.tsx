@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
@@ -74,10 +74,6 @@ const DOC_ICONS = [
   '🧭', '🎯', '🚀', '💡', '🔧', '🔒', '🧪', '🎨',
   '🗓️', '✅', '⚠️', '💬', '🤝', '💰', '🌐', '⭐',
 ];
-
-function initials(person: { name?: string | null; email?: string | null }) {
-  return (person.name || person.email || '?').trim().slice(0, 2).toUpperCase();
-}
 
 function sameInstant(a: string | null | undefined, b: string | null | undefined) {
   if (!a || !b) return a === b;
@@ -489,12 +485,12 @@ export function ProjectDocEditor({
               title={`Also viewing: ${viewers.map((v) => v.name || v.email).join(', ')}`}
             >
               {viewers.slice(0, 4).map((viewer) => (
-                <Avatar key={viewer.id} className="h-7 w-7 border-2 border-background">
-                  <AvatarImage src={viewer.image || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-[10px] font-medium text-primary">
-                    {initials(viewer)}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar
+                  key={viewer.id}
+                  person={viewer}
+                  size="sm"
+                  className="rounded-full ring-2 ring-background"
+                />
               ))}
               {viewers.length > 4 ? (
                 <span className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-background bg-muted text-[10px] font-medium">

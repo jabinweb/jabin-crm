@@ -106,12 +106,12 @@ export async function GET(req: NextRequest) {
           }
         }
       }),
-      prisma.employeeMessage.count({
-        where: {
-          receiverId: employeeId,
-          status: 'SENT'
-        }
-      }),
+      (async () => {
+        const companyId = session.user.companyId || session.user.primaryCompanyId;
+        if (!companyId) return 0;
+        const { unreadTotal } = await import('@/lib/messaging/service');
+        return unreadTotal(companyId, session.user.id);
+      })(),
       prisma.attendance.findFirst({
         where: {
           employeeId,

@@ -4,6 +4,11 @@ export type RealtimeEvent = {
   payload: Record<string, unknown>
   ts: number
   userId?: string
+  /**
+   * When set, only these users receive the event. Use it for anything private
+   * (notification text, message ids of a conversation). Unset = whole company.
+   */
+  audience?: string[]
 }
 
 type Listener = (event: RealtimeEvent) => void
@@ -61,7 +66,8 @@ export async function publishRealtime(
   type: string,
   companyId: string,
   payload: Record<string, unknown>,
-  userId?: string
+  userId?: string,
+  audience?: string[]
 ): Promise<void> {
   await publish({
     type,
@@ -69,5 +75,18 @@ export async function publishRealtime(
     payload,
     ts: Date.now(),
     userId,
+    ...(audience ? { audience } : {}),
   })
+}
+
+/** Publish to specific users of a company only. */
+export async function publishRealtimeTo(
+  type: string,
+  companyId: string,
+  audience: string[],
+  payload: Record<string, unknown>,
+  actorId?: string
+): Promise<void> {
+  if (audience.length === 0) return
+  await publishRealtime(type, companyId, payload, actorId, audience)
 }

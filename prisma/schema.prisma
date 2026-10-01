@@ -119,8 +119,10 @@ model User {
   projectDocsEdited       ProjectDoc[]           @relation("ProjectDocEditor")
   projectDocPresence      ProjectDocPresence[]
   slackDestinations       SlackDestination[]
-  directMessagesSent      DirectMessage[]        @relation("DirectMessageSender")
-  directMessagesReceived  DirectMessage[]        @relation("DirectMessageReceiver")
+  conversationsCreated    Conversation[]         @relation("ConversationCreator")
+  conversationMemberships ConversationMember[]
+  chatMessages            ChatMessage[]          @relation("ChatMessageSender")
+  chatReactions           ChatMessageReaction[]
 
   // ── Company Management Integration ──
   password         String?
@@ -2187,6 +2189,7 @@ enum NotificationType {
   PROJECT_TASK_COMMENTED
   PROJECT_TASK_UPDATED
   PROJECT_MENTION
+  CHAT_MESSAGE
 }
 
 model Notification {
@@ -2266,7 +2269,7 @@ model Company {
   projects          Project[]
   projectLabels     ProjectLabel[]
   slackDestinations SlackDestination[]
-  directMessages    DirectMessage[]
+  conversations     Conversation[]
   clientRetainers   ClientRetainer[]
   hrLetterTemplates HrLetterTemplate[]
   hrLetters         HrLetter[]
@@ -3228,6 +3231,7 @@ model Project {
   members     ProjectMember[]
   tasks       ProjectTask[]
   docs        ProjectDoc[]
+  conversations Conversation[]
   tickets     SupportTicket[]
   timesheetEntries TimesheetEntry[]
   retainers   ClientRetainer[]
@@ -3260,22 +3264,86 @@ model ProjectMilestone {
   @@index([dueDate])
 }
 
-/// One-to-one chat between two staff users, inside one workspace.
-/// The same two people in two workspaces have two separate conversations.
-model DirectMessage {
-  id         String    @id @default(cuid())
-  companyId  String
-  senderId   String
-  receiverId String
-  content    String    @db.Text
-  readAt     DateTime?
-  createdAt  DateTime  @default(now())
-  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  sender     User      @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver   User      @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+/// A chat thread in a workspace.
+/// DIRECT = two people; GROUP = everyone can post; BROADCAST = only owners/admins post.
+model Conversation {
+  id               String    @id @default(cuid())
+  companyId        String
+  type             String
+  name             String?
+  description      String?
+  /// DIRECT only: "<userA>:<userB>" sorted, so each pair has one thread per workspace
+  directKey        String?
+  /// Membership follows the workspace: every staff member is in it automatically
+  includesEveryone Boolean   @default(false)
+  /// Optional project this conversation belongs to
+  projectId        String?
+  createdById      String?
+  lastMessageAt    DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  company          Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project          Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy        User?     @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members          ConversationMember[]
+  messages         ChatMessage[]
 
-  @@index([companyId, senderId, receiverId, createdAt])
-  @@index([companyId, receiverId, readAt])
+  @@unique([companyId, directKey])
+  @@index([companyId, lastMessageAt])
+  @@index([projectId])
+}
+
+model ConversationMember {
+  conversationId String
+  userId         String
+  /// OWNER | ADMIN | MEMBER
+  role           String       @default("MEMBER")
+  lastReadAt     DateTime?
+  mutedAt        DateTime?
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  /// null for system messages ("Priya added Jason")
+  senderId       String?
+  /// Plain text; mentions are written as @[Name](userId)
+  content        String       @db.Text
+  /// TEXT | SYSTEM
+  kind           String       @default("TEXT")
+  replyToId      String?
+  /// [{ url, name, mimeType, size }]
+  attachments    Json?
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User?        @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  replyTo        ChatMessage? @relation("ChatMessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies        ChatMessage[] @relation("ChatMessageReplies")
+  reactions      ChatMessageReaction[]
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
+}
+
+model ChatMessageReaction {
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId, emoji])
+  @@index([messageId])
 }
 
 /// A Slack incoming webhook that receives alerts.

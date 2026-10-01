@@ -14,6 +14,7 @@ import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
 import type { Notification } from "@/types/notifications"
 import { useRouter } from 'next/navigation';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 interface NotificationHandlerProps {
   notification: Notification
@@ -31,6 +32,7 @@ export function NotificationHandler({
   onActionComplete
 }: NotificationHandlerProps) {
   const router = useRouter();
+  const { path } = useWorkspacePaths();
   const [loading, setLoading] = useState(false)
   const [comment, setComment] = useState("")
 
@@ -100,7 +102,7 @@ export function NotificationHandler({
   const handleMessageNotification = () => {
     const senderId = notification.metadata?.senderId;
     if (senderId) {
-      router.push(`/messages?userId=${senderId}`);
+      router.push(path('/dashboard/messages'));
       onOpenChange(false);
       onDismiss?.(notification.id);
     }
@@ -112,7 +114,7 @@ export function NotificationHandler({
         return (
           <>
             <DialogHeader>
-              <DialogTitle>New EmployeeMessage from {notification.metadata?.senderName}</DialogTitle>
+              <DialogTitle>New message from {notification.metadata?.senderName}</DialogTitle>
               <DialogDescription>
                 {notification.metadata?.preview}
               </DialogDescription>

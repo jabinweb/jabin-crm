@@ -9,7 +9,7 @@ import { useSession } from 'next-auth/react';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailChrome } from '@/components/layout/detail-chrome';
 import { ProjectTaskDetailSkeleton } from '@/components/loading';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -135,10 +135,6 @@ const PRIORITY_LABEL: Record<string, string> = {
   HIGH: 'High',
   URGENT: 'Urgent',
 };
-
-function initials(name?: string | null, email?: string | null) {
-  return (name || email || '?').trim().slice(0, 2).toUpperCase();
-}
 
 function toDateInput(value?: string | null) {
   if (!value) return '';
@@ -798,17 +794,7 @@ export default function ProjectTaskDetailPage() {
                                 {statusLabel}
                               </span>
                               {st.assignee ? (
-                                <Avatar className="h-6 w-6 shrink-0 rounded-full">
-                                  <AvatarImage
-                                    src={st.assignee.image || undefined}
-                                  />
-                                  <AvatarFallback className="rounded-full text-[10px]">
-                                    {initials(
-                                      st.assignee.name,
-                                      st.assignee.email
-                                    )}
-                                  </AvatarFallback>
-                                </Avatar>
+                                <UserAvatar person={st.assignee} size="xs" />
                               ) : (
                                 <span className="h-6 w-6 shrink-0" aria-hidden />
                               )}
@@ -1090,12 +1076,7 @@ export default function ProjectTaskDetailPage() {
                 {/* Composer */}
                 {(activityTab === 'all' || activityTab === 'comments') && (
                   <div className="flex items-start gap-3">
-                    <Avatar className="mt-0.5 h-8 w-8 shrink-0 rounded-full">
-                      <AvatarImage src={session?.user?.image || undefined} />
-                      <AvatarFallback className="rounded-full bg-muted text-xs font-medium">
-                        {initials(session?.user?.name, session?.user?.email)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar person={session?.user} size="md" className="mt-0.5" />
                     <div className="min-w-0 flex-1 space-y-2">
                       {commentOpen ? (
                         <>
@@ -1152,12 +1133,7 @@ export default function ProjectTaskDetailPage() {
                   {showComments &&
                     (task.comments || []).map((c) => (
                       <div key={c.id} className="flex items-start gap-3">
-                        <Avatar className="h-8 w-8 shrink-0 rounded-full">
-                          <AvatarImage src={c.author.image || undefined} />
-                          <AvatarFallback className="rounded-full bg-muted text-xs font-medium">
-                            {initials(c.author.name, c.author.email)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <UserAvatar person={c.author} size="md" />
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex flex-col">
                             <span className="text-sm font-medium">
@@ -1179,12 +1155,7 @@ export default function ProjectTaskDetailPage() {
                   {showHistory &&
                     (task.activities || []).map((a) => (
                       <div key={a.id} className="flex items-start gap-3">
-                        <Avatar className="h-8 w-8 shrink-0 rounded-full">
-                          <AvatarImage src={a.actor?.image || undefined} />
-                          <AvatarFallback className="rounded-full bg-muted text-xs font-medium">
-                            {initials(a.actor?.name, a.actor?.email)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <UserAvatar person={a.actor} size="md" />
                         <div className="min-w-0 flex-1 space-y-0.5">
                           <p className="text-sm leading-snug">{a.description}</p>
                           <p className="text-xs text-muted-foreground">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Users, TrendingUp, Target, CheckCircle, DollarSign } from 'lucide-react';
@@ -148,12 +148,7 @@ export default function TeamPerformancePage() {
                   {/* Member Header */}
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={member.image || ''} />
-                        <AvatarFallback>
-                          {member.name?.[0] || member.email[0]}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar person={member} size="lg" />
                       <div>
                         <h3 className="font-semibold">
                           {member.name || 'Unnamed User'}

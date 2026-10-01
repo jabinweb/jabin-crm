@@ -3,7 +3,7 @@
 import { EmployeeStatus } from '@prisma/client'
 import { ColumnDef, Row } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/ui/user-avatar'
 import Link from 'next/link'
 import { ActionButtons } from '@/components/ui/action-buttons'
 import { useRouter } from 'next/navigation'
@@ -26,14 +26,7 @@ function EmployeeNameCell({ employee }: { employee: Employee }) {
   const { path } = useWorkspacePaths()
   return (
     <div className="flex items-center gap-3">
-      <Avatar className="h-8 w-8">
-        {employee.avatar ? (
-          <AvatarImage src={employee.avatar} alt={employee.name} />
-        ) : (
-          <AvatarImage src={`https://avatar.vercel.sh/${employee.name}`} />
-        )}
-        <AvatarFallback>{employee.name.charAt(0)}</AvatarFallback>
-      </Avatar>
+      <UserAvatar person={employee} size="md" />
       <Link
         href={path(`/dashboard/employees/${employee.id}`)}
         className="font-medium hover:underline text-blue-600"

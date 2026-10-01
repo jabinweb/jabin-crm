@@ -11,7 +11,7 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path'
 import { AppLoader } from '@/components/loading'
 import { EmployeeBottomNav } from '@/components/employee/mobile/bottom-nav'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/ui/user-avatar'
 
 function filterNavByModules(items: NavItem[], moduleMap: Record<string, boolean>) {
   return items.filter((item) => !item.module || moduleMap[item.module] === true)
@@ -77,12 +77,6 @@ export function EmployeeLayoutClient({
   )
 
   const allowed = canAccessEmployeePortal(session)
-  const initials = (session?.user?.name || 'E')
-    .split(' ')
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
 
   if (status === 'loading' || (session && !allowed)) {
     return <AppLoader />
@@ -119,10 +113,7 @@ export function EmployeeLayoutClient({
                 </p>
               </div>
               <Link href={employeePath('/employee/profile')}>
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={session?.user?.image || undefined} />
-                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                </Avatar>
+                <UserAvatar person={session?.user} size="md" />
               </Link>
             </header>
           </>

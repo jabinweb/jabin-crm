@@ -11,7 +11,7 @@ import {
 import { UNMAPPED_STAGE_ID, type PipelineStageDef } from '@/lib/pipelines';
 import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
 import { resolveProjectTaskColumns } from '@/lib/projects/task-statuses';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -125,11 +125,6 @@ function formatDue(value?: string | null) {
 function toDateInput(value?: string | null) {
   if (!value) return '';
   return value.slice(0, 10);
-}
-
-function initials(name?: string | null, email?: string | null) {
-  const src = (name || email || '?').trim();
-  return src.slice(0, 2).toUpperCase();
 }
 
 type TaskFormState = {
@@ -437,12 +432,7 @@ export function ProjectTaskBoard({
 
       {item.assignee ? (
         <div className="flex items-center gap-2">
-          <Avatar className="size-5">
-            <AvatarImage src={item.assignee.image || undefined} alt="" />
-            <AvatarFallback className="text-[9px]">
-              {initials(item.assignee.name, item.assignee.email)}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar person={item.assignee} size="xs" />
           <span className="truncate text-[11px] text-muted-foreground">
             {item.assignee.name || item.assignee.email}
           </span>

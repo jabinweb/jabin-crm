@@ -55,8 +55,12 @@ export async function GET(request: NextRequest) {
 
       send({ type: 'connected', companyId, ts: Date.now() });
 
+      const viewerId = session.user.id;
       unsubscribe = subscribe(companyId, (event: RealtimeEvent) => {
-        send(event);
+        // Targeted events never reach other people in the company
+        if (event.audience && !event.audience.includes(viewerId)) return;
+        const { audience: _audience, ...rest } = event;
+        send(rest);
       });
 
       const heartbeat = setInterval(() => {

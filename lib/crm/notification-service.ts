@@ -62,6 +62,19 @@ export class NotificationService {
 
             if (!companyId) return;
 
+            // Only the recipient(s) may receive the notification text
+            const audience = params.userId
+                ? [params.userId]
+                : params.customerId
+                  ? (
+                        await prisma.user.findMany({
+                            where: { customerId: params.customerId },
+                            select: { id: true },
+                        })
+                    ).map((u: { id: string }) => u.id)
+                  : [];
+            if (audience.length === 0) return;
+
             if (params.userId) {
                 const href = params.metadata?.href;
                 const { sendPersonalSlackAlert } = await import('@/lib/integrations/slack');
@@ -82,7 +95,8 @@ export class NotificationService {
                     body: notification.body,
                     metadata: notification.metadata,
                 },
-                params.userId
+                params.userId,
+                audience
             );
         } catch (err) {
             console.error('[notificationService.publishCreated]', err);

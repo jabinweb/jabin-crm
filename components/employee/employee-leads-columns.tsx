@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 import Link from "next/link"
 import { LeadStatus, CompanyTaskPriority } from "@prisma/client"
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths"
@@ -21,6 +21,8 @@ export interface LeadTableItem {
     id: string
     name: string
     avatar: string | null
+    image?: string | null
+    email?: string | null
   }
   _count: {
     activities: number
@@ -74,10 +76,7 @@ export const columns: ColumnDef<LeadTableItem>[] = [
       const assignee = row.original.assignedTo
       return (
         <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={assignee.avatar || ''} alt={assignee.name} />
-            <AvatarFallback>{assignee.name.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <UserAvatar person={assignee} size="md" />
           <span>{assignee.name}</span>
         </div>
       )

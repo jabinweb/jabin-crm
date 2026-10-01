@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { UserAvatar } from '@/components/ui/user-avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +36,7 @@ import { NotificationsPanel } from '@/components/notifications/notifications-pan
 import Link from 'next/link'
 import { QuickActions } from './quick-actions'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
+import { useUnreadMessages } from '@/components/messaging/use-messaging'
 
 interface TopBarProps {
   showSearch?: boolean
@@ -76,6 +77,7 @@ export function TopBar({
   const { data: session } = useSession();
   const { path, employeePath, slug } = useWorkspacePaths()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { data: unreadMessages = 0 } = useUnreadMessages(showMessages && !!session?.user)
 
   const defaultProfileOptions = [
     {
@@ -183,9 +185,17 @@ export function TopBar({
 
           {/* Messages */}
           {showMessages && (
-            <Button variant="ghost" size="icon" asChild>
-              <Link href={path('/dashboard/messages')} aria-label="Messages">
+            <Button variant="ghost" size="icon" className="relative" asChild>
+              <Link
+                href={path('/dashboard/messages')}
+                aria-label={unreadMessages ? `Messages, ${unreadMessages} unread` : 'Messages'}
+              >
                 <MessageSquare className="h-5 w-5" />
+                {unreadMessages ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+                    {unreadMessages > 99 ? '99+' : unreadMessages}
+                  </span>
+                ) : null}
               </Link>
             </Button>
           )}
@@ -194,13 +204,7 @@ export function TopBar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-none">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={session?.user?.image ?? undefined}
-                    alt={session?.user?.name ?? undefined}
-                  />
-                  <AvatarFallback>{session?.user?.name?.[0]}</AvatarFallback>
-                </Avatar>
+                <UserAvatar person={session?.user} size="md" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>

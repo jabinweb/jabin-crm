@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
     // Run the expensive feed sources in parallel — sequential awaits were stacking Neon latency.
-    const [dbNotes, recentTasks, recentMessages, recentLeaveRequests, pendingLeave] =
+    const [dbNotes, recentTasks, recentLeaveRequests, pendingLeave] =
       await Promise.all([
         notificationService
           .getForUser(session.user.id, 40, customerId)
@@ -84,16 +84,6 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { createdAt: 'desc' },
           take: 15,
-        }),
-        prisma.directMessage.findMany({
-          where: {
-            receiverId: session.user.id,
-            createdAt: { gte: sevenDaysAgo },
-            ...(activeCompanyId ? { companyId: activeCompanyId } : {}),
-          },
-          include: { sender: { select: { name: true, email: true } } },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
         }),
         employeeId
           ? prisma.leaveRequest.findMany({
@@ -181,20 +171,6 @@ export async function GET(request: NextRequest) {
         createdAt: task.createdAt.toISOString(),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         read: false,
-      }))
-    )
-
-    notifications.push(
-      ...recentMessages.map((msg) => ({
-        id: `message-${msg.id}`,
-        title: 'New message',
-        message: `${msg.sender.name || msg.sender.email}: ${msg.content.slice(0, 120)}`,
-        type: 'MESSAGE',
-        targetRole: ['EMPLOYEE'],
-        metadata: { messageId: msg.id, href: '/dashboard/messages' },
-        createdAt: msg.createdAt.toISOString(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        read: !!msg.readAt,
       }))
     )
 

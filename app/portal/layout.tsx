@@ -15,6 +15,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { LiveChatWidget } from '@/components/support/live-chat-widget';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { SectionSkeleton, AppLoader } from '@/components/loading';
 
 function PortalLiveChat() {
@@ -183,8 +184,6 @@ function UserMenu() {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const initials = session?.user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() ?? 'U';
-
     const dashboardHref = session?.user
         ? resolvePostLoginPath({
             role: session.user.role,
@@ -198,9 +197,7 @@ function UserMenu() {
                 onClick={() => setOpen(v => !v)}
                 className="flex items-center gap-2 rounded-none pl-1 pr-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
-                <div className="h-8 w-8 rounded-none bg-foreground flex items-center justify-center text-background text-xs font-black uppercase">
-                    {initials}
-                </div>
+                <UserAvatar person={session?.user} size="md" />
                 <span className="hidden md:block text-xs font-medium text-slate-700 dark:text-slate-300 max-w-[100px] truncate">
                     {session?.user?.name ?? 'User'}
                 </span>

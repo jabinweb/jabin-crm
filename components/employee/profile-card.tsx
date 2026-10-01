@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { UserAvatar } from "@/components/ui/user-avatar"
 
 interface ProfileCardProps {
   name: string
@@ -15,10 +15,7 @@ export function ProfileCard({ name, email, department, jobTitle, status, company
   return (
     <Card>
       <CardHeader className="flex flex-row items-center space-x-4 pb-2">
-        <Avatar className="h-16 w-16">
-          <AvatarImage src={avatar} alt={name} />
-          <AvatarFallback>{name.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar person={{ name, email, image: avatar }} size="xl" />
         <div>
           <CardTitle>{name}</CardTitle>
           <p className="text-sm text-muted-foreground">{email}</p>

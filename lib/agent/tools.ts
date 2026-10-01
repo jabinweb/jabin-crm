@@ -657,13 +657,12 @@ export const AGENT_TOOLS_BASE: AgentToolDef[] = [
 
       // Team chat (Messages page) is between user accounts in the workspace
       if (receiverUserId && receiverUserId !== ctx.userId) {
-        const dm = await prisma.directMessage.create({
-          data: {
-            companyId: ctx.companyId,
-            senderId: ctx.userId,
-            receiverId: receiverUserId,
-            content: `[OPS] ${body}`,
-          },
+        const { sendDirectMessage } = await import('@/lib/messaging/service');
+        const dm = await sendDirectMessage({
+          companyId: ctx.companyId,
+          sender: { id: ctx.userId, name: ctx.userName },
+          recipientId: receiverUserId,
+          content: `[OPS] ${body}`,
         });
         dmId = dm.id;
         channels.push('team_chat');

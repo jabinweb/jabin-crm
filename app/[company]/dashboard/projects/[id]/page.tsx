@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { UserAvatar } from '@/components/ui/user-avatar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -68,7 +68,7 @@ type ProjectDetail = {
   worklogHours?: number;
   customer?: { id: string; organizationName: string } | null;
   deal?: { id: string; title: string; stage?: string; value?: number } | null;
-  pmUser?: { id: string; name: string | null; email: string | null } | null;
+  pmUser?: { id: string; name: string | null; email: string | null; image?: string | null } | null;
   tasks?: ProjectTaskRow[];
   projectTaskStatuses?: unknown;
   milestones: Array<{
@@ -81,7 +81,7 @@ type ProjectDetail = {
   members: Array<{
     id: string;
     role: string;
-    user: { id: string; name: string | null; email: string | null };
+    user: { id: string; name: string | null; email: string | null; image?: string | null };
   }>;
   tickets: Array<{
     id: string;
@@ -133,10 +133,6 @@ function formatDate(value?: string | null) {
 function extractLiveUrl(description: string): string | null {
   const m = description.match(/https?:\/\/[^\s)]+/i);
   return m?.[0] ?? null;
-}
-
-function initials(name?: string | null, email?: string | null) {
-  return (name || email || '?').trim().slice(0, 2).toUpperCase();
 }
 
 export default function ProjectDetailPage() {
@@ -707,11 +703,7 @@ export default function ProjectDetailPage() {
               <div className="flex flex-col gap-2">
                 {project.pmUser ? (
                   <div className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm">
-                    <Avatar className="size-8">
-                      <AvatarFallback className="text-xs">
-                        {initials(project.pmUser.name, project.pmUser.email)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar person={project.pmUser} size="md" />
                     <div>
                       <p className="font-medium">
                         {project.pmUser.name || project.pmUser.email}
@@ -725,11 +717,7 @@ export default function ProjectDetailPage() {
                     key={m.id}
                     className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
                   >
-                    <Avatar className="size-8">
-                      <AvatarFallback className="text-xs">
-                        {initials(m.user.name, m.user.email)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar person={m.user} size="md" />
                     <div>
                       <p className="font-medium">{m.user.name || m.user.email}</p>
                       <p className="text-xs text-muted-foreground">{m.role}</p>
