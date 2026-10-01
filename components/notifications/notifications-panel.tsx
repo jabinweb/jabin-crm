@@ -4,7 +4,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Calendar, Clock, Wallet, ClipboardList, FileText, Award } from 'lucide-react'
+import { AtSign, Bell, Calendar, Clock, Wallet, ClipboardList, FileText, Award, MessageSquare } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { cn } from '@/lib/utils'
 import { useNotifications } from '@/hooks/use-notifications'
 import { NotificationHandler } from './notification-handler'
@@ -34,9 +36,19 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
     error, 
     unreadCount, 
     fetchNotifications,
+    markAsRead,
     dismissNotification
   } = useNotifications(userRole) as UseNotificationsReturn
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
+  const [open, setOpen] = useState(false)
+  const router = useRouter()
+  const { path } = useWorkspacePaths()
+
+  /** In-app link carried by the notification (logical /dashboard/... path). */
+  const linkOf = (notification: Notification) => {
+    const href = notification.metadata?.href
+    return typeof href === 'string' && href.startsWith('/') && !href.startsWith('//') ? href : null
+  }
 
   // useEffect(() => {
   //   console.log('NotificationsPanel state:', {
@@ -59,7 +71,13 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
         return <Wallet className="h-4 w-4" />
       case 'TASK_ASSIGNED':
       case 'TASK_COMPLETED':
+      case 'PROJECT_TASK_ASSIGNED':
+      case 'PROJECT_TASK_UPDATED':
         return <ClipboardList className="h-4 w-4" />
+      case 'PROJECT_TASK_COMMENTED':
+        return <MessageSquare className="h-4 w-4" />
+      case 'PROJECT_MENTION':
+        return <AtSign className="h-4 w-4" />
       case 'DOCUMENT_UPLOADED':
         return <FileText className="h-4 w-4" />
       case 'PERFORMANCE_REVIEW':
@@ -70,6 +88,13 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
   }
 
   const handleNotificationClick = (notification: Notification) => {
+    const href = linkOf(notification)
+    if (href) {
+      setOpen(false)
+      void markAsRead(notification.id)
+      router.push(path(href))
+      return
+    }
     switch (notification.type) {
       case 'NEW_MESSAGE':
         setSelectedNotification(notification);
@@ -93,7 +118,7 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
 
   return (
     <>
-      <Sheet>
+      <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
@@ -127,6 +152,7 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
                     className={cn(
                       "p-4 rounded-md border bg-card",
                       // Only show pointer cursor for actionable notifications
+                      linkOf(notification) ||
                       notification.type === 'NEW_MESSAGE' ||
                       (notification.type === 'LEAVE_REQUEST' &&
                        (userRole === 'ADMIN' || userRole === 'MANAGER')) ||

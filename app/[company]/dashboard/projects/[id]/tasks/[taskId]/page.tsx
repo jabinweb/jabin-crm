@@ -39,10 +39,13 @@ import {
   Tag,
   Link2,
   Clock,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { resolveDoneStatusIds } from '@/lib/projects/task-statuses';
+
+import type { MentionUser } from '@/components/ui/rich-text-editor';
 
 const RichTextEditor = dynamic(
   () => import('@/components/ui/rich-text-editor').then((mod) => mod.RichTextEditor),
@@ -259,6 +262,17 @@ export default function ProjectTaskDetailPage() {
 
   const members = useMemo(() => task?.memberOptions ?? [], [task?.memberOptions]);
 
+  const { data: mentionUsers } = useQuery({
+    queryKey: ['project-mentionable', slug, projectId],
+    queryFn: async () => {
+      const res = await workspaceFetch(`/api/projects/${projectId}/mentionable`);
+      if (!res.ok) return [] as MentionUser[];
+      return (await res.json()) as MentionUser[];
+    },
+    enabled: !!slug && !!projectId,
+    staleTime: 5 * 60_000,
+  });
+
   const invalidate = () => {
     void queryClient.invalidateQueries({
       queryKey: ['project-task', slug, projectId, taskId],
@@ -352,6 +366,22 @@ export default function ProjectTaskDetailPage() {
       toast.success('Attachment added');
       invalidate();
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const removeLabelMutation = useMutation({
+    mutationFn: async (labelId: string) => {
+      const res = await workspaceFetch(
+        `/api/projects/${projectId}/tasks/${taskId}/labels?labelId=${encodeURIComponent(labelId)}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to remove label');
+      }
+      return res.json();
+    },
+    onSuccess: () => invalidate(),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -590,8 +620,9 @@ export default function ProjectTaskDetailPage() {
                 key={task.id}
                 content={descriptionContent}
                 onChange={setDescriptionHtml}
-                placeholder="Add a description…"
+                placeholder="Add a description… type @ to mention a teammate"
                 folder="project-tasks"
+                mentionUsers={mentionUsers}
                 onUploaded={(file) => {
                   void workspaceFetch(
                     `/api/projects/${projectId}/tasks/${taskId}/attachments`,
@@ -865,6 +896,15 @@ export default function ProjectTaskDetailPage() {
                       >
                         <Tag className="h-3 w-3 text-muted-foreground" />
                         {entry.label.name}
+                        <button
+                          type="button"
+                          aria-label={`Remove label ${entry.label.name}`}
+                          disabled={removeLabelMutation.isPending}
+                          onClick={() => removeLabelMutation.mutate(entry.label.id)}
+                          className="-mr-1 ml-0.5 rounded-sm p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
                       </span>
                     ))}
                   </div>
@@ -1062,9 +1102,10 @@ export default function ProjectTaskDetailPage() {
                           <RichTextEditor
                             content={commentHtml}
                             onChange={setCommentHtml}
-                            placeholder="Add a comment…"
+                            placeholder="Add a comment… type @ to mention a teammate"
                             minHeightClass="min-h-[100px]"
                             folder="project-tasks"
+                            mentionUsers={mentionUsers}
                           />
                           <div className="flex items-center gap-2">
                             <Button
@@ -1127,7 +1168,8 @@ export default function ProjectTaskDetailPage() {
                             </span>
                           </div>
                           <div
-                            className="text-sm leading-relaxed [&_a]:text-primary [&_a]:underline [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
+                            className="rich-text-content text-sm leading-relaxed"
+                            // Sanitized by the API (lib/html/sanitize-rich-text.ts)
                             dangerouslySetInnerHTML={{ __html: c.body }}
                           />
                         </div>

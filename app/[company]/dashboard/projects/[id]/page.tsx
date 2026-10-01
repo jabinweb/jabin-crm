@@ -31,6 +31,7 @@ import {
   Users,
   FileText,
   Receipt,
+  BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -349,7 +350,14 @@ export default function ProjectDetailPage() {
         ]}
         backHref={path('/dashboard/projects')}
         backLabel="All projects"
-      />
+      >
+        <Button variant="outline" size="sm" asChild>
+          <Link href={path(`/dashboard/projects/${project.id}/docs`)}>
+            <BookOpen className="mr-1.5 size-3.5" />
+            Docs
+          </Link>
+        </Button>
+      </DetailChrome>
 
       <div>
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">

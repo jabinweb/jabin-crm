@@ -9,6 +9,8 @@ export const REALTIME_EVENTS = {
   CHAT_MESSAGE: 'chat.message',
   CHAT_SESSION: 'chat.session',
   BOARD_MOVED: 'board.moved',
+  /** A project doc was saved, created, moved or deleted. */
+  PROJECT_DOC_UPDATED: 'project.doc.updated',
   /** Optional nudge when a lead goes stale. */
   LEAD_STALE: 'lead.stale',
 } as const;

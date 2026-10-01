@@ -15,7 +15,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { LiveChatWidget } from '@/components/support/live-chat-widget';
-import { SectionSkeleton, DelayedShellSkeleton } from '@/components/loading';
+import { SectionSkeleton, AppLoader } from '@/components/loading';
 
 function PortalLiveChat() {
     const { data: session } = useSession();
@@ -280,7 +280,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     }, [session, status, router]);
 
     if (status === 'loading') {
-        return <DelayedShellSkeleton />;
+        return <AppLoader />;
     }
 
     if (!session || (session.user.role !== 'CUSTOMER' && session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN')) {

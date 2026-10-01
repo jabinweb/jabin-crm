@@ -226,19 +226,3 @@ export function SectionSkeleton({
     </div>
   );
 }
-
-export function ShellSkeleton({ className }: ClassNameProps) {
-  return (
-    <div className={cn('fixed inset-0 flex flex-col bg-background', className)}>
-      <Skeleton className="h-14 w-full rounded-none" />
-      <div className="flex flex-1 min-h-0">
-        <Skeleton className="hidden h-full w-64 shrink-0 rounded-none lg:block" />
-        <div className="flex-1 space-y-4 p-6">
-          <PageHeaderSkeleton />
-          <StatCardsSkeleton />
-          <SectionSkeleton lines={6} className="pt-2" />
-        </div>
-      </div>
-    </div>
-  );
-}

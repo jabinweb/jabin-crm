@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { LandingPage } from '@/components/landing/landing-page';
+import { AppLoader } from '@/components/loading';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 export default function HomePage() {
@@ -30,11 +31,7 @@ export default function HomePage() {
   }, [session, status, router]);
 
   if (status === 'loading' || session) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="w-8 h-px bg-foreground animate-pulse" />
-      </div>
-    );
+    return <AppLoader />;
   }
 
   return <LandingPage />;

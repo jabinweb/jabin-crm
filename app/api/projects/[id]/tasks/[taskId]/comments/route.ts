@@ -1,11 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import {
   assertProjectTask,
   logProjectTaskActivity,
+  stripHtmlToPreview,
 } from '@/lib/projects/task-activity';
+import { isRichTextEmpty, sanitizeRichText } from '@/lib/html/sanitize-rich-text';
+import { extractMentionIds } from '@/lib/projects/mentions';
 
 export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
   const params = await routeContext!.params;
@@ -20,7 +23,7 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
       attachments: true,
     },
   });
-  return jsonOk(comments);
+  return jsonOk(comments.map((c) => ({ ...c, body: sanitizeRichText(c.body) })));
 });
 
 export const POST = withTenantRoute(async (request, { session, companyId }, routeContext) => {
@@ -31,14 +34,15 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   const task = await assertProjectTask(companyId, params.id, params.taskId);
   if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const body = await request.json();
-  const rawBody =
+  const body = await request.json().catch(() => ({}));
+  const rawBody = sanitizeRichText(
     typeof body.body === 'string'
       ? body.body
       : typeof body.content === 'string'
         ? body.content
-        : '';
-  if (!rawBody.trim() || rawBody.replace(/<[^>]+>/g, '').trim() === '') {
+        : ''
+  );
+  if (isRichTextEmpty(rawBody)) {
     return NextResponse.json({ error: 'Comment required' }, { status: 400 });
   }
 
@@ -57,7 +61,10 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   if (attachmentUrls.length > 0) {
     await prisma.projectTaskAttachment.createMany({
       data: attachmentUrls
-        .filter((a: { url?: string }) => a && typeof a.url === 'string')
+        .filter(
+          (a: { url?: string }) =>
+            a && typeof a.url === 'string' && /^(https?:\/\/|\/(?!\/))/i.test(a.url)
+        )
         .map(
           (a: {
             url: string;
@@ -98,18 +105,30 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     update: {},
   });
 
-  const taskRow = await prisma.projectTask.findUnique({
-    where: { id: params.taskId },
-    select: { title: true },
-  });
-  const { notifyProjectTaskCommented } = await import('@/lib/projects/task-notifications');
-  void notifyProjectTaskCommented({
-    companyId,
-    projectId: params.id,
-    taskId: params.taskId,
-    taskTitle: taskRow?.title || 'Task',
-    actorId: session.user.id,
-    actorName,
+  const mentionedIds = extractMentionIds(rawBody);
+  const excerpt = stripHtmlToPreview(rawBody, 240);
+  after(async () => {
+    const notifications = await import('@/lib/projects/task-notifications');
+    const base = {
+      companyId,
+      projectId: params.id,
+      actorId: session.user.id,
+      actorName,
+    };
+    // Mentions first: those people get the more specific notification only
+    const mentioned = await notifications.notifyProjectMentions({
+      ...base,
+      mentionedIds,
+      excerpt,
+      target: { kind: 'task-comment', taskId: params.taskId, title: task.title },
+    });
+    await notifications.notifyProjectTaskCommented({
+      ...base,
+      taskId: params.taskId,
+      taskTitle: task.title,
+      excerpt,
+      excludeUserIds: mentioned,
+    });
   });
 
   return jsonOk(comment, { status: 201 });

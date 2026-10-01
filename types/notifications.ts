@@ -9,7 +9,11 @@ export type NotificationType =
   | 'DOCUMENT_UPLOADED'
   | 'PERFORMANCE_REVIEW'
   | 'GENERAL'
-  | 'NEW_MESSAGE';    // Add this new type
+  | 'NEW_MESSAGE'
+  | 'PROJECT_TASK_ASSIGNED'
+  | 'PROJECT_TASK_COMMENTED'
+  | 'PROJECT_TASK_UPDATED'
+  | 'PROJECT_MENTION';
 
 export interface Notification {
   id: string

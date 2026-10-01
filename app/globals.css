@@ -98,7 +98,170 @@
   animation: progress 2s ease-in-out infinite;
 }
 
+/* Branded bootstrap loader (components/loading/app-loader.tsx) */
+@keyframes app-loader-slide {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  100% {
+    transform: translateX(310%);
+  }
+}
+
+@keyframes app-loader-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-loader-mark {
+  animation: app-loader-in 0.35s ease-out both;
+}
+
+.app-loader-bar {
+  animation: app-loader-slide 1.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loader-mark {
+    animation: none;
+  }
+
+  .app-loader-bar {
+    animation: none;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+/* @mention chips (editor + rendered comments/docs) */
+.mention {
+  border-radius: 0.25rem;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  padding: 0.05rem 0.3rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Rendered rich text (comments, project docs) */
+.rich-text-content p {
+  margin: 0.25rem 0;
+}
+
+.rich-text-content h2 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rich-text-content h3 {
+  margin: 1rem 0 0.375rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.rich-text-content ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text-content ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich-text-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  margin: 0.5rem 0;
+}
+
+.rich-text-content blockquote {
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0.5rem 0;
+}
+
+.rich-text-content code,
+.rich-text-content pre {
+  border-radius: 0.25rem;
+  background: hsl(var(--muted));
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.rich-text-content code {
+  padding: 0.125rem 0.25rem;
+}
+
+.rich-text-content pre {
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+.rich-text-content pre code {
+  padding: 0;
+  background: none;
+}
+
 /* TipTap / project-task rich text editor */
+.rich-text-editor .ProseMirror h2 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.rich-text-editor .ProseMirror h3 {
+  margin: 1rem 0 0.375rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.rich-text-editor .ProseMirror blockquote {
+  border-left: 2px solid hsl(var(--border));
+  padding-left: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0.5rem 0;
+}
+
+.rich-text-editor .ProseMirror pre {
+  border-radius: 0.25rem;
+  background: hsl(var(--muted));
+  padding: 0.75rem;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.rich-text-editor .ProseMirror pre code {
+  padding: 0;
+  background: none;
+}
+
 .rich-text-editor .ProseMirror {
   outline: none;
 }

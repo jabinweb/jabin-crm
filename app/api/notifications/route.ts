@@ -135,8 +135,21 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Assignments made before stored notifications existed have no DB row — keep the
+    // synthetic entry only for those, so each assignment shows once.
+    const storedAssignedTaskIds = new Set(
+      dbNotes
+        .filter((n) => n.type === 'PROJECT_TASK_ASSIGNED')
+        .map((n) => (n.metadata as Record<string, unknown> | null)?.taskId)
+        .filter((id): id is string => typeof id === 'string')
+    )
+
     notifications.push(
-      ...recentTasks.map((task) => ({
+      ...recentTasks
+        .filter(
+          (task) => !storedAssignedTaskIds.has(task.id) && task.reporterId !== session.user.id
+        )
+        .map((task) => ({
         id: `project-task-${task.id}`,
         title: 'Project task assigned',
         message: `${task.reporter?.name || 'Someone'} assigned you: ${task.title} (${task.project.name})`,
@@ -150,6 +163,7 @@ export async function GET(request: NextRequest) {
           status: task.status,
           projectName: task.project.name,
           assignedBy: task.reporter?.name,
+          href: `/dashboard/projects/${task.project.id}/tasks/${task.id}`,
         },
         createdAt: task.createdAt.toISOString(),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -251,12 +265,13 @@ export async function POST(request: NextRequest) {
       if (
         notificationId &&
         !notificationId.startsWith('task-') &&
+        !notificationId.startsWith('project-task-') &&
         !notificationId.startsWith('leave-') &&
         !notificationId.startsWith('message-') &&
         !notificationId.startsWith('admin-') &&
         !notificationId.startsWith('leave-status-')
       ) {
-        await notificationService.markRead(notificationId).catch(() => null)
+        await notificationService.markRead(notificationId, session.user.id).catch(() => null)
       }
       return NextResponse.json({ success: true })
     }

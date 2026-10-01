@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
@@ -10,6 +10,9 @@ import {
   syncProjectProgress,
 } from '@/lib/projects/sync-project-progress';
 import { PROJECT_TASK_LIST_INCLUDE } from '@/lib/projects/agency-delivery';
+import { updateProjectTask } from '@/lib/projects/update-task';
+import { sanitizeRichText } from '@/lib/html/sanitize-rich-text';
+import { extractMentionIds, isCompanyStaff } from '@/lib/projects/mentions';
 
 async function assertProject(companyId: string, projectId: string) {
   return prisma.project.findFirst({
@@ -86,7 +89,25 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   }
 
   const descriptionHtml =
-    typeof body.descriptionHtml === 'string' ? body.descriptionHtml : null;
+    typeof body.descriptionHtml === 'string'
+      ? sanitizeRichText(body.descriptionHtml)
+      : null;
+
+  const assigneeId =
+    typeof body.assigneeId === 'string' && body.assigneeId.trim()
+      ? body.assigneeId.trim()
+      : null;
+  if (assigneeId && !(await isCompanyStaff(companyId, assigneeId))) {
+    return NextResponse.json(
+      { error: 'Assignee must be a member of this workspace' },
+      { status: 400 }
+    );
+  }
+
+  const dueDate = body.dueDate ? new Date(body.dueDate) : null;
+  if (dueDate && Number.isNaN(dueDate.getTime())) {
+    return NextResponse.json({ error: 'Invalid due date' }, { status: 400 });
+  }
   const description =
     typeof body.description === 'string'
       ? body.description
@@ -104,11 +125,8 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
       status,
       priority,
       reporterId: session.user.id,
-      assigneeId:
-        typeof body.assigneeId === 'string' && body.assigneeId.trim()
-          ? body.assigneeId.trim()
-          : null,
-      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+      assigneeId,
+      dueDate,
       sortOrder: (max._max.sortOrder ?? -1) + 1,
     },
     include: {
@@ -145,26 +163,39 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
 
   const progress = await syncProjectProgress(projectId, companyId);
 
-  if (task.assigneeId && task.assigneeId !== session.user.id) {
-    const { notifyProjectTaskAssigned } = await import('@/lib/projects/task-notifications');
-    void notifyProjectTaskAssigned({
-      companyId,
-      projectId,
-      taskId: task.id,
-      taskTitle: task.title,
-      actorId: session.user.id,
-      actorName,
-      assigneeId: task.assigneeId,
-    });
-  }
+  const mentionedIds = extractMentionIds(descriptionHtml);
+  after(async () => {
+    const notifications = await import('@/lib/projects/task-notifications');
+    if (task.assigneeId) {
+      await notifications.notifyProjectTaskAssigned({
+        companyId,
+        projectId,
+        taskId: task.id,
+        taskTitle: task.title,
+        actorId: session.user.id,
+        actorName,
+        assigneeId: task.assigneeId,
+      });
+    }
+    if (mentionedIds.length > 0) {
+      await notifications.notifyProjectMentions({
+        companyId,
+        projectId,
+        actorId: session.user.id,
+        actorName,
+        mentionedIds,
+        target: { kind: 'task-description', taskId: task.id, title: task.title },
+      });
+    }
 
-  const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
-  void dispatchWorkflowEvent('project.task.created', {
-    userId: session.user.id,
-    companyId,
-    title: task.title,
-    summary: `${actorName} created “${task.title}”`,
-    metadata: { projectId, taskId: task.id, status: task.status, priority: task.priority },
+    const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+    await dispatchWorkflowEvent('project.task.created', {
+      userId: session.user.id,
+      companyId,
+      title: task.title,
+      summary: `${actorName} created “${task.title}”`,
+      metadata: { projectId, taskId: task.id, status: task.status, priority: task.priority },
+    });
   });
 
   return jsonOk({ task, progress }, { status: 201 });
@@ -183,7 +214,23 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 
   /** Bulk reorder after drag: { moves: [{ id, status, sortOrder }] } */
   if (Array.isArray(body.moves)) {
-    const moves = body.moves as Array<{ id: string; status: string; sortOrder: number }>;
+    const moves = (body.moves as Array<{ id: string; status: string; sortOrder: number }>).filter(
+      (m) => m && typeof m.id === 'string' && Number.isFinite(m.sortOrder)
+    );
+    const before = await prisma.projectTask.findMany({
+      where: { id: { in: moves.map((m) => m.id) }, projectId },
+      select: { id: true, status: true, title: true },
+    });
+    const beforeById = new Map<string, { status: string; title: string }>(
+      before.map((t) => [t.id, { status: t.status, title: t.title }])
+    );
+    const statusChanges = moves.flatMap((m) => {
+      const prev = beforeById.get(m.id);
+      if (!prev || prev.status === m.status) return [];
+      if (!isAllowedProjectTaskStatus(m.status, settings)) return [];
+      return [{ id: m.id, title: prev.title, from: prev.status, to: m.status }];
+    });
+
     await prisma.$transaction(
       moves.map((m) =>
         prisma.projectTask.updateMany({
@@ -197,6 +244,41 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
         })
       )
     );
+    const actorName = session.user.name || session.user.email || 'User';
+    if (statusChanges.length > 0) {
+      await prisma.projectTaskActivity.createMany({
+        data: statusChanges.map((c) => ({
+          taskId: c.id,
+          actorId: session.user.id,
+          eventType: 'STATUS_CHANGED',
+          description: `${actorName} changed status from ${c.from} to ${c.to}`,
+          metadata: { from: c.from, to: c.to },
+        })),
+      });
+      after(async () => {
+        const { notifyProjectTaskUpdated } = await import('@/lib/projects/task-notifications');
+        const { dispatchWorkflowEvent } = await import('@/lib/workflows/executor');
+        for (const c of statusChanges) {
+          await notifyProjectTaskUpdated({
+            companyId,
+            projectId,
+            taskId: c.id,
+            taskTitle: c.title,
+            actorId: session.user.id,
+            actorName,
+            summary: `status → ${c.to}`,
+          });
+          await dispatchWorkflowEvent('project.task.status_changed', {
+            userId: session.user.id,
+            companyId,
+            title: c.title,
+            summary: `${actorName} changed status to ${c.to}`,
+            metadata: { projectId, taskId: c.id, status: c.to, previousStatus: c.from },
+          });
+        }
+      });
+    }
+
     const progress = await syncProjectProgress(projectId, companyId);
     const tasks = await prisma.projectTask.findMany({
       where: { projectId, parentTaskId: null },
@@ -212,53 +294,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   const taskId = typeof body.id === 'string' ? body.id : '';
   if (!taskId) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-  const existing = await prisma.projectTask.findFirst({
-    where: { id: taskId, projectId },
-  });
-  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  const data: Record<string, unknown> = {};
-  if (typeof body.title === 'string') data.title = body.title.trim();
-  if (typeof body.description === 'string') data.description = body.description;
-  if (typeof body.descriptionHtml === 'string') {
-    data.descriptionHtml = body.descriptionHtml;
-    if (typeof body.description !== 'string') {
-      data.description = body.descriptionHtml
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 160);
-    }
+  const result = await updateProjectTask({ session, companyId, projectId, taskId, body });
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
-  if (typeof body.status === 'string' && isAllowedProjectTaskStatus(body.status, settings)) {
-    data.status = body.status;
-  }
-  if (
-    typeof body.priority === 'string' &&
-    (PROJECT_PRIORITIES as readonly string[]).includes(body.priority)
-  ) {
-    data.priority = body.priority;
-  }
-  if (body.assigneeId !== undefined) {
-    data.assigneeId =
-      typeof body.assigneeId === 'string' && body.assigneeId.trim()
-        ? body.assigneeId.trim()
-        : null;
-  }
-  if (body.dueDate !== undefined) {
-    data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
-  }
-  if (typeof body.sortOrder === 'number') data.sortOrder = body.sortOrder;
-
-  const task = await prisma.projectTask.update({
-    where: { id: taskId },
-    data,
-    include: {
-      assignee: { select: { id: true, name: true, email: true, image: true } },
-    },
-  });
-  const progress = await syncProjectProgress(projectId, companyId);
-  return jsonOk({ task, progress });
+  if (result.changed) after(result.effects);
+  return jsonOk({ task: result.task, progress: result.progress });
 });
 
 export const DELETE = withTenantRoute(async (request, { session, companyId }, routeContext) => {

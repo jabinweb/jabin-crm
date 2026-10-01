@@ -11,7 +11,7 @@ import { OnboardingRedirect } from '@/components/onboarding/onboarding-redirect'
 import { Menu } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { ShellSkeleton } from '@/components/loading';
+import { AppLoader } from '@/components/loading';
 import { cn } from '@/lib/utils';
 import '@/types/auth';
 
@@ -65,7 +65,7 @@ export function DashboardLayoutClient({
   }, [status, session, router]);
 
   if (status === 'loading') {
-    return <ShellSkeleton />;
+    return <AppLoader />;
   }
 
   if (!session?.user) {

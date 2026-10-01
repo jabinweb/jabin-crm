@@ -102,8 +102,19 @@ export class NotificationService {
         });
     }
 
-    async markRead(id: string) {
-        return prisma.notification.update({ where: { id }, data: { read: true } });
+    /** Marks one notification read — only if it belongs to this user (or their customer account). */
+    async markRead(id: string, userId: string) {
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { customerId: true } });
+        return prisma.notification.updateMany({
+            where: {
+                id,
+                OR: [
+                    { userId },
+                    ...(user?.customerId ? [{ customerId: user.customerId }] : []),
+                ],
+            },
+            data: { read: true },
+        });
     }
 
     async markAllRead(userId: string) {
