@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" NEXT_PRIVATE_DISABLE_TURBOPACK=1 next dev",
-    "build": "prisma generate && cross-env NODE_OPTIONS=--max-old-space-size=3072 next build --webpack",
+    "build": "prisma generate && next build --webpack",
     "typecheck": "tsc --noEmit",
     "analyze": "cross-env ANALYZE=true prisma generate && next build --webpack",
     "db:generate": "prisma generate",

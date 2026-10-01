@@ -10,6 +10,24 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: process.env.BUILD_TYPECHECK !== '1',
   },
+  // The deploy server is small (8 GB shared with other apps) and the webpack compile was
+  // OOM-killed at 5.7 GB RSS. Everything below trades a little build speed for a lower peak.
+  // Do not raise --max-old-space-size for the build: a bigger heap just lets it grow further.
+  experimental: {
+    webpackMemoryOptimizations: true,
+    // A custom webpack() function turns the build worker off by default — keep it on
+    webpackBuildWorker: true,
+    serverSourceMaps: false,
+  },
+  productionBrowserSourceMaps: false,
+  webpack: (config, { dev }) => {
+    // Deploys build in a fresh container, so the persistent pack cache is never reused there;
+    // serializing it only costs memory.
+    if (config.cache && !dev) {
+      config.cache = Object.freeze({ type: 'memory' });
+    }
+    return config;
+  },
   images: { 
     remotePatterns: [
       {
