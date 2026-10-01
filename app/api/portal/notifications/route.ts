@@ -28,7 +28,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (body.id) {
-            const updated = await notificationService.markRead(body.id);
+            const updated = await notificationService.markRead(String(body.id), session.user.id);
             return NextResponse.json(updated);
         }
 

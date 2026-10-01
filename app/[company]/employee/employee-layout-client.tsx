@@ -9,7 +9,7 @@ import { TopBar } from '@/components/navigation/top-bar'
 import { NAV_ITEMS, type NavItem } from '@/components/navigation/nav-items'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path'
-import { ShellSkeleton } from '@/components/loading'
+import { AppLoader } from '@/components/loading'
 import { EmployeeBottomNav } from '@/components/employee/mobile/bottom-nav'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
@@ -85,7 +85,7 @@ export function EmployeeLayoutClient({
     .toUpperCase()
 
   if (status === 'loading' || (session && !allowed)) {
-    return <ShellSkeleton />
+    return <AppLoader />
   }
 
   return (

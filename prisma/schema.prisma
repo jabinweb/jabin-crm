@@ -115,6 +115,9 @@ model User {
   projectTaskAttachments ProjectTaskAttachment[] @relation("ProjectTaskAttachments")
   projectTaskWorklogs    ProjectTaskWorklog[]    @relation("ProjectTaskWorklogs")
   projectTaskLinksCreated ProjectTaskLink[]      @relation("ProjectTaskLinkCreator")
+  projectDocsCreated      ProjectDoc[]           @relation("ProjectDocCreator")
+  projectDocsEdited       ProjectDoc[]           @relation("ProjectDocEditor")
+  projectDocPresence      ProjectDocPresence[]
 
   // ── Company Management Integration ──
   password         String?
@@ -2180,6 +2183,7 @@ enum NotificationType {
   PROJECT_TASK_ASSIGNED
   PROJECT_TASK_COMMENTED
   PROJECT_TASK_UPDATED
+  PROJECT_MENTION
 }
 
 model Notification {
@@ -3218,6 +3222,7 @@ model Project {
   milestones  ProjectMilestone[]
   members     ProjectMember[]
   tasks       ProjectTask[]
+  docs        ProjectDoc[]
   tickets     SupportTicket[]
   timesheetEntries TimesheetEntry[]
   retainers   ClientRetainer[]
@@ -3248,6 +3253,48 @@ model ProjectMilestone {
   @@index([projectId])
   @@index([status])
   @@index([dueDate])
+}
+
+/// Project knowledge base — folders and pages in one tree (Notion style)
+model ProjectDoc {
+  id          String   @id @default(cuid())
+  projectId   String
+  /// Parent folder or page (null = project root)
+  parentId    String?
+  /// FOLDER | PAGE
+  kind        String   @default("PAGE")
+  title       String   @default("Untitled")
+  /// Optional emoji shown in the tree
+  icon        String?
+  /// Rich HTML body (TipTap); folders have none
+  contentHtml String?  @db.Text
+  sortOrder   Int      @default(0)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent      ProjectDoc?  @relation("ProjectDocTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children    ProjectDoc[] @relation("ProjectDocTree")
+  createdBy   User?    @relation("ProjectDocCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy   User?    @relation("ProjectDocEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+  presence    ProjectDocPresence[]
+
+  @@index([projectId])
+  @@index([parentId])
+  @@index([projectId, parentId, sortOrder])
+}
+
+/// Who has a project doc open right now (heartbeat rows, pruned when stale)
+model ProjectDocPresence {
+  docId      String
+  userId     String
+  lastSeenAt DateTime   @default(now())
+  doc        ProjectDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([docId, userId])
+  @@index([lastSeenAt])
 }
 
 /// Delivery work items — Kanban/list board (ClickUp / Jira style)

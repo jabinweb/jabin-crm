@@ -121,12 +121,20 @@ export default function WorkspaceUsersPage() {
       const payload = data.data || data;
       if (payload.temporaryPassword) {
         setTempPassword(payload.temporaryPassword);
-        toast.success('User created — copy the temporary password');
+        toast.success(
+          payload.emailSent
+            ? 'Invite emailed — the temporary password is shown below too'
+            : 'User created — email is not configured, so copy the temporary password'
+        );
       } else if (payload.alreadyMember) {
-        toast.success('Existing user added to this workspace');
+        toast.success(
+          payload.emailSent
+            ? 'Existing user added — we emailed them a sign-in link'
+            : 'Existing user added to this workspace'
+        );
         setInviteOpen(false);
       } else {
-        toast.success('User invited');
+        toast.success('Invite emailed — they can set their password from the link');
         setInviteOpen(false);
       }
       setForm({ name: '', email: '', role: 'SALES', password: '' });
@@ -287,8 +295,12 @@ export default function WorkspaceUsersPage() {
                 type="text"
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder="Auto-generated if empty"
+                placeholder="Leave empty to email a set-password link"
               />
+              <p className="text-xs text-muted-foreground">
+                The teammate gets an invite email with a link to set their own password
+                (valid 7 days).
+              </p>
             </div>
             {tempPassword && (
               <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">

@@ -8,10 +8,9 @@ export {
   DetailSkeleton,
   ProjectTaskDetailSkeleton,
   SectionSkeleton,
-  ShellSkeleton,
 } from './primitives';
 
-export { DelayedShellSkeleton } from './delayed-shell-skeleton';
+export { AppLoader } from './app-loader';
 
 export {
   TableSkeleton,

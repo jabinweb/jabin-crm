@@ -6,6 +6,7 @@ import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { prisma } from '@/lib/prisma';
 import { normalizeAuthEmail } from '@/lib/auth/normalize-email';
+import { sendWorkspaceInviteEmail } from '@/lib/email/workspace-invite';
 
 const INVITE_ROLES: UserRole[] = [
   UserRole.ADMIN,
@@ -36,6 +37,15 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   if (!email) {
     return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ success: false, error: 'Enter a valid email' }, { status: 400 });
+  }
+
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { name: true },
+  });
+  const inviterName = session.user.name || session.user.email || 'An admin';
 
   const existing = await prisma.user.findFirst({
     where: { email: { equals: email, mode: 'insensitive' } },
@@ -72,6 +82,15 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       });
     }
 
+    const emailSent = await sendWorkspaceInviteEmail({
+      email: existing.email,
+      name: existing.name,
+      companyName: company?.name || 'your workspace',
+      inviterName,
+      role: existing.role,
+      isNewAccount: false,
+    });
+
     return jsonOk({
       success: true,
       data: {
@@ -82,6 +101,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
         status: existing.userStatus,
         alreadyMember: true,
         temporaryPassword: null,
+        emailSent,
       },
     });
   }
@@ -115,6 +135,15 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   await ensureRbacCatalog();
   await syncUserRoleAssignment(user.id, role);
 
+  const emailSent = await sendWorkspaceInviteEmail({
+    email: user.email,
+    name: user.name,
+    companyName: company?.name || 'your workspace',
+    inviterName,
+    role,
+    isNewAccount: true,
+  });
+
   return jsonOk(
     {
       success: true,
@@ -125,7 +154,10 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
         role: user.role,
         status: user.userStatus,
         alreadyMember: false,
-        temporaryPassword: password,
+        // Only hand the password to the admin when the invite email could not be delivered
+        // (or they typed one themselves) — otherwise the invitee sets their own via the link.
+        temporaryPassword: emailSent && !body.password ? null : password,
+        emailSent,
       },
     },
     { status: 201 }
