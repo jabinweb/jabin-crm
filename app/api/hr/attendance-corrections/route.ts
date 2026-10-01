@@ -129,6 +129,7 @@ export async function PATCH(request: Request) {
         await prisma.attendance.create({
           data: {
             employeeId: existing.employeeId,
+            date: existing.date,
             checkIn: existing.requestedCheckIn,
             checkOut: existing.requestedCheckOut,
             status: 'PRESENT',

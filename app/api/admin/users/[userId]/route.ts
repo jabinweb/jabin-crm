@@ -126,8 +126,23 @@ export async function DELETE(
       );
     }
 
+    // Salary records keep their author and cannot be reassigned automatically
+    const authoredSalaries = await prisma.employeeSalary.count({ where: { createdById: userId } });
+    if (authoredSalaries > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `This user created ${authoredSalaries} salary record(s). Suspend the account instead of deleting it.`,
+        },
+        { status: 409 }
+      );
+    }
+
     // Detach company FKs that may Restrict, then delete user (cascades accounts/sessions)
     await prisma.$transaction(async (tx) => {
+      // No ON DELETE rule on these two — remove them first or the delete is rejected
+      await tx.userSession.deleteMany({ where: { userId } });
+      await tx.userSettings.deleteMany({ where: { userId } });
       await tx.userCompany.deleteMany({ where: { userId } });
       await tx.userCompanyRole.deleteMany({ where: { userId } });
       await tx.user.update({
@@ -145,8 +160,8 @@ export async function DELETE(
         data: { assignedToId: null },
       });
       await tx.supportTicket.updateMany({
-        where: { assignedToId: userId },
-        data: { assignedToId: null },
+        where: { assignedTechnicianId: userId },
+        data: { assignedTechnicianId: null },
       });
       await tx.project.updateMany({
         where: { pmUserId: userId },
@@ -165,7 +180,7 @@ export async function DELETE(
         data: { userId: null },
       });
       await tx.user.delete({ where: { id: userId } });
-    });
+    }, { maxWait: 10_000, timeout: 30_000 });
 
     return NextResponse.json({ success: true, message: 'User deleted' });
   } catch (error) {

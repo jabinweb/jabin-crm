@@ -345,7 +345,7 @@ export const EXTENDED_OPS_TOOLS: AgentToolDef[] = [
             { userId: ctx.userId },
           ],
         },
-        select: { id: true, name: true, status: true, description: true },
+        select: { id: true, name: true, isActive: true, description: true },
         take: 25,
       });
       return { sequences };
@@ -1679,7 +1679,7 @@ export const EXTENDED_OPS_TOOLS: AgentToolDef[] = [
       ) as Priority;
       const user = await prisma.user.findUnique({
         where: { id: ctx.userId },
-        select: { employeeId: true },
+        select: { employeeProfile: { select: { id: true } } },
       });
       const lead = await prisma.lead.create({
         data: {
@@ -1693,7 +1693,7 @@ export const EXTENDED_OPS_TOOLS: AgentToolDef[] = [
           priority,
           companyId: ctx.companyId,
           userId: ctx.userId,
-          employeeId: user?.employeeId || undefined,
+          employeeId: user?.employeeProfile?.id || undefined,
           status: 'NEW',
         },
         select: {

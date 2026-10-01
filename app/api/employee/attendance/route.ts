@@ -3,6 +3,7 @@ import { auth } from '@/auth'
 import { prisma } from "@/lib/prisma"
 import { AttendanceStatus } from "@prisma/client"
 import { randomUUID } from 'crypto' // Add this import
+import { attendanceDateOnly } from '@/lib/hr/leave-year'
 
 export async function GET() {
   try {
@@ -104,6 +105,7 @@ export async function POST(request: Request) {
         data: {
           id: randomUUID(),
           employeeId: session.user.employeeId,
+          date: attendanceDateOnly(now),
           checkIn: now,
           status: AttendanceStatus.PRESENT,
         },
