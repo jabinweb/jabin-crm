@@ -1,5 +1,6 @@
 import type { Session } from 'next-auth';
 import { prisma } from '@/lib/prisma';
+import { adfToHtml, isAdfDoc } from '@/lib/adf/adf';
 import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
 import { isAllowedProjectTaskStatus } from '@/lib/projects/task-statuses';
 import {
@@ -43,7 +44,12 @@ export async function updateProjectTask(params: {
   taskId: string;
   body: Record<string, unknown>;
 }): Promise<TaskUpdateResult> {
-  const { session, companyId, projectId, taskId, body } = params;
+  const { session, companyId, projectId, taskId } = params;
+  let { body } = params;
+  // Jira-style clients may send the description as ADF instead of HTML
+  if (body.descriptionHtml === undefined && isAdfDoc(body.descriptionAdf)) {
+    body = { ...body, descriptionHtml: adfToHtml(body.descriptionAdf) };
+  }
   const actorId = session.user.id;
   const actorName = session.user.name || session.user.email || 'User';
 

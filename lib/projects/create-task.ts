@@ -1,5 +1,6 @@
 import type { Session } from 'next-auth';
 import { prisma } from '@/lib/prisma';
+import { adfToHtml, isAdfDoc } from '@/lib/adf/adf';
 import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
 import { isAllowedProjectTaskStatus } from '@/lib/projects/task-statuses';
 import { logProjectTaskActivity } from '@/lib/projects/task-activity';
@@ -38,7 +39,12 @@ export async function createProjectTask(params: {
   projectId: string;
   body: Record<string, unknown>;
 }): Promise<TaskCreateResult> {
-  const { session, companyId, projectId, body } = params;
+  const { session, companyId, projectId } = params;
+  let { body } = params;
+  // Jira-style clients may send the description as ADF instead of HTML
+  if (body.descriptionHtml === undefined && isAdfDoc(body.descriptionAdf)) {
+    body = { ...body, descriptionHtml: adfToHtml(body.descriptionAdf) };
+  }
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, companyId },

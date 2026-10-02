@@ -1,5 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { htmlToAdf } from '@/lib/adf/adf';
 import { deleteProjectTask } from '@/lib/projects/delete-task';
 import { listMentionableUsers } from '@/lib/projects/mentions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
@@ -126,6 +127,8 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
     comments: task.comments.map((c) => ({ ...c, body: sanitizeRichText(c.body) })),
     watching,
     memberOptions,
+    // The same description in Atlassian Document Format, for Jira-style integrations
+    descriptionAdf: htmlToAdf(task.descriptionHtml),
     projectTaskStatuses: settings.projectTaskStatuses ?? null,
     // Same rule as every task write route — the page goes read-only when false
     canWrite: await canWriteProjectDelivery(session, companyId, projectId),
