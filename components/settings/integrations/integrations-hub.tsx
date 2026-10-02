@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
+import { useFeatureModule } from '@/components/feature-module-guard';
 import {
   ArrowRight,
   BookOpen,
@@ -317,7 +319,46 @@ function IntegrationsHubContent() {
   );
 }
 
+/** Non-admins only manage their own connections; workspace integrations are admin-only. */
+function PersonalIntegrations() {
+  const emailEnabled = useFeatureModule('EMAIL_OUTREACH');
+  return (
+    <div className="min-w-0 space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Integrations</h1>
+        <p className="text-sm text-muted-foreground">
+          Your personal connections. Workspace integrations are managed by an admin.
+        </p>
+      </div>
+      {emailEnabled !== false && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Email (SMTP / IMAP)</CardTitle>
+            <CardDescription>Send from your own mailbox and track replies.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EmailIntegrationForm embedded />
+          </CardContent>
+        </Card>
+      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Google Calendar</CardTitle>
+          <CardDescription>Connect Google to sync CRM events with your calendar.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GoogleCalendarSettings />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export function IntegrationsHub() {
+  const { data: session, status } = useSession();
+  const role = session?.user?.role;
+  if (status === 'loading') return null;
+  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') return <PersonalIntegrations />;
   return (
     <SettingsProvider>
       <IntegrationsHubContent />

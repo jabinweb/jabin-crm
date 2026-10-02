@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
 import {
@@ -64,9 +65,16 @@ export function MobileTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
   const features = workspaceData?.config.features;
 
   const activeModuleId = resolveModuleId(pathname, { vertical });
+  const planModules = useFeatureModuleMap();
 
   const tabs = useMemo(() => {
-    const modules = getAvailableModules({ role, vertical, features }).filter(
+    const modules = getAvailableModules({
+      role,
+      vertical,
+      features,
+      modules: planModules,
+      hasEmployeeProfile: !!session?.user?.employeeId,
+    }).filter(
       (m) => m.id !== 'home' && m.id !== 'workspace' && m.id !== 'platform'
     );
     const shown = modules.slice(0, MODULE_TABS);
@@ -77,10 +85,13 @@ export function MobileTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
       else shown[shown.length - 1] = current;
     }
     return [getModuleDef('home'), ...shown];
-  }, [role, vertical, features, activeModuleId]);
+  }, [role, vertical, features, activeModuleId, planModules, session?.user?.employeeId]);
 
   const hrefFor = (id: WorkspaceModuleId, landingHref: string) => {
-    if (id === 'home') return resolveWorkspaceDashboardHref('/dashboard', companySlug, role);
+    if (id === 'home') {
+      // Technicians' home is their field queue (same as their post-login landing)
+      return resolveWorkspaceDashboardHref(role === 'TECHNICIAN' ? '/dashboard/technician' : '/dashboard', companySlug, role);
+    }
     const preferred = resolveModuleSwitchHref(id, { vertical, companySlug, landingHref });
     if (companySlug && preferred.startsWith(`/${companySlug}/`)) return preferred;
     if (preferred.startsWith('/employee')) return companySlug ? getCompanyUrl(preferred, companySlug) : preferred;

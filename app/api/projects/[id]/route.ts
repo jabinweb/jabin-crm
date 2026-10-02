@@ -5,11 +5,12 @@ import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { PROJECT_INCLUDE, invalidProjectLink } from '@/lib/projects/agency-delivery';
 import { aggregateProjectHours } from '@/lib/projects/delivery-hours';
+import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import {
   getCompanyProjectTaskSettings,
 } from '@/lib/projects/sync-project-progress';
 
-export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
+export const GET = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
   const id = (await routeContext!.params).id;
 
   const project = await prisma.project.findFirst({
@@ -50,10 +51,12 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const [{ timesheetHours, worklogHours, hoursLogged }, settingsRaw] =
+  const [{ timesheetHours, worklogHours, hoursLogged }, settingsRaw, canWrite] =
     await Promise.all([
       aggregateProjectHours(id),
       getCompanyProjectTaskSettings(companyId),
+      // Same rule as the task, doc and worklog write APIs — lets the UI hide what would fail
+      canWriteProjectDelivery(session, companyId, id),
     ]);
 
   const settings =
@@ -67,12 +70,14 @@ export const GET = withTenantRoute(async (_request, { companyId }, routeContext)
     worklogHours,
     hoursLogged,
     projectTaskStatuses: settings.projectTaskStatuses ?? null,
+    canWrite,
+    canManage: hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES'),
   });
 });
 
 export const PATCH = withTenantRoute(async (request, { session, companyId }, routeContext) => {
   if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN', 'SALES')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const id = (await routeContext!.params).id;
@@ -141,7 +146,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 
 export const DELETE = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
   if (!hasLegacyRole(session, 'SUPER_ADMIN', 'ADMIN')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   const id = (await routeContext!.params).id;

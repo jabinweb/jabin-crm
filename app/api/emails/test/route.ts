@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { withModuleAccess, afterEmailSent } from '@/lib/api/module-guard';
+import { hasLegacyRole } from '@/lib/auth/permissions';
+import { handleApiError } from '@/lib/api-error-handler';
 import { sendEmail } from '@/lib/email/nodemailer';
 import { createEmailLog } from '@/lib/email/email-logger';
 import { getUserSmtpConfig } from '@/lib/smtp-config';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Same gate as real sends: Email outreach on the plan, a role that has email in its
+    // nav, and the email quota — this used to send anything for any signed-in user.
+    const session = await withModuleAccess('EMAIL_OUTREACH', { quota: 'emails' });
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const {
@@ -102,6 +106,7 @@ export async function POST(request: NextRequest) {
       // Update log status
       const { updateEmailLogStatus } = await import('@/lib/email/email-logger');
       await updateEmailLogStatus(log.id, 'SENT');
+      await afterEmailSent(session.user.id);
 
       return NextResponse.json({
         success: true,
@@ -116,6 +121,7 @@ export async function POST(request: NextRequest) {
       throw emailError;
     }
   } catch (error: any) {
+    if (typeof error?.statusCode === 'number') return handleApiError(error);
     console.error('Error sending test email:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to send test email' },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +79,8 @@ export default function DealDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { workspaceFetch, path } = useWorkspacePaths();
+  // Create quote / invoice only when those modules are on the plan
+  const planModules = useFeatureModuleMap();
   const { formatCurrency } = useCurrency();
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -320,6 +323,7 @@ export default function DealDetailPage() {
           <Button
             variant="outline"
             size="sm"
+            className={planModules?.QUOTATIONS ? undefined : 'hidden'}
             onClick={() => {
               const q = new URLSearchParams({ dealId: deal.id });
               if (deal.lead?.email) q.set('customerEmail', deal.lead.email);
@@ -358,6 +362,7 @@ export default function DealDetailPage() {
           <Button
             variant="outline"
             size="sm"
+            className={planModules?.INVOICES ? undefined : 'hidden'}
             onClick={() => {
               const q = new URLSearchParams({ dealId: deal.id });
               if (deal.lead?.email) q.set('customerEmail', deal.lead.email);

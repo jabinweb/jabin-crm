@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, SALES_DOC_ROLES } from '@/lib/crm/ops-access';
 import { withStaffRoute, jsonOk } from '@/lib/api/with-route';
 import {
   createDemoUnit,
@@ -8,9 +9,9 @@ import { validateDemoUnitRefs } from './_validate-refs';
 import type { DemoUnitKind, DemoUnitStatus } from '@prisma/client';
 
 export const GET = withStaffRoute(async (request, { session, companyId }) => {
-  if (session.user.role === 'CUSTOMER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  // Demo fleet (Ops → Installed equipment): sales-document roles with the Equipment module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'EQUIPMENT' });
+  if (denied) return denied;
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
@@ -23,9 +24,9 @@ export const GET = withStaffRoute(async (request, { session, companyId }) => {
 });
 
 export const POST = withStaffRoute(async (request, { session, companyId }) => {
-  if (session.user.role === 'CUSTOMER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  // Demo fleet (Ops → Installed equipment): sales-document roles with the Equipment module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'EQUIPMENT' });
+  if (denied) return denied;
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }

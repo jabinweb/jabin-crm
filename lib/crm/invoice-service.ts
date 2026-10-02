@@ -668,7 +668,24 @@ export class InvoiceService {
       const limit = filters.limit || 20;
       const skip = (page - 1) * limit;
 
-      const where: any = {};
+      // Always scope to the caller (workspace for admins, own documents otherwise); a
+      // customer filter narrows that scope and must never replace it.
+      let scope: object;
+      if (filters.companyId) {
+        scope = {
+          OR: [
+            { customer: { companyId: filters.companyId } },
+            { lead: { companyId: filters.companyId } },
+            { user: { primaryCompanyId: filters.companyId } },
+            { user: { userCompanies: { some: { companyId: filters.companyId } } } },
+          ],
+        };
+      } else if (filters.userId) {
+        scope = { userId: filters.userId };
+      } else {
+        return { invoices: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      }
+      const where: any = { AND: [scope] };
       if (filters.customerId || filters.customerEmail) {
         const or: object[] = [];
         if (filters.customerId) or.push({ customerId: filters.customerId });
@@ -677,17 +694,7 @@ export class InvoiceService {
             customerEmail: { equals: filters.customerEmail, mode: 'insensitive' },
           });
         }
-        where.OR = or;
-      } else if (filters.companyId) {
-        Object.assign(where, {
-          OR: [
-            { lead: { companyId: filters.companyId } },
-            { user: { primaryCompanyId: filters.companyId } },
-            { user: { userCompanies: { some: { companyId: filters.companyId } } } },
-          ],
-        });
-      } else if (filters.userId) {
-        where.userId = filters.userId;
+        where.AND.push({ OR: or });
       }
       if (filters.leadId) where.leadId = filters.leadId;
       if (filters.dealId) where.dealId = filters.dealId;
@@ -744,26 +751,28 @@ export class InvoiceService {
   /**
    * Get invoice statistics
    */
-  async getInvoiceStats(userId: string) {
+  /** `scope` limits which invoices count (defaults to the user's own). */
+  async getInvoiceStats(userId: string, scope?: Record<string, unknown>) {
+    const base = scope ?? { userId };
     try {
       const [total, paid, overdue, pending, totalRevenue, paidRevenue, overdueAmount] =
         await Promise.all([
-          prisma.invoice.count({ where: { userId } }),
-          prisma.invoice.count({ where: { userId, status: 'PAID' } }),
-          prisma.invoice.count({ where: { userId, status: 'OVERDUE' } }),
+          prisma.invoice.count({ where: base }),
+          prisma.invoice.count({ where: { ...base, status: 'PAID' } }),
+          prisma.invoice.count({ where: { ...base, status: 'OVERDUE' } }),
           prisma.invoice.count({
-            where: { userId, status: { in: ['SENT', 'VIEWED', 'PARTIAL'] } },
+            where: { ...base, status: { in: ['SENT', 'VIEWED', 'PARTIAL'] } },
           }),
           prisma.invoice.aggregate({
-            where: { userId },
+            where: base,
             _sum: { total: true },
           }),
           prisma.invoice.aggregate({
-            where: { userId, status: 'PAID' },
+            where: { ...base, status: 'PAID' },
             _sum: { total: true },
           }),
           prisma.invoice.aggregate({
-            where: { userId, status: 'OVERDUE' },
+            where: { ...base, status: 'OVERDUE' },
             _sum: { amountDue: true },
           }),
         ]);
@@ -792,13 +801,14 @@ export class InvoiceService {
    */
   async updateInvoice(
     invoiceId: string,
-    userId: string,
+    /** Owner check; pass null when the caller already verified access (e.g. workspace admins). */
+    userId: string | null,
     input: Partial<CreateInvoiceInput> & { status?: InvoiceStatus }
   ) {
     try {
       // Verify ownership
       const existingInvoice = await prisma.invoice.findFirst({
-        where: { id: invoiceId, userId },
+        where: { id: invoiceId, ...(userId ? { userId } : {}) },
         include: { items: true },
       });
 

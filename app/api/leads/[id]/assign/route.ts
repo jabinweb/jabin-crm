@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
-import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { isApiException } from '@/lib/api/subscription-guards';
+import { leadAccessWhere, requireLeadAccess } from '@/app/api/leads/lead-access';
 import { userHasCompanyAccess } from '@/lib/auth/company-membership';
 
 // Assign a lead to a team member
@@ -11,19 +11,18 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const leadCtx = await requireLeadAccess(request);
+    const session = leadCtx.session;
+    if (!leadCtx.isManager) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
 
     const params = await context.params;
     const body = await request.json();
     const { assignedToId } = body;
 
     const existing = await prisma.lead.findFirst({
-      where: { id: params.id, userId: session.user.id },
+      where: { id: params.id, companyId: leadCtx.companyId },
       select: { companyId: true },
     });
     if (!existing) {
@@ -42,10 +41,7 @@ export async function PATCH(
     }
 
     const lead = await prisma.lead.update({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
+      where: { id: params.id },
       data: {
         assignedToId: assignedToId || null,
       },

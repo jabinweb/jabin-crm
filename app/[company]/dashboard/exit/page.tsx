@@ -12,7 +12,7 @@ export default function ExitAdminPage() {
   const { data: rows = [] } = useQuery({
     queryKey: ['hr-exit'],
     queryFn: async () => {
-      const res = await fetch('/api/hr/exit')
+      const res = await fetch('/api/hr/exit?admin=1')
       if (!res.ok) throw new Error('Failed')
       return res.json()
     },

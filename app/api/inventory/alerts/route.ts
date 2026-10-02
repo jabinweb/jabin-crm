@@ -1,4 +1,5 @@
 import { handleRouteError } from '@/lib/api/tenant-response';
+import { checkOpsAccess } from '@/lib/crm/ops-access';
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -19,6 +20,9 @@ export async function GET(request: Request) {
       session,
       asNextRequest(request)
     );
+    // Same audience as the nav: Inventory module on
+    const denied = await checkOpsAccess(session, companyId, { module: 'INVENTORY' });
+    if (denied) return denied;
 
     const now = new Date();
     const expiringBefore = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);

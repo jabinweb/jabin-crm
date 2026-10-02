@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -29,6 +30,9 @@ type Article = {
 export default function KnowledgeBaseAdminPage() {
   const queryClient = useQueryClient();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
+  // Same roles as the write APIs; everyone else gets a read-only library
+  const { data: session } = useSession();
+  const canEdit = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(session?.user?.role ?? '');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('Getting started');
@@ -123,13 +127,16 @@ export default function KnowledgeBaseAdminPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/settings/migration') + '?object=knowledge'}>
-              Import CSV
-            </Link>
-          </Button>
+          {canEdit && (
+            <Button variant="outline" asChild>
+              <Link href={path('/dashboard/settings/migration') + '?object=knowledge'}>
+                Import CSV
+              </Link>
+            </Button>
+          )}
         </div>
 
+        {canEdit && (
         <Card>
           <CardHeader>
             <CardTitle>{editingId ? 'Edit article' : 'New article'}</CardTitle>
@@ -175,6 +182,7 @@ export default function KnowledgeBaseAdminPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -199,7 +207,7 @@ export default function KnowledgeBaseAdminPage() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className={canEdit ? 'flex gap-1' : 'hidden'}>
                       <Button variant="ghost" size="sm" onClick={() => startEdit(a)}>
                         Edit
                       </Button>

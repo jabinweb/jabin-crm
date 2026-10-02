@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, SALES_DOC_ROLES } from '@/lib/crm/ops-access';
 import { withStaffRoute, jsonOk } from '@/lib/api/with-route';
 import {
   deleteDemoUnit,
@@ -8,9 +9,9 @@ import {
 import { validateDemoUnitRefs } from '../_validate-refs';
 
 export const GET = withStaffRoute(async (_request, { session, companyId }, routeContext) => {
-  if (session.user.role === 'CUSTOMER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  // Demo fleet (Ops → Installed equipment): sales-document roles with the Equipment module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'EQUIPMENT' });
+  if (denied) return denied;
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
@@ -23,9 +24,9 @@ export const GET = withStaffRoute(async (_request, { session, companyId }, route
 });
 
 export const PATCH = withStaffRoute(async (request, { session, companyId }, routeContext) => {
-  if (session.user.role === 'CUSTOMER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  // Demo fleet (Ops → Installed equipment): sales-document roles with the Equipment module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'EQUIPMENT' });
+  if (denied) return denied;
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
@@ -48,9 +49,9 @@ export const PATCH = withStaffRoute(async (request, { session, companyId }, rout
 });
 
 export const DELETE = withStaffRoute(async (_request, { session, companyId }, routeContext) => {
-  if (session.user.role === 'CUSTOMER') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  // Demo fleet (Ops → Installed equipment): sales-document roles with the Equipment module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'EQUIPMENT' });
+  if (denied) return denied;
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }

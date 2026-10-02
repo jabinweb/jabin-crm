@@ -22,6 +22,11 @@ export async function processLeaveAction(input: {
   if (existingRequest.status !== 'PENDING') {
     throw Object.assign(new Error('Leave request already processed'), { status: 400 })
   }
+  // Nobody approves or rejects their own leave — the dashboard and manager paths both
+  // come through here.
+  if (input.actorEmployeeId && input.actorEmployeeId === existingRequest.employeeId) {
+    throw Object.assign(new Error('You cannot act on your own leave request'), { status: 403 })
+  }
 
   const days = existingRequest.days || 1
   const year = existingRequest.startDate.getFullYear()

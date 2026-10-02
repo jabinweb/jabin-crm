@@ -16,6 +16,7 @@ import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Che
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 import { PageHeaderSkeleton, SectionSkeleton } from '@/components/loading';
 
 const locales = {
@@ -82,6 +83,8 @@ export default function CalendarPage() {
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
   const { path } = useWorkspacePaths();
+  // Lead/deal pickers only load for the modules on the plan
+  const planModules = useFeatureModuleMap();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showEventDialog, setShowEventDialog] = useState(false);
@@ -109,8 +112,11 @@ export default function CalendarPage() {
 
   useEffect(() => {
     fetchEvents();
-    fetchLeadsAndDeals();
   }, [date, view]);
+
+  useEffect(() => {
+    if (planModules) fetchLeadsAndDeals();
+  }, [planModules]);
 
   const fetchEvents = async () => {
     try {
@@ -147,16 +153,16 @@ export default function CalendarPage() {
   const fetchLeadsAndDeals = async () => {
     try {
       const [leadsRes, dealsRes] = await Promise.all([
-        fetch('/api/leads'),
-        fetch('/api/deals'),
+        planModules?.LEADS ? fetch('/api/leads') : null,
+        planModules?.DEALS ? fetch('/api/deals') : null,
       ]);
 
-      if (leadsRes.ok) {
+      if (leadsRes?.ok) {
         const leadsData = await leadsRes.json();
         setLeads(leadsData.leads || []);
       }
 
-      if (dealsRes.ok) {
+      if (dealsRes?.ok) {
         const dealsData = await dealsRes.json();
         setDeals(dealsData || []);
       }

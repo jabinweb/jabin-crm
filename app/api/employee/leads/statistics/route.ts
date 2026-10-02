@@ -4,10 +4,12 @@ import { ActivityType, LeadStatus } from '@prisma/client'
 import { handleApiError } from '@/lib/api-error-handler'
 import { isApiException } from '@/lib/api/subscription-guards'
 import { requireEmployeeModule } from '@/lib/api/employee-guard'
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership'
 
 export async function GET(req: NextRequest) {
   try {
     const session = await requireEmployeeModule('LEADS')
+    const { companyId } = await resolveCompanyContextFromRequest(session, req)
 
     const [
       totalLeads,
@@ -17,19 +19,19 @@ export async function GET(req: NextRequest) {
     ] = await Promise.all([
       // Total leads count
       prisma.lead.count({
-        where: { employeeId: session.user.employeeId }
+        where: { employeeId: session.user.employeeId, companyId }
       }),
       // Won leads count
       prisma.lead.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId: session.user.employeeId, companyId,
           status: LeadStatus.WON
         }
       }),
       // Active leads (not WON or LOST)
       prisma.lead.count({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId: session.user.employeeId, companyId,
           NOT: {
             status: { in: [LeadStatus.WON, LeadStatus.LOST] }
           }
@@ -38,7 +40,7 @@ export async function GET(req: NextRequest) {
       // Upcoming follow-ups
       prisma.lead.findMany({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId: session.user.employeeId, companyId,
           activities: {
             some: {
               activityType: ActivityType.FOLLOW_UP,

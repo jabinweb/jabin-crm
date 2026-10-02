@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, SALES_DOC_ROLES } from '@/lib/crm/ops-access';
 import { withTenantRoute } from '@/lib/api/with-route';
 import { getServiceContract } from '@/lib/crm/service-contract-service';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { ContractPDF } from '@/lib/pdf/contract-pdf';
 import { prisma } from '@/lib/prisma';
 
-export const GET = withTenantRoute(async (_req, { companyId }, routeContext) => {
+export const GET = withTenantRoute(async (_req, { session, companyId }, routeContext) => {
+  // Contracts live under Support in the nav: sales and support roles, Tickets module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'TICKETS' });
+  if (denied) return denied;
   const id = (await routeContext!.params).id;
   const contract = await getServiceContract(companyId, id);
   if (!contract) {

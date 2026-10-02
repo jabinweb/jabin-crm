@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withSessionRoute, withTenantRoute, jsonOk, withApiRoute } from '@/lib/api/with-route';
 import { isWorkspaceStaff } from '@/lib/auth/workspace-staff';
+import { isFieldServiceManager, isFieldServiceUser } from '@/app/api/service/_roles';
 
 const createCashSchema = z.object({
   technicianId: z.string().min(1),
@@ -19,11 +20,17 @@ const createCashSchema = z.object({
 });
 
 export const POST = withTenantRoute(async (req, { session, userId, companyId }) => {
-  if (session.user.role === 'CUSTOMER') {
+  if (!isFieldServiceUser(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  await ensureFeatureEnabled(userId, 'SERVICE_CASH');
+  await ensureFeatureEnabled(userId, 'SERVICE_CASH', companyId);
   const body = await validateRequest(req, createCashSchema);
+
+  // Advances, settlements and adjustments are manager entries; technicians only log
+  // their own spending.
+  if (!isFieldServiceManager(session) && (body.entryType !== 'EXPENSE' || body.technicianId !== userId)) {
+    return NextResponse.json({ error: 'Only managers can record that entry' }, { status: 403 });
+  }
 
   if (!(await isWorkspaceStaff(companyId, body.technicianId))) {
     return NextResponse.json({ error: 'Technician not found' }, { status: 404 });
@@ -46,12 +53,16 @@ export const POST = withTenantRoute(async (req, { session, userId, companyId }) 
   return jsonOk(entry, { status: 201 });
 });
 
-export const GET = withApiRoute({ auth: 'tenant-optional', handler: async (req, { userId, companyId }) => {
-  await ensureFeatureEnabled(userId, 'SERVICE_CASH');
+export const GET = withApiRoute({ auth: 'tenant-optional', handler: async (req, { session, userId, companyId }) => {
+  if (!isFieldServiceUser(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  await ensureFeatureEnabled(userId, 'SERVICE_CASH', companyId);
   const { searchParams } = req.nextUrl;
 
   const entries = await cashService.listEntries(userId, {
     companyId,
+    viewAll: isFieldServiceManager(session),
     technicianId: searchParams.get('technicianId') || undefined,
     ticketId: searchParams.get('ticketId') || undefined,
     entryType: (searchParams.get('entryType') as 'ADVANCE' | 'EXPENSE' | 'SETTLEMENT' | 'ADJUSTMENT') || undefined,

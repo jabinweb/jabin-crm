@@ -1,5 +1,7 @@
 'use client'
 
+import { useSession } from 'next-auth/react'
+
 import { useEffect, useState, use, useCallback } from 'react'
 import { useParams as useRouteParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -41,6 +43,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
   const router = useRouter()
   const routeParams = useRouteParams<{ company: string }>()
   const { path, slug } = useWorkspacePaths()
+  // Edit/delete are admin-only in the product API
+  const { data: session } = useSession()
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '')
 
   const resolvedParams = use(params)
   const productId = resolvedParams.id
@@ -129,7 +134,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             {product.category}
           </Badge>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className={isAdmin ? 'flex flex-wrap gap-2' : 'hidden'}>
           <Button
             variant="outline"
             onClick={() => router.push(path(`/dashboard/products/${product.id}/edit`))}

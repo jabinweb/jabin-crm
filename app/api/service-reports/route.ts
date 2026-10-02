@@ -7,7 +7,7 @@ import { isApiException } from '@/lib/api/subscription-guards';
 import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 
 export const GET = withTenantRoute(async (_req, { session, companyId }) => {
-    if (session.user.role === 'CUSTOMER') {
+    if (!['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN'].includes(session.user.role ?? '')) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     await withModuleAccess('SERVICE_REPORTS');

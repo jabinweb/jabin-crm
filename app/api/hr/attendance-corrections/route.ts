@@ -12,8 +12,11 @@ export async function GET(request: Request) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    const isAdmin = hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')
     const url = new URL(request.url)
+    // Company-wide list only for the HR admin page (?admin=1); an admin's own
+    // self-service page lists just their corrections like everyone else's.
+    const isAdmin =
+      hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN') && url.searchParams.get('admin') === '1'
     const status = url.searchParams.get('status') || undefined
 
     if (isAdmin) {
@@ -112,6 +115,9 @@ export async function PATCH(request: Request) {
       where: { id, employee: { companyId }, status: 'PENDING' },
     })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (session.user.employeeId && existing.employeeId === session.user.employeeId) {
+      return NextResponse.json({ error: 'You cannot act on your own correction' }, { status: 403 })
+    }
 
     if (action === 'approve') {
       const day = attendanceDateOnly(new Date(existing.date))

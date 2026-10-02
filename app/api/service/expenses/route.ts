@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withSessionRoute, withTenantRoute, jsonOk, withApiRoute } from '@/lib/api/with-route';
 import { isWorkspaceStaff } from '@/lib/auth/workspace-staff';
+import { isFieldServiceManager, isFieldServiceUser } from '@/app/api/service/_roles';
 
 const createExpenseSchema = z.object({
   technicianId: z.string().min(1),
@@ -22,11 +23,16 @@ const createExpenseSchema = z.object({
 });
 
 export const POST = withTenantRoute(async (req, { session, userId, companyId }) => {
-  if (session.user.role === 'CUSTOMER') {
+  if (!isFieldServiceUser(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  await ensureFeatureEnabled(userId, 'SERVICE_EXPENSES');
+  await ensureFeatureEnabled(userId, 'SERVICE_EXPENSES', companyId);
   const body = await validateRequest(req, createExpenseSchema);
+
+  // Technicians file their own expenses; managers can file for anyone on the team.
+  if (!isFieldServiceManager(session) && body.technicianId !== userId) {
+    return NextResponse.json({ error: 'You can only file your own expenses' }, { status: 403 });
+  }
 
   if (!(await isWorkspaceStaff(companyId, body.technicianId))) {
     return NextResponse.json({ error: 'Technician not found' }, { status: 404 });
@@ -49,12 +55,17 @@ export const POST = withTenantRoute(async (req, { session, userId, companyId }) 
   return jsonOk(expense, { status: 201 });
 });
 
-export const GET = withApiRoute({ auth: 'tenant-optional', handler: async (req, { userId, companyId }) => {
-  await ensureFeatureEnabled(userId, 'SERVICE_EXPENSES');
+export const GET = withApiRoute({ auth: 'tenant-optional', handler: async (req, { session, userId, companyId }) => {
+  if (!isFieldServiceUser(session)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+  await ensureFeatureEnabled(userId, 'SERVICE_EXPENSES', companyId);
   const { searchParams } = req.nextUrl;
 
   const expenses = await expenseService.listExpenses(userId, {
     companyId,
+    // Managers review the whole team's expenses; technicians see their own.
+    viewAll: isFieldServiceManager(session),
     technicianId: searchParams.get('technicianId') || undefined,
     ticketId: searchParams.get('ticketId') || undefined,
     category: (searchParams.get('category') as any) || undefined,

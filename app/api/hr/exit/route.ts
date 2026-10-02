@@ -18,7 +18,10 @@ export async function GET(request: Request) {
   try {
     const session = await auth()
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const isAdmin = hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')
+    // Company-wide list only for the HR admin page (?admin=1).
+    const isAdmin =
+      hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN') &&
+      new URL(request.url).searchParams.get('admin') === '1'
 
     if (isAdmin) {
       const { companyId } = await resolveCompanyContextFromRequest(

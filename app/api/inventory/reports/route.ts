@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { checkOpsAccess } from '@/lib/crm/ops-access'
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -15,6 +16,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { companyId } = await resolveCompanyContextFromRequest(session, asNextRequest(request))
+    // Same audience as the nav: plan module on, and stock changes need inventory write access
+    const denied = await checkOpsAccess(session, companyId, { module: 'INVENTORY' })
+    if (denied) return denied
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'stock';

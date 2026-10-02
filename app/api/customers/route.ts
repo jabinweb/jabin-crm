@@ -27,7 +27,11 @@ export const GET = withApiRoute({
   },
 });
 
-export const POST = withTenantRoute(async (request, { companyId }) => {
+export const POST = withTenantRoute(async (request, { companyId, session }) => {
+  // Technicians work visits and service; creating accounts is for office roles
+  if (session.user?.role === 'TECHNICIAN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const data = await request.json();
 
   if (!data.organizationName || !data.contactPerson) {

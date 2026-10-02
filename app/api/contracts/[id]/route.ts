@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, SALES_DOC_ROLES } from '@/lib/crm/ops-access';
 import { z } from 'zod';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { validateRequest } from '@/lib/validations/server';
@@ -20,7 +21,10 @@ const patchSchema = z.object({
   equipmentId: z.string().optional().nullable(),
 });
 
-export const GET = withTenantRoute(async (_req, { companyId }, routeContext) => {
+export const GET = withTenantRoute(async (_req, { session, companyId }, routeContext) => {
+  // Contracts live under Support in the nav: sales and support roles, Tickets module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'TICKETS' });
+  if (denied) return denied;
   const id = (await routeContext!.params).id;
   const contract = await getServiceContract(companyId, id);
   if (!contract) {
@@ -29,7 +33,10 @@ export const GET = withTenantRoute(async (_req, { companyId }, routeContext) => 
   return jsonOk(contract);
 });
 
-export const PATCH = withTenantRoute(async (req, { companyId }, routeContext) => {
+export const PATCH = withTenantRoute(async (req, { session, companyId }, routeContext) => {
+  // Contracts live under Support in the nav: sales and support roles, Tickets module, and the warranties feature for changes
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'TICKETS', feature: 'warranties' });
+  if (denied) return denied;
   const id = (await routeContext!.params).id;
   const body = await validateRequest(req, patchSchema);
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, COMPANY_ADMIN_ROLES } from '@/lib/crm/ops-access';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
@@ -26,7 +27,15 @@ async function invalidAssetLinks(
   return null;
 }
 
-export const GET = withTenantRoute(async (request, { companyId }) => {
+export const GET = withTenantRoute(async (request, { session, companyId }) => {
+  // Admins see every asset; an employee may list only the assets assigned to them
+  // (their self-service documents page).
+  const ownEmployeeId = request.nextUrl.searchParams.get('employeeId');
+  const isOwn = !!ownEmployeeId && ownEmployeeId === session.user.employeeId;
+  if (!isOwn) {
+    const denied = await checkOpsAccess(session, companyId, { roles: COMPANY_ADMIN_ROLES });
+    if (denied) return denied;
+  }
   const employeeId = new URL(request.url).searchParams.get('employeeId')
   const assets = await prisma.asset.findMany({
     where: {

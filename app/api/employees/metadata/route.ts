@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from '@/auth'
+import { hasLegacyRole } from '@/lib/auth/permissions'
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from "@/lib/prisma"
 import "@/types/auth"
@@ -17,6 +18,9 @@ export async function GET(request: NextRequest) {
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { companyId } = await resolveCompanyContextFromRequest(session, request)

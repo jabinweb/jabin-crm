@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkOpsAccess, SALES_DOC_ROLES } from '@/lib/crm/ops-access';
 import { z } from 'zod';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { validateRequest } from '@/lib/validations/server';
@@ -26,7 +27,10 @@ const createSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
-export const GET = withTenantRoute(async (req, { companyId }) => {
+export const GET = withTenantRoute(async (req, { session, companyId }) => {
+  // Contracts live under Support in the nav: sales and support roles, Tickets module
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'TICKETS' });
+  if (denied) return denied;
   await expireOverdueContracts(companyId);
 
   const renewals = req.nextUrl.searchParams.get('renewals');
@@ -55,7 +59,10 @@ export const GET = withTenantRoute(async (req, { companyId }) => {
   return jsonOk({ contracts });
 });
 
-export const POST = withTenantRoute(async (req, { companyId }) => {
+export const POST = withTenantRoute(async (req, { session, companyId }) => {
+  // Contracts live under Support in the nav: sales and support roles, Tickets module, and the warranties feature for changes
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'TICKETS', feature: 'warranties' });
+  if (denied) return denied;
   const body = await validateRequest(req, createSchema);
 
   try {

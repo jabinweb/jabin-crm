@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,8 +108,12 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       : [{ name: '', description: '', quantity: 1, unitPrice: 0, amount: 0, hsnSac: '' }]
   );
 
+  // Lead / quotation / deal pickers only load for the modules on the plan
+  const planModules = useFeatureModuleMap();
+
   const { data: leads } = useQuery({
     queryKey: ['leads'],
+    enabled: planModules?.LEADS === true,
     queryFn: async () => {
       const response = await fetch('/api/leads?limit=1000');
       if (!response.ok) throw new Error('Failed to fetch leads');
@@ -118,6 +123,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
 
   const { data: quotations } = useQuery({
     queryKey: ['quotations-accepted'],
+    enabled: planModules?.QUOTATIONS === true,
     queryFn: async () => {
       const response = await fetch('/api/quotations?status=ACCEPTED');
       if (!response.ok) throw new Error('Failed to fetch quotations');
@@ -132,7 +138,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       if (!response.ok) throw new Error('Failed to fetch deals');
       return response.json();
     },
-    enabled: mode === 'create',
+    enabled: mode === 'create' && planModules?.DEALS === true,
   });
 
   // Prefill from deal query param

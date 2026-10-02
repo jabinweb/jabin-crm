@@ -24,9 +24,6 @@ export const GET = withStaffRoute(async (req, { session }) => {
   if (!companyId) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: listHeaders });
   }
-  if (!employeeId && !isAdmin) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: listHeaders });
-  }
 
   const searchParams = req.nextUrl.searchParams;
   const query = searchParams.get('query') || searchParams.get('search') || '';
@@ -63,7 +60,18 @@ export const GET = withStaffRoute(async (req, { session }) => {
       industry: { equals: searchParams.get('industry')!, mode: 'insensitive' },
     }),
     ...(searchParams.get('source') && { source: searchParams.get('source')! }),
-    ...(!isAdmin && employeeId && { employeeId }),
+    // Non-admins list their own leads: created by, assigned to, or worked by them.
+    ...(!isAdmin && {
+      AND: [
+        {
+          OR: [
+            { userId: session.user.id },
+            { assignedToId: session.user.id },
+            ...(employeeId ? [{ employeeId }] : []),
+          ],
+        },
+      ],
+    }),
   };
 
   const [leads, total] = await Promise.all([
@@ -114,7 +122,8 @@ export async function POST(req: NextRequest) {
     const session = await withModuleAccess('LEADS', { quota: 'leads' });
     const { companyId, employeeId } = await resolveCompanyContextFromRequest(session, req);
     const userId = session?.user?.id;
-    if (!employeeId || !userId) {
+    // Admins and sales staff without an employee profile can still create leads.
+    if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' },
@@ -122,13 +131,22 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await req.json();
-    const { name, company, email, phone, status, priority, description, sourceType } = data;
-    const companyName = (company?.trim() || name?.trim() || 'Unknown').trim();
+    const { name, company, email, phone, status, priority, description } = data;
+    // The lead form sends companyName/contactName; older callers send company/name.
+    const companyName = (
+      (typeof data.companyName === 'string' && data.companyName.trim()) ||
+      company?.trim() ||
+      name?.trim() ||
+      'Unknown'
+    ).trim();
+    const contactName =
+      (typeof data.contactName === 'string' && data.contactName.trim()) || name?.trim() || undefined;
 
     const lead = await prisma.lead.create({
       data: {
-        name: name?.trim() || companyName,
+        name: name?.trim() || contactName || companyName,
         companyName,
+        contactName,
         email: email?.trim(),
         phone: phone?.trim(),
         status,
@@ -138,7 +156,7 @@ export async function POST(req: NextRequest) {
         ...(data.sourceType != null && data.sourceType !== '' ? { sourceType: data.sourceType } : {}),
         companyId,
         userId,
-        employeeId,
+        employeeId: employeeId ?? null,
       },
       include: {
         assignedTo: true,
@@ -155,7 +173,9 @@ export async function POST(req: NextRequest) {
         activityType: 'NOTE',
         description: 'Lead created',
         lead: { connect: { id: lead.id } },
-        employee: { connect: { id: employeeId } },
+        ...(employeeId
+          ? { employee: { connect: { id: employeeId } } }
+          : { user: { connect: { id: userId } } }),
       },
     });
 

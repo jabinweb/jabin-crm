@@ -1,6 +1,5 @@
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { ActivityType, LeadStatus } from '@prisma/client';
 import {
@@ -8,7 +7,8 @@ import {
   TenantError,
 } from '@/lib/auth/company-membership';
 import { handleApiError } from '@/lib/api-error-handler';
-import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { leadAccessWhere, requireLeadAccess } from '@/app/api/leads/lead-access';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 function resolveLeadEmail(lead: { id: string; email: string | null; phone: string | null }) {
   if (lead.email?.trim()) return lead.email.trim().toLowerCase();
@@ -21,14 +21,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const leadCtx = await requireLeadAccess(request);
+    const session = leadCtx.session;
+    if (!leadCtx.isManager) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
-
-    const { companyId } = await resolveCompanyContextFromRequest(session, request);
+    const { companyId } = leadCtx;
     const { id } = await params;
 
     const lead = await prisma.lead.findFirst({

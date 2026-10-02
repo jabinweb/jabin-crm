@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, COMPANY_ADMIN_ROLES } from '@/lib/crm/ops-access';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 
-export const GET = withTenantRoute(async (_request, { companyId }) => {
+export const GET = withTenantRoute(async (_request, { session, companyId }) => {
+  // Admin-only data in the nav (finance / ops); other staff must not read it by URL
+  const denied = await checkOpsAccess(session, companyId, { roles: COMPANY_ADMIN_ROLES, module: 'INVENTORY' });
+  if (denied) return denied;
   const suppliers = await prisma.supplier.findMany({
     where: { companyId },
     orderBy: { name: 'asc' },

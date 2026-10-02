@@ -7,16 +7,17 @@ import { redirect } from 'next/navigation';
  */
 export default async function HrAdminLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ company: string }>;
 }) {
   const session = await auth();
   const role = String(session?.user?.role || '');
   if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
-    const slug =
-      (session?.user as { companySlug?: string } | undefined)?.companySlug ||
-      '';
-    redirect(slug ? `/${slug}/dashboard` : '/auth/signin');
+    // Stay in the workspace being browsed, not the user's home workspace
+    const { company } = await params;
+    redirect(session?.user ? `/${company}/dashboard` : '/auth/signin');
   }
   return children;
 }

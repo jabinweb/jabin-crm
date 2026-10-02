@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/auth'
+import { requireManager, isManagerError } from '@/lib/hr/manager-gate'
 import { prisma } from '@/lib/prisma'
 import {
   evaluateCheckInStatus,
@@ -9,26 +9,15 @@ import {
 } from '@/lib/hr/shift-attendance'
 import { attendanceDateOnly } from '@/lib/hr/leave-year'
 
-async function requireManager(sessionEmployeeId: string) {
-  const reports = await prisma.employee.count({
-    where: { managerId: sessionEmployeeId },
-  })
-  return reports > 0
-}
-
+// Same manager rule and team scope as /api/manager/team and /api/manager/leave.
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user?.employeeId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-    if (!(await requireManager(session.user.employeeId))) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const ctx = await requireManager()
+    if (isManagerError(ctx)) return ctx.error
     const rows = await prisma.attendanceCorrection.findMany({
       where: {
         status: 'PENDING',
-        employee: { managerId: session.user.employeeId },
+        employee: ctx.teamWhere,
       },
       include: {
         employee: { select: { id: true, name: true, employeeId: true } },
@@ -43,10 +32,8 @@ export async function GET() {
 
 export async function PATCH(request: Request) {
   try {
-    const session = await auth()
-    if (!session?.user?.employeeId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await requireManager()
+    if (isManagerError(ctx)) return ctx.error
     const body = await request.json()
     const id = typeof body.id === 'string' ? body.id : ''
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -54,7 +41,7 @@ export async function PATCH(request: Request) {
     const row = await prisma.attendanceCorrection.findFirst({
       where: {
         id,
-        employee: { managerId: session.user.employeeId },
+        employee: ctx.teamWhere,
       },
     })
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -66,7 +53,7 @@ export async function PATCH(request: Request) {
       where: { id },
       data: {
         status: approve ? 'APPROVED' : 'REJECTED',
-        actionById: session.user.employeeId,
+        actionById: ctx.me.id,
         actionAt: new Date(),
         comment: body.comment || null,
       },

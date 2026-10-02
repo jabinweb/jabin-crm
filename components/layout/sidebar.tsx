@@ -246,8 +246,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         role: userRole,
         vertical,
         features: workspaceFeatures,
+        modules: moduleMap,
+        hasEmployeeProfile: !!session?.user?.employeeId,
       }),
-    [vertical, userRole, workspaceFeatures]
+    [vertical, userRole, workspaceFeatures, moduleMap, session?.user?.employeeId]
   );
 
   const { railModules, footerRailModule } = useMemo(() => {
@@ -255,6 +257,8 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     const platform = availableModules.find((m) => m.id === 'platform');
     const main = availableModules.filter((m) => m.id !== 'workspace' && m.id !== 'platform');
     const footer = platform ?? workspace ?? null;
+    // Super admins keep the workspace module too (reports, settings, workspace admin)
+    if (platform && workspace) main.push(workspace);
     return { railModules: main, footerRailModule: footer };
   }, [availableModules]);
 
@@ -265,7 +269,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         ...HOME_WORK_NAV.filter((i) => !i.roles || i.roles.includes(userRole)),
       ];
       if (vertical === 'web_agency') {
-        items = items.filter((i) => i.href !== '/dashboard/technician');
+        if (userRole !== 'TECHNICIAN') items = items.filter((i) => i.href !== '/dashboard/technician');
       }
       // Home is selected via the icon rail — avoid duplicating it in the list
       if (activeModuleId === 'home') {
@@ -514,9 +518,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const HomeIcon = resolveIcon(homeDef.icon);
   const ActiveIcon = resolveIcon(activeDef.icon);
   const peopleSections = peopleNavSectionsForRole(userRole);
-  const showSettingsFooter = ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER'].includes(
-    userRole
-  );
+  // Company settings are admin-only; everyone else gets their personal settings
+  // (AI keys, email, notifications) — /dashboard/settings would only fail to load for them.
+  const isWorkspaceAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(userRole);
+  const showSettingsFooter = userRole !== 'CUSTOMER';
+  const settingsFooterHref = isWorkspaceAdmin ? '/dashboard/settings' : '/dashboard/settings/advanced';
 
   const switchModule = (id: string) => {
     const mod = availableModules.find((m) => m.id === id);
@@ -582,7 +588,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const homeMainItems = filterItems(
     MAIN_NAV.filter((i) => {
       if (i.href === '/dashboard') return false;
-      if (vertical === 'web_agency' && i.href === '/dashboard/technician') return false;
+      if (vertical === 'web_agency' && i.href === '/dashboard/technician' && userRole !== 'TECHNICIAN') return false;
       return true;
     })
   );
@@ -594,7 +600,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         <div className="hidden md:flex w-[76px] shrink-0 flex-col border-r border-border/80 bg-muted/40 py-5 px-2.5">
           <div className="flex flex-col items-center">
             {renderRailButton('home', homeDef.label, HomeIcon, activeModuleId === 'home', () => {
-              router.push(resolveHref('/dashboard'));
+              router.push(resolveHref(userRole === 'TECHNICIAN' ? '/dashboard/technician' : '/dashboard'));
               onNavigate?.();
             })}
           </div>
@@ -720,10 +726,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         <div className="shrink-0 border-t border-border/80 px-3 py-3 space-y-1">
           {showSettingsFooter ? (
             <SidebarNavLink
-              href={resolveHref('/dashboard/settings')}
+              href={resolveHref(settingsFooterHref)}
               icon={Settings}
-              label="Settings"
-              active={isActive('/dashboard/settings')}
+              label={isWorkspaceAdmin ? 'Settings' : 'My settings'}
+              active={isActive(settingsFooterHref)}
               onClick={onNavigate}
             />
           ) : null}

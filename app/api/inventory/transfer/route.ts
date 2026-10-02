@@ -1,4 +1,5 @@
 import { auth } from '@/auth'
+import { checkOpsAccess } from '@/lib/crm/ops-access'
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma'
 import type { PrismaClient } from '@prisma/client'
@@ -23,6 +24,9 @@ export async function POST(request: Request) {
       })
     }
     const { companyId } = await resolveCompanyContextFromRequest(session, asNextRequest(request))
+    // Same audience as the nav: plan module on, and stock changes need inventory write access
+    const denied = await checkOpsAccess(session, companyId, { permission: 'inventory:write', module: 'INVENTORY' })
+    if (denied) return denied
 
     const { productId, sourceLocationId, targetLocationId, quantity, batchNumber } =
       await request.json()

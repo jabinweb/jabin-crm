@@ -4,20 +4,25 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, LayoutGrid, LifeBuoy, Receipt, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
 const TABS = [
-  { href: '/portal', label: 'Home', icon: LayoutDashboard },
-  { href: '/portal/tickets', label: 'Tickets', icon: Ticket },
-  { href: '/portal/invoices', label: 'Invoices', icon: Receipt },
-  { href: '/portal/support', label: 'Support', icon: LifeBuoy },
+  { href: '/portal', label: 'Home', icon: LayoutDashboard, portalOnly: false },
+  { href: '/portal/tickets', label: 'Tickets', icon: Ticket, portalOnly: true },
+  { href: '/portal/invoices', label: 'Invoices', icon: Receipt, portalOnly: true },
+  { href: '/portal/support', label: 'Support', icon: LifeBuoy, portalOnly: false },
 ] as const;
 
 /** App-style bottom navigation for the client portal on phones and tablets. */
 export function PortalTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpen: boolean }) {
   const pathname = usePathname() ?? '';
+  // Tickets and invoices need the workspace's client-portal feature (same rule as the sidebar)
+  const { data: workspaceData } = useWorkspaceConfig();
+  const portalOn = workspaceData?.config.features?.customerPortal !== false;
+  const tabs = TABS.filter((t) => portalOn || !t.portalOnly);
   const isActive = (href: string) =>
     href === '/portal' ? pathname === '/portal' : pathname === href || pathname.startsWith(`${href}/`);
-  const moreActive = moreOpen || !TABS.some((t) => isActive(t.href));
+  const moreActive = moreOpen || !tabs.some((t) => isActive(t.href));
 
   return (
     <nav
@@ -26,7 +31,7 @@ export function PortalTabBar({ onMore, moreOpen }: { onMore: () => void; moreOpe
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <ul className="mx-auto flex max-w-xl items-stretch px-1">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = !moreOpen && isActive(tab.href);
           const Icon = tab.icon;
           return (

@@ -1,23 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
-import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { leadAccessWhere, requireLeadAccess } from '@/app/api/leads/lead-access';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
+    const leadCtx = await requireLeadAccess(request);
+    const session = leadCtx.session;
 
     const { id } = await params;
 
-    const lead = await prisma.lead.findUnique({ where: { id } });
-    if (!lead || lead.userId !== session.user.id) {
+    const lead = await prisma.lead.findFirst({ where: { id, ...leadAccessWhere(leadCtx) } });
+    if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 

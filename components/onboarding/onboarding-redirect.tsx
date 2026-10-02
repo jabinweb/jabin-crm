@@ -15,7 +15,8 @@ export function OnboardingRedirect() {
   const { data: session, status } = useSession();
   const slug = params.company;
   const role = session?.user?.role;
-  const isManager = canManageCompanyOnboarding(role);
+  // Platform super admins visit many workspaces — never trap them in a tenant's wizard
+  const isManager = role !== 'SUPER_ADMIN' && canManageCompanyOnboarding(role);
 
   const { data } = useQuery({
     queryKey: ['onboarding-check', slug],

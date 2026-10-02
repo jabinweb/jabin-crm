@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
+import { useSession } from 'next-auth/react';
 
 export default function CashOnHandPage() {
   const [featureEnabled, setFeatureEnabled] = useState(true);
@@ -20,6 +21,10 @@ export default function CashOnHandPage() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { data: session } = useSession();
+  const myId = session?.user?.id ?? '';
+  // Technicians only log their own spending; managers record advances and settlements.
+  const isManager = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(session?.user?.role ?? '');
 
   const [form, setForm] = useState({
     technicianId: '',
@@ -71,7 +76,9 @@ export default function CashOnHandPage() {
   }, []);
 
   const submitEntry = async () => {
-    if (!form.technicianId || !form.amount || !form.description) {
+    const technicianId = isManager ? form.technicianId : myId;
+    const entryType = isManager ? form.entryType : 'EXPENSE';
+    if (!technicianId || !form.amount || !form.description) {
       toast.error('Technician, amount, and description are required');
       return;
     }
@@ -82,9 +89,9 @@ export default function CashOnHandPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          technicianId: form.technicianId,
+          technicianId,
           ticketId: form.ticketId && form.ticketId !== '__NONE__' ? form.ticketId : undefined,
-          entryType: form.entryType,
+          entryType,
           amount: Number(form.amount),
           description: form.description,
           referenceNo: form.referenceNo || undefined,
@@ -166,7 +173,11 @@ export default function CashOnHandPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label>Technician</Label>
-              <Select value={form.technicianId} onValueChange={(value) => setForm({ ...form, technicianId: value })}>
+              <Select
+                value={isManager ? form.technicianId : myId}
+                disabled={!isManager}
+                onValueChange={(value) => setForm({ ...form, technicianId: value })}
+              >
                 <SelectTrigger><SelectValue placeholder="Select technician" /></SelectTrigger>
                 <SelectContent>
                   {technicians.map((tech) => (
@@ -177,7 +188,11 @@ export default function CashOnHandPage() {
             </div>
             <div className="space-y-2">
               <Label>Entry Type</Label>
-              <Select value={form.entryType} onValueChange={(value) => setForm({ ...form, entryType: value })}>
+              <Select
+                value={isManager ? form.entryType : 'EXPENSE'}
+                disabled={!isManager}
+                onValueChange={(value) => setForm({ ...form, entryType: value })}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ADVANCE">Advance</SelectItem>

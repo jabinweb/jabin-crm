@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { resolveBillingUserId } from '@/lib/plan-modules';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { razorpay } from '@/lib/razorpay';
@@ -10,11 +11,17 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    // Billing belongs to the workspace: admins act on the company's billing account,
+    // the same one /subscription/current shows.
+    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    const billingUserId = await resolveBillingUserId(session.user.id);
 
     // Find active subscription
     const subscription = await prisma.subscription.findFirst({
       where: {
-        userId: session.user.id,
+        userId: billingUserId,
         status: {
           in: ['ACTIVE', 'TRIALING'],
         },

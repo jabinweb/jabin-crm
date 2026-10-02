@@ -21,7 +21,6 @@ function canAccessEmployeePortal(session: {
   user?: { role?: string; employeeId?: string | null }
 } | null) {
   if (!session?.user) return false
-  if (session.user.role === 'EMPLOYEE') return true
   return Boolean(session.user.employeeId)
 }
 

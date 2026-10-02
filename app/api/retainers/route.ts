@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
+import { checkOpsAccess, COMPANY_ADMIN_ROLES } from '@/lib/crm/ops-access';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { nextBillDate } from '@/lib/projects/agency-delivery';
 
-export const GET = withTenantRoute(async (request, { companyId }) => {
+export const GET = withTenantRoute(async (request, { session, companyId }) => {
+  // Admin-only data in the nav (finance / ops); other staff must not read it by URL
+  const denied = await checkOpsAccess(session, companyId, { roles: COMPANY_ADMIN_ROLES });
+  if (denied) return denied;
   const url = new URL(request.url);
   const customerId = url.searchParams.get('customerId');
   const status = url.searchParams.get('status');

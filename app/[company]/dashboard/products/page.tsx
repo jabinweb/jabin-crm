@@ -1,5 +1,7 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
+
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +57,9 @@ const categories = [
 export default function ProductsPage() {
     const queryClient = useQueryClient();
     const { workspaceFetch } = useWorkspacePaths();
+    // The product write APIs are admin-only; everyone else browses the catalog
+    const { data: session } = useSession();
+    const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '');
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState<string>('all');
     const [showAddDialog, setShowAddDialog] = useState(false);
@@ -157,7 +162,7 @@ export default function ProductsPage() {
                 <h2 className="min-w-0 text-2xl md:text-3xl font-bold tracking-tight">Product Catalog</h2>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button className={isAdmin ? undefined : 'hidden'}>
                             <Plus className="mr-2 h-4 w-4" />
                             Add Product
                         </Button>
@@ -314,7 +319,7 @@ export default function ProductsPage() {
                                             </Badge>
                                         ) : null}
                                     </DashboardLink>
-                                    <div className="flex shrink-0 flex-col gap-1">
+                                    <div className={isAdmin ? 'flex shrink-0 flex-col gap-1' : 'hidden'}>
                                         <Button variant="ghost" size="sm" className="h-10" asChild>
                                             <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
                                                 Edit
@@ -370,19 +375,23 @@ export default function ProductsPage() {
                                                         <FileText className="h-4 w-4" />
                                                     </DashboardLink>
                                                 </Button>
-                                                <Button variant="ghost" size="sm" asChild>
-                                                    <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
-                                                        Edit
-                                                    </DashboardLink>
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    disabled={deletingId === p.id}
-                                                    onClick={() => handleDeleteProduct(p.id, p.name)}
-                                                >
-                                                    Delete
-                                                </Button>
+                                                {isAdmin && (
+                                                    <>
+                                                        <Button variant="ghost" size="sm" asChild>
+                                                            <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
+                                                                Edit
+                                                            </DashboardLink>
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            disabled={deletingId === p.id}
+                                                            onClick={() => handleDeleteProduct(p.id, p.name)}
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}

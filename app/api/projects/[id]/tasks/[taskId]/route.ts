@@ -127,6 +127,8 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
     watching,
     memberOptions,
     projectTaskStatuses: settings.projectTaskStatuses ?? null,
+    // Same rule as every task write route — the page goes read-only when false
+    canWrite: await canWriteProjectDelivery(session, companyId, projectId),
   });
 });
 

@@ -18,9 +18,9 @@ export async function DELETE(
       return NextResponse.json(
         {
           success: false,
-          message: 'Unauthorized',
+          message: session?.user ? 'Forbidden' : 'Unauthorized',
         },
-        { status: 401 }
+        { status: session?.user ? 403 : 401 }
       );
     }
 
@@ -135,6 +135,11 @@ export async function PATCH(
       );
     }
 
+    const previous = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { status: true, admin: { select: { id: true, userId: true } } },
+    });
+
     const updatedCompany = await prisma.company.update({
       where: { id: companyId },
       data: {
@@ -163,6 +168,30 @@ export async function PATCH(
         },
       },
     });
+
+    // Approving a company must let its admin sign in: /[company]/register creates the
+    // admin as PENDING and sign-in refuses PENDING users. Only still-pending accounts
+    // are activated, so deliberately deactivated users stay that way.
+    if (body.status === 'APPROVED' && previous && previous.status !== 'APPROVED') {
+      await prisma.user.updateMany({
+        where: {
+          userStatus: 'PENDING',
+          OR: [
+            { companyId },
+            { primaryCompanyId: companyId },
+            { userCompanies: { some: { companyId } } },
+            ...(previous.admin?.userId ? [{ id: previous.admin.userId }] : []),
+          ],
+        },
+        data: { userStatus: 'ACTIVE' },
+      });
+      if (previous.admin?.id) {
+        await prisma.employee.updateMany({
+          where: { id: previous.admin.id },
+          data: { status: 'ACTIVE', isApproved: true },
+        });
+      }
+    }
 
     return NextResponse.json({
       success: true,

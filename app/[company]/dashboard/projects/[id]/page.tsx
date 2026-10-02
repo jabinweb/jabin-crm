@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -62,6 +63,9 @@ type ProjectDetail = {
   projectType: string;
   progress: number;
   budgetHours?: number | null;
+  /** From the API: the viewer may change tasks / the project itself. */
+  canWrite?: boolean;
+  canManage?: boolean;
   startDate: string;
   endDate: string;
   hoursLogged?: number;
@@ -143,6 +147,10 @@ export default function ProjectDetailPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const [descExpanded, setDescExpanded] = useState(false);
+  // Retainers, billing and timesheets are admin pages; invoices aren't for technicians
+  const { data: session } = useSession();
+  const viewerRole = session?.user?.role ?? '';
+  const isAdminRole = viewerRole === 'ADMIN' || viewerRole === 'SUPER_ADMIN';
   const [budgetDraft, setBudgetDraft] = useState('');
 
   const { data: project, isLoading, isError } = useQuery({
@@ -460,7 +468,9 @@ export default function ProjectDetailPage() {
                 <div>
                   <Link
                     href={path('/dashboard/timesheets')}
-                    className="block hover:opacity-80"
+                    className={cn('block', isAdminRole ? 'hover:opacity-80' : 'pointer-events-none')}
+                    aria-disabled={!isAdminRole}
+                    tabIndex={isAdminRole ? undefined : -1}
                   >
                     <p className="text-lg font-semibold tabular-nums">
                       {(project.hoursLogged ?? 0).toFixed(1)}
@@ -503,6 +513,7 @@ export default function ProjectDetailPage() {
                           step={0.5}
                           className="h-8"
                           value={budgetDraft}
+                          disabled={!project.canManage}
                           placeholder="e.g. 80"
                           onChange={(e) => setBudgetDraft(e.target.value)}
                           onBlur={() => {
@@ -582,7 +593,7 @@ export default function ProjectDetailPage() {
                   >
                     <Checkbox
                       checked={done}
-                      disabled={milestoneMutation.isPending}
+                      disabled={milestoneMutation.isPending || !project.canManage}
                       onCheckedChange={(checked) => {
                         void milestoneMutation.mutate({
                           id: m.id,
@@ -620,6 +631,7 @@ export default function ProjectDetailPage() {
         </CardHeader>
         <CardContent>
           <ProjectTaskBoard
+            readOnly={project.canWrite === false}
             projectId={project.id}
             tasks={tasks}
             progress={project.progress}
@@ -693,9 +705,11 @@ export default function ProjectDetailPage() {
               <CardTitle className="text-base font-semibold">Team</CardTitle>
               <CardDescription>People delivering this engagement.</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild className="h-8 text-xs">
-              <Link href={path('/dashboard/retainers')}>Retainers</Link>
-            </Button>
+            {isAdminRole && (
+              <Button variant="ghost" size="sm" asChild className="h-8 text-xs">
+                <Link href={path('/dashboard/retainers')}>Retainers</Link>
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {!project.pmUser && project.members.length === 0 ? (
@@ -752,7 +766,7 @@ export default function ProjectDetailPage() {
                     </Link>
                     <div className="flex shrink-0 items-center gap-2">
                       <Badge variant="outline">{r.status}</Badge>
-                      {r.status === 'ACTIVE' ? (
+                      {r.status === 'ACTIVE' && isAdminRole ? (
                         <Button
                           type="button"
                           size="sm"
@@ -783,12 +797,14 @@ export default function ProjectDetailPage() {
             </CardTitle>
             <CardDescription>Billing linked to this project or customer.</CardDescription>
           </div>
+          {viewerRole !== 'TECHNICIAN' && (
           <Button size="sm" asChild>
             <Link href={createInvoiceHref}>
               <FileText className="mr-1.5 size-3.5" />
               Create invoice
             </Link>
           </Button>
+          )}
         </CardHeader>
         <CardContent>
           {projectInvoices.length === 0 ? (
@@ -796,8 +812,8 @@ export default function ProjectDetailPage() {
               icon={Receipt}
               title="No invoices yet"
               description="Create an invoice for this engagement or bill a retainer above."
-              actionLabel="Create invoice"
-              actionHref={createInvoiceHref}
+              actionLabel={viewerRole !== 'TECHNICIAN' ? 'Create invoice' : undefined}
+              actionHref={viewerRole !== 'TECHNICIAN' ? createInvoiceHref : undefined}
               className="py-8"
             />
           ) : (

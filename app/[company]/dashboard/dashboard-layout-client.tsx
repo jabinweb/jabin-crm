@@ -94,6 +94,11 @@ export function DashboardLayoutClient({
     return null;
   }
 
+  // Portal customers are being sent to /portal — don't mount staff pages (and their API calls) meanwhile
+  if (session.user.role === 'CUSTOMER') {
+    return <AppLoader />;
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
       <OnboardingRedirect />

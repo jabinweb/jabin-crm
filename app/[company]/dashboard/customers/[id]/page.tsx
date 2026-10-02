@@ -38,6 +38,7 @@ import {
   Upload,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
@@ -78,6 +79,13 @@ export default function CustomerDetailPage() {
   const customerLabel = workspaceData?.config.terminology.customer ?? 'customer';
   const vertical = workspaceData?.config.businessVertical;
   const features = workspaceData?.config.features;
+  // Technicians work visits and service only; invites follow the invite API's roles
+  const { data: session } = useSession();
+  const viewerRole = session?.user?.role ?? '';
+  const canEditAccount = viewerRole !== '' && viewerRole !== 'TECHNICIAN';
+  const canInvite =
+    ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER', 'SALES'].includes(viewerRole) &&
+    features?.customerPortal !== false;
   const visibleTabs = CUSTOMER_TABS.filter((t) => {
     if (vertical === 'web_agency' && (t.value === 'equipment' || t.value === 'visits')) {
       return false;
@@ -358,19 +366,23 @@ export default function CustomerDetailPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          <Button variant="outline" className="h-11" onClick={openEdit}>
-            <Pencil className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <Button
-            variant="outline"
-            className="h-11"
-            onClick={handleInviteToPortal}
-            disabled={isInviting}
-          >
-            <User className="mr-2 h-4 w-4" />
-            {isInviting ? '…' : 'Invite'}
-          </Button>
+          {canEditAccount && (
+            <Button variant="outline" className="h-11" onClick={openEdit}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          )}
+          {canInvite && (
+            <Button
+              variant="outline"
+              className="h-11"
+              onClick={handleInviteToPortal}
+              disabled={isInviting}
+            >
+              <User className="mr-2 h-4 w-4" />
+              {isInviting ? '…' : 'Invite'}
+            </Button>
+          )}
           <Button variant="outline" className="h-11" onClick={handleExportFull}>
             <Download className="mr-2 h-4 w-4" />
             Export data
@@ -379,12 +391,14 @@ export default function CustomerDetailPage() {
             <Download className="mr-2 h-4 w-4" />
             History CSV
           </Button>
-          <Button variant="outline" className="h-11" asChild>
-            <Link href={path('/dashboard/settings/migration')}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import
-            </Link>
-          </Button>
+          {canEditAccount && (
+            <Button variant="outline" className="h-11" asChild>
+              <Link href={path('/dashboard/settings/migration')}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Link>
+            </Button>
+          )}
           <Button asChild className="h-11">
             <Link href={path(`/dashboard/tickets/new?customerId=${id}`)}>
               <Ticket className="mr-2 h-4 w-4" />
@@ -452,6 +466,7 @@ export default function CustomerDetailPage() {
                 contacts={customer.contacts || []}
                 departments={customer.departments || []}
                 workspaceFetch={workspaceFetch}
+                readOnly={!canEditAccount}
                 onEmail={(email, name) => openEmail(email, name)}
               />
             </TabsContent>
@@ -462,6 +477,7 @@ export default function CustomerDetailPage() {
                 slug={slug}
                 departments={customer.departments || []}
                 workspaceFetch={workspaceFetch}
+                readOnly={!canEditAccount}
               />
             </TabsContent>
 
@@ -814,7 +830,7 @@ export default function CustomerDetailPage() {
                 size="sm"
                 variant="outline"
                 className="h-10 w-full"
-                disabled={savingCurrency || billingCurrencyDraft === null}
+                disabled={!canEditAccount || savingCurrency || billingCurrencyDraft === null}
                 onClick={handleSaveBillingCurrency}
               >
                 {savingCurrency ? 'Saving…' : 'Save'}

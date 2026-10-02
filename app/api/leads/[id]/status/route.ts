@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
-import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { isApiException } from '@/lib/api/subscription-guards';
 import { rejectIfOutsideCompanyPipeline } from '@/lib/pipelines/assert-stage';
 import { LeadStatus } from '@prisma/client';
+import { leadAccessWhere, requireLeadAccess } from '@/app/api/leads/lead-access';
 import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function PATCH(
@@ -12,12 +12,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
+    const leadCtx = await requireLeadAccess(request);
+    const session = leadCtx.session;
 
     const resolvedParams = await params;
     const data = await request.json();
@@ -29,27 +25,11 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
     }
 
-    const lead = await prisma.lead.findUnique({
-      where: { id: resolvedParams.id },
+    const lead = await prisma.lead.findFirst({
+      where: { id: resolvedParams.id, ...leadAccessWhere(leadCtx) },
     });
 
-    // Elevated roles may move any lead, but only within the request's workspace.
-    let workspaceId: string | undefined;
-    try {
-      workspaceId = (await resolveCompanyContextFromRequest(session, request)).companyId;
-    } catch {
-      /* fall back to creator-only access */
-    }
-
-    const role = (session.user as { role?: string }).role;
-    const canAccess =
-      lead &&
-      (lead.userId === session.user.id ||
-        (!!lead.companyId &&
-          lead.companyId === workspaceId &&
-          ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER'].includes(String(role))));
-
-    if (!canAccess) {
+    if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 

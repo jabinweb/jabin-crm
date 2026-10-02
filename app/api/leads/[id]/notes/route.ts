@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
-import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { leadAccessWhere, requireLeadAccess } from '@/app/api/leads/lead-access';
+import { isApiException } from '@/lib/api/subscription-guards';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
+    const leadCtx = await requireLeadAccess(request);
+    const session = leadCtx.session;
 
     const resolvedParams = await params;
     const { note } = await request.json();
@@ -23,11 +19,12 @@ export async function POST(
       return NextResponse.json({ error: 'Note is required' }, { status: 400 });
     }
 
-    const lead = await prisma.lead.findUnique({
-      where: { id: resolvedParams.id },
+    const lead = await prisma.lead.findFirst({
+      where: { id: resolvedParams.id, ...leadAccessWhere(leadCtx) },
+      select: { id: true },
     });
 
-    if (!lead || lead.userId !== session.user.id) {
+    if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 

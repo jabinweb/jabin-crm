@@ -21,8 +21,9 @@ export const GET = withStaffRoute(async (request, ctx, routeContext) => {
 });
 
 export const PATCH = withStaffRoute(async (request, ctx, routeContext) => {
-  // Portal (CUSTOMER) users may read their own record but not modify it.
-  if (ctx.session.user?.role === 'CUSTOMER') {
+  // Portal (CUSTOMER) users may read their own record but not modify it; technicians
+  // work visits and service, not the account itself.
+  if (['CUSTOMER', 'TECHNICIAN'].includes(ctx.session.user?.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const { id } = await routeContext!.params;
@@ -38,8 +39,9 @@ export const PATCH = withStaffRoute(async (request, ctx, routeContext) => {
 });
 
 export const DELETE = withStaffRoute(async (request, ctx, routeContext) => {
-  // Portal (CUSTOMER) users may read their own record but not modify it.
-  if (ctx.session.user?.role === 'CUSTOMER') {
+  // Portal (CUSTOMER) users may read their own record but not modify it; technicians
+  // work visits and service, not the account itself.
+  if (['CUSTOMER', 'TECHNICIAN'].includes(ctx.session.user?.role ?? '')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const { id } = await routeContext!.params;

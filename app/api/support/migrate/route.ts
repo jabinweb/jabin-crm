@@ -30,7 +30,7 @@ export const GET = withTenantRoute(async (_request, { companyId }) => {
 });
 
 export const PUT = withTenantRoute(async (request, { session, companyId }) => {
-  if (!hasLegacyRole(session, 'ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN')) {
+  if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
   const body = await request.json();

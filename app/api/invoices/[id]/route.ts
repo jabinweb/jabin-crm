@@ -75,8 +75,15 @@ export async function PATCH(
     const session = await withModuleAccess('INVOICES');
     const { id } = await params;
     const body = updateInvoiceSchema.parse(await req.json());
-    
-    const invoice = await invoiceService.updateInvoice(id, session.user.id, body);
+
+    // Same access as viewing: admins edit any invoice in the workspace, others their own.
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    }
+
+    const invoice = await invoiceService.updateInvoice(id, null, body);
     
     return NextResponse.json(invoice);
   } catch (error) {

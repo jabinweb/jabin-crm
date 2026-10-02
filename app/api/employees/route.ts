@@ -9,8 +9,12 @@ import { nextEmployeeCode, resolveOrgLabels } from '@/lib/hr/employee-id';
 import { logEmployeeActivity } from '@/lib/hr/activity';
 import '@/types/auth';
 
+/** Employee roster (contact details, org links) — HR admins only, like the pages that use it. */
 export const GET = withStaffRoute(async (request, { session, companyId }) => {
   const role = session.user.role as string;
+  if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   if (role === 'SUPER_ADMIN' && !request.headers.get(WORKSPACE_SLUG_HEADER)?.trim()) {
     const employees = await prisma.employee.findMany({ orderBy: { name: 'asc' } });
@@ -22,10 +26,7 @@ export const GET = withStaffRoute(async (request, { session, companyId }) => {
   }
 
   const employees = await prisma.employee.findMany({
-    where: {
-      companyId,
-      ...(session.user.employeeId ? { NOT: { id: session.user.employeeId } } : {}),
-    },
+    where: { companyId },
     select: {
       id: true,
       name: true,

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
@@ -55,6 +56,8 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 
   /** Generate a draft invoice for this retainer period */
   if (body.action === 'bill_now') {
+    // Billing creates an invoice — the Invoices module must be on.
+    await ensureFeatureEnabled(session.user.id, 'INVOICES', companyId);
     if (existing.status === 'CANCELLED' || existing.status === 'ENDED') {
       return NextResponse.json(
         { error: `Cannot bill a ${existing.status.toLowerCase()} retainer` },

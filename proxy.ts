@@ -40,6 +40,25 @@ const PUBLIC_EXACT = new Set([
   '/offline.html',
 ]);
 
+/** API prefixes the client portal calls. Everything else is staff-only. */
+const CUSTOMER_API_PREFIXES = [
+  '/api/auth/',
+  '/api/portal/',
+  '/api/tickets',
+  '/api/support/chat/',
+  '/api/support/knowledge',
+  '/api/upload',
+  '/api/service-request/',
+];
+
+function isCustomerApiAllowed(pathname: string, method: string) {
+  if (CUSTOMER_API_PREFIXES.some((p) => pathname === p.replace(/\/$/, '') || pathname.startsWith(p))) {
+    return true;
+  }
+  // Product picker on the portal ticket form (read-only)
+  return pathname === '/api/products' && method === 'GET';
+}
+
 function isPublicPath(pathname: string) {
   if (PUBLIC_EXACT.has(pathname)) return true;
   if (pathname.startsWith('/payment/')) return true;
@@ -179,6 +198,19 @@ export async function proxy(req: NextRequest) {
     const loginUrl = new URL('/auth/signin', req.nextUrl);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl, 303);
+  }
+
+  // Portal customers belong to the company (companyId is set), so any staff API that
+  // only checks the session + membership would serve them. Deny by default: they may
+  // only call the APIs the client portal uses.
+  if (
+    isLoggedIn &&
+    role === 'CUSTOMER' &&
+    pathname.startsWith('/api/') &&
+    !isPublicPath(pathname) &&
+    !isCustomerApiAllowed(pathname, req.method)
+  ) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
   if (isLoggedIn) {

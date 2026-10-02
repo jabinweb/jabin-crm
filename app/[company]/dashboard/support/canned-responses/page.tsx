@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,9 @@ type CannedResponse = {
 export default function CannedResponsesPage() {
   const queryClient = useQueryClient();
   const { slug, workspaceFetch } = useWorkspacePaths();
+  // Same roles as the write APIs; everyone else gets a read-only library
+  const { data: session } = useSession();
+  const canEdit = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(session?.user?.role ?? '');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [category, setCategory] = useState('General');
@@ -118,6 +122,7 @@ export default function CannedResponsesPage() {
           </div>
         </div>
 
+        {canEdit && (
         <Card>
           <CardHeader>
             <CardTitle>{editingId ? 'Edit template' : 'Add template'}</CardTitle>
@@ -154,6 +159,7 @@ export default function CannedResponsesPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         <Card>
           <CardHeader>
@@ -175,7 +181,7 @@ export default function CannedResponsesPage() {
                     ) : null}
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.body}</p>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className={canEdit ? 'flex shrink-0 gap-1' : 'hidden'}>
                     <Button
                       type="button"
                       size="icon"

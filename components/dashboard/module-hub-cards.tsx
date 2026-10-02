@@ -20,6 +20,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/ca
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { getAvailableModules } from '@/lib/navigation/modules';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -38,6 +39,7 @@ export function ModuleHubCards({ compact = false }: { compact?: boolean }) {
   const { data: session } = useSession();
   const role = session?.user?.role || 'SALES';
   const { path } = useWorkspacePaths();
+  const planModules = useFeatureModuleMap();
   const { data: workspaceData } = useWorkspaceConfig();
   const vertical = workspaceData?.config.businessVertical ?? null;
   const features = workspaceData?.config.features as
@@ -48,6 +50,8 @@ export function ModuleHubCards({ compact = false }: { compact?: boolean }) {
     role,
     vertical,
     features,
+    modules: planModules,
+    hasEmployeeProfile: !!session?.user?.employeeId,
   });
 
   if (modules.length === 0) return null;

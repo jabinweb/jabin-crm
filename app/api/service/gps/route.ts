@@ -1,3 +1,4 @@
+import { isFieldServiceManager, isFieldServiceUser } from '@/app/api/service/_roles';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
@@ -20,13 +21,14 @@ const createLocationSchema = z.object({
 });
 
 export const POST = withTenantRoute(async (req, { session, userId, companyId }) => {
-  if (session.user.role === 'CUSTOMER') {
+  if (!isFieldServiceUser(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  await ensureFeatureEnabled(userId, 'SERVICE_GPS');
+  await ensureFeatureEnabled(userId, 'SERVICE_GPS', companyId);
+  // Managers see and log for the whole team; technicians only themselves.
+  const isManager = isFieldServiceManager(session);
   const body = await validateRequest(req, createLocationSchema);
-  const technicianId =
-    session.user.role === 'TECHNICIAN' ? userId : body.technicianId || undefined;
+  const technicianId = isManager ? body.technicianId || undefined : userId;
 
   if (!technicianId) {
     return NextResponse.json(
@@ -65,12 +67,14 @@ export const POST = withTenantRoute(async (req, { session, userId, companyId }) 
 });
 
 export const GET = withTenantRoute(async (req, { session, userId, companyId }) => {
-  if (session.user.role === 'CUSTOMER') {
+  if (!isFieldServiceUser(session)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-  await ensureFeatureEnabled(userId, 'SERVICE_GPS');
+  await ensureFeatureEnabled(userId, 'SERVICE_GPS', companyId);
+  // Managers see and log for the whole team; technicians only themselves.
+  const isManager = isFieldServiceManager(session);
   const { searchParams } = req.nextUrl;
-  const technicianId = searchParams.get('technicianId') || undefined;
+  const technicianId = isManager ? searchParams.get('technicianId') || undefined : userId;
   const ticketId = searchParams.get('ticketId') || undefined;
   const sinceRaw = searchParams.get('since');
   const since = sinceRaw ? new Date(sinceRaw) : undefined;

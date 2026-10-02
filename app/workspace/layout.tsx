@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Navbar } from '@/components/layout/navbar';
 import { AppLoader } from '@/components/loading';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
 export default function WorkspaceLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -13,17 +14,14 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (status === 'loading' || !session?.user) return;
 
-    const slug = session.user.companySlug?.trim();
-    if (session.user.role === 'CUSTOMER') {
-      router.replace('/portal');
-      return;
-    }
-    if (session.user.role === 'SUPER_ADMIN' && !slug) {
-      router.replace('/admin');
-      return;
-    }
-    if (slug) {
-      router.replace(`/${slug}/dashboard`);
+    // Same landing as the proxy, '/' and the navbar logo (technicians → their field
+    // queue, super admins → the console); stay here only when there is no workspace yet.
+    const target = resolvePostLoginPath({
+      role: session.user.role,
+      companySlug: session.user.companySlug,
+    });
+    if (target !== '/workspace') {
+      router.replace(target);
     }
   }, [session, status, router]);
 

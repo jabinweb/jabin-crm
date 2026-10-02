@@ -327,9 +327,9 @@ export function Navbar({ onMenu, title }: { onMenu?: () => void; title?: string 
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <DashboardLink href="/dashboard/settings">
+                    <DashboardLink href="/dashboard/settings/advanced">
                       <User className="mr-2 h-4 w-4" />
-                      <span>Profile</span>
+                      <span>My settings</span>
                     </DashboardLink>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
@@ -340,9 +340,7 @@ export function Navbar({ onMenu, title }: { onMenu?: () => void; title?: string 
                   </DropdownMenuItem>
                 </>
               )}
-              {!!session?.user?.employeeId &&
-                session?.user?.role !== 'ADMIN' &&
-                session?.user?.role !== 'SUPER_ADMIN' && (
+              {!!session?.user?.employeeId && (
                   <DropdownMenuItem asChild>
                     <Link
                       href={
@@ -356,6 +354,14 @@ export function Navbar({ onMenu, title }: { onMenu?: () => void; title?: string 
                     </Link>
                   </DropdownMenuItem>
                 )}
+              {session?.user?.role !== 'ADMIN' && session?.user?.role !== 'SUPER_ADMIN' && (
+                <DropdownMenuItem asChild>
+                  <DashboardLink href="/dashboard/settings/advanced">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>My settings</span>
+                  </DashboardLink>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut()}>
                 <LogOut className="mr-2 h-4 w-4" />

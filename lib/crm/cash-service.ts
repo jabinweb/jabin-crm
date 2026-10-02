@@ -2,6 +2,13 @@ import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 import { prisma } from '@/lib/prisma';
 import type { CashEntryType } from '@prisma/client';
 
+/** Ledger rows a user may see: the whole workspace for managers, else rows by or for them. */
+function cashVisibilityWhere(userId: string, companyId?: string, viewAll?: boolean) {
+  const inWorkspace = companyId ? { technician: workspaceStaffWhere(companyId) } : {};
+  if (viewAll && companyId) return inWorkspace;
+  return { ...inWorkspace, OR: [{ userId }, { technicianId: userId }] };
+}
+
 export interface CreateCashEntryInput {
   technicianId: string;
   ticketId?: string;
@@ -48,10 +55,11 @@ export class CashService {
       endDate?: Date;
       /** Limit to technicians of this workspace (creator may belong to several). */
       companyId?: string;
+      /** Managers see the whole workspace ledger; others see entries by or for them. */
+      viewAll?: boolean;
     }
   ) {
-    const where: any = { userId };
-    if (filters?.companyId) where.technician = workspaceStaffWhere(filters.companyId);
+    const where: any = cashVisibilityWhere(userId, filters?.companyId, filters?.viewAll);
     if (filters?.technicianId) where.technicianId = filters.technicianId;
     if (filters?.ticketId) where.ticketId = filters.ticketId;
     if (filters?.entryType) where.entryType = filters.entryType;
@@ -75,12 +83,9 @@ export class CashService {
     });
   }
 
-  async getTechnicianBalances(userId: string, companyId?: string) {
+  async getTechnicianBalances(userId: string, companyId?: string, viewAll?: boolean) {
     const entries = await prisma.cashOnHandEntry.findMany({
-      where: {
-        userId,
-        ...(companyId ? { technician: workspaceStaffWhere(companyId) } : {}),
-      },
+      where: cashVisibilityWhere(userId, companyId, viewAll),
       select: {
         technicianId: true,
         entryType: true,

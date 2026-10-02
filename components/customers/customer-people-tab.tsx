@@ -49,6 +49,7 @@ export function CustomerPeopleTab({
   contacts,
   departments,
   workspaceFetch,
+  readOnly = false,
   onEmail,
 }: {
   customerId: string;
@@ -56,6 +57,8 @@ export function CustomerPeopleTab({
   contacts: Contact[];
   departments: Department[];
   workspaceFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  /** View only — the customer write APIs refuse this viewer. */
+  readOnly?: boolean;
   onEmail?: (email: string, name: string) => void;
 }) {
   const queryClient = useQueryClient();
@@ -69,6 +72,7 @@ export function CustomerPeopleTab({
     queryClient.invalidateQueries({ queryKey: ['customer', slug, customerId] });
 
   const openCreate = () => {
+    if (readOnly) return;
     setEditingId(null);
     setForm(emptyForm);
     setShowMore(false);
@@ -76,6 +80,7 @@ export function CustomerPeopleTab({
   };
 
   const openEdit = (c: Contact) => {
+    if (readOnly) return;
     setEditingId(c.id);
     setForm({
       name: c.name || '',
@@ -194,7 +199,7 @@ export function CustomerPeopleTab({
                       .join(' · ') || 'Tap to edit'}
                   </p>
                 </button>
-                <div className="flex shrink-0 gap-0.5">
+                <div className={readOnly ? 'hidden' : 'flex shrink-0 gap-0.5'}>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -247,7 +252,7 @@ export function CustomerPeopleTab({
         </ul>
       )}
 
-      <EasyFab label="+ Add person" onClick={openCreate} />
+      {!readOnly && <EasyFab label="+ Add person" onClick={openCreate} />}
 
       <EasyBottomSheet
         open={open}

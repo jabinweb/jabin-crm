@@ -1,6 +1,7 @@
 'use client';
 
 import { type ChangeEvent, useRef, useState } from 'react';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -69,8 +70,14 @@ export function useLeadsPage() {
     },
   });
 
+  // Sequences need Email outreach and deals need Deals; skip both when the plan lacks them
+  const planModules = useFeatureModuleMap();
+  const outreachEnabled = planModules?.EMAIL_OUTREACH === true;
+  const dealsEnabled = planModules?.DEALS === true;
+
   const { data: sequences } = useQuery({
     queryKey: ['sequences'],
+    enabled: outreachEnabled,
     queryFn: async () => {
       const response = await fetch('/api/sequences');
       if (!response.ok) throw new Error('Failed to fetch sequences');
@@ -507,6 +514,8 @@ export function useLeadsPage() {
     setNewLead,
     filterOptions,
     sequences,
+    outreachEnabled,
+    dealsEnabled,
     data,
     isLoading,
     error,

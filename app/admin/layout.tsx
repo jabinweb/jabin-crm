@@ -21,16 +21,16 @@ export default async function AdminLayout({
     );
   }
 
-  const exitHref = resolvePostLoginPath({
-    role: session.user.role,
-    companySlug: (session.user as { companySlug?: string }).companySlug,
-  });
+  // Leave the console for the super admin's own workspace. resolvePostLoginPath sends
+  // SUPER_ADMIN back to /admin, so it can't be used here; no workspace = no exit link.
+  const companySlug = (session.user as { companySlug?: string }).companySlug?.trim();
+  const exitHref = companySlug ? `/${companySlug}/dashboard` : '';
 
   return (
     <PlatformAdminShell
       email={session.user.email}
       name={session.user.name}
-      exitHref={exitHref === '/admin' ? '/' : exitHref}
+      exitHref={exitHref}
     >
       {children}
     </PlatformAdminShell>

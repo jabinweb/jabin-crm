@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { checkOpsAccess, SALES_DOC_ROLES } from '@/lib/crm/ops-access';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { InvoiceStatus } from '@prisma/client';
 
@@ -21,7 +22,10 @@ function bucketForDaysPastDue(daysPastDue: number): BucketKey {
 /**
  * GET /api/invoices/ar-aging — receivables aging buckets for unpaid invoices.
  */
-export const GET = withTenantRoute(async (_req, { companyId, userId }) => {
+export const GET = withTenantRoute(async (_req, { session, companyId, userId }) => {
+  // Receivables are invoice data: Invoices module and the roles the Invoices nav serves.
+  const denied = await checkOpsAccess(session, companyId, { roles: SALES_DOC_ROLES, module: 'INVOICES' });
+  if (denied) return denied;
   const now = new Date();
   const invoices = await prisma.invoice.findMany({
     where: {

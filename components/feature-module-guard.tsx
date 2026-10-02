@@ -63,6 +63,23 @@ export async function fetchFeatureModules(): Promise<ModuleMap> {
   return cachePromise;
 }
 
+/** The workspace's plan-module map; null while loading or if the fetch failed. */
+export function useFeatureModuleMap(): ModuleMap | null {
+  const [map, setMap] = useState<ModuleMap | null>(() =>
+    cachedModules !== null && !fetchFailed ? cachedModules : null
+  );
+  useEffect(() => {
+    let cancelled = false;
+    fetchFeatureModules().then(() => {
+      if (!cancelled) setMap(fetchFailed ? null : cachedModules);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return map;
+}
+
 export function useFeatureModule(module: FeatureModuleKey) {
   const [enabled, setEnabled] = useState<boolean | null>(() => {
     if (fetchFailed) return true;

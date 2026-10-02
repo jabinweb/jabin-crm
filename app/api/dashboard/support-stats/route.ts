@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    // Workspace-wide analytics: the roles the nav shows them to
+    if (!['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(session.user.role ?? '')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     await ensureFeatureEnabled(session.user.id, 'TICKETS');
 
     const companyId = await resolveOptionalStaffCompanyScope(session, req);

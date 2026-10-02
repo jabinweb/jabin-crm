@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useFeatureModuleMap } from '@/components/feature-module-guard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -54,8 +55,12 @@ export default function NewQuotationPage() {
     { name: '', description: '', quantity: 1, unitPrice: 0, amount: 0 },
   ]);
 
+  // The lead picker only loads when Leads is on the plan
+  const planModules = useFeatureModuleMap();
+
   const { data: leads } = useQuery({
     queryKey: ['leads'],
+    enabled: planModules?.LEADS === true,
     queryFn: async () => {
       const response = await fetch('/api/leads?limit=1000');
       if (!response.ok) throw new Error('Failed to fetch leads');

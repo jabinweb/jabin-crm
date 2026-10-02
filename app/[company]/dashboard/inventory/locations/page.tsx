@@ -1,5 +1,7 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
+
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -50,6 +52,9 @@ const LOCATION_TYPES = ['WAREHOUSE', 'STORE', 'VAN'] as const;
 
 export default function LocationsPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
+  // Location writes are admin-only in the API
+  const { data: session } = useSession();
+  const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '');
   const { data: workspaceData } = useWorkspaceConfig();
   const showEquipment = workspaceData?.config.features.equipment === true;
   const queryClient = useQueryClient();
@@ -187,7 +192,7 @@ export default function LocationsPage() {
               Import CSV
             </Link>
           </Button>
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} className={isAdmin ? undefined : 'hidden'}>
             <Plus className="mr-2 h-4 w-4" />
             New location
           </Button>
@@ -221,7 +226,7 @@ export default function LocationsPage() {
                       <p className="truncate text-xs text-muted-foreground">{loc.address}</p>
                     ) : null}
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className={isAdmin ? 'flex shrink-0 gap-1' : 'hidden'}>
                     <Button variant="ghost" size="sm" className="h-10 sm:h-8" onClick={() => openEdit(loc)}>
                       Edit
                     </Button>
@@ -255,7 +260,7 @@ export default function LocationsPage() {
                       <TableCell>{loc.type}</TableCell>
                       <TableCell className="font-mono text-xs">{loc.code}</TableCell>
                       <TableCell className="max-w-[240px] truncate">{loc.address}</TableCell>
-                      <TableCell className="space-x-1">
+                      <TableCell className={isAdmin ? 'space-x-1' : 'invisible'}>
                         <Button variant="ghost" size="sm" onClick={() => openEdit(loc)}>
                           Edit
                         </Button>

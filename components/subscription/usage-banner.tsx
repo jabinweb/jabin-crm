@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -25,6 +26,9 @@ function pct(used: number, limit: number) {
 export function UsageBanner() {
   const { path } = useWorkspacePaths();
   const upgradeHref = path('/dashboard/settings/subscription') || '/pricing';
+  // Billing is admin-only; others just see the limits
+  const { data: session } = useSession();
+  const canUpgrade = session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN';
 
   const { data: usage } = useQuery({
     queryKey: ['usage-limits'],
@@ -151,6 +155,7 @@ export function UsageBanner() {
               ))}
             </div>
 
+            {canUpgrade && (
             <Button
               asChild
               size="sm"
@@ -165,6 +170,7 @@ export function UsageBanner() {
                 Upgrade plan
               </Link>
             </Button>
+            )}
           </div>
         </div>
       </CardContent>

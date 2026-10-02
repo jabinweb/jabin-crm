@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import {
   Card,
@@ -33,6 +34,8 @@ const modules: Array<{
   path: string;
   icon: typeof Ticket;
   feature: FeatureModuleKey;
+  /** Same roles as the matching nav item (lib/navigation/modules.ts). */
+  roles: string[];
 }> = [
   {
     title: 'Omnichannel inbox',
@@ -40,6 +43,7 @@ const modules: Array<{
     path: '/dashboard/support/inbox',
     icon: Inbox,
     feature: 'SUPPORT_INBOX',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
   },
   {
     title: 'SLA policies',
@@ -47,6 +51,7 @@ const modules: Array<{
     path: '/dashboard/support/sla-policies',
     icon: Clock,
     feature: 'SUPPORT_SLA',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'],
   },
   {
     title: 'Ticket queue',
@@ -54,6 +59,7 @@ const modules: Array<{
     path: '/dashboard/tickets',
     icon: LifeBuoy,
     feature: 'TICKETS',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'],
   },
   {
     title: 'Knowledge base',
@@ -61,6 +67,7 @@ const modules: Array<{
     path: '/dashboard/support/knowledge',
     icon: BookOpen,
     feature: 'SUPPORT_KNOWLEDGE',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'],
   },
   {
     title: 'Canned responses',
@@ -68,6 +75,7 @@ const modules: Array<{
     path: '/dashboard/support/canned-responses',
     icon: MessageSquare,
     feature: 'SUPPORT_CANNED',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'TECHNICIAN', 'SALES', 'SUPER_ADMIN'],
   },
   {
     title: 'Agent groups',
@@ -75,6 +83,7 @@ const modules: Array<{
     path: '/dashboard/support/groups',
     icon: Users,
     feature: 'SUPPORT_GROUPS',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'],
   },
   {
     title: 'Support analytics',
@@ -82,6 +91,7 @@ const modules: Array<{
     path: '/dashboard/support/analytics',
     icon: BarChart3,
     feature: 'TICKETS',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'],
   },
   {
     title: 'Automation rules',
@@ -89,6 +99,7 @@ const modules: Array<{
     path: '/dashboard/support/automation',
     icon: Zap,
     feature: 'TICKETS',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN'],
   },
   {
     title: 'Customer accounts',
@@ -96,11 +107,14 @@ const modules: Array<{
     path: '/dashboard/customers',
     icon: LifeBuoy,
     feature: 'TICKETS',
+    roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'],
   },
 ];
 
 export default function SupportDeskHubPage() {
   const { path } = useWorkspacePaths();
+  const { data: session } = useSession();
+  const role = session?.user?.role ?? '';
   const [moduleMap, setModuleMap] = useState<Record<string, boolean> | null>(null);
 
   useEffect(() => {
@@ -110,7 +124,9 @@ export default function SupportDeskHubPage() {
       .catch(() => setModuleMap({}));
   }, []);
 
-  const visible = modules.filter((mod) => moduleMap?.[mod.feature] === true);
+  const visible = modules.filter(
+    (mod) => moduleMap?.[mod.feature] === true && mod.roles.includes(role)
+  );
 
   return (
     <div className="space-y-8">
@@ -162,7 +178,7 @@ export default function SupportDeskHubPage() {
         </div>
       )}
 
-      {moduleMap && modules.some((mod) => moduleMap[mod.feature] !== true) && (
+      {moduleMap && modules.some((mod) => mod.roles.includes(role) && moduleMap[mod.feature] !== true) && (
         <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-2">
           <Badge variant="secondary">Plan limited</Badge>
           Some support modules are hidden because they are not on your current plan.{' '}

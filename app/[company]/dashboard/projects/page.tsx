@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -149,6 +150,12 @@ function StatusBadge({ status }: { status: string }) {
 export default function ProjectsPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
+  // Same rules as /api/projects: create/edit/move for admins and sales, delete and
+  // retainers for admins. Other roles work inside projects (tasks, docs) only.
+  const { data: session } = useSession();
+  const role = session?.user?.role ?? '';
+  const isAdminRole = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const canManage = isAdminRole || role === 'SALES';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [hubView, setHubView] = useState<'list' | 'board'>('board');
@@ -377,13 +384,17 @@ export default function ProjectsPage() {
               List
             </ToggleGroupItem>
           </ToggleGroup>
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/retainers')}>Retainers</Link>
-          </Button>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 size-4" />
-            New project
-          </Button>
+          {isAdminRole && (
+            <Button variant="outline" asChild>
+              <Link href={path('/dashboard/retainers')}>Retainers</Link>
+            </Button>
+          )}
+          {canManage && (
+            <Button onClick={openCreate}>
+              <Plus className="mr-2 size-4" />
+              New project
+            </Button>
+          )}
         </div>
       </div>
 
@@ -473,8 +484,8 @@ export default function ProjectsPage() {
                   ? 'Create a delivery project or win an opportunity to get started.'
                   : 'Try a different search or status filter.'
               }
-              actionLabel={projects.length === 0 ? 'New project' : undefined}
-              onAction={projects.length === 0 ? openCreate : undefined}
+              actionLabel={projects.length === 0 && canManage ? 'New project' : undefined}
+              onAction={projects.length === 0 && canManage ? openCreate : undefined}
             />
           ) : hubView === 'board' ? (
             <PipelineBoard
@@ -482,6 +493,7 @@ export default function ProjectsPage() {
               columns={hubColumns.filter((c) => c.id !== UNMAPPED_STAGE_ID)}
               itemsByStage={hubByStage}
               onMove={(id, toStage) => {
+                if (!canManage) return;
                 if (!PROJECT_HUB_COLUMNS.some((c) => c.id === toStage)) return;
                 statusMoveMutation.mutate({ id, status: toStage });
               }}
@@ -516,12 +528,13 @@ export default function ProjectsPage() {
                               Open
                             </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEdit(p)}>
+                          {canManage && (<DropdownMenuItem onClick={() => openEdit(p)}>
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
+                          )}
                         </DropdownMenuGroup>
-                        <DropdownMenuSeparator />
+                        {isAdminRole && (<><DropdownMenuSeparator />
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onClick={() => setDeleteTarget(p)}
@@ -529,6 +542,7 @@ export default function ProjectsPage() {
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>
+                        </>)}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -585,12 +599,13 @@ export default function ProjectsPage() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => openEdit(p)}>
+                        {canManage && (<DropdownMenuItem onClick={() => openEdit(p)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
+                        )}
                       </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
+                      {isAdminRole && (<><DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => setDeleteTarget(p)}
@@ -598,6 +613,7 @@ export default function ProjectsPage() {
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
+                      </>)}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </li>
@@ -685,12 +701,13 @@ export default function ProjectsPage() {
                                   Open
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => openEdit(p)}>
+                              {canManage && (<DropdownMenuItem onClick={() => openEdit(p)}>
                                 <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
+                              )}
                             </DropdownMenuGroup>
-                            <DropdownMenuSeparator />
+                            {isAdminRole && (<><DropdownMenuSeparator />
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => setDeleteTarget(p)}
@@ -698,6 +715,7 @@ export default function ProjectsPage() {
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
+                            </>)}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

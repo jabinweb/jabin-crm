@@ -40,6 +40,8 @@ import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { renewalUrgency } from '@/lib/crm/service-contract-utils';
 import { DailyEntryBanner } from '@/components/dashboard/daily-entry-banner';
 import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-card';
+import { useSession } from 'next-auth/react';
+import { useFeatureModule } from '@/components/feature-module-guard';
 const LeadsChart = dynamic(
   () => import('@/components/dashboard/leads-chart').then((mod) => mod.LeadsChart),
   { ssr: false, loading: () => <Skeleton className="h-80 w-full" /> }
@@ -82,6 +84,21 @@ export default function WorkspaceDashboardPage() {
   const ticketLabel = terminology?.ticket ?? 'Ticket';
   const equipmentLabel = terminology?.equipment ?? 'Equipment';
 
+  // Widgets and shortcuts follow the same role + plan rules as the nav and APIs
+  const { data: session } = useSession();
+  const role = session?.user?.role ?? '';
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  const isTechnician = role === 'TECHNICIAN';
+  const salesRole = ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER'].includes(role);
+  const ticketsOn = useFeatureModule('TICKETS') !== false;
+  const leadsOn = useFeatureModule('LEADS') !== false;
+  const inventoryOn = useFeatureModule('INVENTORY') !== false;
+  const equipmentOn = useFeatureModule('EQUIPMENT') !== false;
+  const showSupportKpis = ticketsOn && ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(role);
+  const showLeadWidgets = leadsOn && salesRole;
+  const canRenewals = showRenewalsWidget && ticketsOn && salesRole;
+  const canLowStock = showLowStockWidget && inventoryOn && !isTechnician;
+
   const { data: opsToday, isLoading: opsLoading } = useQuery({
     queryKey: ['ops-today', slug],
     queryFn: async () => {
@@ -119,7 +136,7 @@ export default function WorkspaceDashboardPage() {
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: !!slug,
+    enabled: !!slug && ticketsOn,
   });
 
   const { data: supportStats, isLoading: supportLoading } = useQuery({
@@ -129,7 +146,7 @@ export default function WorkspaceDashboardPage() {
       if (!response.ok) return null;
       return response.json();
     },
-    enabled: !!slug,
+    enabled: !!slug && showSupportKpis,
   });
 
   const { data: renewalsData } = useQuery({
@@ -150,7 +167,7 @@ export default function WorkspaceDashboardPage() {
         count: number;
       }>;
     },
-    enabled: !!slug && showRenewalsWidget,
+    enabled: !!slug && canRenewals,
   });
 
   const { data: inventoryAlerts } = useQuery({
@@ -171,7 +188,7 @@ export default function WorkspaceDashboardPage() {
         }>,
       };
     },
-    enabled: !!slug && showLowStockWidget,
+    enabled: !!slug && canLowStock,
   });
 
   const getPriorityVariant = (
@@ -211,14 +228,14 @@ export default function WorkspaceDashboardPage() {
                 New project
               </Link>
             </Button>
-          ) : (
+          ) : ticketsOn ? (
             <Button asChild size="sm">
               <Link href={path('/dashboard/tickets/new')}>
                 <Ticket className="h-4 w-4" />
                 New {ticketLabel.toLowerCase()}
               </Link>
             </Button>
-          )}
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
@@ -235,19 +252,23 @@ export default function WorkspaceDashboardPage() {
                   </Link>
                 </DropdownMenuItem>
               ) : null}
+              {showLeadWidgets && (
               <DropdownMenuItem asChild>
                 <Link href={path('/dashboard/leads/new')}>
                   <Plus className="h-4 w-4 mr-2" />
                   New {terminology?.lead?.toLowerCase() ?? 'lead'}
                 </Link>
               </DropdownMenuItem>
+              )}
+              {salesRole && (
               <DropdownMenuItem asChild>
                 <Link href={path('/dashboard/customers/new')}>
                   <Users className="h-4 w-4 mr-2" />
                   Add {customerLabel.toLowerCase()}
                 </Link>
               </DropdownMenuItem>
-              {!isAgency ? (
+              )}
+              {!isAgency && ticketsOn ? (
                 <DropdownMenuItem asChild>
                   <Link href={path('/dashboard/tickets/new')}>
                     <Ticket className="h-4 w-4 mr-2" />
@@ -255,7 +276,7 @@ export default function WorkspaceDashboardPage() {
                   </Link>
                 </DropdownMenuItem>
               ) : null}
-              {showEquipment && (
+              {showEquipment && equipmentOn && salesRole && (
                 <DropdownMenuItem asChild>
                   <Link href={path('/dashboard/inventory/new')}>
                     <Package className="h-4 w-4 mr-2" />
@@ -263,7 +284,7 @@ export default function WorkspaceDashboardPage() {
                   </Link>
                 </DropdownMenuItem>
               )}
-              {showInventory && !showEquipment && !isAgency && (
+              {showInventory && !showEquipment && !isAgency && inventoryOn && isAdmin && (
                 <DropdownMenuItem asChild>
                   <Link href={path('/dashboard/inventory')}>
                     <Package className="h-4 w-4 mr-2" />
@@ -271,12 +292,14 @@ export default function WorkspaceDashboardPage() {
                   </Link>
                 </DropdownMenuItem>
               )}
+              {isAdmin && (
               <DropdownMenuItem asChild>
                 <Link href={path('/dashboard/employees/new')}>
                   <UserPlus className="h-4 w-4 mr-2" />
                   Invite teammate
                 </Link>
               </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -291,18 +314,23 @@ export default function WorkspaceDashboardPage() {
         <ModuleHubCards compact={setupActive} />
       </div>
 
-      <DailyEntryBanner
-        loading={opsLoading}
-        missing={!!opsToday && !opsToday.dailyEntry?.hasSalesActivityToday}
-      />
+      {showLeadWidgets && (
+        <DailyEntryBanner
+          loading={opsLoading}
+          missing={!!opsToday && !opsToday.dailyEntry?.hasSalesActivityToday}
+        />
+      )}
 
       <AgentQueueCard />
 
-      <AttendanceTodayCard
-        loading={opsLoading}
-        name={opsToday?.me?.name}
-        attendance={opsToday?.attendance}
-      />
+      {isAdmin && (
+        <AttendanceTodayCard
+          loading={opsLoading}
+          name={opsToday?.me?.name}
+          attendance={opsToday?.attendance}
+        />
+      )}
+      {showSupportKpis && (
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {supportLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
@@ -376,6 +404,7 @@ export default function WorkspaceDashboardPage() {
           </>
         )}
       </div>
+      )}
 
       {statsLoading ? (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
@@ -407,7 +436,7 @@ export default function WorkspaceDashboardPage() {
         )
       )}
 
-      {showLowStockWidget && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
+      {canLowStock && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
         <Card className="order-2 border-amber-200/80 lg:order-none">
           <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
             <div className="min-w-0">
@@ -445,7 +474,7 @@ export default function WorkspaceDashboardPage() {
         </Card>
       )}
 
-      {showRenewalsWidget && (renewalsData?.count ?? 0) > 0 && (
+      {canRenewals && (renewalsData?.count ?? 0) > 0 && (
         <Card className="order-2 border-amber-200/80 lg:order-none">
           <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
             <div className="min-w-0">
@@ -512,9 +541,10 @@ export default function WorkspaceDashboardPage() {
       )}
 
       <div className="order-2 grid gap-4 sm:gap-6 lg:order-none lg:grid-cols-2 [&>*]:min-w-0">
-        <LeadsChart />
+        {showLeadWidgets && <LeadsChart />}
 
         {/* Phones: recent work comes before the chart */}
+        {ticketsOn && (
         <Card className="order-first lg:order-none">
           <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
             <div className="min-w-0">
@@ -579,6 +609,7 @@ export default function WorkspaceDashboardPage() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
     </div>
   );

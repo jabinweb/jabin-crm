@@ -1,5 +1,7 @@
 'use client'
 
+import { useSession } from 'next-auth/react'
+
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
@@ -49,6 +51,9 @@ export default function InventoryPage() {
   const router = useRouter()
   const params = useParams<{ company: string }>()
   const { path } = useWorkspacePaths()
+  // Stock writes need inventory:write (admins by default); others get a read-only view
+  const { data: session } = useSession()
+  const canWriteStock = ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '')
   const [inventoryData, setInventoryData] = useState<InventoryData>({
     data: {
       products: [],
@@ -177,7 +182,7 @@ export default function InventoryPage() {
               Locations
             </Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className={canWriteStock ? undefined : 'hidden'}>
             <Link href={path('/dashboard/inventory/transfers')}>
               <ArrowLeftRight className="h-4 w-4 mr-2" />
               Transfers
@@ -189,13 +194,13 @@ export default function InventoryPage() {
               Demo fleet
             </Link>
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className={canWriteStock ? undefined : 'hidden'}>
             <Link href={path('/dashboard/inventory/stock-adjustment')}>
               <Box className="h-4 w-4 mr-2" />
               Stock Adjustment
             </Link>
           </Button>
-          <Button onClick={() => setShowAdjustmentDialog(true)}>
+          <Button onClick={() => setShowAdjustmentDialog(true)} className={canWriteStock ? undefined : 'hidden'}>
             <Plus className="h-4 w-4 mr-2" />
             Quick Adjust
           </Button>

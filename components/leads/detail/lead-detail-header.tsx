@@ -33,6 +33,8 @@ interface LeadDetailHeaderProps extends Pick<
   | 'handleConvertLead'
   | 'handleEnrichLead'
   | 'enriching'
+  | 'outreachEnabled'
+  | 'dealsEnabled'
 > {}
 
 function getStatusVariant(status: LeadStatus) {
@@ -51,6 +53,8 @@ export function LeadDetailHeader({
   handleConvertLead,
   handleEnrichLead,
   enriching,
+  outreachEnabled,
+  dealsEnabled,
 }: LeadDetailHeaderProps) {
   if (!lead) return null;
 
@@ -158,7 +162,7 @@ export function LeadDetailHeader({
               size="sm"
               variant="outline"
               onClick={() => setShowEnrollSequenceDialog(true)}
-              className="gap-2"
+              className={outreachEnabled ? 'gap-2' : 'hidden'}
             >
               <Mail className="h-4 w-4" />
               Enroll in Sequence
@@ -176,7 +180,7 @@ export function LeadDetailHeader({
               size="sm"
               variant="outline"
               onClick={() => setShowCreateDealDialog(true)}
-              className="gap-2"
+              className={dealsEnabled ? 'gap-2' : 'hidden'}
             >
               <Target className="h-4 w-4" />
               Create Deal

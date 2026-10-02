@@ -1,46 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma';
-import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
-import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
+import { isApiException } from '@/lib/api/subscription-guards';
 import { handleApiError } from '@/lib/api-error-handler';
+import { leadAccessWhere, requireLeadAccess } from '@/app/api/leads/lead-access';
 
+/** Sales roles see the whole workspace's leads; other staff only leads they own. */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
-
+    const ctx = await requireLeadAccess(request);
     const { id } = await params;
-    const role = (session.user as { role?: string }).role;
-    const isAdmin =
-      role === 'ADMIN' ||
-      role === 'SUPER_ADMIN' ||
-      role === 'SALES' ||
-      role === 'SUPPORT_MANAGER';
-
-    let companyId: string | undefined;
-    try {
-      const ctx = await resolveCompanyContextFromRequest(session, request);
-      companyId = ctx.companyId;
-    } catch {
-      /* fall through */
-    }
 
     const lead = await prisma.lead.findFirst({
-      where: {
-        id,
-        ...(companyId && isAdmin
-          ? { companyId }
-          : { userId: session.user.id }),
-      },
+      where: { id, ...leadAccessWhere(ctx) },
       include: {
         score: {
           select: {
@@ -70,14 +45,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
-
-    const { companyId } = await resolveCompanyContextFromRequest(session, request);
+    const ctx = await requireLeadAccess(request);
     const { id } = await params;
     const body = await request.json();
 
@@ -108,15 +76,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
-    const updated = await prisma.lead.updateMany({
-      where: { id, companyId },
-      data,
-    });
+    const where = { id, ...leadAccessWhere(ctx) };
+    const updated = await prisma.lead.updateMany({ where, data });
     if (updated.count === 0) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
-    const lead = await prisma.lead.findFirst({ where: { id, companyId } });
+    const lead = await prisma.lead.findFirst({ where: { id, companyId: ctx.companyId } });
     return NextResponse.json(lead);
   } catch (error) {
     if (isApiException(error)) return handleApiError(error);
@@ -124,23 +90,20 @@ export async function PATCH(
   }
 }
 
+/** Deleting a lead removes its history — sales roles only. */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const ctx = await requireLeadAccess(request);
+    if (!ctx.isManager) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-
-    await guardAgentFeature(session.user as { id: string; role?: string }, 'LEADS');
-
-    const { companyId } = await resolveCompanyContextFromRequest(session, request);
     const { id } = await params;
 
     const deleted = await prisma.lead.deleteMany({
-      where: { id, companyId },
+      where: { id, companyId: ctx.companyId },
     });
 
     if (deleted.count === 0) {

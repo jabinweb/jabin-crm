@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { resolveCompanyContextFromRequest } from "@/lib/auth/company-membership";
@@ -17,6 +18,8 @@ export async function GET(request: NextRequest) {
 
     // A user can belong to several workspaces — count only this one's leads
     const { companyId } = await resolveCompanyContextFromRequest(session, request);
+    // Leads chart: Leads module on the plan
+    await ensureFeatureEnabled(session.user.id, 'LEADS', companyId);
 
     const months = [
       "Jan",
@@ -61,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(chartData);
   } catch (error) {
-    if (error instanceof Error && error.name === "TenantError") return handleRouteError(error);
+    if (error instanceof Error && (error.name === "TenantError" || "statusCode" in error)) return handleRouteError(error);
     console.error("Error fetching chart data:", error);
     return NextResponse.json(
       { error: "Failed to fetch chart data" },

@@ -1,4 +1,5 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { companyDefaultCurrencyFromSettings } from '@/lib/currency/resolve'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import {
@@ -43,6 +44,18 @@ export async function GET(req: NextRequest) {
     const session = await auth()
     if (!session?.user) {
       return new Response('Unauthorized', { status: 401 })
+    }
+
+    // Any staff member may read the workspace's default currency (documents and
+    // amounts need it); everything else in settings stays admin-only.
+    if (req.nextUrl.searchParams.get('scope') === 'currency') {
+      const { companyId } = await resolveCompanyContextFromRequest(session, req)
+      const company = await prisma.company.findUnique({
+        where: { id: companyId },
+        select: { settings: true },
+      })
+      const defaultCurrency = companyDefaultCurrencyFromSettings(company?.settings)
+      return NextResponse.json({ settings: { billing: { defaultCurrency } } })
     }
 
     const role = (session.user as { role?: string }).role

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
 import { FullTableSkeleton } from '@/components/loading';
+import { useSession } from 'next-auth/react';
 
 const statusColors: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-700',
@@ -21,6 +22,10 @@ const statusColors: Record<string, string> = {
 };
 
 export default function ServiceExpensesPage() {
+  const { data: session } = useSession();
+  const myId = session?.user?.id ?? '';
+  // Approving and reimbursing are manager actions; technicians file their own expenses.
+  const isManager = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(session?.user?.role ?? '');
   const [featureEnabled, setFeatureEnabled] = useState(true);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
@@ -76,7 +81,8 @@ export default function ServiceExpensesPage() {
   }, []);
 
   const createExpense = async () => {
-    if (!form.technicianId || !form.amount || !form.description) {
+    const technicianId = isManager ? form.technicianId : myId;
+    if (!technicianId || !form.amount || !form.description) {
       toast.error('Technician, amount, and description are required');
       return;
     }
@@ -87,7 +93,7 @@ export default function ServiceExpensesPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          technicianId: form.technicianId,
+          technicianId,
           ticketId: form.ticketId && form.ticketId !== '__NONE__' ? form.ticketId : undefined,
           category: form.category,
           amount: Number(form.amount),
@@ -185,7 +191,11 @@ export default function ServiceExpensesPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Technician</Label>
-              <Select value={form.technicianId} onValueChange={(value) => setForm({ ...form, technicianId: value })}>
+              <Select
+                value={isManager ? form.technicianId : myId}
+                disabled={!isManager}
+                onValueChange={(value) => setForm({ ...form, technicianId: value })}
+              >
                 <SelectTrigger><SelectValue placeholder="Select technician" /></SelectTrigger>
                 <SelectContent>
                   {technicians.map((tech) => (
@@ -272,13 +282,13 @@ export default function ServiceExpensesPage() {
                   ) : null}
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColors[expense.status] || 'bg-muted'}`}>{expense.status}</span>
-                    {expense.status === 'PENDING' && (
+                    {isManager && expense.technicianId !== myId && expense.status === 'PENDING' && (
                       <>
                         <Button size="sm" variant="outline" className="ml-auto" onClick={() => updateStatus(expense.id, 'APPROVED')}>Approve</Button>
                         <Button size="sm" variant="destructive" onClick={() => updateStatus(expense.id, 'REJECTED')}>Reject</Button>
                       </>
                     )}
-                    {expense.status === 'APPROVED' && (
+                    {isManager && expense.technicianId !== myId && expense.status === 'APPROVED' && (
                       <Button size="sm" className="ml-auto" onClick={() => updateStatus(expense.id, 'REIMBURSED')}>Mark Reimbursed</Button>
                     )}
                   </div>
@@ -312,13 +322,13 @@ export default function ServiceExpensesPage() {
                       <TableCell><span className={`px-2 py-1 rounded text-xs font-semibold ${statusColors[expense.status] || 'bg-muted'}`}>{expense.status}</span></TableCell>
                       <TableCell>{expense.description}</TableCell>
                       <TableCell className="text-right space-x-2">
-                        {expense.status === 'PENDING' && (
+                        {isManager && expense.technicianId !== myId && expense.status === 'PENDING' && (
                           <>
                             <Button size="sm" variant="outline" onClick={() => updateStatus(expense.id, 'APPROVED')}>Approve</Button>
                             <Button size="sm" variant="destructive" onClick={() => updateStatus(expense.id, 'REJECTED')}>Reject</Button>
                           </>
                         )}
-                        {expense.status === 'APPROVED' && (
+                        {isManager && expense.technicianId !== myId && expense.status === 'APPROVED' && (
                           <Button size="sm" onClick={() => updateStatus(expense.id, 'REIMBURSED')}>Mark Reimbursed</Button>
                         )}
                       </TableCell>

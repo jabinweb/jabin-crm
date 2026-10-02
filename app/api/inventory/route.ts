@@ -1,4 +1,5 @@
 import { auth } from '@/auth';
+import { checkOpsAccess } from '@/lib/crm/ops-access';
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -87,6 +88,9 @@ export async function POST(req: Request) {
       })
     }
     const { companyId } = await resolveCompanyContextFromRequest(session, asNextRequest(req))
+    // Same audience as the nav: plan module on, and stock changes need inventory write access
+    const denied = await checkOpsAccess(session, companyId, { permission: 'inventory:write', module: 'INVENTORY' })
+    if (denied) return denied
 
     const { productId, quantity, reason, notes, type = 'IN_STOCK' } = await req.json()
 
@@ -181,6 +185,9 @@ export async function GET(request: Request) {
       })
     }
     const { companyId } = await resolveCompanyContextFromRequest(session, asNextRequest(request))
+    // Same audience as the nav: plan module on, and stock changes need inventory write access
+    const denied = await checkOpsAccess(session, companyId, { module: 'INVENTORY' })
+    if (denied) return denied
 
     const url = new URL(request.url);
     const productId = url.searchParams.get('productId');

@@ -4,17 +4,19 @@ import { LeadStatus } from '@prisma/client'
 import { handleApiError } from '@/lib/api-error-handler'
 import { isApiException } from '@/lib/api/subscription-guards'
 import { requireEmployeeModule } from '@/lib/api/employee-guard'
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership'
 
 type LeadStatusCountRow = { status: LeadStatus; _count: number }
 
 export async function GET(req: NextRequest) {
   try {
     const session = await requireEmployeeModule('LEADS')
+    const { companyId } = await resolveCompanyContextFromRequest(session, req)
 
     const leads = (await prisma.lead.groupBy({
       by: ['status'],
       where: {
-        employeeId: session.user.employeeId
+        employeeId: session.user.employeeId, companyId
       },
       _count: true
     })) as LeadStatusCountRow[]

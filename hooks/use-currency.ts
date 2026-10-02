@@ -22,7 +22,7 @@ export function useCurrency() {
     queryKey: ['settings', workspaceSlug, 'currency'],
     queryFn: async () => {
       const headers = workspaceSlug ? workspaceSlugHeaders(workspaceSlug) : {};
-      const response = await fetch('/api/dashboard/settings', { headers: { ...headers } });
+      const response = await fetch('/api/dashboard/settings?scope=currency', { headers: { ...headers } });
       if (!response.ok) return null;
       return response.json() as Promise<{ settings?: unknown }>;
     },

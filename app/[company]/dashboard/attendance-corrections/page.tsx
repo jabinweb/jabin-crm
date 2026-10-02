@@ -12,7 +12,7 @@ export default function AttendanceCorrectionsAdminPage() {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['attendance-corrections-admin'],
     queryFn: async () => {
-      const res = await fetch('/api/hr/attendance-corrections?status=PENDING')
+      const res = await fetch('/api/hr/attendance-corrections?status=PENDING&admin=1')
       if (!res.ok) throw new Error('Failed')
       return res.json()
     },

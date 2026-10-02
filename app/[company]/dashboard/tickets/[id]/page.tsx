@@ -91,6 +91,8 @@ export default function TicketDetailPage() {
     const { data: session } = useSession();
     const queryClient = useQueryClient();
     const ticketAdvancedEnabled = useFeatureModule('TICKET_ADVANCED');
+    // Complete & Resolve files a service report, which needs the Service reports module
+    const serviceReportsEnabled = useFeatureModule('SERVICE_REPORTS');
     const [newComment, setNewComment] = useState('');
     const [typingPeers, setTypingPeers] = useState<string[]>([]);
     const [optimisticComments, setOptimisticComments] = useState<
@@ -705,7 +707,7 @@ export default function TicketDetailPage() {
                         <ActivityIcon className="h-4 w-4 mr-2" />
                         Update Status
                     </Button>
-                    {ticket.status !== 'RESOLVED' && (
+                    {ticket.status !== 'RESOLVED' && serviceReportsEnabled && (
                         <Button size="sm" onClick={() => setShowReportDialog(true)} className="bg-green-600 hover:bg-green-700">
                             <Wrench className="h-4 w-4 mr-2" />
                             Complete & Resolve
@@ -1128,6 +1130,7 @@ export default function TicketDetailPage() {
 
                     {deferHeavyPanels ? <TicketPhotoEvidence ticketId={String(id)} /> : null}
 
+                    {serviceReportsEnabled && (
                     <Card>
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium">Service Reports</CardTitle>
@@ -1149,6 +1152,7 @@ export default function TicketDetailPage() {
                             )}
                         </CardContent>
                     </Card>
+                    )}
                 </div>
             </div>
 

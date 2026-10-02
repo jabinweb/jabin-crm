@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     const [leads, total] = await Promise.all([
       prisma.lead.findMany({
         where: {
-          employeeId: session.user.employeeId,
+          employeeId: session.user.employeeId, companyId,
           status: searchParams.has('status') ? { 
             in: searchParams.getAll('status') as LeadStatus[] 
           } : undefined,
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       }),
       prisma.lead.count({
         where: {
-          employeeId: session.user.employeeId
+          employeeId: session.user.employeeId, companyId
         }
       })
     ])

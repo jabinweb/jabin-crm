@@ -64,6 +64,8 @@ type Person = {
 
 type TaskDetail = {
   id: string;
+  /** From the API: false when the viewer may not change this task. */
+  canWrite?: boolean;
   title: string;
   description: string | null;
   descriptionHtml: string | null;
@@ -554,6 +556,13 @@ export default function ProjectTaskDetailPage() {
         backLabel={task.parentTask ? 'Back to parent' : 'Back to project'}
       />
 
+      {task.canWrite === false ? (
+        <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+          View only — you can read this task but not change it.
+        </p>
+      ) : null}
+      {/* Disables every control in the task when the viewer can't write (links stay usable) */}
+      <fieldset disabled={task.canWrite === false} className="m-0 min-w-0 border-0 p-0">
       <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Main column */}
         <div className="min-w-0 space-y-6 lg:pr-8">
@@ -1347,6 +1356,7 @@ export default function ProjectTaskDetailPage() {
           </div>
         </aside>
       </div>
+      </fieldset>
     </div>
   );
 }

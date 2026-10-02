@@ -1,4 +1,5 @@
 import { getAIClient } from '@/lib/ai/ai-service';
+import { getFeatureModuleMap } from '@/lib/feature-modules';
 import { generateWithModelFallback } from '@/lib/agent/models';
 import {
   buildAgentContext,
@@ -312,7 +313,11 @@ export async function runAgentTurn(params: {
     take: 40,
   });
 
-  const tools = getToolsForRole(params.userRole);
+  // Role and plan: the agent never offers a tool whose REST twin the user couldn't call
+  const tools = getToolsForRole(
+    params.userRole,
+    await getFeatureModuleMap(params.userId, params.companyId)
+  );
   const declarations = toGeminiFunctionDeclarations(tools);
   const systemPrompt = buildSystemPrompt(ctx, agent.systemPromptExtra);
 
@@ -562,7 +567,11 @@ export async function confirmToolRun(params: {
   const tool = getToolByName(run.toolName);
   if (!tool) throw new Error('Unknown tool');
 
-  const tools = getToolsForRole(params.userRole);
+  // Role and plan: the agent never offers a tool whose REST twin the user couldn't call
+  const tools = getToolsForRole(
+    params.userRole,
+    await getFeatureModuleMap(params.userId, params.companyId)
+  );
   if (!tools.some((t) => t.name === tool.name)) {
     throw new Error('Not allowed to run this tool');
   }

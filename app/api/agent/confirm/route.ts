@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (session.user.role === 'CUSTOMER' || session.user.role === 'EMPLOYEE') {
+    if (session.user.role === 'CUSTOMER') {
       return NextResponse.json({ error: 'Ops Agent is for CRM staff' }, { status: 403 });
     }
 

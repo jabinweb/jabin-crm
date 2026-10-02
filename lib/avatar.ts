@@ -85,6 +85,48 @@ export { md5 as md5Hex };
 
 const gravatarCache = new Map<string, string>();
 
+/*
+ * Hashes Gravatar said 404 for. Each miss still shows as a red line in the browser
+ * console, so remember them (for a week, across page loads) and skip the request.
+ */
+const MISS_KEY = 'gravatar-misses';
+const MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+let gravatarMisses: Record<string, number> | null = null;
+
+function loadMisses(): Record<string, number> {
+  if (gravatarMisses) return gravatarMisses;
+  gravatarMisses = {};
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(MISS_KEY) : null;
+    const parsed = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    const now = Date.now();
+    for (const [hash, at] of Object.entries(parsed)) {
+      if (typeof at === 'number' && now - at < MISS_TTL_MS) gravatarMisses[hash] = at;
+    }
+  } catch {
+    // Storage blocked or corrupt: just request again
+  }
+  return gravatarMisses;
+}
+
+function gravatarHashOf(url: string): string | null {
+  const m = /gravatar\.com\/avatar\/([0-9a-f]{32})/.exec(url);
+  return m ? m[1] : null;
+}
+
+/** Call when an avatar image failed to load; Gravatar misses are skipped from then on. */
+export function noteAvatarLoadError(url: string | undefined): void {
+  const hash = url ? gravatarHashOf(url) : null;
+  if (!hash) return;
+  const misses = loadMisses();
+  misses[hash] = Date.now();
+  try {
+    window.localStorage.setItem(MISS_KEY, JSON.stringify(misses));
+  } catch {
+    // Remembered for this page load only
+  }
+}
+
 /**
  * Gravatar URL for an email. `d=404` makes Gravatar answer 404 when the person has
  * no Gravatar, so the avatar component falls through to initials instead of a stock image.
@@ -97,6 +139,7 @@ export function gravatarUrl(email: string | null | undefined, size = 80): string
     hash = md5(normalized);
     gravatarCache.set(normalized, hash);
   }
+  if (typeof window !== 'undefined' && loadMisses()[hash]) return null;
   return `https://www.gravatar.com/avatar/${hash}?s=${Math.round(size * 2)}&d=404`;
 }
 

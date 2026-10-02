@@ -1,7 +1,7 @@
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { avatarSrc, avatarTint, initialsOf } from '@/lib/avatar';
+import { avatarSrc, avatarTint, initialsOf, noteAvatarLoadError } from '@/lib/avatar';
 import { cn } from '@/lib/utils';
 
 export type AvatarPerson = {
@@ -37,11 +37,15 @@ export function UserAvatar({
 }) {
   const s = SIZES[size];
   const label = person?.name || person?.email || 'Unknown';
+  const src = avatarSrc(person, s.px);
   return (
     <span className={cn('relative inline-flex shrink-0', className)}>
       <Avatar className={cn(s.box, 'rounded-full')}>
         <AvatarImage
-          src={avatarSrc(person, s.px)}
+          src={src}
+          onLoadingStatusChange={(status) => {
+            if (status === 'error') noteAvatarLoadError(src);
+          }}
           alt={label}
           className="object-cover"
           referrerPolicy="no-referrer"

@@ -96,17 +96,19 @@ function AdminSidebarContent({
       </nav>
 
       <div className="border-t p-2 space-y-0.5">
-        <Button
-          variant="ghost"
-          size="sm"
-          className={cn('w-full justify-start px-2.5', touch ? 'h-10' : 'h-8')}
-          asChild
-        >
-          <Link href={exitHref} onClick={onNavigate}>
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            Exit admin
-          </Link>
-        </Button>
+        {exitHref ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn('w-full justify-start px-2.5', touch ? 'h-10' : 'h-8')}
+            asChild
+          >
+            <Link href={exitHref} onClick={onNavigate}>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Exit admin
+            </Link>
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="sm"

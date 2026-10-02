@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { guardAgentFeature } from '@/lib/api/subscription-guards';
 import { accessibleDocWhere } from '@/lib/crm/company-doc-scope';
 import { prisma } from '@/lib/prisma';
 import { quotationService } from '@/lib/crm/quotation-service';
@@ -18,6 +19,8 @@ export async function POST(
 ) {
   try {
     const session = await withModuleAccess('QUOTATIONS');
+    // Converting creates an invoice — the Invoices module must be on too.
+    await guardAgentFeature(session.user, 'INVOICES');
     const { id } = await params;
 
     const scope = await accessibleDocWhere(session, req);

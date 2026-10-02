@@ -370,7 +370,9 @@ export function hubModulesForVertical(
 export const MAIN_NAV: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: 'Gauge', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Client portal', href: '/portal', icon: 'Globe', roles: ['CUSTOMER', 'ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'customerPortal' },
-  { name: 'My field work', href: '/dashboard/technician', icon: 'Wrench', roles: ['TECHNICIAN', 'ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'fieldService' },
+  // Technicians land here after sign-in, so they always see it; admins only with field service on
+  { name: 'My field work', href: '/dashboard/technician', icon: 'Wrench', roles: ['TECHNICIAN'] },
+  { name: 'My field work', href: '/dashboard/technician', icon: 'Wrench', roles: ['ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'fieldService' },
 ];
 
 export const CLIENTS_NAV: NavItem[] = [
@@ -488,9 +490,9 @@ export const OPS_NAV: NavItem[] = [
     children: [
       { name: 'Stock overview', href: '/dashboard/inventory', icon: 'Database', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
       { name: 'Locations', href: '/dashboard/inventory/locations', icon: 'MapPin', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-      { name: 'Transfers', href: '/dashboard/inventory/transfers', icon: 'ArrowLeftRight', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+      { name: 'Transfers', href: '/dashboard/inventory/transfers', icon: 'ArrowLeftRight', roles: ['ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
       { name: 'Batches', href: '/dashboard/inventory/batches', icon: 'ClipboardList', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
-      { name: 'Stock adjustment', href: '/dashboard/inventory/stock-adjustment', icon: 'Package', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
+      { name: 'Stock adjustment', href: '/dashboard/inventory/stock-adjustment', icon: 'Package', roles: ['ADMIN', 'SUPER_ADMIN'], workspaceFeature: 'inventory', module: 'INVENTORY' },
     ],
   },
   {
@@ -701,10 +703,59 @@ export function peopleNavSectionsForRole(userRole: string): { title: string; ite
 export type WorkspaceFeaturesMap = Record<string, boolean | undefined> | null | undefined;
 
 /** Single source for module switcher + hub cards. */
+type PlanModules = Partial<Record<string, boolean>> | null | undefined;
+
+/** A plan module counts as on until the map has loaded (null = unknown). */
+function planOn(modules: PlanModules, key: string) {
+  return !modules || modules[key] === true;
+}
+
+/**
+ * Where a module's rail button / tab / hub card lands for this user: the first page in
+ * it they can actually use (role, plan module, employee profile). null = nothing usable,
+ * so the module is hidden.
+ */
+function moduleLandingFor(
+  def: WorkspaceModuleDef,
+  opts: { role: string; modules?: PlanModules; hasEmployeeProfile?: boolean }
+): string | null {
+  const { role, modules } = opts;
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  switch (def.id) {
+    case 'people':
+      // HR admin pages are admin-only; everyone else uses self-service (needs a profile)
+      if (isAdmin) return def.href;
+      return opts.hasEmployeeProfile === false ? null : '/employee/attendance';
+    case 'workspace':
+      // Reports aren't offered to technicians; Messages is their first workspace page
+      return role === 'TECHNICIAN' ? '/dashboard/messages' : def.href;
+    case 'sales':
+      if (planOn(modules, 'LEADS')) return def.href;
+      if (planOn(modules, 'DEALS')) return '/dashboard/deals';
+      return '/dashboard/tasks';
+    case 'support':
+      if (planOn(modules, 'TICKETS')) return def.href;
+      if (planOn(modules, 'WHATSAPP')) return '/dashboard/whatsapp';
+      return null;
+    case 'outreach':
+      return planOn(modules, 'EMAIL_OUTREACH') ? def.href : null;
+    case 'ops':
+      if (planOn(modules, 'INVENTORY')) return def.href;
+      if (planOn(modules, 'EQUIPMENT')) return '/dashboard/equipment';
+      return '/dashboard/expenses';
+    default:
+      return def.href;
+  }
+}
+
 export function getAvailableModules(opts: {
   role: string;
   vertical?: BusinessVertical | string | null;
   features?: WorkspaceFeaturesMap;
+  /** Plan modules for the workspace (from /api/features/me); null while loading. */
+  modules?: PlanModules;
+  /** false hides People for non-admins without an employee profile. */
+  hasEmployeeProfile?: boolean;
 }): WorkspaceModuleDef[] {
   const { role, vertical, features } = opts;
   let mods = hubModulesForVertical(vertical);
@@ -714,7 +765,8 @@ export function getAvailableModules(opts: {
   }
 
   if (role === 'TECHNICIAN') {
-    mods = mods.filter((m) => ['support', 'people', 'workspace'].includes(m.id));
+    // Matches PROJECTS_NAV / the delivery APIs, which include technicians
+    mods = mods.filter((m) => ['support', 'projects', 'people', 'workspace'].includes(m.id));
   } else if (role === 'CUSTOMER') {
     mods = mods.filter((m) => m.id === 'support');
   } else if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) {
@@ -732,7 +784,10 @@ export function getAvailableModules(opts: {
     mods = mods.filter((m) => m.id !== 'ops');
   }
 
-  return mods;
+  return mods.flatMap((m) => {
+    const href = moduleLandingFor(m, opts);
+    return href ? [{ ...m, href }] : [];
+  });
 }
 
 export type LastModuleState = {

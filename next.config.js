@@ -76,12 +76,13 @@ const nextConfig = {
           key: 'Content-Security-Policy',
           value: [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live https://va.vercel-scripts.com https://*.razorpay.com",
+            // Cloudflare injects its Web Analytics beacon (static.cloudflareinsights.com) in front of the app
+            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live https://va.vercel-scripts.com https://*.razorpay.com https://static.cloudflareinsights.com",
             "worker-src 'self' blob:",
             "style-src 'self' 'unsafe-inline' https://*.razorpay.com",
             "img-src 'self' data: https: blob:",
             "font-src 'self' data: https://*.razorpay.com",
-            "connect-src 'self' https://*.google.com https://*.googleapis.com https://*.googleusercontent.com https://lh3.googleusercontent.com https://*.razorpay.com https://api.gemini.com",
+            "connect-src 'self' https://*.google.com https://*.googleapis.com https://*.googleusercontent.com https://lh3.googleusercontent.com https://*.razorpay.com https://api.gemini.com https://cloudflareinsights.com",
             "frame-src 'self' https://accounts.google.com https://www.google.com https://*.razorpay.com",
             "object-src 'none'",
             "base-uri 'self'",

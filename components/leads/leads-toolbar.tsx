@@ -24,6 +24,8 @@ interface LeadsToolbarProps extends Pick<
   | 'setShowAddLeadDialog'
   | 'handleOpenImportPicker'
   | 'handleExport'
+  | 'outreachEnabled'
+  | 'dealsEnabled'
 > {}
 
 export function LeadsToolbar({
@@ -41,6 +43,8 @@ export function LeadsToolbar({
   setShowAddLeadDialog,
   handleOpenImportPicker,
   handleExport,
+  outreachEnabled,
+  dealsEnabled,
 }: LeadsToolbarProps) {
   const terminology = useWorkspaceTerminology();
   const leadsLabel = terminology?.leads ?? 'Leads';
@@ -78,7 +82,7 @@ export function LeadsToolbar({
                 variant="outline"
                 onClick={() => setShowEnrollSequenceDialog(true)}
                 size="sm"
-                className="hidden md:inline-flex"
+                className={outreachEnabled ? 'hidden md:inline-flex' : 'hidden'}
               >
                 Enroll in Sequence
               </Button>
@@ -94,7 +98,7 @@ export function LeadsToolbar({
                 variant="outline"
                 onClick={() => setShowCreateDealDialog(true)}
                 size="sm"
-                className="hidden lg:inline-flex"
+                className={dealsEnabled ? 'hidden lg:inline-flex' : 'hidden'}
               >
                 Create Deal
               </Button>

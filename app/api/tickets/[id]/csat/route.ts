@@ -13,6 +13,10 @@ export async function POST(
   try {
     const session = await auth();
     await guardTicketAccess(session?.user);
+    // Satisfaction scores come from the customer, not from staff
+    if (session?.user?.role !== 'CUSTOMER') {
+      return NextResponse.json({ error: 'Only the customer can rate this ticket' }, { status: 403 });
+    }
 
     const { id } = await params;
     const guard = await requireTicketRouteAccess(session, request, id);

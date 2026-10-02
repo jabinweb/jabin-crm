@@ -63,7 +63,24 @@ describe('navigation modules', () => {
 
   it('getAvailableModules filters by role', () => {
     const tech = getAvailableModules({ role: 'TECHNICIAN', vertical: 'general' });
-    expect(tech.map((m) => m.id).sort()).toEqual(['people', 'support', 'workspace'].sort());
+    // Projects matches PROJECTS_NAV and the delivery APIs, which include technicians
+    expect(tech.map((m) => m.id).sort()).toEqual(['people', 'projects', 'support', 'workspace'].sort());
+    // Landings are pages the role can use: Messages, not the Reports hub
+    expect(tech.find((m) => m.id === 'workspace')?.href).toBe('/dashboard/messages');
+    expect(tech.find((m) => m.id === 'people')?.href).toBe('/employee/attendance');
+
+    // Non-admins without an employee profile have nothing in People
+    const sales = getAvailableModules({ role: 'SALES', vertical: 'general', hasEmployeeProfile: false });
+    expect(sales.find((m) => m.id === 'people')).toBeUndefined();
+
+    // Plan modules steer landings and hide modules with nothing usable
+    const noLeads = getAvailableModules({
+      role: 'ADMIN',
+      vertical: 'general',
+      modules: { LEADS: false, DEALS: true, EMAIL_OUTREACH: false, TICKETS: true },
+    });
+    expect(noLeads.find((m) => m.id === 'sales')?.href).toBe('/dashboard/deals');
+    expect(noLeads.find((m) => m.id === 'outreach')).toBeUndefined();
     const admin = getAvailableModules({
       role: 'ADMIN',
       vertical: 'web_agency',

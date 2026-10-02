@@ -4,17 +4,19 @@ import { LeadStatus, ActivityType } from '@prisma/client'
 import { handleApiError } from '@/lib/api-error-handler'
 import { isApiException } from '@/lib/api/subscription-guards'
 import { requireEmployeeModule } from '@/lib/api/employee-guard'
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership'
 
 export async function GET(req: NextRequest) {
   try {
     const session = await requireEmployeeModule('LEADS')
+    const { companyId } = await resolveCompanyContextFromRequest(session, req)
 
     const now = new Date()
     const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000)
 
     const leads = await prisma.lead.findMany({
       where: {
-        employeeId: session.user.employeeId,
+        employeeId: session.user.employeeId, companyId,
         OR: [
           {
             activities: {

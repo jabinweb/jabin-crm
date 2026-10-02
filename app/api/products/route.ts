@@ -24,7 +24,7 @@ export const GET = withApiRoute({
 
 export const POST = withTenantRoute(async (request, { session, companyId }) => {
   if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
-    return NextResponse.json({ error: 'Unauthorized. Admin only.' }, { status: 401 });
+    return NextResponse.json({ error: 'Admin only' }, { status: 403 });
   }
 
   const data = await request.json();

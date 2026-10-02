@@ -152,6 +152,8 @@ type Props = {
   members?: ProjectMemberOption[];
   statusColumns?: PipelineStageDef[] | null;
   projectTaskStatuses?: unknown;
+  /** Viewer can't change tasks (the task APIs would refuse) — hide edit controls. */
+  readOnly?: boolean;
 };
 
 export function ProjectTaskBoard({
@@ -160,6 +162,7 @@ export function ProjectTaskBoard({
   members = [],
   statusColumns,
   projectTaskStatuses,
+  readOnly = false,
 }: Props) {
   const { slug, workspaceFetch, path } = useWorkspacePaths();
   const queryClient = useQueryClient();
@@ -189,11 +192,13 @@ export function ProjectTaskBoard({
   };
 
   const openCreate = (status = 'TODO') => {
+    if (readOnly) return;
     setForm(emptyForm(status));
     setCreateOpen(true);
   };
 
   const openEdit = (task: ProjectTaskRow) => {
+    if (readOnly) return;
     setEditTask(task);
     setForm({
       title: task.title,
@@ -341,6 +346,7 @@ export function ProjectTaskBoard({
     <div className="grid gap-2">
       <Label>Assignee</Label>
       <Select
+        disabled={readOnly}
         value={form.assigneeId || '__none__'}
         onValueChange={(v) =>
           setForm((f) => ({ ...f, assigneeId: v === '__none__' ? '' : v }))
@@ -393,19 +399,19 @@ export function ProjectTaskBoard({
                   Open
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => openEdit(item)}>
+              {!readOnly && (<DropdownMenuItem onClick={() => openEdit(item)}>
                 <Pencil className="mr-2 size-4" />
                 Quick edit
-              </DropdownMenuItem>
+              </DropdownMenuItem>)}
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
+            {!readOnly && (<><DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setDeleteId(item.id)}
             >
               <Trash2 className="mr-2 size-4" />
               Delete
-            </DropdownMenuItem>
+            </DropdownMenuItem></>)}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -467,6 +473,7 @@ export function ProjectTaskBoard({
         <div className="grid gap-2">
           <Label>Status</Label>
           <Select
+            disabled={readOnly}
             value={form.status}
             onValueChange={(status) => setForm((f) => ({ ...f, status }))}
           >
@@ -487,6 +494,7 @@ export function ProjectTaskBoard({
         <div className="grid gap-2">
           <Label>Priority</Label>
           <Select
+            disabled={readOnly}
             value={form.priority}
             onValueChange={(priority) => setForm((f) => ({ ...f, priority }))}
           >
@@ -541,7 +549,7 @@ export function ProjectTaskBoard({
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <Button size="sm" onClick={() => openCreate()}>
+        <Button size="sm" onClick={() => openCreate()} className={readOnly ? 'hidden' : undefined}>
           <Plus className="mr-1.5 size-3.5" />
           New task
         </Button>
@@ -554,7 +562,7 @@ export function ProjectTaskBoard({
             title="No tasks yet"
             description="Break this project into tasks and drag them across the board as work moves."
             actionLabel="New task"
-            onAction={() => openCreate()}
+            onAction={readOnly ? undefined : () => openCreate()}
             className="rounded-lg border border-dashed"
           />
         ) : (
@@ -562,10 +570,11 @@ export function ProjectTaskBoard({
             className="-mx-4 px-4 sm:mx-0 sm:px-0"
             columns={columns.filter((c) => c.id !== UNMAPPED_STAGE_ID)}
             itemsByStage={itemsByStage}
-            onMove={(id, toStage, fromStage) =>
-              moveMutation.mutate({ id, toStatus: toStage, fromStatus: fromStage })
-            }
-            columnFooter={(stageId) => (
+            onMove={(id, toStage, fromStage) => {
+              if (readOnly) return;
+              moveMutation.mutate({ id, toStatus: toStage, fromStatus: fromStage });
+            }}
+            columnFooter={readOnly ? undefined : (stageId) => (
               <Button
                 type="button"
                 variant="ghost"
@@ -604,7 +613,7 @@ export function ProjectTaskBoard({
                       title="No tasks yet"
                       description="Create a task to track delivery work in list view."
                       actionLabel="New task"
-                      onAction={() => openCreate()}
+                      onAction={readOnly ? undefined : () => openCreate()}
                       className="py-10"
                     />
                   </TableCell>
@@ -622,6 +631,7 @@ export function ProjectTaskBoard({
                     </TableCell>
                     <TableCell>
                       <Select
+                        disabled={readOnly}
                         value={t.status}
                         onValueChange={(status) =>
                           patchMutation.mutate({ id: t.id, status })
@@ -643,6 +653,7 @@ export function ProjectTaskBoard({
                     </TableCell>
                     <TableCell>
                       <Select
+                        disabled={readOnly}
                         value={t.priority}
                         onValueChange={(priority) =>
                           patchMutation.mutate({ id: t.id, priority })
@@ -664,6 +675,7 @@ export function ProjectTaskBoard({
                     </TableCell>
                     <TableCell>
                       <Select
+                        disabled={readOnly}
                         value={t.assigneeId || '__none__'}
                         onValueChange={(v) =>
                           patchMutation.mutate({
@@ -701,15 +713,15 @@ export function ProjectTaskBoard({
                           <DropdownMenuItem asChild>
                             <Link href={taskHref(t.id)}>Open</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openEdit(t)}>
+                          {!readOnly && (<DropdownMenuItem onClick={() => openEdit(t)}>
                             Quick edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
+                          </DropdownMenuItem>)}
+                          {!readOnly && (<><DropdownMenuItem
                             className="text-destructive"
                             onClick={() => setDeleteId(t.id)}
                           >
                             Delete
-                          </DropdownMenuItem>
+                          </DropdownMenuItem></>)}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
