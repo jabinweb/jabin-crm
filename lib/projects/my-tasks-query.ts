@@ -5,6 +5,9 @@ const DELIVERY_TASK_INCLUDE = {
   project: { select: { id: true, name: true } },
   assignee: { select: { id: true, name: true, email: true, image: true } },
   parentTask: { select: { id: true, title: true } },
+  // Rows show labels and subtask/comment counts, like the project board cards
+  labels: { select: { label: { select: { id: true, name: true, color: true } } } },
+  _count: { select: { subtasks: true, comments: true } },
 } as const;
 
 export type BacklogFilters = {
