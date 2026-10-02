@@ -4,6 +4,7 @@ import { calendarService } from '@/lib/crm/calendar-service';
 import { CalendarEventType } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
+import { withTeamMeetings } from '@/lib/meetings/calendar';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,26 @@ export async function GET(request: NextRequest) {
       filters
     );
 
-    return NextResponse.json(events);
+    // Team meetings: attach guests/RSVPs to meetings I organize and add the ones I'm invited to.
+    // Before the team-meetings migration this quietly returns the plain events.
+    let companyId: string | undefined;
+    try {
+      companyId = (await resolveCompanyContextFromRequest(session, request)).companyId;
+    } catch {
+      /* no workspace context */
+    }
+    const merged = await withTeamMeetings(events, {
+      viewer: {
+        userId: session.user.id,
+        role: session.user.role ?? null,
+        isWorkspaceStaff: session.user.role !== 'CUSTOMER',
+      },
+      companyId,
+      range: { startDate: filters.startDate, endDate: filters.endDate },
+      eventType: filters.eventType,
+    });
+
+    return NextResponse.json(merged);
   } catch (error) {
     console.error('Calendar events fetch error:', error);
     return NextResponse.json(

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { calendarService } from '@/lib/crm/calendar-service';
 import { CalendarEventType, CalendarStatus } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { isMeetingsSchemaMissing } from '@/lib/meetings/service';
 
 export async function GET(
   request: NextRequest,
@@ -103,6 +105,21 @@ export async function DELETE(
     }
 
     const params = await context.params;
+    // Team meetings are cancelled (attendees are told), not silently deleted
+    try {
+      const meeting = await prisma.teamMeeting.findFirst({
+        where: { eventId: params.id, event: { userId: session.user.id } },
+        select: { id: true },
+      });
+      if (meeting) {
+        return NextResponse.json(
+          { error: 'This is a team meeting — cancel it instead so attendees are notified.', meetingId: meeting.id },
+          { status: 409 }
+        );
+      }
+    } catch (error) {
+      if (!isMeetingsSchemaMissing(error)) throw error;
+    }
     await calendarService.deleteEvent(params.id, session.user.id);
 
     return NextResponse.json({ success: true });

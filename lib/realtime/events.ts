@@ -15,6 +15,8 @@ export const REALTIME_EVENTS = {
   BOARD_MOVED: 'board.moved',
   /** A project doc was saved, created, moved or deleted. */
   PROJECT_DOC_UPDATED: 'project.doc.updated',
+  /** A team meeting changed (invite, RSVP, reschedule, someone joined/left the room) — ids only. */
+  MEETING_UPDATED: 'meeting.updated',
   /** Optional nudge when a lead goes stale. */
   LEAD_STALE: 'lead.stale',
 } as const;

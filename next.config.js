@@ -63,6 +63,17 @@ const nextConfig = {
     ];
 
     if (process.env.NODE_ENV === 'production') {
+      // Team meeting video (LiveKit): Cloud projects, plus a self-hosted server from LIVEKIT_URL
+      const liveKitConnect = ['wss://*.livekit.cloud', 'https://*.livekit.cloud'];
+      try {
+        const raw = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL;
+        if (raw) {
+          const host = new URL(raw).host;
+          liveKitConnect.push(`wss://${host}`, `https://${host}`);
+        }
+      } catch {
+        /* invalid LIVEKIT_URL — the token route reports it */
+      }
       securityHeaders.push(
         {
           key: 'Strict-Transport-Security',
@@ -82,7 +93,7 @@ const nextConfig = {
             "style-src 'self' 'unsafe-inline' https://*.razorpay.com",
             "img-src 'self' data: https: blob:",
             "font-src 'self' data: https://*.razorpay.com",
-            "connect-src 'self' https://*.google.com https://*.googleapis.com https://*.googleusercontent.com https://lh3.googleusercontent.com https://*.razorpay.com https://api.gemini.com https://cloudflareinsights.com",
+            "connect-src 'self' https://*.google.com https://*.googleapis.com https://*.googleusercontent.com https://lh3.googleusercontent.com https://*.razorpay.com https://api.gemini.com https://cloudflareinsights.com " + liveKitConnect.join(' '),
             "frame-src 'self' https://accounts.google.com https://www.google.com https://*.razorpay.com",
             "object-src 'none'",
             "base-uri 'self'",
