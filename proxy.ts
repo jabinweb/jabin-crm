@@ -226,7 +226,9 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith('/api/whatsapp/webhook') ||
     pathname.startsWith('/api/webhooks') ||
     pathname.startsWith('/api/payment/callback') ||
-    pathname.startsWith('/api/uploadthing');
+    pathname.startsWith('/api/uploadthing') ||
+    // One long-lived stream per tab; the client reconnects with backoff
+    pathname.startsWith('/api/realtime/sse');
 
   if (
     pathname.startsWith('/api') &&
@@ -238,7 +240,12 @@ export async function proxy(req: NextRequest) {
     if (pathname.includes('/email/send') || pathname.includes('/campaigns')) {
       rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 50 };
     }
-    if (pathname.includes('/payment') || pathname.includes('/subscription')) {
+    // Tight budget for creating orders / changing plans — not for reads such as the
+    // usage banner (GET /api/subscription/usage runs on every dashboard page).
+    if (
+      (pathname.includes('/payment') || pathname.includes('/subscription')) &&
+      req.method !== 'GET'
+    ) {
       rateLimitConfig = { windowMs: 60 * 60 * 1000, maxRequests: 30 };
     }
     // Session status poll is cheap but frequent — isolate a higher bucket.

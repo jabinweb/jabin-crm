@@ -15,7 +15,10 @@ export async function rateLimit(
   req: NextRequest,
   options: RateLimitOptions
 ): Promise<{ success: boolean }> {
+  // Behind Cloudflare, cf-connecting-ip is the real visitor; x-forwarded-for can be
+  // rewritten by proxies between Cloudflare and the app.
   const ip =
+    req.headers.get('cf-connecting-ip')?.trim() ||
     req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
     req.headers.get('x-real-ip') ||
     '127.0.0.1';
