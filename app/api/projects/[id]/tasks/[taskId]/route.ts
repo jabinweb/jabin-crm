@@ -1,5 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { listMentionableUsers } from '@/lib/projects/mentions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import { assertProjectTask } from '@/lib/projects/task-activity';
@@ -114,11 +115,9 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
       : {};
 
   const watching = task.watchers.some((w) => w.userId === session.user.id);
-  const memberOptions = [
-    ...(task.project.pmUser ? [task.project.pmUser] : []),
-    ...task.project.members.map((member) => member.user),
-  ].filter(
-    (person, index, arr) => arr.findIndex((candidate) => candidate.id === person.id) === index
+  // Anyone in the workspace can be assigned (project team listed first)
+  const memberOptions = ((await listMentionableUsers(companyId, projectId)) ?? []).map(
+    ({ id, name, email, image }) => ({ id, name, email, image })
   );
   return jsonOk({
     ...task,

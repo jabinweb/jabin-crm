@@ -343,7 +343,8 @@ export default function ProjectDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  // Project lead picker (same roles that may edit the project)
+  // Workspace staff (project team first): the lead picker and task assignees, like Jira —
+  // anyone in the workspace can be assigned, not only people already on the project
   const { data: staff = [] } = useQuery<Array<{ id: string; name: string | null; email: string }>>({
     queryKey: ['project-staff', slug, projectId],
     queryFn: async () => {
@@ -351,7 +352,7 @@ export default function ProjectDetailPage() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: !!project?.canManage,
+    enabled: !!project && project.canWrite !== false,
   });
 
   const leadMutation = useMutation({
@@ -1056,6 +1057,7 @@ export default function ProjectDetailPage() {
               name: m.user.name,
               email: m.user.email,
             })),
+            ...staff.map((u) => ({ id: u.id, name: u.name, email: u.email })),
           ].filter(
             (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i
           )}
