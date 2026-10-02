@@ -8,12 +8,13 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { UserPlus, Upload, Search } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
 import {
   columns,
-  employeeStatusColors,
+  employeeStatusClass,
   type Employee,
 } from '@/components/employees/employees-columns'
+import { QueryErrorState, humanizeEnum } from '@/components/hr/hr-ui'
+import { CardListSkeleton } from '@/components/loading'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/user-avatar'
@@ -86,6 +87,9 @@ export default function EmployeesPage() {
     return data as Metadata
   }, [companySlug, tenantHeaders])
 
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
+
   useEffect(() => {
     if (!companySlug) {
       setIsLoading(false)
@@ -96,6 +100,7 @@ export default function EmployeesPage() {
     const loadInitialData = async () => {
       try {
         setIsLoading(true)
+        setLoadFailed(false)
         const [employeesData, metadataData] = await Promise.all([
           fetchEmployees({}),
           fetchMetadata().catch(() => null),
@@ -106,13 +111,7 @@ export default function EmployeesPage() {
         setEmployees(employeesData)
         if (metadataData) setFilterOptions(metadataData)
       } catch {
-        if (mounted) {
-          toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'Failed to load employees',
-          })
-        }
+        if (mounted) setLoadFailed(true)
       } finally {
         if (mounted) setIsLoading(false)
       }
@@ -122,7 +121,7 @@ export default function EmployeesPage() {
     return () => {
       mounted = false
     }
-  }, [companySlug, fetchEmployees, fetchMetadata])
+  }, [companySlug, fetchEmployees, fetchMetadata, reloadKey])
 
   const mobileEmployees = useMemo(() => {
     const q = mobileQuery.trim().toLowerCase()
@@ -131,52 +130,66 @@ export default function EmployeesPage() {
   }, [employees, mobileQuery])
 
   if (!companySlug) {
-    return <div className="space-y-6">Invalid company.</div>
+    return (
+      <EmptyState
+        title="Workspace not found"
+        description="Open Employees from your workspace dashboard."
+      />
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="min-w-0 text-2xl font-bold">Employees</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
+          <p className="text-sm text-muted-foreground">
+            Everyone in your workspace, with their department and status.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <DashboardLink
               href="/dashboard/settings/migration"
               className="inline-flex items-center"
-              onClick={() => {
-                toast({
-                  title: 'CSV imports',
-                  description: 'Use Data migration for CSV imports',
-                })
-              }}
+              title="Import employees from CSV via Data migration"
             >
               <Upload className="h-4 w-4 mr-2" />
-              Import
+              Import CSV
             </DashboardLink>
           </Button>
           <Button asChild>
             <DashboardLink href="/dashboard/employees/new" className="inline-flex items-center">
               <UserPlus className="h-4 w-4 mr-2" />
-              Add Employee
+              Add employee
             </DashboardLink>
           </Button>
         </div>
       </div>
 
-      {!isLoading && employees.length === 0 ? (
+      {loadFailed ? (
+        <QueryErrorState
+          title="Couldn’t load employees"
+          onRetry={() => setReloadKey((k) => k + 1)}
+          className="rounded-lg border"
+        />
+      ) : !isLoading && employees.length === 0 ? (
         <EmptyState
           icon={UserPlus}
           title="No employees yet"
-          description="Add your first employee to get started."
-          actionLabel="Add Employee"
+          description="Add your first employee, or import a CSV of your team."
+          actionLabel="Add employee"
           actionHref={path('/dashboard/employees/new')}
+          className="rounded-lg border"
         />
       ) : (
         <>
         <div className="space-y-3 md:hidden">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
+              type="search"
+              aria-label="Search employees by name"
               placeholder="Search name…"
               value={mobileQuery}
               onChange={(e) => setMobileQuery(e.target.value)}
@@ -184,9 +197,16 @@ export default function EmployeesPage() {
             />
           </div>
           {isLoading && employees.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+            <CardListSkeleton rows={6} />
           ) : mobileEmployees.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">No results.</p>
+            <EmptyState
+              icon={Search}
+              title="No matches"
+              description={`Nobody named “${mobileQuery.trim()}”.`}
+              actionLabel="Clear search"
+              onAction={() => setMobileQuery('')}
+              className="rounded-lg border py-8"
+            />
           ) : (
             <ul className="divide-y rounded-lg border bg-card">
               {mobileEmployees.map((employee) => (
@@ -203,13 +223,8 @@ export default function EmployeesPage() {
                       </p>
                     </div>
                     {employee.status ? (
-                      <Badge
-                        className={cn(
-                          'shrink-0',
-                          employeeStatusColors[employee.status] ?? 'bg-gray-100 text-gray-800'
-                        )}
-                      >
-                        {employee.status.split('_').join(' ')}
+                      <Badge className={cn('shrink-0', employeeStatusClass(employee.status))}>
+                        {humanizeEnum(employee.status)}
                       </Badge>
                     ) : null}
                   </Link>

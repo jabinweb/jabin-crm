@@ -5,9 +5,11 @@ import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Calendar } from 'lucide-react'
+import { Calendar, Loader2 } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
+import { QueryErrorState, StatusBadge, humanizeEnum } from '@/components/hr/hr-ui'
+import { confirmAction } from '@/lib/confirm-action'
 import { toast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
@@ -26,7 +28,7 @@ interface LeaveRow {
 
 export default function CompanyLeaveRequestsPage() {
   const params = useParams<{ company: string }>()
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const companySlug = params.company
   const tenantHeaders = useMemo(
     () => (companySlug ? workspaceSlugHeaders(companySlug) : {}),
@@ -36,6 +38,7 @@ export default function CompanyLeaveRequestsPage() {
   const [filter, setFilter] = useState<'PENDING' | 'ALL'>('PENDING')
   const [requests, setRequests] = useState<LeaveRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [actionId, setActionId] = useState<string | null>(null)
 
   const canManage =
@@ -44,18 +47,15 @@ export default function CompanyLeaveRequestsPage() {
   const fetchRequests = useCallback(async () => {
     if (!companySlug) return
     setLoading(true)
+    setLoadFailed(false)
     try {
       const qs = filter === 'PENDING' ? '?status=PENDING' : ''
       const res = await fetch(`/api/leave-requests${qs}`, { headers: tenantHeaders })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load leave requests')
       setRequests(Array.isArray(data) ? data : [])
-    } catch (e) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Could not load requests',
-      })
+    } catch {
+      setLoadFailed(true)
     } finally {
       setLoading(false)
     }
@@ -65,7 +65,17 @@ export default function CompanyLeaveRequestsPage() {
     if (canManage) fetchRequests()
   }, [canManage, fetchRequests])
 
-  const handleAction = async (id: string, action: 'approve' | 'reject') => {
+  const handleAction = async (req: LeaveRow, action: 'approve' | 'reject') => {
+    const id = req.id
+    if (action === 'reject') {
+      const ok = await confirmAction({
+        title: `Reject ${req.employee.name}’s leave?`,
+        description: 'They will be notified that the request was rejected.',
+        confirmLabel: 'Reject',
+        variant: 'destructive',
+      })
+      if (!ok) return
+    }
     setActionId(id)
     try {
       const res = await fetch(`/api/leave-requests/${id}/${action}`, {
@@ -82,26 +92,33 @@ export default function CompanyLeaveRequestsPage() {
     } catch (e) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Could not update request',
+        title: 'Couldn’t update request',
+        description: e instanceof Error ? e.message : 'Please try again.',
       })
     } finally {
       setActionId(null)
     }
   }
 
+  if (sessionStatus === 'loading') {
+    return <CardListSkeleton rows={4} />
+  }
+
   if (!canManage) {
-    return <p className="text-muted-foreground">Admin access required.</p>
+    return (
+      <EmptyState
+        icon={Calendar}
+        title="Admin access required"
+        description="Ask a workspace admin to review leave requests."
+      />
+    )
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Calendar className="h-6 w-6" />
-          Leave requests
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Leave requests</h1>
+        <p className="text-sm text-muted-foreground">
           Review and approve employee leave for your company.
         </p>
       </div>
@@ -115,15 +132,25 @@ export default function CompanyLeaveRequestsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{filter === 'PENDING' ? 'Pending approval' : 'All requests'}</CardTitle>
+          <CardTitle className="text-base">{filter === 'PENDING' ? 'Pending approval' : 'All requests'}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <CardListSkeleton rows={4} />
+          ) : loadFailed ? (
+            <QueryErrorState title="Couldn’t load leave requests" onRetry={() => void fetchRequests()} />
           ) : requests.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">
-              No leave requests{filter === 'PENDING' ? ' pending approval' : ''}.
-            </p>
+            <EmptyState
+              icon={Calendar}
+              title={filter === 'PENDING' ? 'You’re all caught up' : 'No leave requests yet'}
+              description={
+                filter === 'PENDING'
+                  ? 'No leave is waiting for approval. Switch to All to see past requests.'
+                  : 'Requests employees submit from their portal will appear here.'
+              }
+              actionLabel={filter === 'PENDING' ? 'Show all requests' : undefined}
+              onAction={filter === 'PENDING' ? () => setFilter('ALL') : undefined}
+            />
           ) : (
             <div className="space-y-4">
               {requests.map((req) => (
@@ -135,44 +162,32 @@ export default function CompanyLeaveRequestsPage() {
                         {req.employee.department || req.employee.email}
                       </p>
                     </div>
-                    <Badge
-                      className="shrink-0"
-                      variant={
-                        req.status === 'APPROVED'
-                          ? 'default'
-                          : req.status === 'REJECTED'
-                            ? 'destructive'
-                            : 'secondary'
-                      }
-                    >
-                      {req.status}
-                    </Badge>
+                    <StatusBadge status={req.status} />
                   </div>
                   <p className="text-sm">
-                    <span className="font-medium">{req.type}</span>
+                    <span className="font-medium">{humanizeEnum(req.type)}</span>
                     {' · '}
-                    {format(new Date(req.startDate), 'MMM d, yyyy')} –{' '}
-                    {format(new Date(req.endDate), 'MMM d, yyyy')}
+                    {format(new Date(req.startDate), 'd MMM yyyy')} –{' '}
+                    {format(new Date(req.endDate), 'd MMM yyyy')}
                   </p>
                   <p className="break-words text-sm text-muted-foreground">{req.reason}</p>
                   {req.status === 'PENDING' && (
                     <div className="flex gap-2 pt-2">
                       <Button
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        disabled={actionId === req.id}
-                        onClick={() => handleAction(req.id, 'approve')}
-                      >
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
                         variant="outline"
                         className="flex-1 sm:flex-none"
                         disabled={actionId === req.id}
-                        onClick={() => handleAction(req.id, 'reject')}
+                        onClick={() => void handleAction(req, 'reject')}
                       >
                         Reject
+                      </Button>
+                      <Button
+                        className="flex-1 sm:flex-none"
+                        disabled={actionId === req.id}
+                        onClick={() => void handleAction(req, 'approve')}
+                      >
+                        {actionId === req.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Approve
                       </Button>
                     </div>
                   )}

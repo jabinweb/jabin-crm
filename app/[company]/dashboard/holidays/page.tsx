@@ -18,6 +18,8 @@ import { Loader2, CalendarDays, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardListSkeleton } from '@/components/loading'
 import { format } from 'date-fns'
+import { QueryErrorState, humanizeEnum } from '@/components/hr/hr-ui'
+import { confirmAction } from '@/lib/confirm-action'
 
 type Holiday = {
   id: string
@@ -32,7 +34,12 @@ export default function HolidaysAdminPage() {
   const [date, setDate] = useState('')
   const [type, setType] = useState('PUBLIC')
 
-  const { data: holidays = [], isLoading } = useQuery({
+  const {
+    data: holidays = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['admin-holidays'],
     queryFn: async () => {
       const res = await fetch('/api/holidays')
@@ -94,7 +101,14 @@ export default function HolidaysAdminPage() {
         <CardHeader>
           <CardTitle className="text-base">Add holiday</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (name.trim() && date && !createMutation.isPending) createMutation.mutate()
+            }}
+          >
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2 sm:col-span-1">
               <Label htmlFor="hol-name">Name</Label>
@@ -115,9 +129,9 @@ export default function HolidaysAdminPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label htmlFor="hol-type">Type</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
+                <SelectTrigger id="hol-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -128,17 +142,18 @@ export default function HolidaysAdminPage() {
             </div>
           </div>
           <Button
+            type="submit"
             className="w-full sm:w-auto"
             disabled={
               !name.trim() || !date || createMutation.isPending
             }
-            onClick={() => createMutation.mutate()}
           >
             {createMutation.isPending && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             )}
             Add holiday
           </Button>
+          </form>
         </CardContent>
       </Card>
 
@@ -149,11 +164,13 @@ export default function HolidaysAdminPage() {
         <CardContent>
           {isLoading ? (
             <CardListSkeleton rows={4} />
+          ) : isError ? (
+            <QueryErrorState title="Couldn’t load holidays" onRetry={() => void refetch()} />
           ) : holidays.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
               title="No holidays yet"
-              description="Add public or restricted holidays for your company."
+              description="Use the form above to add public or restricted holidays for your company."
             />
           ) : (
             <div className="divide-y rounded-lg border">
@@ -165,15 +182,24 @@ export default function HolidaysAdminPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{h.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(h.date), 'EEE, d MMM yyyy')} · {h.type}
+                      {format(new Date(h.date), 'EEE, d MMM yyyy')} · {humanizeEnum(h.type)}
                     </p>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => deleteMutation.mutate(h.id)}
+                    className="h-10 w-10 shrink-0"
+                    aria-label={`Remove ${h.name}`}
+                    disabled={deleteMutation.isPending && deleteMutation.variables === h.id}
+                    onClick={async () => {
+                      const ok = await confirmAction({
+                        title: 'Remove holiday?',
+                        description: `“${h.name}” will be removed from the employee calendar.`,
+                        confirmLabel: 'Remove',
+                        variant: 'destructive',
+                      })
+                      if (ok) deleteMutation.mutate(h.id)
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
