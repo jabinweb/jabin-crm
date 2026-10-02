@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
-import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 import { confirmAction } from '@/lib/confirm-action';
 import {
   Dialog,
@@ -184,10 +184,27 @@ export default function CompaniesPage() {
     );
   }
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Companies</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          All workspaces on the platform
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => fetchCompanies()}>
+          Refresh
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isInitialLoad) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <FullTableSkeleton columnCount={5} rowCount={6} />
       </div>
     );
@@ -205,19 +222,7 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Companies</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            All workspaces on the platform
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => fetchCompanies()}>
-            Refresh
-          </Button>
-        </div>
-      </div>
+      {pageHeader}
 
       {/* Phones: one card per company */}
       <div className="space-y-3 md:hidden">

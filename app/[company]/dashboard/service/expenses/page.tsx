@@ -140,8 +140,21 @@ export default function ServiceExpensesPage() {
     }
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl md:text-3xl font-bold">Travel & Expense</h1>
+      <p className="text-sm text-muted-foreground">Capture site travel costs and reimbursements.</p>
+    </div>
+  );
+
   if (loading) {
-    return <FullTableSkeleton columnCount={5} rowCount={5} withHeader />;
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <FullTableSkeleton columnCount={5} rowCount={5} />
+      </div>
+    );
   }
 
   if (!featureEnabled) {
@@ -159,10 +172,7 @@ export default function ServiceExpensesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Travel & Expense</h1>
-        <p className="text-sm text-muted-foreground">Capture site travel costs and reimbursements.</p>
-      </div>
+      {pageHeader}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>

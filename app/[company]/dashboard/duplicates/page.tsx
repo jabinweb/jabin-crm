@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 import {
   Select,
   SelectContent,
@@ -140,10 +140,39 @@ export default function DuplicatesPage() {
   const groups = data?.groups || [];
   const summary = data?.summary || null;
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Duplicate Leads</h1>
+        <p className="text-muted-foreground">
+          Identify and merge duplicate leads to keep your database clean
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
+        <Button
+          onClick={() => autoMergeMutation.mutate()}
+          disabled={autoMergeMutation.isPending || !summary?.exactMatches}
+        >
+          {autoMergeMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Merge className="mr-2 h-4 w-4" />
+          )}
+          Auto-Merge Exact Matches
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={3} />
         <CardListSkeleton rows={4} />
       </div>
@@ -152,31 +181,7 @@ export default function DuplicatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Duplicate Leads</h1>
-          <p className="text-muted-foreground">
-            Identify and merge duplicate leads to keep your database clean
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Button
-            onClick={() => autoMergeMutation.mutate()}
-            disabled={autoMergeMutation.isPending || !summary?.exactMatches}
-          >
-            {autoMergeMutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Merge className="mr-2 h-4 w-4" />
-            )}
-            Auto-Merge Exact Matches
-          </Button>
-        </div>
-      </div>
+      {pageHeader}
 
       {summary && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

@@ -26,7 +26,7 @@ import {
 import { Plus, Phone, Mail, Calendar, CheckCircle2, Clock, AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
@@ -263,10 +263,33 @@ export default function TasksPage() {
     return new Date(dueDate) < new Date();
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold">Follow-ups</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Sales activities on leads and deals — not project delivery work
+        </p>
+        <p className="text-sm md:text-base text-muted-foreground">Manage your sales activities</p>
+      </div>
+      <Button
+        className="w-full sm:w-auto"
+        onClick={() => {
+          setForm(EMPTY_FORM);
+          setCreateOpen(true);
+        }}
+      >
+        <Plus className="mr-2 h-4 w-4" />
+        New Task
+      </Button>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={4} />
         <CardListSkeleton rows={5} />
       </div>
@@ -275,25 +298,7 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Follow-ups</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Sales activities on leads and deals — not project delivery work
-          </p>
-          <p className="text-sm md:text-base text-muted-foreground">Manage your sales activities</p>
-        </div>
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => {
-            setForm(EMPTY_FORM);
-            setCreateOpen(true);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          New Task
-        </Button>
-      </div>
+      {pageHeader}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card>

@@ -20,9 +20,20 @@ export default function MyWorkPage() {
     },
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">My work</h1>
+      <p className="text-sm text-muted-foreground">
+        Open project delivery tasks assigned to you
+      </p>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="min-w-0 space-y-6">
+        {pageHeader}
         <FullTableSkeleton columnCount={4} rowCount={6} />
       </div>
     );
@@ -30,12 +41,7 @@ export default function MyWorkPage() {
 
   return (
     <div className="min-w-0 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">My work</h1>
-        <p className="text-sm text-muted-foreground">
-          Open project delivery tasks assigned to you
-        </p>
-      </div>
+      {pageHeader}
 
       <ProjectDeliveryTaskList
         tasks={tasks}

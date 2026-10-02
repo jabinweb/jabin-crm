@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 type DashboardStatsResult =
   | { kind: 'stats'; employees: number; customers: number; products: number; projects: number }
@@ -78,10 +78,27 @@ export default function WorkspacePage() {
     },
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b pb-6">
+      <div className="min-w-0">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">Workspace</h2>
+        <p className="text-muted-foreground text-xs mt-1">
+          Set up your company to unlock the full dashboard.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/workspace/settings">Profile settings</Link>
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={4} />
         <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-7">
           <SectionSkeleton lines={8} className="lg:col-span-4" />
@@ -108,19 +125,7 @@ export default function WorkspacePage() {
     <div className="space-y-6">
       <NoCompanyWorkspaceDialog open={noCompanyDialogOpen} onOpenChange={setNoCompanyDialogOpen} />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b pb-6">
-        <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">Workspace</h2>
-          <p className="text-muted-foreground text-xs mt-1">
-            Set up your company to unlock the full dashboard.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href="/workspace/settings">Profile settings</Link>
-          </Button>
-        </div>
-      </div>
+      {pageHeader}
 
       {profile && <ProfileCompletionBanner isComplete={profile.isComplete} />}
 

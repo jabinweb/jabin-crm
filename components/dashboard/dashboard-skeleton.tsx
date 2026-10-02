@@ -1,11 +1,11 @@
-import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
+/** Loading state for dashboard data only — pages render their own (static) header above it. */
 export function DashboardSkeleton() {
   return (
     <div className="space-y-4 sm:space-y-6">
-      <PageHeaderSkeleton />
       <StatCardsSkeleton />
       <div className="grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-7">
         <div className="lg:col-span-4">

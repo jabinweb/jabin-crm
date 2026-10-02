@@ -15,7 +15,7 @@ import {
 import { ProfileCard } from '@/components/employee/profile-card'
 import { EssPageHeader } from '@/components/employee/mobile/page-header'
 import { toast } from '@/hooks/use-toast'
-import { PageHeaderSkeleton, DetailSkeleton } from '@/components/loading'
+import { DetailSkeleton } from '@/components/loading'
 
 interface Address {
   street: string
@@ -163,7 +163,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-lg space-y-5 lg:mx-0 lg:max-w-4xl">
-        <PageHeaderSkeleton />
+        <EssPageHeader title="My Profile" className="items-center" />
         <DetailSkeleton />
       </div>
     )

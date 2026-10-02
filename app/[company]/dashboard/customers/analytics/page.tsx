@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { Badge } from '@/components/ui/badge';
-import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 export default function CustomerAnalyticsPage() {
     const { data: analytics, isLoading } = useQuery({
@@ -36,10 +36,28 @@ export default function CustomerAnalyticsPage() {
         },
     });
 
+    // Static page header: shown as-is while data loads (no skeleton for known text)
+    const pageHeader = (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Customer Analytics Hub</h2>
+              <p className="text-muted-foreground">Strategic overview of client engagement and installed assets.</p>
+          </div>
+          <div className="flex items-center space-x-2">
+              <Button asChild variant="outline">
+                  <DashboardLink href="/dashboard/customers">
+                      <Building className="mr-2 h-4 w-4" />
+                      Client directory
+                  </DashboardLink>
+              </Button>
+          </div>
+      </div>
+    );
+
     if (isLoading) {
         return (
             <div className="space-y-6">
-                <PageHeaderSkeleton />
+                {pageHeader}
                 <StatCardsSkeleton count={4} />
                 <SectionSkeleton lines={8} />
             </div>
@@ -48,20 +66,7 @@ export default function CustomerAnalyticsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Customer Analytics Hub</h2>
-                    <p className="text-muted-foreground">Strategic overview of client engagement and installed assets.</p>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Button asChild variant="outline">
-                        <DashboardLink href="/dashboard/customers">
-                            <Building className="mr-2 h-4 w-4" />
-                            Client directory
-                        </DashboardLink>
-                    </Button>
-                </div>
-            </div>
+            {pageHeader}
 
             {/* Top Level Summary Cards */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Play, Pause, Users, Mail, TrendingUp } from 'lucide-react';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
+import { CardListSkeleton } from '@/components/loading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/confirm-action';
@@ -85,10 +85,28 @@ export default function SequencesPage() {
     }
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold sm:text-3xl">Email Sequences</h1>
+        <p className="text-muted-foreground">
+          Automate your email outreach with multi-step sequences
+        </p>
+      </div>
+      <DashboardLink href="/dashboard/sequences/new" className="self-start sm:self-auto">
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Sequence
+        </Button>
+      </DashboardLink>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <CardListSkeleton rows={4} />
       </div>
     );
@@ -96,20 +114,7 @@ export default function SequencesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold sm:text-3xl">Email Sequences</h1>
-          <p className="text-muted-foreground">
-            Automate your email outreach with multi-step sequences
-          </p>
-        </div>
-        <DashboardLink href="/dashboard/sequences/new" className="self-start sm:self-auto">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Sequence
-          </Button>
-        </DashboardLink>
-      </div>
+      {pageHeader}
 
       {sequences.length === 0 ? (
         <Card>

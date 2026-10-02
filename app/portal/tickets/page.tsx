@@ -68,29 +68,39 @@ function CustomerTicketQueue() {
         t.id.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Static page header: shown as-is while data loads (no skeleton for known text)
+    const pageHeader = (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex min-w-0 flex-col items-start gap-2">
+                <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none hover:bg-slate-100">
+                    <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-bold ">{ticketsLabel}</h1>
+                    <p className="text-sm text-muted-foreground">Your {ticketLabel.toLowerCase()} queue</p>
+                </div>
+            </div>
+            <Button asChild className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 shadow-none shadow-blue-500/20">
+                <Link href="/portal/tickets/new">
+                    <Ticket className="mr-2 h-4 w-4" />
+                    {newRequestLabel}
+                </Link>
+            </Button>
+        </div>
+    );
+
     if (isLoading) {
-        return <FullTableSkeleton columnCount={5} rowCount={5} />;
+        return (
+            <div className="space-y-6">
+                {pageHeader}
+                <FullTableSkeleton columnCount={5} rowCount={5} />
+            </div>
+        );
     }
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div className="flex min-w-0 flex-col items-start gap-2">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none hover:bg-slate-100">
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="min-w-0">
-                        <h1 className="text-2xl font-bold ">{ticketsLabel}</h1>
-                        <p className="text-sm text-muted-foreground">Your {ticketLabel.toLowerCase()} queue</p>
-                    </div>
-                </div>
-                <Button asChild className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 shadow-none shadow-blue-500/20">
-                    <Link href="/portal/tickets/new">
-                        <Ticket className="mr-2 h-4 w-4" />
-                        {newRequestLabel}
-                    </Link>
-                </Button>
-            </div>
+            {pageHeader}
 
             <div className="flex items-center gap-3">
                 <div className="relative min-w-0 flex-1 sm:max-w-sm">

@@ -41,23 +41,33 @@ function QuotationsList() {
     },
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col items-start gap-2">
+      <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none">
+        <ChevronLeft className="h-4 w-4" />
+      </Button>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight">Quotations</h1>
+        <p className="text-sm text-muted-foreground">Review and approve quotes from your provider.</p>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
-    return <FullTableSkeleton columnCount={5} rowCount={5} />;
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <FullTableSkeleton columnCount={5} rowCount={5} />
+      </div>
+    );
   }
 
   const quotations = data?.quotations ?? [];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-start gap-2">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none">
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight">Quotations</h1>
-          <p className="text-sm text-muted-foreground">Review and approve quotes from your provider.</p>
-        </div>
-      </div>
+      {pageHeader}
 
       <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
         <CardContent className="p-0">

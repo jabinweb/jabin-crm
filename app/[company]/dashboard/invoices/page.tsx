@@ -141,8 +141,27 @@ export default function InvoicesPage() {
     }
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold sm:text-3xl">Invoices</h1>
+        <p className="text-gray-500">Manage your invoices and payments</p>
+      </div>
+      <Button className="self-start" onClick={() => router.push(path("/dashboard/invoices/new"))}>
+        <Plus className="w-4 h-4 mr-2" />
+        Create Invoice
+      </Button>
+    </div>
+  );
+
   if (loading) {
-    return <FullTableSkeleton columnCount={6} rowCount={6} withHeader />;
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <FullTableSkeleton columnCount={6} rowCount={6} />
+      </div>
+    );
   }
 
   const renderInvoiceMenu = (invoice: Invoice, triggerClassName?: string) => (
@@ -185,16 +204,7 @@ export default function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold sm:text-3xl">Invoices</h1>
-          <p className="text-gray-500">Manage your invoices and payments</p>
-        </div>
-        <Button className="self-start" onClick={() => router.push(path("/dashboard/invoices/new"))}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Invoice
-        </Button>
-      </div>
+      {pageHeader}
 
       {/* Stats Cards */}
       {stats && (

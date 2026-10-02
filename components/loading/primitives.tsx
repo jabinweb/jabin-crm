@@ -5,6 +5,10 @@ type ClassNameProps = {
   className?: string;
 };
 
+/**
+ * @deprecated Page titles, descriptions and actions are static — render them directly and
+ * skeleton only the data below. Kept for third-party callers; nothing in the app uses it.
+ */
 export function PageHeaderSkeleton({ className }: ClassNameProps) {
   return (
     <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between', className)}>

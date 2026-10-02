@@ -8,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PageHeaderSkeleton } from './primitives';
 
 export type TableSkeletonProps = {
   columnCount?: number;
@@ -73,7 +72,6 @@ export function FullTableSkeleton({
 export function LeadsTableSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn('space-y-4', className)}>
-      <PageHeaderSkeleton />
       <FullTableSkeleton columnCount={7} rowCount={5} />
     </div>
   );

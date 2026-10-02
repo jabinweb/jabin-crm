@@ -17,7 +17,7 @@ import { Clock, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
-import { FormSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FormSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import Link from 'next/link';
 
@@ -77,23 +77,9 @@ export default function SlaPoliciesPage() {
     };
   };
 
-  return (
-    <FeatureModuleGuard module="SUPPORT_SLA">
-      {isLoading ? (
-        <div className="space-y-8 max-w-3xl">
-          <PageHeaderSkeleton />
-          <div className="space-y-4">
-            {PRIORITIES.map((priority) => (
-              <Card key={priority}>
-                <CardContent className="pt-6">
-                  <FormSkeleton fields={3} />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      ) : (
-    <div className="space-y-8 max-w-3xl">
+  // Static page header: shown as-is while policies load
+  const pageHeader = (
+    <>
       <div className="flex items-center gap-4">
         <SupportBackLink />
       </div>
@@ -112,6 +98,27 @@ export default function SlaPoliciesPage() {
           calendar when business-hours SLA is enabled.
         </p>
       </div>
+    </>
+  );
+
+  return (
+    <FeatureModuleGuard module="SUPPORT_SLA">
+      {isLoading ? (
+        <div className="space-y-8 max-w-3xl">
+          {pageHeader}
+          <div className="space-y-4">
+            {PRIORITIES.map((priority) => (
+              <Card key={priority}>
+                <CardContent className="pt-6">
+                  <FormSkeleton fields={3} />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      ) : (
+    <div className="space-y-8 max-w-3xl">
+      {pageHeader}
 
       <div className="space-y-4">
         {PRIORITIES.map((priority) => {

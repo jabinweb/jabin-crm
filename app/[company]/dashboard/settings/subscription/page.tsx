@@ -31,7 +31,7 @@ import {
 } from '@/lib/feature-module-keys';
 import { startPlanCheckout } from '@/lib/payments/start-plan-checkout';
 import { companyPath } from '@/lib/routing/paths';
-import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 interface Plan {
   id: string;
@@ -227,10 +227,18 @@ export default function SubscriptionSettingsPage() {
     return 'bg-green-500';
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-bold sm:text-3xl">Subscription Settings</h1>
+      <p className="text-muted-foreground mt-2">Manage your plan and billing</p>
+    </div>
+  );
+
   if (subLoading || usageLoading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={3} />
         <SectionSkeleton lines={6} />
       </div>
@@ -255,10 +263,7 @@ export default function SubscriptionSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Subscription Settings</h1>
-        <p className="text-muted-foreground mt-2">Manage your plan and billing</p>
-      </div>
+      {pageHeader}
 
       {/* Current Plan */}
       <Card>

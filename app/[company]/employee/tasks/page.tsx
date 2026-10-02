@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { PageHeaderSkeleton } from '@/components/loading';
 
 /** Bookmark alias → delivery My work (ProjectTasks). */
 export default function EmployeeTasksRedirectPage() {
@@ -16,7 +15,7 @@ export default function EmployeeTasksRedirectPage() {
 
   return (
     <div className="mx-auto w-full max-w-lg lg:mx-0 lg:max-w-3xl">
-      <PageHeaderSkeleton />
+      <p className="py-10 text-center text-sm text-muted-foreground">Opening My work…</p>
     </div>
   );
 }

@@ -25,7 +25,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 
 export default function TechnicianDashboard() {
     const { path } = useWorkspacePaths();
@@ -40,10 +40,37 @@ export default function TechnicianDashboard() {
         }
     });
 
+    // Static page header: shown as-is while data loads (no skeleton for known text)
+    const pageHeader = (
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="min-w-0">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Technician Workspace</h2>
+              <p className="text-muted-foreground">Manage your assigned service tickets and reports.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+              <Button asChild variant="outline">
+                  <DashboardLink href="/dashboard/tickets">
+                      View Full Queue
+                  </DashboardLink>
+              </Button>
+              <Button asChild variant="outline">
+                  <DashboardLink href="/dashboard/service/gps">
+                      GPS Check-In
+                  </DashboardLink>
+              </Button>
+              <Button asChild variant="outline">
+                  <DashboardLink href="/dashboard/service/expenses">
+                      Submit Expense
+                  </DashboardLink>
+              </Button>
+          </div>
+      </div>
+    );
+
     if (statsLoading) {
         return (
             <div className="flex-1 space-y-6">
-                <PageHeaderSkeleton />
+                {pageHeader}
                 <StatCardsSkeleton count={4} />
                 <CardListSkeleton rows={4} />
             </div>
@@ -52,29 +79,7 @@ export default function TechnicianDashboard() {
 
     return (
         <div className="flex-1 min-w-0 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="min-w-0">
-                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Technician Workspace</h2>
-                    <p className="text-muted-foreground">Manage your assigned service tickets and reports.</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline">
-                        <DashboardLink href="/dashboard/tickets">
-                            View Full Queue
-                        </DashboardLink>
-                    </Button>
-                    <Button asChild variant="outline">
-                        <DashboardLink href="/dashboard/service/gps">
-                            GPS Check-In
-                        </DashboardLink>
-                    </Button>
-                    <Button asChild variant="outline">
-                        <DashboardLink href="/dashboard/service/expenses">
-                            Submit Expense
-                        </DashboardLink>
-                    </Button>
-                </div>
-            </div>
+            {pageHeader}
 
             {/* Quick Stats Grid */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">

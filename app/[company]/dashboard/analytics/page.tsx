@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { TrendingUp, Mail, MousePointer, Reply, AlertCircle, DollarSign, Target, Award } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
-import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 
 interface PipelineData {
   pipeline: Array<{ stage: string; count: number; value: number }>;
@@ -84,10 +84,18 @@ export default function AnalyticsPage() {
     fetchData();
   }, []);
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="min-w-0">
+      <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Analytics Dashboard</h1>
+      <p className="text-gray-500">Track your sales performance and email engagement</p>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={4} />
         <SectionSkeleton lines={8} />
       </div>
@@ -96,10 +104,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Analytics Dashboard</h1>
-        <p className="text-gray-500">Track your sales performance and email engagement</p>
-      </div>
+      {pageHeader}
 
       <Tabs defaultValue="pipeline" className="space-y-6">
         <TabsList>

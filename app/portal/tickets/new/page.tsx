@@ -7,7 +7,7 @@ import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 
 export default function NewCustomerTicketPage() {
   return (
-    <Suspense fallback={<FormSkeleton fields={5} withHeader />}>
+    <Suspense fallback={<FormSkeleton fields={5} />}>
       <PortalFeatureGuard
         feature="customerPortal"
         title="Requests not available"
