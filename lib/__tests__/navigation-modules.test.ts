@@ -58,7 +58,37 @@ describe('navigation modules', () => {
   it('de-emphasizes ops on agency hub', () => {
     const hub = hubModulesForVertical('web_agency');
     expect(hub.find((m) => m.id === 'ops')).toBeUndefined();
-    expect(hub[0]?.id).toBe('projects');
+    expect(hub.filter((m) => m.id !== 'workspace')[0]?.id).toBe('projects');
+  });
+
+  it('puts the workspace module first after Home for every staff role', () => {
+    for (const role of ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER', 'TECHNICIAN']) {
+      for (const vertical of ['general', 'web_agency']) {
+        const mods = getAvailableModules({ role, vertical });
+        expect(mods[0]?.id).toBe('workspace');
+        expect(mods[0]?.icon).not.toBe('Settings');
+      }
+    }
+    expect(getAvailableModules({ role: 'CUSTOMER' }).find((m) => m.id === 'workspace')).toBeUndefined();
+  });
+
+  it('lands each role on a workspace page it can use', () => {
+    const landing = (role: string) =>
+      getAvailableModules({ role, vertical: 'general' }).find((m) => m.id === 'workspace')?.href;
+    expect(landing('ADMIN')).toBe('/admin');
+    expect(landing('SUPER_ADMIN')).toBe('/admin');
+    expect(landing('SALES')).toBe('/dashboard/messages');
+    expect(landing('SUPPORT_MANAGER')).toBe('/dashboard/messages');
+    expect(landing('TECHNICIAN')).toBe('/dashboard/messages');
+    expect(resolveModuleId('/acme/admin')).toBe('workspace');
+    expect(resolveModuleId('/acme/dashboard/messages')).toBe('workspace');
+  });
+
+  it('offers Messages and Calendar from Home (the phone More sheet opens there)', () => {
+    const home = navItemsForModule('home', { vertical: 'general', userRole: 'SALES' });
+    expect(home.map((i) => i.href)).toEqual(
+      expect.arrayContaining(['/dashboard/messages', '/dashboard/calendar'])
+    );
   });
 
   it('getAvailableModules filters by role', () => {

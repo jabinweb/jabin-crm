@@ -212,8 +212,8 @@ export const WORKSPACE_MODULES: WorkspaceModuleDef[] = [
   {
     id: 'workspace',
     label: 'Workspace',
-    description: 'Reports, docs, settings, and admin',
-    icon: 'Settings',
+    description: 'Messages, calendar, docs, reports, and admin',
+    icon: 'LayoutGrid',
     href: '/dashboard/reports',
     priority: 20,
     pathPrefixes: [
@@ -224,8 +224,9 @@ export const WORKSPACE_MODULES: WorkspaceModuleDef[] = [
       '/dashboard/calendar',
       '/admin',
     ],
-    agencyOrder: 7,
-    defaultOrder: 8,
+    // First after Home: Messages, Calendar and Docs are used every day by every role
+    agencyOrder: 0,
+    defaultOrder: 0,
   },
   {
     id: 'platform',
@@ -411,6 +412,7 @@ export const PROJECTS_NAV: NavItem[] = [
 ];
 
 export const HOME_WORK_NAV: NavItem[] = [
+  { name: 'Messages', href: '/dashboard/messages', icon: 'MessageSquare', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: 'Calendar', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
 ];
 
@@ -727,8 +729,9 @@ function moduleLandingFor(
       if (isAdmin) return def.href;
       return opts.hasEmployeeProfile === false ? null : '/employee/attendance';
     case 'workspace':
-      // Reports aren't offered to technicians; Messages is their first workspace page
-      return role === 'TECHNICIAN' ? '/dashboard/messages' : def.href;
+      // Admins land on the workspace overview (users, approvals); everyone else on Messages,
+      // the page they come here for most (technicians aren't offered the Reports hub at all)
+      return isAdmin ? '/admin' : '/dashboard/messages';
     case 'sales':
       if (planOn(modules, 'LEADS')) return def.href;
       if (planOn(modules, 'DEALS')) return '/dashboard/deals';

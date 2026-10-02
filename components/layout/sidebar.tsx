@@ -252,15 +252,15 @@ export function Sidebar({ onNavigate }: SidebarProps) {
     [vertical, userRole, workspaceFeatures, moduleMap, session?.user?.employeeId]
   );
 
-  const { railModules, footerRailModule } = useMemo(() => {
-    const workspace = availableModules.find((m) => m.id === 'workspace');
-    const platform = availableModules.find((m) => m.id === 'platform');
-    const main = availableModules.filter((m) => m.id !== 'workspace' && m.id !== 'platform');
-    const footer = platform ?? workspace ?? null;
-    // Super admins keep the workspace module too (reports, settings, workspace admin)
-    if (platform && workspace) main.push(workspace);
-    return { railModules: main, footerRailModule: footer };
-  }, [availableModules]);
+  // Workspace (Messages, Calendar, Docs…) sits in the main rail right after Home; only the
+  // SaaS control plane is tucked into the rail footer.
+  const { railModules, footerRailModule } = useMemo(
+    () => ({
+      railModules: availableModules.filter((m) => m.id !== 'platform'),
+      footerRailModule: availableModules.find((m) => m.id === 'platform') ?? null,
+    }),
+    [availableModules]
+  );
 
   const moduleNavItems = useMemo((): NavItem[] => {
     if (activeModuleId === 'home') {
