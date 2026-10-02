@@ -1260,6 +1260,122 @@ const leads = await response.json();`,
       },
     ],
   },
+  {
+    id: 'mcp-server',
+    title: 'MCP server (AI clients)',
+    slug: 'mcp-server',
+    description: 'Use Opslane from Claude, Cursor and other MCP clients',
+    category: 'API Reference',
+    order: 21,
+    sections: [
+      {
+        id: 'mcp-overview',
+        title: 'What it is',
+        content: [
+          {
+            type: 'paragraph',
+            data: 'Opslane runs a remote Model Context Protocol (MCP) server at /api/mcp (Streamable HTTP). AI clients such as Claude Code, Claude Desktop and Cursor can search customers, leads, deals, tickets, invoices and projects, and — with a read & write token — create and update records. The client acts as you: it only sees the tools your role and your workspace plan allow, the same as the in-app OPS assistant.',
+          },
+          {
+            type: 'alert',
+            data: {
+              type: 'warning',
+              title: 'Tokens are passwords',
+              message: 'Each token is shown once, works for one workspace, and can be revoked at any time. Tools marked [WRITE] change live data; your AI client asks for approval before calling them. Prefer read-only tokens unless you need changes.',
+            },
+          },
+        ],
+      },
+      {
+        id: 'mcp-token',
+        title: 'Create a token',
+        content: [
+          {
+            type: 'steps',
+            data: [
+              {
+                title: 'Open settings',
+                description: 'Settings → Personal CRM settings → AI clients (MCP). Non-admins also find it under Settings → Integrations.',
+              },
+              {
+                title: 'Pick access and expiry',
+                description: 'Read only (look-ups) or Read & write (also creates and updates records). Tokens expire after 30, 90 or 365 days.',
+              },
+              {
+                title: 'Copy the token',
+                description: 'It is shown once, together with ready-to-paste setup for Claude Code, Claude Desktop and Cursor.',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'mcp-setup',
+        title: 'Connect a client',
+        content: [
+          {
+            type: 'code',
+            data: {
+              language: 'bash',
+              title: 'Claude Code',
+              code: `claude mcp add --transport http opslane https://opslane.jabin.org/api/mcp \\
+  --header "Authorization: Bearer <your-token>"`,
+            },
+          },
+          {
+            type: 'code',
+            data: {
+              language: 'json',
+              title: 'Claude Desktop (claude_desktop_config.json, needs Node.js)',
+              code: `{
+  "mcpServers": {
+    "opslane": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://opslane.jabin.org/api/mcp",
+               "--header", "Authorization:\${OPSLANE_AUTH}"],
+      "env": { "OPSLANE_AUTH": "Bearer <your-token>" }
+    }
+  }
+}`,
+            },
+          },
+          {
+            type: 'code',
+            data: {
+              language: 'json',
+              title: 'Cursor (~/.cursor/mcp.json)',
+              code: `{
+  "mcpServers": {
+    "opslane": {
+      "url": "https://opslane.jabin.org/api/mcp",
+      "headers": { "Authorization": "Bearer <your-token>" }
+    }
+  }
+}`,
+            },
+          },
+        ],
+      },
+      {
+        id: 'mcp-rules',
+        title: 'Access rules',
+        content: [
+          {
+            type: 'list',
+            data: {
+              items: [
+                'Every request re-checks that you are still staff of the workspace; removed users lose access at once.',
+                'Your current role and the workspace plan decide which tools are listed — the same rules as the OPS assistant.',
+                'Read-only tokens never see tools that change data.',
+                'Changes made through MCP are recorded in the audit log.',
+                'Client-portal (customer) accounts cannot create tokens.',
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 // Helper functions

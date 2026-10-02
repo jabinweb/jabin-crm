@@ -58,6 +58,9 @@ const PUBLIC_EXACT = new Set([
   '/manifest.json',
   '/sw.js',
   '/offline.html',
+  // Remote MCP server: AI clients send a personal bearer token, never a session cookie.
+  // The route itself rejects missing / invalid / revoked tokens with 401.
+  '/api/mcp',
 ]);
 
 /** API prefixes the client portal calls. Everything else is staff-only. */
