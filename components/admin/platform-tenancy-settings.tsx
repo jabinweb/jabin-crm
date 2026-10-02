@@ -9,6 +9,7 @@ import { Loader2, Globe2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { TenancyMode } from '@/lib/tenancy/mode';
 import { FormSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 type ConfigResponse = {
   tenancyMode: TenancyMode;
@@ -20,6 +21,7 @@ export function PlatformTenancySettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [mode, setMode] = useState<TenancyMode>('path');
+  const [savedMode, setSavedMode] = useState<TenancyMode | null>(null);
   const [meta, setMeta] = useState<Omit<ConfigResponse, 'tenancyMode'> | null>(null);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ export function PlatformTenancySettings() {
         const data = (await res.json()) as ConfigResponse;
         if (cancelled) return;
         setMode(data.tenancyMode);
+        setSavedMode(data.tenancyMode);
         setMeta({ source: data.source, envTenancyMode: data.envTenancyMode });
       } catch {
         toast.error('Could not load tenancy settings');
@@ -44,6 +47,18 @@ export function PlatformTenancySettings() {
   }, []);
 
   const save = async () => {
+    if (savedMode && mode !== savedMode) {
+      const ok = await confirmAction({
+        title: mode === 'subdomain' ? 'Switch to subdomain URLs?' : 'Switch to path-based URLs?',
+        description:
+          mode === 'subdomain'
+            ? 'Every workspace link changes to acme.yourdomain.com. This only works once your domain and wildcard DNS are set up — otherwise users will not be able to reach their workspace.'
+            : 'Every workspace link changes to yourapp.com/acme. Existing subdomain bookmarks will stop working.',
+        confirmLabel: 'Switch mode',
+        variant: 'destructive',
+      });
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/admin/platform-settings', {
@@ -54,6 +69,7 @@ export function PlatformTenancySettings() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Save failed');
       setMode(data.tenancyMode);
+      setSavedMode(data.tenancyMode);
       setMeta({ source: data.source, envTenancyMode: data.envTenancyMode });
       toast.success('Tenancy mode saved');
     } catch (e) {
@@ -137,7 +153,7 @@ export function PlatformTenancySettings() {
               </p>
             )}
 
-            <Button onClick={save} disabled={saving}>
+            <Button onClick={save} disabled={saving || (meta?.source === 'database' && mode === savedMode)}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Save tenancy mode
             </Button>

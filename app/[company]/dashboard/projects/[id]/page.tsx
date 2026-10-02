@@ -65,6 +65,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useFeatureModule } from '@/components/feature-module-guard';
+import { humanizeEnum } from '@/lib/format/humanize';
+import { formatCurrency } from '@/lib/currency';
+import { confirmAction } from '@/lib/confirm-action';
 
 const ProjectTaskBoard = dynamic(
   () => import('@/components/projects/project-task-board').then((mod) => mod.ProjectTaskBoard),
@@ -512,7 +515,7 @@ export default function ProjectDetailPage() {
       >
         <Button variant="outline" size="sm" asChild>
           <Link href={path(`/dashboard/projects/${project.id}/docs`)}>
-            <BookOpen className="mr-1.5 size-3.5" />
+            <BookOpen className="mr-1.5 h-3.5 w-3.5" />
             Docs
           </Link>
         </Button>
@@ -571,7 +574,7 @@ export default function ProjectDetailPage() {
         >
           <div className="flex min-w-0 items-center justify-between gap-3 text-xs">
             <span className="inline-flex items-center gap-1.5 font-medium">
-              <CheckCircle2 className="size-3.5 text-muted-foreground" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground" />
               Milestones
               <span className="font-normal text-muted-foreground">
                 {milestonesDone}/{milestones.length}
@@ -629,15 +632,15 @@ export default function ProjectDetailPage() {
         {/* Underline tabs (Jira-style) rather than the app's default pill tabs */}
         <TabsList className="h-auto w-full justify-start gap-5 rounded-none border-0 border-b bg-transparent p-0 sm:justify-start">
           <TabsTrigger value="board" className={PROJECT_TAB_CLASS}>
-            <LayoutGrid className="size-3.5" />
+            <LayoutGrid className="h-3.5 w-3.5" />
             Board
           </TabsTrigger>
           <TabsTrigger value="list" className={PROJECT_TAB_CLASS}>
-            <List className="size-3.5" />
+            <List className="h-3.5 w-3.5" />
             List
           </TabsTrigger>
           <TabsTrigger value="overview" className={PROJECT_TAB_CLASS}>
-            <Info className="size-3.5" />
+            <Info className="h-3.5 w-3.5" />
             Overview
           </TabsTrigger>
         </TabsList>
@@ -672,7 +675,7 @@ export default function ProjectDetailPage() {
                         <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
                           <a href={liveUrl} target="_blank" rel="noopener noreferrer">
                             Open live site
-                            <ExternalLink className="ml-1 size-3" />
+                            <ExternalLink className="ml-1 h-3 w-3" />
                           </a>
                         </Button>
                       ) : null}
@@ -686,7 +689,7 @@ export default function ProjectDetailPage() {
                       href={path(`/dashboard/customers/${project.customer.id}`)}
                       className="inline-flex items-center gap-1.5 hover:text-foreground"
                     >
-                      <Building2 className="size-3.5" />
+                      <Building2 className="h-3.5 w-3.5" />
                       {project.customer.organizationName}
                     </Link>
                   ) : null}
@@ -695,18 +698,18 @@ export default function ProjectDetailPage() {
                       href={path(`/dashboard/deals/${project.deal.id}`)}
                       className="inline-flex items-center gap-1.5 hover:text-foreground"
                     >
-                      <Handshake className="size-3.5" />
+                      <Handshake className="h-3.5 w-3.5" />
                       {project.deal.title}
                     </Link>
                   ) : null}
                   {project.pmUser ? (
                     <span className="inline-flex items-center gap-1.5">
-                      <User className="size-3.5" />
+                      <User className="h-3.5 w-3.5" />
                       {project.pmUser.name || project.pmUser.email}
                     </span>
                   ) : null}
                   <span className="inline-flex items-center gap-1.5">
-                    <Clock className="size-3.5" />
+                    <Clock className="h-3.5 w-3.5" />
                     {formatDate(project.startDate)} → {formatDate(project.endDate)}
                   </span>
                 </div>
@@ -747,7 +750,7 @@ export default function ProjectDetailPage() {
                       ))}
                       <Button variant="outline" size="sm" className="mt-2 self-start" asChild>
                         <Link href={newTicketHref}>
-                          <Ticket className="mr-1.5 size-3.5" />
+                          <Ticket className="mr-1.5 h-3.5 w-3.5" />
                           New ticket
                         </Link>
                       </Button>
@@ -838,12 +841,12 @@ export default function ProjectDetailPage() {
                           >
                             <p className="font-medium">{r.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {r.currency} {r.amount.toLocaleString()} /{' '}
-                              {r.billingCycle.toLowerCase()}
+                              {formatCurrency(r.amount, r.currency)} /{' '}
+                              {humanizeEnum(r.billingCycle).toLowerCase()}
                             </p>
                           </Link>
                           <div className="flex shrink-0 items-center gap-2">
-                            <Badge variant="outline">{r.status}</Badge>
+                            <Badge variant="outline">{humanizeEnum(r.status)}</Badge>
                             {r.status === 'ACTIVE' && isAdminRole ? (
                               <Button
                                 type="button"
@@ -870,7 +873,7 @@ export default function ProjectDetailPage() {
               <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
                 <div className="min-w-0">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Receipt className="size-4" />
+                    <Receipt className="h-4 w-4" />
                     Invoices
                   </CardTitle>
                   <CardDescription>Billing linked to this project or customer.</CardDescription>
@@ -878,7 +881,7 @@ export default function ProjectDetailPage() {
                 {viewerRole !== 'TECHNICIAN' && (
                 <Button size="sm" asChild>
                   <Link href={createInvoiceHref}>
-                    <FileText className="mr-1.5 size-3.5" />
+                    <FileText className="mr-1.5 h-3.5 w-3.5" />
                     Create invoice
                   </Link>
                 </Button>
@@ -908,11 +911,11 @@ export default function ProjectDetailPage() {
                             {inv.title ? ` · ${inv.title}` : ''}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {inv.currency} {Number(inv.total).toLocaleString()}
+                            {formatCurrency(Number(inv.total), inv.currency)}
                           </p>
                         </div>
                         <Badge variant="outline" className="shrink-0 font-normal">
-                          {inv.status}
+                          {humanizeEnum(inv.status)}
                         </Badge>
                       </Link>
                     ))}
@@ -1108,8 +1111,8 @@ export default function ProjectDetailPage() {
                         ) : null}
                       </div>
                       {m.status !== 'PENDING' && m.status !== 'DONE' ? (
-                        <Badge variant="outline" className="shrink-0 font-normal capitalize">
-                          {m.status.replace(/_/g, ' ').toLowerCase()}
+                        <Badge variant="outline" className="shrink-0 font-normal">
+                          {humanizeEnum(m.status)}
                         </Badge>
                       ) : null}
                       {project.canManage ? (
@@ -1120,9 +1123,16 @@ export default function ProjectDetailPage() {
                           className="h-8 w-8 shrink-0 text-muted-foreground"
                           aria-label={`Remove ${m.title}`}
                           disabled={deleteMilestoneMutation.isPending}
-                          onClick={() => deleteMilestoneMutation.mutate(m.id)}
+                          onClick={async () => {
+                            const ok = await confirmAction({
+                              title: `Remove milestone "${m.title}"?`,
+                              confirmLabel: 'Remove',
+                              variant: 'destructive',
+                            });
+                            if (ok) deleteMilestoneMutation.mutate(m.id);
+                          }}
                         >
-                          <X className="size-4" />
+                          <X className="h-4 w-4" />
                         </Button>
                       ) : null}
                     </li>
@@ -1153,7 +1163,7 @@ export default function ProjectDetailPage() {
                   className="h-9 shrink-0"
                   disabled={!newMilestone.trim() || addMilestoneMutation.isPending}
                 >
-                  <Plus className="mr-1 size-4" />
+                  <Plus className="mr-1 h-4 w-4" />
                   Add
                 </Button>
               </form>

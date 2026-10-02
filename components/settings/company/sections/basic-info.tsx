@@ -45,60 +45,48 @@ export function BasicInfoSection({ onChange }: BasicInfoSectionProps) {
     onChange?.({ company: newData })
   }
 
+  const fields: Array<{
+    key: 'name' | 'email' | 'phone' | 'website'
+    label: string
+    type: string
+    placeholder: string
+    autoComplete: string
+  }> = [
+    { key: 'name', label: 'Company name', type: 'text', placeholder: 'Acme Pvt Ltd', autoComplete: 'organization' },
+    { key: 'email', label: 'Email', type: 'email', placeholder: 'hello@acme.com', autoComplete: 'email' },
+    { key: 'phone', label: 'Phone', type: 'tel', placeholder: '+91 98765 43210', autoComplete: 'tel' },
+    { key: 'website', label: 'Website', type: 'url', placeholder: 'https://acme.com', autoComplete: 'url' },
+  ]
+
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Company Identity</CardTitle>
+          <CardTitle className="text-base">Company identity</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Company Logo</Label>
+            <Label>Company logo</Label>
             <ImageUpload
               value={formData.logo}
               onChange={(url) => handleChange('logo', url)}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <Label>Company Name</Label>
-              <Input 
-                placeholder="Enter company name"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                disabled={isUpdating}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input 
-                type="email"
-                placeholder="company@example.com"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                disabled={isUpdating}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Phone</Label>
-              <Input 
-                type="tel"
-                placeholder="+1 234 567 8900"
-                value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-                disabled={isUpdating}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Website</Label>
-              <Input 
-                type="url"
-                placeholder="https://example.com"
-                value={formData.website}
-                onChange={(e) => handleChange('website', e.target.value)}
-                disabled={isUpdating}
-              />
-            </div>
+            {fields.map((field) => (
+              <div key={field.key} className="grid gap-2">
+                <Label htmlFor={`company-${field.key}`}>{field.label}</Label>
+                <Input
+                  id={`company-${field.key}`}
+                  type={field.type}
+                  placeholder={field.placeholder}
+                  autoComplete={field.autoComplete}
+                  value={formData[field.key]}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  disabled={isUpdating}
+                />
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>

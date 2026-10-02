@@ -9,12 +9,25 @@ import { SlackDestinations } from '@/components/settings/integrations/slack-dest
 import { McpTokens } from '@/components/settings/integrations/mcp-tokens';
 import { useUserProfileSettings } from '@/hooks/use-user-profile-settings';
 import { FormSkeleton } from '@/components/loading';
+import { SETTINGS_TAB_LIST_CLASS, SETTINGS_TAB_TRIGGER_CLASS } from '../settings-tab-styles';
 import { BusinessTab } from './business-tab';
 import { InvoicingTab } from './invoicing-tab';
 import { PaymentTab } from './payment-tab';
 import { TemplatesTab } from './templates-tab';
 import { AiPersonalizationTab } from './ai-personalization-tab';
 import { ApiKeysTab } from './api-keys-tab';
+
+function MySettingsHeader({ email }: { email?: string | null }) {
+  return (
+    <div className="space-y-1">
+      <h1 className="text-2xl font-semibold tracking-tight">My settings</h1>
+      <p className="text-sm text-muted-foreground">
+        Your invoicing templates, payment details, AI keys, and alerts
+        {email ? ` · ${email}` : ''}.
+      </p>
+    </div>
+  );
+}
 
 export default function UserProfileSettings() {
   const { data: session } = useSession();
@@ -24,13 +37,7 @@ export default function UserProfileSettings() {
     // Static title shows right away; only the form waits for data
     return (
       <div className="min-w-0 flex-1 space-y-6 pb-8">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Personal CRM settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Invoicing templates, payment details, AI keys, and profile defaults for your account
-            {session?.user?.email ? ` · ${session.user.email}` : ''}.
-          </p>
-        </div>
+        <MySettingsHeader email={session?.user?.email} />
         <FormSkeleton fields={6} />
       </div>
     );
@@ -38,56 +45,49 @@ export default function UserProfileSettings() {
 
   return (
     <div className="min-w-0 flex-1 space-y-6 pb-8">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Personal CRM settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Invoicing templates, payment details, AI keys, and profile defaults for your account
-          {session?.user?.email ? ` · ${session.user.email}` : ''}.
-        </p>
-      </div>
+      <MySettingsHeader email={session?.user?.email} />
 
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Workspace company identity is under Settings → Account. Integrations (email SMTP, Razorpay,
-          calendar) live under Settings → Integrations. This page stores personal document branding and
-          AI credentials on your user profile.
+          These settings apply to your account only. Company details and shared integrations
+          (email, Razorpay, calendar) are managed by workspace admins under Settings.
         </AlertDescription>
       </Alert>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto no-scrollbar">
-          <TabsTrigger value="profile" className="gap-2">
-            <Building className="h-4 w-4" />
-            <span className="hidden sm:inline">Business</span>
+        <TabsList className={SETTINGS_TAB_LIST_CLASS}>
+          <TabsTrigger value="profile" className={SETTINGS_TAB_TRIGGER_CLASS}>
+            <Building className="h-4 w-4" aria-hidden />
+            <span>Business</span>
           </TabsTrigger>
-          <TabsTrigger value="invoicing" className="gap-2">
+          <TabsTrigger value="invoicing" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Invoicing</span>
+            <span>Invoicing</span>
           </TabsTrigger>
-          <TabsTrigger value="payment" className="gap-2">
+          <TabsTrigger value="payment" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <CreditCard className="h-4 w-4" />
-            <span className="hidden sm:inline">Payment</span>
+            <span>Payment</span>
           </TabsTrigger>
-          <TabsTrigger value="templates" className="gap-2">
+          <TabsTrigger value="templates" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">Templates</span>
+            <span>Templates</span>
           </TabsTrigger>
-          <TabsTrigger value="ai-personalization" className="gap-2">
+          <TabsTrigger value="ai-personalization" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">AI Setup</span>
+            <span>AI setup</span>
           </TabsTrigger>
-          <TabsTrigger value="api-keys" className="gap-2">
+          <TabsTrigger value="api-keys" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <Key className="h-4 w-4" />
-            <span className="hidden sm:inline">API Keys</span>
+            <span>API keys</span>
           </TabsTrigger>
-          <TabsTrigger value="slack-alerts" className="gap-2">
+          <TabsTrigger value="slack-alerts" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <Slack className="h-4 w-4" />
-            <span className="hidden sm:inline">Slack alerts</span>
+            <span>Slack alerts</span>
           </TabsTrigger>
-          <TabsTrigger value="mcp" className="gap-2">
+          <TabsTrigger value="mcp" className={SETTINGS_TAB_TRIGGER_CLASS}>
             <Bot className="h-4 w-4" />
-            <span className="hidden sm:inline">AI clients (MCP)</span>
+            <span>AI clients (MCP)</span>
           </TabsTrigger>
         </TabsList>
 

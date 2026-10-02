@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import { Card } from '@/components/ui/card';
 import {
@@ -16,8 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { FullTableSkeleton } from '@/components/loading';
 import { confirmAction } from '@/lib/confirm-action';
+import { Building2, RefreshCw, ShieldAlert } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +32,7 @@ interface Company {
   name: string;
   website: string | null;
   slug?: string;
+  /** CompanyStatus enum: PENDING | APPROVED | REJECTED */
   status: string;
   createdAt: string;
   admin?: {
@@ -51,57 +53,69 @@ interface ApiResponse {
   message?: string;
 }
 
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  PENDING: {
+    label: 'Pending approval',
+    className: 'bg-amber-100 text-amber-800 hover:bg-amber-100 dark:bg-amber-950 dark:text-amber-300',
+  },
+  APPROVED: {
+    label: 'Approved',
+    className: 'bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300',
+  },
+  REJECTED: {
+    label: 'Rejected',
+    className: 'bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-300',
+  },
+};
+
+function StatusBadge({ status, className = '' }: { status: string; className?: string }) {
+  const meta = STATUS_META[status] ?? { label: status, className: 'bg-muted text-muted-foreground' };
+  return <Badge className={`${meta.className} ${className}`}>{meta.label}</Badge>;
+}
+
+const employeeCount = (company: Company) => {
+  const n = company.employees?.length || 0;
+  return `${n} employee${n === 1 ? '' : 's'}`;
+};
+
+const websiteHref = (website: string) =>
+  /^https?:\/\//i.test(website) ? website : `https://${website}`;
+
 export default function CompaniesPage() {
-  const router = useRouter();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [dbCompany, setDbCompany] = useState<Company | null>(null);
   const { data: session } = useSession();
   const { toast } = useToast();
 
   const fetchCompanies = useCallback(async () => {
+    setRefreshing(true);
     try {
       setError(null);
       const response = await fetch('/api/admin/companies');
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const result: ApiResponse | null = await response.json().catch(() => null);
+
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || 'Failed to fetch companies');
       }
-      
-      const result: ApiResponse = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Failed to fetch companies');
-      }
-      
+
       setCompanies(Array.isArray(result.data) ? result.data : []);
     } catch (error) {
       console.error('Error fetching companies:', error);
       setError(error instanceof Error ? error.message : 'Failed to fetch companies');
       setCompanies([]);
-      
-      toast({
-        title: "Error",
-        description: "Failed to fetch companies. Please try again.",
-        variant: "destructive"
-      });
     } finally {
       setIsInitialLoad(false);
+      setRefreshing(false);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     fetchCompanies();
   }, [fetchCompanies]);
-
-  const handleEdit = async (companyId: string) => {
-    router.push(`/admin/companies?focus=${encodeURIComponent(companyId)}`);
-    toast({
-      title: 'Company',
-      description: 'Use status actions below, or open Subscriptions to grant a plan for this workspace.',
-    });
-  };
 
   const handleDelete = async (company: Company) => {
     const confirmToken = (company.slug || company.name || '').trim();
@@ -115,7 +129,7 @@ export default function CompaniesPage() {
     }
 
     const ok = await confirmAction({
-      title: 'Delete this company?',
+      title: `Delete ${company.name}?`,
       description:
         'This permanently deletes the workspace and company-scoped data. Users who only belong to this company will also be deleted. Type the company slug to confirm.',
       confirmLabel: 'Delete',
@@ -125,6 +139,7 @@ export default function CompaniesPage() {
     });
     if (!ok) return;
 
+    setBusyId(company.id);
     try {
       const response = await fetch(`/api/admin/companies/${company.id}`, {
         method: 'DELETE',
@@ -138,8 +153,8 @@ export default function CompaniesPage() {
       }
 
       toast({
-        title: 'Success',
-        description: 'Company deleted successfully',
+        title: 'Company deleted',
+        description: `${company.name} and its data were removed.`,
       });
 
       fetchCompanies();
@@ -150,39 +165,111 @@ export default function CompaniesPage() {
           error instanceof Error ? error.message : 'Failed to delete company',
         variant: 'destructive',
       });
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const handleStatusChange = async (companyId: string, newStatus: string) => {
-    const response = await fetch(`/api/admin/companies/${companyId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus }),
-    });
-    
-    if (response.ok) {
-      setCompanies((prev) => prev.map(company =>
-        company.id === companyId ? { ...company, status: newStatus } : company
-      ));
-    } else {
+  const handleStatusChange = async (company: Company, newStatus: 'APPROVED' | 'REJECTED') => {
+    if (newStatus === 'REJECTED') {
+      const ok = await confirmAction({
+        title:
+          company.status === 'APPROVED'
+            ? `Suspend ${company.name}?`
+            : `Reject ${company.name}?`,
+        description:
+          company.status === 'APPROVED'
+            ? 'The workspace is marked rejected and its team loses access until it is approved again.'
+            : 'The workspace stays blocked. You can approve it later.',
+        confirmLabel: company.status === 'APPROVED' ? 'Suspend' : 'Reject',
+        variant: 'destructive',
+      });
+      if (!ok) return;
+    }
+
+    setBusyId(company.id);
+    try {
+      const response = await fetch(`/api/admin/companies/${company.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) throw new Error();
+
+      setCompanies((prev) =>
+        prev.map((c) => (c.id === company.id ? { ...c, status: newStatus } : c))
+      );
+      toast({
+        title: newStatus === 'APPROVED' ? 'Company approved' : 'Company access removed',
+        description:
+          newStatus === 'APPROVED'
+            ? `${company.name} can now use its workspace.`
+            : `${company.name} is now marked rejected.`,
+      });
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to update company status',
         variant: 'destructive',
       });
+    } finally {
+      setBusyId(null);
     }
+  };
+
+  /** Approve / reject actions that match the CompanyStatus enum. */
+  const statusActions = (company: Company, className = '') => {
+    const busy = busyId === company.id;
+    if (company.status === 'APPROVED') {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className={className}
+          disabled={busy}
+          onClick={() => handleStatusChange(company, 'REJECTED')}
+        >
+          Suspend
+        </Button>
+      );
+    }
+    return (
+      <>
+        <Button
+          size="sm"
+          className={className}
+          disabled={busy}
+          onClick={() => handleStatusChange(company, 'APPROVED')}
+        >
+          Approve
+        </Button>
+        {company.status === 'PENDING' ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className={className}
+            disabled={busy}
+            onClick={() => handleStatusChange(company, 'REJECTED')}
+          >
+            Reject
+          </Button>
+        ) : null}
+      </>
+    );
   };
 
   if (session?.user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="py-12">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-          <p className="text-gray-600 mt-2">You don&apos;t have permission to access this page.</p>
-        </div>
-      </div>
+      <EmptyState
+        icon={ShieldAlert}
+        title="Super admins only"
+        description="You don't have permission to manage platform companies."
+      />
     );
   }
+
+  const pendingCount = companies.filter((c) => c.status === 'PENDING').length;
 
   // Static page header: shown as-is while data loads (no skeleton for known text)
   const pageHeader = (
@@ -191,10 +278,17 @@ export default function CompaniesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Companies</h1>
         <p className="text-sm text-muted-foreground mt-1">
           All workspaces on the platform
+          {pendingCount > 0 ? ` · ${pendingCount} awaiting approval` : ''}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => fetchCompanies()}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => fetchCompanies()}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
@@ -212,10 +306,30 @@ export default function CompaniesPage() {
 
   if (error) {
     return (
-      <div className="py-12">
-        <div className="text-center text-red-500">
-          <p>Error: {error}</p>
-        </div>
+      <div className="space-y-6">
+        {pageHeader}
+        <EmptyState
+          icon={Building2}
+          title="Couldn't load companies"
+          description={error}
+          actionLabel="Try again"
+          onAction={() => fetchCompanies()}
+          className="rounded-lg border"
+        />
+      </div>
+    );
+  }
+
+  if (companies.length === 0) {
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <EmptyState
+          icon={Building2}
+          title="No companies yet"
+          description="Workspaces appear here as soon as someone registers a company."
+          className="rounded-lg border"
+        />
       </div>
     );
   }
@@ -226,153 +340,121 @@ export default function CompaniesPage() {
 
       {/* Phones: one card per company */}
       <div className="space-y-3 md:hidden">
-        {companies.length === 0 ? (
-          <Card className="p-6 text-center text-sm text-muted-foreground">
-            {error ? 'Failed to load companies' : 'No companies found'}
+        {companies.map((company) => (
+          <Card key={company.id} className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{company.name}</p>
+                {company.slug ? (
+                  <p className="truncate text-xs text-muted-foreground">/{company.slug}</p>
+                ) : null}
+              </div>
+              <StatusBadge status={company.status} className="shrink-0" />
+            </div>
+            <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+              <p className="truncate">
+                {company.admin
+                  ? `${company.admin.name} · ${company.admin.email}`
+                  : 'No admin assigned'}
+              </p>
+              <p>
+                {employeeCount(company)} · created{' '}
+                {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {statusActions(company, 'h-10')}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10"
+                onClick={() => setDbCompany(company)}
+              >
+                Database
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-10"
+                disabled={busyId === company.id}
+                onClick={() => handleDelete(company)}
+              >
+                Delete
+              </Button>
+            </div>
           </Card>
-        ) : (
-          companies.map((company) => (
-            <Card key={company.id} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{company.name}</p>
-                  {company.website ? (
-                    <p className="truncate text-xs text-muted-foreground">{company.website}</p>
-                  ) : null}
-                </div>
-                <Badge
-                  variant={company.status === 'ACTIVE' ? 'default' : 'secondary'}
-                  className="shrink-0"
-                >
-                  {company.status}
-                </Badge>
-              </div>
-              <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                <p className="truncate">
-                  {company.admin
-                    ? `${company.admin.name} · ${company.admin.email}`
-                    : 'No admin assigned'}
-                </p>
-                <p>
-                  {company.employees?.length || 0} employees ·{' '}
-                  {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}
-                </p>
-              </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="h-10" onClick={() => handleEdit(company.id)}>
-                  View
-                </Button>
-                <Button variant="outline" size="sm" className="h-10" onClick={() => setDbCompany(company)}>
-                  Database
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-10"
-                  onClick={() =>
-                    handleStatusChange(
-                      company.id,
-                      company.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
-                    )
-                  }
-                >
-                  {company.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                </Button>
-                <Button variant="destructive" size="sm" className="h-10" onClick={() => handleDelete(company)}>
-                  Delete
-                </Button>
-              </div>
-            </Card>
-          ))
-        )}
+        ))}
       </div>
 
-      <Card className="hidden md:block">
+      <Card className="hidden overflow-hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Company Name</TableHead>
-              <TableHead>Website</TableHead>
+              <TableHead>Company</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Admin</TableHead>
               <TableHead>Employees</TableHead>
               <TableHead>Created</TableHead>
-              <TableHead className="text-center">Actions</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {companies.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
-                  {error ? 'Failed to load companies' : 'No companies found'}
+            {companies.map((company) => (
+              <TableRow key={company.id}>
+                <TableCell>
+                  <div className="min-w-0">
+                    <p className="font-medium">{company.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {company.slug ? `/${company.slug}` : null}
+                      {company.slug && company.website ? ' · ' : null}
+                      {company.website ? (
+                        <a
+                          href={websiteHref(company.website)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {company.website.replace(/^https?:\/\//i, '')}
+                        </a>
+                      ) : null}
+                    </p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={company.status} />
+                </TableCell>
+                <TableCell>
+                  {company.admin ? (
+                    <div>
+                      <div>{company.admin.name}</div>
+                      <div className="text-sm text-muted-foreground">{company.admin.email}</div>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">No admin assigned</span>
+                  )}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">{employeeCount(company)}</TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {statusActions(company)}
+                    <Button variant="outline" size="sm" onClick={() => setDbCompany(company)}>
+                      Database
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={busyId === company.id}
+                      onClick={() => handleDelete(company)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
-            ) : (
-              companies.map((company) => (
-                <TableRow key={company.id}>
-                  <TableCell>{company.name}</TableCell>
-                  <TableCell>{company.website}</TableCell>
-                  <TableCell>
-                    <Badge variant={company.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                      {company.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {company.admin ? (
-                      <div>
-                        <div>{company.admin.name}</div>
-                        <div className="text-sm text-muted-foreground">{company.admin.email}</div>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">No admin assigned</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {company.employees?.length || 0} employees
-                  </TableCell>
-                  <TableCell>
-                    {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(company.id)}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDbCompany(company)}
-                      >
-                        Database
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handleStatusChange(
-                            company.id,
-                            company.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
-                          )
-                        }
-                      >
-                        {company.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(company)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
+            ))}
           </TableBody>
         </Table>
       </Card>
@@ -380,13 +462,9 @@ export default function CompaniesPage() {
       <Dialog open={!!dbCompany} onOpenChange={(open) => !open && setDbCompany(null)}>
         <DialogContent className="max-w-xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              Database — {dbCompany?.name ?? 'Company'}
-            </DialogTitle>
+            <DialogTitle>Database — {dbCompany?.name ?? 'Company'}</DialogTitle>
           </DialogHeader>
-          {dbCompany ? (
-            <CompanyDatabasePanel companyId={dbCompany.id} />
-          ) : null}
+          {dbCompany ? <CompanyDatabasePanel companyId={dbCompany.id} /> : null}
         </DialogContent>
       </Dialog>
     </div>

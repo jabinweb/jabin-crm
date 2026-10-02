@@ -117,31 +117,31 @@ export function ProjectTaskStatusesSection({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="h-8 w-8"
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
-                  aria-label="Move up"
+                  aria-label={`Move ${s.label || "status"} up`}
                 >
-                  <ArrowUp className="size-3.5" />
+                  <ArrowUp className="h-3.5 w-3.5" />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8"
+                  className="h-8 w-8"
                   disabled={index === statuses.length - 1}
                   onClick={() => move(index, 1)}
-                  aria-label="Move down"
+                  aria-label={`Move ${s.label || "status"} down`}
                 >
-                  <ArrowDown className="size-3.5" />
+                  <ArrowDown className="h-3.5 w-3.5" />
                 </Button>
               </div>
               <Input
                 value={s.label}
                 onChange={(e) => rename(s.id, e.target.value)}
-                className="max-w-xs"
+                aria-label="Status name"
+                className="min-w-0 flex-1 sm:max-w-xs"
               />
-              <span className="text-xs text-muted-foreground font-mono">{s.id}</span>
               <div className="flex items-center gap-2">
                 <Switch
                   id={`done-${s.id}`}
@@ -156,11 +156,12 @@ export function ProjectTaskStatusesSection({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8 text-destructive"
+                className="h-8 w-8 text-destructive"
                 disabled={statuses.length <= 1}
                 onClick={() => removeStatus(s.id)}
+                aria-label={`Remove ${s.label || "status"}`}
               >
-                <Trash2 className="size-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </li>
           ))}
@@ -182,7 +183,7 @@ export function ProjectTaskStatusesSection({
             />
           </div>
           <Button type="button" variant="secondary" onClick={addStatus}>
-            <Plus className="mr-1.5 size-3.5" />
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add
           </Button>
           <Button

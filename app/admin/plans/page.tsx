@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { PlansTable } from "@/components/admin/plans-table";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, RefreshCw } from "lucide-react";
+import { Loader2, Plus, RefreshCw, CreditCard } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,9 @@ function emptyModules(): Record<string, boolean> {
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
   const { toast } = useToast();
@@ -76,12 +80,14 @@ export default function PlansPage() {
 
   const fetchPlans = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const response = await fetch("/api/admin/plans");
       if (!response.ok) throw new Error("Failed to fetch plans");
       const data = await response.json();
       setPlans(data);
     } catch (error) {
+      setLoadError(true);
       toast({
         title: "Error",
         description: "Failed to fetch plans",
@@ -98,6 +104,7 @@ export default function PlansPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
 
     const data = {
       name: formData.name,
@@ -127,6 +134,7 @@ export default function PlansPage() {
       data.features = [];
     }
 
+    setSaving(true);
     try {
       const url = editingPlan
         ? `/api/admin/plans/${editingPlan.id}`
@@ -154,13 +162,20 @@ export default function PlansPage() {
         description: `Failed to ${editingPlan ? "update" : "create"} plan`,
         variant: "destructive",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleDelete = async (planId: string) => {
+    const plan = plans.find((p) => p.id === planId);
+    const subscribers = plan?._count?.subscriptions ?? 0;
     const ok = await confirmAction({
-      title: "Delete this plan?",
-      description: "Are you sure you want to delete this plan?",
+      title: `Delete ${plan?.displayName ?? "this plan"}?`,
+      description:
+        subscribers > 0
+          ? `${subscribers} subscription${subscribers === 1 ? " is" : "s are"} on this plan. Consider marking it inactive instead.`
+          : "This cannot be undone.",
       confirmLabel: "Delete",
       variant: "destructive",
     });
@@ -241,7 +256,16 @@ export default function PlansPage() {
         <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
+            disabled={syncing}
             onClick={async () => {
+              const ok = await confirmAction({
+                title: "Sync catalog defaults?",
+                description:
+                  "Overwrites each plan's module entitlements with the catalog defaults. Custom module changes on plans will be replaced.",
+                confirmLabel: "Sync",
+              });
+              if (!ok) return;
+              setSyncing(true);
               try {
                 const res = await fetch(
                   '/api/admin/plans/sync-modules?force=1&catalog=1',
@@ -260,13 +284,16 @@ export default function PlansPage() {
                   description: 'Failed to sync plan defaults',
                   variant: 'destructive',
                 });
+              } finally {
+                setSyncing(false);
               }
             }}
           >
+            {syncing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
             Sync catalog defaults
           </Button>
-          <Button onClick={fetchPlans} variant="outline">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={fetchPlans} variant="outline" disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
           <Button
@@ -275,38 +302,51 @@ export default function PlansPage() {
               setShowDialog(true);
             }}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Create Plan
+            <Plus className="h-4 w-4 mr-2" />
+            Create plan
           </Button>
         </div>
       </div>
 
       {loading ? (
         <FullTableSkeleton columnCount={5} rowCount={5} />
+      ) : loadError ? (
+        <EmptyState
+          icon={CreditCard}
+          title="Couldn't load plans"
+          description="Something went wrong while fetching subscription plans."
+          actionLabel="Try again"
+          onAction={fetchPlans}
+          className="rounded-lg border"
+        />
+      ) : plans.length === 0 ? (
+        <EmptyState
+          icon={CreditCard}
+          title="No plans yet"
+          description="Create a plan to set prices, usage limits, and which modules workspaces get."
+          actionLabel="Create plan"
+          onAction={() => {
+            resetForm();
+            setShowDialog(true);
+          }}
+          className="rounded-lg border"
+        />
       ) : (
-        <div className="bg-white rounded-none shadow">
-          <div className="p-3 sm:p-6">
-            <PlansTable
-              plans={plans}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          </div>
-        </div>
+        <PlansTable plans={plans} onEdit={handleEdit} onDelete={handleDelete} />
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingPlan ? "Edit Plan" : "Create New Plan"}
+              {editingPlan ? "Edit plan" : "Create plan"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="name">Plan Name (Slug)</Label>
+                  <Label htmlFor="name">Plan key (slug)</Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -318,7 +358,7 @@ export default function PlansPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="displayName">Display Name</Label>
+                  <Label htmlFor="displayName">Display name</Label>
                   <Input
                     id="displayName"
                     value={formData.displayName}
@@ -345,10 +385,13 @@ export default function PlansPage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor="price">Price (₹)</Label>
+                  <Label htmlFor="price">Price ({formData.currency})</Label>
                   <Input
                     id="price"
                     type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
                     value={formData.price}
                     onChange={(e) =>
                       setFormData({ ...formData, price: e.target.value })
@@ -365,7 +408,7 @@ export default function PlansPage() {
                       setFormData({ ...formData, currency: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="currency">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -382,7 +425,7 @@ export default function PlansPage() {
                       setFormData({ ...formData, interval: value })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="interval">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -395,10 +438,12 @@ export default function PlansPage() {
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor="maxLeads">Max Leads</Label>
+                  <Label htmlFor="maxLeads">Max leads</Label>
                   <Input
                     id="maxLeads"
                     type="number"
+                    min={-1}
+                    step={1}
                     value={formData.maxLeads}
                     onChange={(e) =>
                       setFormData({ ...formData, maxLeads: e.target.value })
@@ -407,10 +452,12 @@ export default function PlansPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="maxEmails">Max Emails</Label>
+                  <Label htmlFor="maxEmails">Max emails</Label>
                   <Input
                     id="maxEmails"
                     type="number"
+                    min={-1}
+                    step={1}
                     value={formData.maxEmails}
                     onChange={(e) =>
                       setFormData({ ...formData, maxEmails: e.target.value })
@@ -419,10 +466,12 @@ export default function PlansPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="maxCampaigns">Max Campaigns</Label>
+                  <Label htmlFor="maxCampaigns">Max campaigns</Label>
                   <Input
                     id="maxCampaigns"
                     type="number"
+                    min={-1}
+                    step={1}
                     value={formData.maxCampaigns}
                     onChange={(e) =>
                       setFormData({
@@ -434,6 +483,8 @@ export default function PlansPage() {
                   />
                 </div>
               </div>
+
+              <p className="-mt-2 text-xs text-muted-foreground">Use -1 for unlimited.</p>
 
               <div className="flex items-center space-x-2">
                 <Switch
@@ -455,6 +506,7 @@ export default function PlansPage() {
               <Button
                 type="button"
                 variant="outline"
+                disabled={saving}
                 onClick={() => {
                   setShowDialog(false);
                   resetForm();
@@ -462,8 +514,9 @@ export default function PlansPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit">
-                {editingPlan ? "Update Plan" : "Create Plan"}
+              <Button type="submit" disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                {editingPlan ? "Save changes" : "Create plan"}
               </Button>
             </DialogFooter>
           </form>

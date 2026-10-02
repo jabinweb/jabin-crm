@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, HardDrive, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { FormSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 type UploadSettingsResponse = {
   phpUploadUrl: string;
@@ -109,6 +110,9 @@ export function PlatformPhpUploadSettings() {
               <Label htmlFor="php-upload-url">Upload URL</Label>
               <Input
                 id="php-upload-url"
+                type="url"
+                inputMode="url"
+                autoComplete="off"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={defaultUrl}
@@ -137,18 +141,20 @@ export function PlatformPhpUploadSettings() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={passwordSet ? '••••••••' : 'Shared secret for files.jabin.org'}
                     autoComplete="new-password"
+                    className="pr-10"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute right-1 top-1/2 size-8 -translate-y-1/2"
+                    className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
                     onClick={() => setShowPassword((v) => !v)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
-                      <EyeOff className="size-3.5" />
+                      <EyeOff className="h-3.5 w-3.5" />
                     ) : (
-                      <Eye className="size-3.5" />
+                      <Eye className="h-3.5 w-3.5" />
                     )}
                   </Button>
                 </div>
@@ -177,7 +183,16 @@ export function PlatformPhpUploadSettings() {
                   type="button"
                   variant="outline"
                   disabled={saving}
-                  onClick={() => save({ clearPassword: true })}
+                  onClick={async () => {
+                    const ok = await confirmAction({
+                      title: 'Clear the upload password?',
+                      description:
+                        'Uploads will be sent without a password. If the upload server requires one, file uploads will fail until a new password is saved.',
+                      confirmLabel: 'Clear password',
+                      variant: 'destructive',
+                    });
+                    if (ok) void save({ clearPassword: true });
+                  }}
                 >
                   Clear password
                 </Button>

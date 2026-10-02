@@ -9,7 +9,6 @@ import {
   WorkspaceSetupPendingBanner,
   useGettingStartedActive,
 } from '@/components/dashboard/getting-started-checklist';
-import { EmptyState } from '@/components/ui/empty-state';
 import { TicketSlaTimer } from '@/components/tickets/ticket-sla-timer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import {
   Plus,
   Users,
@@ -42,6 +42,8 @@ import { DailyEntryBanner } from '@/components/dashboard/daily-entry-banner';
 import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-card';
 import { useSession } from 'next-auth/react';
 import { useFeatureModule } from '@/components/feature-module-guard';
+import { STATUS_LABELS as TICKET_STATUS_LABELS } from '@/lib/support/status-pipelines';
+import { humanizeEnum } from '@/lib/format/humanize';
 const LeadsChart = dynamic(
   () => import('@/components/dashboard/leads-chart').then((mod) => mod.LeadsChart),
   { ssr: false, loading: () => <Skeleton className="h-80 w-full" /> }
@@ -191,6 +193,24 @@ export default function WorkspaceDashboardPage() {
     enabled: !!slug && canLowStock,
   });
 
+  // Workspaces that have never logged a ticket get no empty ticket widgets (KPIs of zeros,
+  // an empty "Recent tickets" card); the Create menu still offers "New ticket".
+  const ticketsKnown = ticketsOn && !ticketsLoading;
+  const hasTickets = ticketsKnown && Array.isArray(recentTickets) && recentTickets.length > 0;
+  const noTicketsYet = ticketsKnown && !hasTickets;
+  const supportRole = ['SUPPORT_MANAGER', 'TECHNICIAN'].includes(role);
+  const primaryAction: 'project' | 'ticket' | 'lead' | null = isAgency
+    ? 'project'
+    : ticketsOn && (hasTickets || supportRole || !showLeadWidgets || !ticketsKnown)
+      ? 'ticket'
+      : showLeadWidgets
+        ? 'lead'
+        : ticketsOn
+          ? 'ticket'
+          : null;
+  const showTicketKpis = showSupportKpis && !noTicketsYet;
+  const showRecentTickets = ticketsOn && !noTicketsYet;
+
   const getPriorityVariant = (
     priority: string
   ): 'default' | 'secondary' | 'destructive' | 'outline' => {
@@ -221,18 +241,25 @@ export default function WorkspaceDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isAgency ? (
+          {primaryAction === 'project' ? (
             <Button asChild size="sm">
               <Link href={path('/dashboard/projects')}>
                 <FolderKanban className="h-4 w-4" />
                 New project
               </Link>
             </Button>
-          ) : ticketsOn ? (
+          ) : primaryAction === 'ticket' ? (
             <Button asChild size="sm">
               <Link href={path('/dashboard/tickets/new')}>
                 <Ticket className="h-4 w-4" />
                 New {ticketLabel.toLowerCase()}
+              </Link>
+            </Button>
+          ) : primaryAction === 'lead' ? (
+            <Button asChild size="sm">
+              <Link href={path('/dashboard/leads/new')}>
+                <Plus className="h-4 w-4" />
+                New {terminology?.lead?.toLowerCase() ?? 'lead'}
               </Link>
             </Button>
           ) : null}
@@ -330,9 +357,9 @@ export default function WorkspaceDashboardPage() {
           attendance={opsToday?.attendance}
         />
       )}
-      {showSupportKpis && (
+      {showTicketKpis && (
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        {supportLoading ? (
+        {supportLoading || ticketsLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
@@ -379,13 +406,13 @@ export default function WorkspaceDashboardPage() {
               </CardHeader>
             </Card>
             {showSlaAtRiskWidget ? (
-            <Card className="border-amber-200/80">
+            <Card className="border-amber-200/80 dark:border-amber-900/60">
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-1.5 text-amber-700">
+                <CardDescription className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  At risk
+                  SLA at risk
                 </CardDescription>
-                <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums text-amber-700">
+                <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums text-amber-700 dark:text-amber-400">
                   {supportStats?.sla?.atRisk ?? 0}
                 </CardTitle>
               </CardHeader>
@@ -394,7 +421,8 @@ export default function WorkspaceDashboardPage() {
             <Card className="border-destructive/25">
               <CardHeader className="pb-2">
                 <CardDescription className="flex items-center gap-1.5 text-destructive">
-                  Breached
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  SLA breached
                 </CardDescription>
                 <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums text-destructive">
                   {supportStats?.sla?.breached ?? 0}
@@ -437,11 +465,11 @@ export default function WorkspaceDashboardPage() {
       )}
 
       {canLowStock && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
-        <Card className="order-2 border-amber-200/80 lg:order-none">
+        <Card className="order-2 border-amber-200/80 dark:border-amber-900/60 lg:order-none">
           <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
             <div className="min-w-0">
               <CardTitle className="text-base flex items-center gap-2">
-                <TrendingDown className="h-4 w-4 text-amber-700" />
+                <TrendingDown className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                 Low stock
               </CardTitle>
               <CardDescription>Products at or below minimum quantity</CardDescription>
@@ -475,11 +503,11 @@ export default function WorkspaceDashboardPage() {
       )}
 
       {canRenewals && (renewalsData?.count ?? 0) > 0 && (
-        <Card className="order-2 border-amber-200/80 lg:order-none">
+        <Card className="order-2 border-amber-200/80 dark:border-amber-900/60 lg:order-none">
           <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
             <div className="min-w-0">
               <CardTitle className="text-base flex items-center gap-2">
-                <FileText className="h-4 w-4 text-amber-700" />
+                <FileText className="h-4 w-4 text-amber-700 dark:text-amber-400" />
                 Contract renewals
               </CardTitle>
               <CardDescription>
@@ -504,16 +532,12 @@ export default function WorkspaceDashboardPage() {
                       <p className="text-sm font-medium truncate">
                         {c.title}
                         <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-                          {c.type}
+                          {humanizeEnum(c.type)}
                         </span>
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5 truncate">
                         {c.customer?.organizationName ?? customerLabel} · ends{' '}
-                        {new Date(c.endDate).toLocaleDateString(undefined, {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
+                        {format(new Date(c.endDate), 'MMM d, yyyy')}
                       </p>
                     </div>
                     <Badge
@@ -540,11 +564,16 @@ export default function WorkspaceDashboardPage() {
         </Card>
       )}
 
-      <div className="order-2 grid gap-4 sm:gap-6 lg:order-none lg:grid-cols-2 [&>*]:min-w-0">
+      {(showLeadWidgets || showRecentTickets) && (
+      <div
+        className={`order-2 grid gap-4 sm:gap-6 lg:order-none [&>*]:min-w-0 ${
+          showLeadWidgets && showRecentTickets ? 'lg:grid-cols-2' : ''
+        }`}
+      >
         {showLeadWidgets && <LeadsChart />}
 
         {/* Phones: recent work comes before the chart */}
-        {ticketsOn && (
+        {showRecentTickets && (
         <Card className="order-first lg:order-none">
           <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
             <div className="min-w-0">
@@ -562,15 +591,6 @@ export default function WorkspaceDashboardPage() {
                   <Skeleton key={i} className="h-14 w-full rounded-md" />
                 ))}
               </div>
-            ) : !recentTickets?.length ? (
-              <EmptyState
-                icon={Ticket}
-                title={`No ${ticketsLabel.toLowerCase()} yet`}
-                description={`Create a ${ticketLabel.toLowerCase()} when a ${customerLabel.toLowerCase()} reports an issue.`}
-                actionLabel={`Create ${ticketLabel.toLowerCase()}`}
-                actionHref={path('/dashboard/tickets/new')}
-                className="py-8"
-              />
             ) : (
               <div className="space-y-2">
                 {recentTickets.map(
@@ -593,12 +613,13 @@ export default function WorkspaceDashboardPage() {
                         <p className="text-sm font-medium truncate">{ticket.subject}</p>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {ticket.customer?.organizationName ?? customerLabel} ·{' '}
-                          {ticket.status.replaceAll('_', ' ')}
+                          {TICKET_STATUS_LABELS[ticket.status as keyof typeof TICKET_STATUS_LABELS] ??
+                            humanizeEnum(ticket.status)}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <Badge variant={getPriorityVariant(ticket.priority)}>
-                          {ticket.priority}
+                          {humanizeEnum(ticket.priority)}
                         </Badge>
                         <TicketSlaTimer ticket={ticket} />
                       </div>
@@ -611,6 +632,7 @@ export default function WorkspaceDashboardPage() {
         </Card>
         )}
       </div>
+      )}
     </div>
   );
 }

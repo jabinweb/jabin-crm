@@ -67,7 +67,10 @@ export function EditUserDialog({
         body: JSON.stringify(formData),
       });
 
-      if (!response.ok) throw new Error("Failed to update user");
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to update user");
+      }
 
       toast({
         title: "Success",
@@ -78,7 +81,7 @@ export function EditUserDialog({
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to update user",
+        description: error instanceof Error ? error.message : "Failed to update user",
         variant: "destructive",
       });
     } finally {
@@ -90,14 +93,15 @@ export function EditUserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
+          <DialogTitle>Edit user</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="edit-user-name">Name</Label>
               <Input
-                id="name"
+                id="edit-user-name"
+                autoComplete="off"
                 value={formData.name}
                 onChange={(e) =>
                   setFormData({ ...formData, name: e.target.value })
@@ -105,10 +109,12 @@ export function EditUserDialog({
               />
             </div>
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="edit-user-email">Email</Label>
               <Input
-                id="email"
+                id="edit-user-email"
                 type="email"
+                autoComplete="off"
+                required
                 value={formData.email}
                 onChange={(e) =>
                   setFormData({ ...formData, email: e.target.value })
@@ -116,17 +122,21 @@ export function EditUserDialog({
               />
             </div>
             <div>
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="edit-user-role">Role</Label>
               <Select
                 value={formData.role}
+                disabled={formData.role === "SUPER_ADMIN"}
                 onValueChange={(value) =>
                   setFormData({ ...formData, role: value })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="edit-user-role">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  {formData.role === "SUPER_ADMIN" ? (
+                    <SelectItem value="SUPER_ADMIN">Super admin</SelectItem>
+                  ) : null}
                   {/* Must match the UserRole enum — the API ignores anything else */}
                   <SelectItem value="ADMIN">Admin</SelectItem>
                   <SelectItem value="SALES">Sales</SelectItem>
@@ -135,18 +145,24 @@ export function EditUserDialog({
                   <SelectItem value="CUSTOMER">Customer</SelectItem>
                 </SelectContent>
               </Select>
+              {formData.role === "SUPER_ADMIN" ? (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Platform super admins can't be changed from here.
+                </p>
+              ) : null}
             </div>
           </div>
           <DialogFooter className="mt-6">
             <Button
               type="button"
               variant="outline"
+              disabled={loading}
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : "Save Changes"}
+              {loading ? "Saving…" : "Save changes"}
             </Button>
           </DialogFooter>
         </form>

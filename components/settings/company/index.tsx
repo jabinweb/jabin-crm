@@ -8,10 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BasicInfoSection } from "./sections/basic-info"
-import { CustomizationSection } from "./sections/customization"
-import { NotificationsSection } from "./sections/notifications"
 import { PaymentSection } from "./sections/payment"
-import { SecuritySection } from "./sections/security"
 import { WorkspaceSection } from "./sections/workspace"
 import { SupportTicketTypesSection } from "./sections/support-ticket-types"
 import { VisitTagsSection } from "./sections/visit-tags"
@@ -19,10 +16,15 @@ import { ProjectTaskStatusesSection } from "./sections/project-task-statuses"
 import { TerminologySection } from "./sections/terminology"
 import { FieldOpsSection } from "./sections/field-ops"
 import { CompanyDatabasePanel } from "./sections/database"
-import { SettingsProvider, useSettings } from "@/contexts/settings-context"
+import { SettingsProvider, SettingsDraftProvider, useSettings } from "@/contexts/settings-context"
 import { SettingsLayout } from "../settings-layout"
 import { FormSkeleton } from '@/components/loading'
 import type { SettingsUpdatePayload } from '@/types/settings'
+
+import {
+  SETTINGS_TAB_LIST_CLASS as TAB_LIST_CLASS,
+  SETTINGS_TAB_TRIGGER_CLASS as TAB_TRIGGER_CLASS,
+} from '../settings-tab-styles'
 
 export function CompanySettings() {
   return (
@@ -32,117 +34,133 @@ export function CompanySettings() {
   )
 }
 
+function CompanySettingsHeader() {
+  return (
+    <div className="space-y-1">
+      <h1 className="text-2xl font-semibold tracking-tight">Workspace settings</h1>
+      <p className="text-sm text-muted-foreground">
+        Company profile, business type, and workspace defaults. Connect payments, WhatsApp, email,
+        and webhooks in{' '}
+        <DashboardLink
+          href="/dashboard/settings/integrations"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          Integrations
+        </DashboardLink>
+        ; your own email and AI keys live in{' '}
+        <DashboardLink
+          href="/dashboard/settings/advanced"
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          My settings
+        </DashboardLink>
+        .
+      </p>
+    </div>
+  )
+}
+
 function CompanySettingsContent() {
   const params = useParams<{ company: string }>()
-  const [isDirty, setIsDirty] = useState(false)
   const { updateCompany, updateSettings, isUpdating, isLoading, fetchError, refetch } = useSettings()
   const [pendingChanges, setPendingChanges] = useState<SettingsUpdatePayload>({})
+  const isDirty = !!(pendingChanges.company || pendingChanges.settings)
 
   if (isLoading) {
-    return <FormSkeleton fields={6} />
+    return (
+      <div className="min-w-0 space-y-6">
+        <CompanySettingsHeader />
+        <FormSkeleton fields={6} />
+      </div>
+    )
   }
 
   if (fetchError) {
     const code = (fetchError as Error & { code?: string }).code
     return (
-      <Card className="border-amber-200 bg-amber-50/80">
-        <CardHeader>
-          <CardTitle className="text-amber-950">Could not load settings</CardTitle>
-          <CardDescription className="text-amber-900/90">{fetchError.message}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          {code === 'NO_COMPANY' && params.company ? (
-            <Button asChild>
-              <Link href={`/${params.company}/register`}>Register a company</Link>
+      <div className="min-w-0 space-y-6">
+        <CompanySettingsHeader />
+        <Card className="border-amber-200 bg-amber-50/80 dark:border-amber-900/60 dark:bg-amber-950/30">
+          <CardHeader>
+            <CardTitle className="text-base">Could not load settings</CardTitle>
+            <CardDescription>{fetchError.message}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            {code === 'NO_COMPANY' && params.company ? (
+              <Button asChild>
+                <Link href={`/${params.company}/register`}>Register a company</Link>
+              </Button>
+            ) : null}
+            <Button type="button" variant="outline" onClick={() => refetch()}>
+              Try again
             </Button>
-          ) : null}
-          <Button type="button" variant="outline" onClick={() => refetch()}>
-            Try again
-          </Button>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
+  // Each section sends whole top-level keys built from the draft view, so a shallow merge
+  // keeps every staged edit (a later section can no longer clobber an earlier one).
   const handleSettingsChange = (changes: SettingsUpdatePayload) => {
-    setPendingChanges(prev => ({
-      company: { ...prev.company, ...changes.company },
-      settings: { ...prev.settings, ...changes.settings }
+    setPendingChanges((prev) => ({
+      company: changes.company ? { ...prev.company, ...changes.company } : prev.company,
+      settings: changes.settings ? { ...prev.settings, ...changes.settings } : prev.settings,
     }))
-    setIsDirty(true)
   }
 
   const handleSave = async () => {
-    if (pendingChanges.company) {
-      await updateCompany(pendingChanges.company)
+    try {
+      if (pendingChanges.company) {
+        await updateCompany(pendingChanges.company)
+      }
+      if (pendingChanges.settings) {
+        await updateSettings(pendingChanges.settings)
+      }
+      setPendingChanges({})
+    } catch {
+      // The settings context already shows an error toast; keep the edits so they can retry.
     }
-    if (pendingChanges.settings) {
-      await updateSettings(pendingChanges.settings)
-    }
-    setIsDirty(false)
-    setPendingChanges({})
   }
 
   return (
-    <SettingsLayout 
-      onSave={handleSave}
-      isLoading={isUpdating}
-      isDirty={isDirty}
+    <SettingsDraftProvider
+      draft={pendingChanges as { company?: Record<string, unknown>; settings?: Record<string, unknown> }}
     >
-      <p className="text-sm text-muted-foreground">
-        Workspace company details are stored on your{' '}
-        <span className="font-medium text-foreground">Company</span> record. Connect Razorpay,
-        WhatsApp, email, and webhooks under{' '}
-        <DashboardLink
-          href="/dashboard/settings/integrations"
-          className="text-primary underline-offset-4 hover:underline"
-        >
-          Integrations
-        </DashboardLink>
-        . For personal CRM options (email on your user profile, AI API keys), use{' '}
-        <DashboardLink href="/dashboard/settings/advanced" className="text-primary underline-offset-4 hover:underline">
-          personal CRM settings
-        </DashboardLink>
-        .
-      </p>
-      <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto no-scrollbar">
-          <TabsTrigger value="basic" className="shrink-0">Basic Info</TabsTrigger>
-          <TabsTrigger value="workspace" className="shrink-0">Business</TabsTrigger>
-          <TabsTrigger value="customization" className="shrink-0">Customization</TabsTrigger>
-          <TabsTrigger value="notifications" className="shrink-0">Notifications</TabsTrigger>
-          <TabsTrigger value="payment" className="shrink-0">Payment</TabsTrigger>
-          <TabsTrigger value="security" className="shrink-0">Security</TabsTrigger>
-          <TabsTrigger value="database" className="shrink-0">Database</TabsTrigger>
-        </TabsList>
+      <SettingsLayout
+        onSave={handleSave}
+        onCancel={() => setPendingChanges({})}
+        isLoading={isUpdating}
+        isDirty={isDirty}
+      >
+        <CompanySettingsHeader />
+        <Tabs defaultValue="basic" className="space-y-4">
+          <TabsList className={TAB_LIST_CLASS}>
+            <TabsTrigger value="basic" className={TAB_TRIGGER_CLASS}>Basic info</TabsTrigger>
+            <TabsTrigger value="workspace" className={TAB_TRIGGER_CLASS}>Business</TabsTrigger>
+            <TabsTrigger value="payment" className={TAB_TRIGGER_CLASS}>Currency & payments</TabsTrigger>
+            <TabsTrigger value="database" className={TAB_TRIGGER_CLASS}>Database</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="basic">
-          <BasicInfoSection onChange={handleSettingsChange} />
-        </TabsContent>
-        <TabsContent value="workspace" className="space-y-6">
-          <WorkspaceSection onChange={handleSettingsChange} />
-          <TerminologySection onChange={handleSettingsChange} />
-          <SupportTicketTypesSection onChange={handleSettingsChange} />
-          <ProjectTaskStatusesSection onChange={handleSettingsChange} />
-          <FieldOpsSection onChange={handleSettingsChange} />
-          <VisitTagsSection />
-        </TabsContent>
-        <TabsContent value="customization">
-          <CustomizationSection onChange={handleSettingsChange} />
-        </TabsContent>
-        <TabsContent value="notifications">
-          <NotificationsSection onChange={handleSettingsChange} />
-        </TabsContent>
-        <TabsContent value="payment">
-          <PaymentSection onChange={handleSettingsChange} />
-        </TabsContent>
-        <TabsContent value="security">
-          <SecuritySection onChange={handleSettingsChange} />
-        </TabsContent>
-        <TabsContent value="database">
-          <CompanyDatabasePanel />
-        </TabsContent>
-      </Tabs>
-    </SettingsLayout>
+          <TabsContent value="basic">
+            <BasicInfoSection onChange={handleSettingsChange} />
+          </TabsContent>
+          <TabsContent value="workspace" className="space-y-6">
+            <WorkspaceSection onChange={handleSettingsChange} />
+            <TerminologySection onChange={handleSettingsChange} />
+            <SupportTicketTypesSection onChange={handleSettingsChange} />
+            <ProjectTaskStatusesSection onChange={handleSettingsChange} />
+            <FieldOpsSection onChange={handleSettingsChange} />
+            <VisitTagsSection />
+          </TabsContent>
+          <TabsContent value="payment">
+            <PaymentSection onChange={handleSettingsChange} />
+          </TabsContent>
+          <TabsContent value="database">
+            <CompanyDatabasePanel />
+          </TabsContent>
+        </Tabs>
+      </SettingsLayout>
+    </SettingsDraftProvider>
   )
 }
