@@ -26,6 +26,26 @@ const PUBLIC_PREFIXES = [
   '/service-request',
   '/api/service-request',
   '/start',
+  // Reached without a session cookie; each route authenticates itself
+  // (cron/job secrets, webhook secrets, signed tokens, or public data only).
+  '/api/cron/',
+  '/api/jobs/',
+  '/api/health',
+  '/api/track/',
+  '/api/email/track/',
+  '/api/emails/track/',
+  '/api/emails/webhook/',
+  '/api/unsubscribe/',
+  '/api/careers/',
+  '/api/help/',
+  '/api/tickets/guest/',
+  '/api/support/chat/',
+  '/api/companies/search',
+  '/api/employee/auth/',
+  '/api/subscription/plans',
+  '/unsubscribe/',
+  '/ticket/',
+  '/embed/',
 ];
 
 const PUBLIC_EXACT = new Set([
@@ -67,6 +87,8 @@ function isPublicPath(pathname: string) {
   if (/^\/[^/]+\/employee\/register\/?$/.test(pathname)) return true;
   // Employee sign-in page (registration redirects here; its layout skips the tenant check)
   if (/^\/[^/]+\/employee\/login\/?$/.test(pathname)) return true;
+  // Public workspace pages: job board and help center
+  if (/^\/[^/]+\/(careers|help)\/?$/.test(pathname)) return true;
   return false;
 }
 
