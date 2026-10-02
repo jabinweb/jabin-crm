@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useImagePaste } from '@/hooks/use-image-paste';
+import { TextWithMedia } from '@/components/ui/text-with-media';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -40,6 +42,9 @@ export default function PortalTicketDetailPage() {
     const { data: workspaceData } = useWorkspaceConfig();
     const showEquipment = workspaceData?.config.features?.equipment === true;
     const [newComment, setNewComment] = useState('');
+    // Customers can paste screenshots into their message
+    const commentRef = useRef<HTMLTextAreaElement>(null);
+    const commentImages = useImagePaste({ value: newComment, onChange: setNewComment, textareaRef: commentRef });
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [csatRating, setCsatRating] = useState(0);
     const [csatComment, setCsatComment] = useState('');
@@ -156,9 +161,9 @@ export default function PortalTicketDetailPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="p-4 sm:p-8 border border-foreground/5 bg-muted/5">
-                                <p className="text-xs font-mono text-foreground whitespace-pre-wrap break-words leading-relaxed">
-                                    {ticket.description}
-                                </p>
+                                <div className="text-xs font-mono text-foreground leading-relaxed">
+                                    <TextWithMedia text={ticket.description} className="text-xs" />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -231,7 +236,7 @@ export default function PortalTicketDetailPage() {
                                                         </p>
                                                         <p className="text-[9px] font-mono opacity-40">{new Date(comment.createdAt).toLocaleString().toUpperCase()}</p>
                                                     </div>
-                                                    <p className="text-xs font-mono leading-relaxed break-words">{comment.description}</p>
+                                                    <TextWithMedia text={comment.description} className="text-xs leading-relaxed" />
                                                 </div>
                                             ))
                                         )}
@@ -241,7 +246,10 @@ export default function PortalTicketDetailPage() {
                                         <div className="space-y-3 mt-6 pt-6 border-t border-slate-50 dark:border-slate-800">
                                             <Label className="text-xs font-bold uppercase tracking-widest text-slate-400">Send a Message</Label>
                                             <Textarea
-                                                placeholder="Provide additional details or ask for an update..."
+                                                ref={commentRef}
+                                                onPaste={commentImages.onPaste}
+                                                onDrop={commentImages.onDrop}
+                                                placeholder="Provide additional details or ask for an update... (you can paste screenshots)"
                                                 className="min-h-[120px] rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-all resize-none shadow-inner"
                                                 value={newComment}
                                                 onChange={(e) => setNewComment(e.target.value)}
@@ -249,7 +257,7 @@ export default function PortalTicketDetailPage() {
                                             <div className="flex justify-end pt-4">
                                                 <Button
                                                     onClick={handleAddComment}
-                                                    disabled={isSubmittingComment || !newComment.trim()}
+                                                    disabled={isSubmittingComment || !newComment.trim() || commentImages.uploading}
                                                     className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/80 px-10 h-11 uppercase font-black tracking-[0.2em]"
                                                 >
                                                     {isSubmittingComment ? 'TRANSMITTING...' : 'SEND MESSAGE'}

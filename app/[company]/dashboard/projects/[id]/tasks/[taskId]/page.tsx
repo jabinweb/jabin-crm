@@ -40,7 +40,17 @@ import {
   Link2,
   Clock,
   X,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { confirmAction } from '@/lib/confirm-action';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { resolveDoneStatusIds } from '@/lib/projects/task-statuses';
@@ -93,6 +103,7 @@ type TaskDetail = {
     id: string;
     body: string;
     createdAt: string;
+    updatedAt?: string;
     author: Person;
   }>;
   activities: Array<{
@@ -298,6 +309,55 @@ export default function ProjectTaskDetailPage() {
     },
     onSuccess: () => {
       toast.success('Saved');
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Editing / deleting comments
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentHtml, setEditingCommentHtml] = useState('');
+  const isWorkspaceAdmin = ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '');
+
+  const editCommentMutation = useMutation({
+    mutationFn: async ({ commentId, body }: { commentId: string; body: string }) => {
+      const res = await workspaceFetch(
+        `/api/projects/${projectId}/tasks/${taskId}/comments/${commentId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body }),
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Could not save the comment');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setEditingCommentId(null);
+      setEditingCommentHtml('');
+      toast.success('Comment updated');
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      const res = await workspaceFetch(
+        `/api/projects/${projectId}/tasks/${taskId}/comments/${commentId}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Could not delete the comment');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success('Comment deleted');
       invalidate();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -1152,26 +1212,121 @@ export default function ProjectTaskDetailPage() {
                 {/* Feed */}
                 <div className="space-y-5">
                   {showComments &&
-                    (task.comments || []).map((c) => (
-                      <div key={c.id} className="flex items-start gap-3">
+                    (task.comments || []).map((c) => {
+                      const mine = c.author.id === session?.user?.id;
+                      const canEditComment = mine && task.canWrite !== false;
+                      const canDeleteComment = (mine || isWorkspaceAdmin) && task.canWrite !== false;
+                      const edited =
+                        !!c.updatedAt &&
+                        new Date(c.updatedAt).getTime() - new Date(c.createdAt).getTime() > 2000;
+                      const isEditing = editingCommentId === c.id;
+                      return (
+                      <div key={c.id} className="group flex items-start gap-3">
                         <UserAvatar person={c.author} size="md" />
                         <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">
-                              {c.author.name || c.author.email}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(c.createdAt).toLocaleString()}
-                            </span>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium">
+                                {c.author.name || c.author.email}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(c.createdAt).toLocaleString()}
+                                {edited ? ' · edited' : ''}
+                              </span>
+                            </div>
+                            {(canEditComment || canDeleteComment) && !isEditing ? (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 shrink-0 text-muted-foreground"
+                                    aria-label="Comment actions"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {canEditComment ? (
+                                    <DropdownMenuItem
+                                      onSelect={() => {
+                                        setEditingCommentId(c.id);
+                                        setEditingCommentHtml(c.body);
+                                      }}
+                                    >
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                  {canDeleteComment ? (
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onSelect={async () => {
+                                        if (
+                                          !(await confirmAction({
+                                            title: 'Delete this comment?',
+                                            description: 'Files attached to it stay on the task.',
+                                            confirmLabel: 'Delete',
+                                            variant: 'destructive',
+                                          }))
+                                        )
+                                          return;
+                                        deleteCommentMutation.mutate(c.id);
+                                      }}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  ) : null}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            ) : null}
                           </div>
-                          <div
-                            className="rich-text-content text-sm leading-relaxed"
-                            // Sanitized by the API (lib/html/sanitize-rich-text.ts)
-                            dangerouslySetInnerHTML={{ __html: c.body }}
-                          />
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <RichTextEditor
+                                content={editingCommentHtml}
+                                onChange={setEditingCommentHtml}
+                                minHeightClass="min-h-[80px]"
+                                folder="project-tasks"
+                                mentionUsers={mentionUsers}
+                              />
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  disabled={editCommentMutation.isPending || !editingCommentHtml.trim()}
+                                  onClick={() =>
+                                    editCommentMutation.mutate({ commentId: c.id, body: editingCommentHtml })
+                                  }
+                                >
+                                  {editCommentMutation.isPending ? (
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  ) : null}
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setEditingCommentHtml('');
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              className="rich-text-content text-sm leading-relaxed"
+                              // Sanitized by the API (lib/html/sanitize-rich-text.ts)
+                              dangerouslySetInnerHTML={{ __html: c.body }}
+                            />
+                          )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
 
                   {showHistory &&
                     (task.activities || []).map((a) => (

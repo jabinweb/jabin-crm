@@ -1,6 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { confirmAction } from '@/lib/confirm-action';
+import { useImagePaste } from '@/hooks/use-image-paste';
+import { TextWithMedia } from '@/components/ui/text-with-media';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -94,6 +97,54 @@ export default function TicketDetailPage() {
     // Complete & Resolve files a service report, which needs the Service reports module
     const serviceReportsEnabled = useFeatureModule('SERVICE_REPORTS');
     const [newComment, setNewComment] = useState('');
+    // Pasted / dropped screenshots upload and show inline in the reply
+    const commentRef = useRef<HTMLTextAreaElement>(null);
+    const commentImages = useImagePaste({ value: newComment, onChange: setNewComment, textareaRef: commentRef });
+    // Editing / deleting replies and notes (author edits; author or admin deletes)
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editingCommentText, setEditingCommentText] = useState('');
+    const [savingComment, setSavingComment] = useState(false);
+    const editRef = useRef<HTMLTextAreaElement>(null);
+    const editImages = useImagePaste({ value: editingCommentText, onChange: setEditingCommentText, textareaRef: editRef });
+    const saveCommentEdit = async (activityId: string) => {
+        if (!editingCommentText.trim()) return;
+        setSavingComment(true);
+        try {
+            const res = await workspaceFetch(`/api/tickets/${id}/activities/${activityId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment: editingCommentText }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || 'Could not save the comment');
+            setEditingCommentId(null);
+            toast.success('Comment updated');
+            queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'Could not save the comment');
+        } finally {
+            setSavingComment(false);
+        }
+    };
+    const deleteComment = async (activityId: string) => {
+        if (
+            !(await confirmAction({
+                title: 'Delete this comment?',
+                description: 'It is removed from the ticket for everyone.',
+                confirmLabel: 'Delete',
+                variant: 'destructive',
+            }))
+        )
+            return;
+        const res = await workspaceFetch(`/api/tickets/${id}/activities/${activityId}`, { method: 'DELETE' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            toast.error(data.error || 'Could not delete the comment');
+            return;
+        }
+        toast.success('Comment deleted');
+        queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+    };
     const [typingPeers, setTypingPeers] = useState<string[]>([]);
     const [optimisticComments, setOptimisticComments] = useState<
         Array<{ id: string; description: string; eventType: string; createdAt: string }>
@@ -742,7 +793,7 @@ export default function TicketDetailPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="bg-muted/30 p-4 rounded-lg border">
-                                <p className="text-sm whitespace-pre-wrap break-words">{ticket.description}</p>
+                                <TextWithMedia text={ticket.description} />
                             </div>
                         </CardContent>
                     </Card>
@@ -804,9 +855,65 @@ export default function TicketDetailPage() {
                                                             <Badge variant="outline" className="text-[9px] h-4">Internal</Badge>
                                                         )}
                                                     </div>
-                                                    <p className="text-[10px] text-muted-foreground">{new Date(comment.createdAt).toLocaleString()}</p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-[10px] text-muted-foreground">
+                                                            {new Date(comment.createdAt).toLocaleString()}
+                                                            {comment.metadata?.editedAt ? ' · edited' : ''}
+                                                        </p>
+                                                        {comment.eventType !== 'EMAIL_REPLY' && editingCommentId !== comment.id ? (
+                                                            <>
+                                                                {comment.performedById === session?.user?.id ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                                                                        onClick={() => {
+                                                                            setEditingCommentId(comment.id);
+                                                                            setEditingCommentText(comment.description);
+                                                                        }}
+                                                                    >
+                                                                        Edit
+                                                                    </button>
+                                                                ) : null}
+                                                                {comment.performedById === session?.user?.id ||
+                                                                ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '') ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        className="text-[11px] font-medium text-destructive/80 hover:text-destructive"
+                                                                        onClick={() => void deleteComment(comment.id)}
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                ) : null}
+                                                            </>
+                                                        ) : null}
+                                                    </div>
                                                 </div>
-                                                <p className="text-sm break-words">{comment.description}</p>
+                                                {editingCommentId === comment.id ? (
+                                                    <div className="space-y-2">
+                                                        <Textarea
+                                                            ref={editRef}
+                                                            value={editingCommentText}
+                                                            onChange={(e) => setEditingCommentText(e.target.value)}
+                                                            onPaste={editImages.onPaste}
+                                                            onDrop={editImages.onDrop}
+                                                            className="min-h-[80px]"
+                                                        />
+                                                        <div className="flex items-center gap-2">
+                                                            <Button
+                                                                size="sm"
+                                                                disabled={savingComment || editImages.uploading || !editingCommentText.trim()}
+                                                                onClick={() => void saveCommentEdit(comment.id)}
+                                                            >
+                                                                {savingComment ? 'Saving…' : 'Save'}
+                                                            </Button>
+                                                            <Button size="sm" variant="ghost" onClick={() => setEditingCommentId(null)}>
+                                                                Cancel
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <TextWithMedia text={comment.description} />
+                                                )}
                                             </div>
                                         ))}
                                         {optimisticComments.map((comment) => (
@@ -815,7 +922,7 @@ export default function TicketDetailPage() {
                                                 className="p-3 rounded-lg border bg-muted/10 opacity-70"
                                             >
                                                 <p className="text-[10px] text-muted-foreground mb-1">Sending…</p>
-                                                <p className="text-sm">{comment.description}</p>
+                                                <TextWithMedia text={comment.description} />
                                             </div>
                                         ))}
                                     </div>
@@ -847,10 +954,16 @@ export default function TicketDetailPage() {
                                     <div className="space-y-2 mt-4 pt-4 border-t">
                                         <Label>{isInternalNote ? 'Internal note (agents only)' : 'Public reply'}</Label>
                                         <Textarea
-                                            placeholder={isInternalNote ? 'Private note for your team…' : 'Reply visible to the customer…'}
+                                            ref={commentRef}
+                                            placeholder={isInternalNote ? 'Private note for your team… (paste screenshots too)' : 'Reply visible to the customer… (paste screenshots too)'}
                                             value={newComment}
                                             onChange={(e) => setNewComment(e.target.value)}
+                                            onPaste={commentImages.onPaste}
+                                            onDrop={commentImages.onDrop}
                                         />
+                                        {commentImages.uploading ? (
+                                            <p className="text-xs text-muted-foreground">Uploading image…</p>
+                                        ) : null}
                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
                                                 <Switch
@@ -860,7 +973,7 @@ export default function TicketDetailPage() {
                                                 />
                                                 <Label htmlFor="internal-note" className="text-sm font-normal">Internal note</Label>
                                             </div>
-                                            <Button onClick={handleAddComment} disabled={isSubmittingComment || !newComment.trim()}>
+                                            <Button onClick={handleAddComment} disabled={isSubmittingComment || !newComment.trim() || commentImages.uploading}>
                                                 {isSubmittingComment ? 'Posting…' : isInternalNote ? 'Save note' : 'Send reply'}
                                             </Button>
                                         </div>

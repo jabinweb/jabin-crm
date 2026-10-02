@@ -60,7 +60,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   ExternalLink,
@@ -90,6 +90,8 @@ export type ProjectTaskRow = PipelineBoardCard & {
   id: string;
   title: string;
   description?: string | null;
+  /** Full rich description (the plain `description` is only a short preview). */
+  descriptionHtml?: string | null;
   status: string;
   priority: string;
   dueDate?: string | null;
@@ -295,7 +297,11 @@ export function ProjectTaskBoard({
     setEditTask(task);
     setForm({
       title: task.title,
-      description: task.description || '',
+      description:
+        task.descriptionHtml ||
+        (task.description
+          ? `<p>${task.description.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`
+          : ''),
       status: task.status,
       priority: task.priority,
       dueDate: toDateInput(task.dueDate),
@@ -313,7 +319,7 @@ export function ProjectTaskBoard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: form.title.trim(),
-          description: form.description.trim() || null,
+          descriptionHtml: form.description,
           status: form.status,
           priority: form.priority,
           dueDate: form.dueDate || null,
@@ -344,7 +350,7 @@ export function ProjectTaskBoard({
         body: JSON.stringify({
           id: editTask.id,
           title: form.title.trim(),
-          description: form.description.trim() || null,
+          descriptionHtml: form.description,
           status: form.status,
           priority: form.priority,
           dueDate: form.dueDate || null,
@@ -590,13 +596,14 @@ export function ProjectTaskBoard({
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="task-desc">Description</Label>
-        <Textarea
-          id="task-desc"
-          placeholder="Optional details…"
-          rows={3}
-          value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+        <Label>Description</Label>
+        {/* Same editor as the task page: formatting, checklists, pasted screenshots */}
+        <RichTextEditor
+          content={form.description}
+          onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+          placeholder="Optional details… (paste screenshots too)"
+          minHeightClass="min-h-[110px] max-h-[40vh] overflow-y-auto"
+          folder="project-tasks"
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -968,7 +975,7 @@ export function ProjectTaskBoard({
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New task</DialogTitle>
             <DialogDescription>
@@ -999,7 +1006,7 @@ export function ProjectTaskBoard({
           if (!open) setEditTask(null);
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Quick edit</DialogTitle>
             <DialogDescription>

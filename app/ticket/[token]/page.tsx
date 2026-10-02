@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { TextWithMedia } from '@/components/ui/text-with-media'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,7 +58,7 @@ export default function GuestTicketPage() {
           <CardTitle className="text-base">Description</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm whitespace-pre-wrap break-words">{data.description}</p>
+          <TextWithMedia text={data.description} />
         </CardContent>
       </Card>
       <Card>
@@ -71,7 +72,7 @@ export default function GuestTicketPage() {
                 <p className="text-xs text-muted-foreground">
                   {a.eventType} · {new Date(a.createdAt).toLocaleString()}
                 </p>
-                <p className="mt-1 whitespace-pre-wrap break-words">{a.description}</p>
+                <TextWithMedia text={a.description} className="mt-1" />
               </div>
             )
           )}

@@ -543,12 +543,13 @@ export function RichTextEditor({
               <button
                 type="button"
                 title={aiLabel}
+                aria-label={aiLabel}
                 aria-expanded={aiOpen}
                 disabled={aiBusy}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => setAiOpen((v) => !v)}
                 className={cn(
-                  'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                  'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   aiOpen
                     ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
@@ -560,7 +561,6 @@ export function RichTextEditor({
                 ) : (
                   <Sparkles className={ICON} strokeWidth={2} />
                 )}
-                <span className="hidden sm:inline">{aiLabel}</span>
               </button>
               <ToolbarDivider />
             </>
