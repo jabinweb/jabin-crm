@@ -42,6 +42,10 @@ type FollowUps = {
     resolutionDueAt?: string | null;
   } | null;
   staleDays: number;
+  /** False when the plan has no Tickets module — hide ticket queues. */
+  ticketsEnabled?: boolean;
+  /** False when the plan has no Leads module or the role does not work leads. */
+  leadsEnabled?: boolean;
 };
 
 export function AgentQueueCard() {
@@ -72,8 +76,13 @@ export function AgentQueueCard() {
 
   if (isLoading || !data) return null;
 
+  const ticketsEnabled = data.ticketsEnabled !== false;
+  const leadsEnabled = data.leadsEnabled !== false;
+  if (!ticketsEnabled && !leadsEnabled) return null;
+
   return (
     <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+      {ticketsEnabled ? (
       <Card className="shadow-none">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -118,6 +127,7 @@ export function AgentQueueCard() {
           )}
         </CardContent>
       </Card>
+      ) : null}
 
       <Card className="shadow-none">
         <CardHeader className="pb-2">

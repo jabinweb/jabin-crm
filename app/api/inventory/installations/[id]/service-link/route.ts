@@ -14,6 +14,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (session.user.role === 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     const { id } = await context.params;
     const installation = await prisma.equipmentInstallation.findUnique({

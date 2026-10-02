@@ -1,8 +1,21 @@
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { getFeatureModuleMap } from '@/lib/feature-modules';
+import { hasLegacyRole } from '@/lib/auth/permissions';
 
-/** Command-center metrics for the tenant home dashboard. */
-export const GET = withTenantRoute(async (_req, { companyId }) => {
+/**
+ * Command-center metrics for the tenant home dashboard.
+ * Module metrics are only counted when the plan includes the module (lead metrics
+ * also need a role that works the pipeline); the others come back as null.
+ */
+export const GET = withTenantRoute(async (_req, { companyId, userId, session }) => {
+  const modules = await getFeatureModuleMap(userId, companyId);
+  const ticketsOn = modules.TICKETS === true;
+  const equipmentOn = modules.EQUIPMENT === true;
+  const leadsOn =
+    modules.LEADS === true &&
+    hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER');
+  const skip = Promise.resolve(null);
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const [
@@ -16,19 +29,19 @@ export const GET = withTenantRoute(async (_req, { companyId }) => {
     products,
   ] = await Promise.all([
     prisma.customer.count({ where: { companyId } }),
-    prisma.supportTicket.count({
+    !ticketsOn ? skip : prisma.supportTicket.count({
       where: {
         customer: { companyId },
         mergedIntoId: null,
         status: { in: ['OPEN', 'ASSIGNED', 'IN_PROGRESS'] },
       },
     }),
-    prisma.equipmentInstallation.count({
+    !equipmentOn ? skip : prisma.equipmentInstallation.count({
       where: { customer: { companyId } },
     }),
-    prisma.lead.count({ where: { companyId } }),
-    prisma.lead.count({ where: { companyId, createdAt: { gte: weekAgo } } }),
-    prisma.lead.count({
+    !leadsOn ? skip : prisma.lead.count({ where: { companyId } }),
+    !leadsOn ? skip : prisma.lead.count({ where: { companyId, createdAt: { gte: weekAgo } } }),
+    !leadsOn ? skip : prisma.lead.count({
       where: {
         companyId,
         createdAt: {
@@ -42,7 +55,9 @@ export const GET = withTenantRoute(async (_req, { companyId }) => {
   ]);
 
   const weeklyGrowth =
-    leadsPrevWeek > 0
+    leadsThisWeek === null || leadsPrevWeek === null
+      ? null
+      : leadsPrevWeek > 0
       ? Math.round(((leadsThisWeek - leadsPrevWeek) / leadsPrevWeek) * 100)
       : leadsThisWeek > 0
         ? 100

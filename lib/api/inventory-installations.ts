@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { productService, type CreateInstallationData } from '@/lib/crm/product-service';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import type { Session } from 'next-auth';
+import { prisma } from '@/lib/prisma';
 
 export async function listCustomerInstallations(
   request: NextRequest,
@@ -13,13 +14,14 @@ export async function listCustomerInstallations(
   const warrantyExpiring = searchParams.get('warrantyExpiring');
   const hasContract = searchParams.get('hasContract');
 
-  if (customerId) {
-    const installations = await productService.getCustomerEquipment(customerId);
-    return NextResponse.json(installations);
+  // Every read is limited to the caller's workspace (customerId alone used to cross tenants)
+  if (!companyId) {
+    return NextResponse.json({ error: 'Company context is required' }, { status: 400 });
   }
 
-  if (!companyId) {
-    return NextResponse.json({ error: 'Customer ID or company context is required' }, { status: 400 });
+  if (customerId) {
+    const installations = await productService.getCustomerEquipment(customerId, companyId);
+    return NextResponse.json(installations);
   }
 
   const installations = await productService.getCompanyEquipment(companyId, {
@@ -37,7 +39,8 @@ export async function listCustomerInstallations(
 
 export async function createCustomerInstallation(
   session: Session,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  companyId: string
 ) {
   if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -48,6 +51,24 @@ export async function createCustomerInstallation(
       { error: 'Product ID and Customer ID are required' },
       { status: 400 }
     );
+  }
+
+  // Customer must be in this workspace; product must be this workspace's (or shared)
+  const [customer, product] = await Promise.all([
+    prisma.customer.findFirst({
+      where: { id: String(body.customerId), companyId },
+      select: { id: true },
+    }),
+    prisma.product.findFirst({
+      where: { id: String(body.productId), OR: [{ companyId }, { companyId: null }] },
+      select: { id: true },
+    }),
+  ]);
+  if (!customer) {
+    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+  }
+  if (!product) {
+    return NextResponse.json({ error: 'Product not found' }, { status: 404 });
   }
 
   const installation = await productService.installEquipment({

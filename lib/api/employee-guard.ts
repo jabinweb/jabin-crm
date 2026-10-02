@@ -14,15 +14,10 @@ export async function requireEmployeeModule(module: FeatureModuleKey) {
     throw ApiErrors.unauthorized();
   }
 
-  const isStaff =
-    !!session.user.employeeId ||
-    session.user.role === 'ADMIN' ||
-    session.user.role === 'SUPER_ADMIN' ||
-    session.user.role === 'SALES' ||
-    session.user.role === 'SUPPORT_MANAGER';
-
-  if (!isStaff) {
-    throw ApiErrors.unauthorized();
+  // Employee self-service is scoped by the caller's employee profile. Without one,
+  // queries filtered by `employeeId: undefined` would match every employee's rows.
+  if (!session.user.employeeId || session.user.role === 'CUSTOMER') {
+    throw ApiErrors.forbidden('An employee profile is required');
   }
 
   await guardAgentFeature(session.user, module);

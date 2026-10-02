@@ -4,6 +4,7 @@ import {
   getPlanModuleMapForCompany,
   getPlanModuleMapForUser,
 } from '@/lib/plan-modules';
+import { requestCompanyIdForUser } from '@/lib/api/request-workspace';
 import {
   ALL_FEATURE_MODULES,
   FEATURE_MODULE_LABELS,
@@ -46,8 +47,33 @@ export async function getPlanModulesForUser(userId: string): Promise<PlanModuleM
   return getPlanModuleMapForUser(userId);
 }
 
+/**
+ * Plan modules for this user in the workspace they're acting in. Users who belong to
+ * several workspaces get the plan of the workspace in the request (resolved from the
+ * request when `companyId` isn't given), not always their home workspace's plan.
+ */
+async function planModulesForUserInWorkspace(
+  userId: string,
+  companyId?: string | null
+): Promise<PlanModuleMap> {
+  const requestCompanyId =
+    companyId === undefined ? await requestCompanyIdForUser(userId) : companyId;
+  if (requestCompanyId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { companyId: true, primaryCompanyId: true },
+    });
+    const home = user?.companyId ?? user?.primaryCompanyId ?? null;
+    if (requestCompanyId !== home) {
+      return getPlanModuleMapForCompany(requestCompanyId);
+    }
+  }
+  return getPlanModuleMapForUser(userId);
+}
+
 export async function getFeatureModuleMap(
-  userId: string
+  userId: string,
+  companyId?: string | null
 ): Promise<Record<FeatureModuleKey, boolean>> {
   if (await isSuperAdmin(userId)) {
     return Object.fromEntries(ALL_FEATURE_MODULES.map((m) => [m, true])) as Record<
@@ -57,7 +83,7 @@ export async function getFeatureModuleMap(
   }
 
   const [planModules, rows] = await Promise.all([
-    getPlanModuleMapForUser(userId),
+    planModulesForUserInWorkspace(userId, companyId),
     prisma.featureModuleSetting.findMany({
       where: { userId },
       select: { module: true, enabled: true },
@@ -74,9 +100,10 @@ export async function getFeatureModuleMap(
 
 export async function isFeatureEnabled(
   userId: string,
-  module: FeatureModuleKey
+  module: FeatureModuleKey,
+  companyId?: string | null
 ): Promise<boolean> {
-  const map = await getFeatureModuleMap(userId);
+  const map = await getFeatureModuleMap(userId, companyId);
   return map[module] === true;
 }
 
@@ -88,8 +115,12 @@ export async function isFeatureEnabledForCompany(
   return planModules[module] === true;
 }
 
-export async function ensureFeatureEnabled(userId: string, module: FeatureModuleKey) {
-  const enabled = await isFeatureEnabled(userId, module);
+export async function ensureFeatureEnabled(
+  userId: string,
+  module: FeatureModuleKey,
+  companyId?: string | null
+) {
+  const enabled = await isFeatureEnabled(userId, module, companyId);
   if (!enabled) {
     throw ApiErrors.forbidden(`Feature "${FEATURE_MODULE_LABELS[module]}" is not included in your subscription plan.`);
   }

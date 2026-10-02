@@ -8,18 +8,20 @@ type SessionUser = {
   role?: string;
 };
 
-/** Skip feature checks for portal customers; agents must have the module on their plan. */
+/**
+ * The module must be on the plan of the workspace in the request. Portal customers are
+ * checked against their company's plan too (they used to skip the check entirely).
+ * Routes that must not serve customers at all reject them separately.
+ */
 export async function guardAgentFeature(
   user: SessionUser | null | undefined,
-  module: FeatureModuleKey
+  module: FeatureModuleKey,
+  companyId?: string | null
 ): Promise<void> {
   if (!user?.id) {
     throw ApiErrors.unauthorized();
   }
-  if (user.role === 'CUSTOMER') {
-    return;
-  }
-  await ensureFeatureEnabled(user.id, module);
+  await ensureFeatureEnabled(user.id, module, companyId);
 }
 
 export async function requireLeadQuota(userId: string): Promise<void> {

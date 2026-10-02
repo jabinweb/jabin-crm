@@ -16,6 +16,20 @@ export interface CreateExpenseInput {
   receiptUrl?: string;
 }
 
+/**
+ * Which expenses a user may see. Managers (`viewAll`) see every expense for technicians
+ * of the workspace; everyone else sees expenses they recorded or that were filed for them.
+ */
+function expenseVisibilityWhere(
+  userId: string,
+  companyId?: string,
+  viewAll?: boolean
+): Prisma.TravelExpenseWhereInput {
+  const inWorkspace = companyId ? { technician: workspaceStaffWhere(companyId) } : {};
+  if (viewAll && companyId) return inWorkspace;
+  return { ...inWorkspace, OR: [{ userId }, { technicianId: userId }] };
+}
+
 export class ExpenseService {
   async createExpense(userId: string, input: CreateExpenseInput) {
     return prisma.travelExpense.create({
@@ -58,10 +72,15 @@ export class ExpenseService {
       endDate?: Date;
       /** Limit to technicians of this workspace (creator may belong to several). */
       companyId?: string;
+      /** Managers see every expense in the workspace; others only their own. */
+      viewAll?: boolean;
     }
   ) {
-    const where: Prisma.TravelExpenseWhereInput = { userId };
-    if (filters?.companyId) where.technician = workspaceStaffWhere(filters.companyId);
+    const where: Prisma.TravelExpenseWhereInput = expenseVisibilityWhere(
+      userId,
+      filters?.companyId,
+      filters?.viewAll
+    );
     if (filters?.technicianId) where.technicianId = filters.technicianId;
     if (filters?.ticketId) where.ticketId = filters.ticketId;
     if (filters?.category) where.category = filters.category;
@@ -127,12 +146,9 @@ export class ExpenseService {
     });
   }
 
-  async getExpenseStats(userId: string, companyId?: string) {
+  async getExpenseStats(userId: string, companyId?: string, viewAll?: boolean) {
     const expenses = await prisma.travelExpense.findMany({
-      where: {
-        userId,
-        ...(companyId ? { technician: workspaceStaffWhere(companyId) } : {}),
-      },
+      where: expenseVisibilityWhere(userId, companyId, viewAll),
       select: {
         status: true,
         amount: true,

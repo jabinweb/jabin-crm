@@ -4,12 +4,15 @@ import {
   listCustomerInstallations,
 } from '@/lib/api/inventory-installations';
 
-/** Customer asset installations (registered equipment at a customer site). */
+/**
+ * Customer asset installations (registered equipment at a customer site).
+ * Staff only (withStaffRoute rejects portal customers); always scoped to the workspace.
+ */
 export const GET = withStaffRoute(async (request, { companyId }) =>
   listCustomerInstallations(request, companyId)
 );
 
-export const POST = withTenantRoute(async (request, { session }) => {
+export const POST = withTenantRoute(async (request, { session, companyId }) => {
   const body = await request.json();
-  return createCustomerInstallation(session, body);
+  return createCustomerInstallation(session, body, companyId);
 });

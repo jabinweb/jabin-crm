@@ -5,13 +5,15 @@ import { leadsCache } from '@/lib/leads/cache'
 import { handleApiError } from '@/lib/api-error-handler'
 import { isApiException } from '@/lib/api/subscription-guards'
 import { requireEmployeeModule } from '@/lib/api/employee-guard'
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership'
 
 export async function GET(req: NextRequest) {
   try {
     const session = await requireEmployeeModule('LEADS')
+    const { companyId } = await resolveCompanyContextFromRequest(session, req)
 
     const searchParams = req.nextUrl.searchParams
-    const cacheKey = `leads:${session.user.employeeId}:${searchParams.toString()}`
+    const cacheKey = `leads:${companyId}:${session.user.employeeId}:${searchParams.toString()}`
 
     // Try to get from memory cache
     const cached = leadsCache.get(cacheKey)

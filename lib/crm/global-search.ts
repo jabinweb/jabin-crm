@@ -16,13 +16,23 @@ function contains(query: string) {
 export async function globalSearch(
   companyId: string,
   rawQuery: string,
-  options?: { limitPerType?: number }
+  options?: {
+    limitPerType?: number;
+    /** Entity types to search; a type set to `false` is skipped (default: all). */
+    include?: Partial<Record<GlobalSearchEntityType, boolean>>;
+    /** Non-admin view: only leads assigned to this employee. */
+    leadEmployeeId?: string | null;
+    /** Non-admin view: only deals created by this user. */
+    dealUserId?: string | null;
+  }
 ): Promise<GlobalSearchResult[]> {
   const q = rawQuery.trim();
   if (q.length < 2) return [];
 
   const take = options?.limitPerType ?? PER_TYPE;
   const text = contains(q);
+  const want = (type: GlobalSearchEntityType) => options?.include?.[type] !== false;
+  const none = Promise.resolve([] as any[]);
 
   const [
     leads,
@@ -37,9 +47,10 @@ export async function globalSearch(
     projects,
     retainers,
   ] = await Promise.all([
-    prisma.lead.findMany({
+    !want('lead') ? none : prisma.lead.findMany({
       where: {
         companyId,
+        ...(options?.leadEmployeeId ? { employeeId: options.leadEmployeeId } : {}),
         OR: [
           { companyName: text },
           { contactName: text },
@@ -60,7 +71,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.customer.findMany({
+    !want('customer') ? none : prisma.customer.findMany({
       where: {
         companyId,
         OR: [
@@ -82,7 +93,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.employee.findMany({
+    !want('employee') ? none : prisma.employee.findMany({
       where: {
         companyId,
         OR: [
@@ -147,7 +158,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.product.findMany({
+    !want('product') ? none : prisma.product.findMany({
       where: {
         companyId,
         OR: [
@@ -170,7 +181,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.invoice.findMany({
+    !want('invoice') ? none : prisma.invoice.findMany({
       where: {
         OR: [
           { lead: { companyId } },
@@ -202,7 +213,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.serviceContract.findMany({
+    !want('contract') ? none : prisma.serviceContract.findMany({
       where: {
         companyId,
         OR: [
@@ -222,7 +233,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.equipmentInstallation.findMany({
+    !want('equipment') ? none : prisma.equipmentInstallation.findMany({
       where: {
         customer: { companyId },
         OR: [
@@ -260,7 +271,7 @@ export async function globalSearch(
       orderBy: { updatedAt: 'desc' },
       take,
     }),
-    prisma.clientRetainer.findMany({
+    !want('retainer') ? none : prisma.clientRetainer.findMany({
       where: {
         companyId,
         OR: [

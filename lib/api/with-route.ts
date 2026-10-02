@@ -118,18 +118,26 @@ export type StaffRouteContext = ApiRouteContext & {
   companyId: string | undefined;
 };
 
-/** Staff CRM routes with optional global scope for SUPER_ADMIN. */
+/**
+ * Staff CRM routes with optional global scope for SUPER_ADMIN.
+ * Portal customers are rejected unless the route serves them deliberately
+ * (`allowCustomer`) and limits them to their own records.
+ */
 export function withStaffRoute(
   handler: (
     request: NextRequest,
     ctx: StaffRouteContext,
     routeContext: RouteContext
-  ) => Promise<Response | NextResponse>
+  ) => Promise<Response | NextResponse>,
+  options?: { allowCustomer?: boolean }
 ) {
   return async (request: NextRequest, routeContext: RouteContext): Promise<Response> => {
     try {
       const session = await auth();
       if (!session?.user?.id) throw ApiErrors.unauthorized();
+      if (session.user.role === 'CUSTOMER' && !options?.allowCustomer) {
+        throw ApiErrors.forbidden();
+      }
 
       const companyId = await resolveStaffCompanyScope(session, request, {
         allowGlobalForSuperAdmin: true,

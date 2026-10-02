@@ -121,9 +121,10 @@ export class ProductService {
     /**
      * List installations for a customer
      */
-    async getCustomerEquipment(customerId: string) {
+    /** Pass `companyId` to limit to a customer of that workspace (empty list otherwise). */
+    async getCustomerEquipment(customerId: string, companyId?: string) {
         return await prisma.equipmentInstallation.findMany({
-            where: { customerId },
+            where: companyId ? { customerId, customer: { companyId } } : { customerId },
             include: {
                 product: true,
             },

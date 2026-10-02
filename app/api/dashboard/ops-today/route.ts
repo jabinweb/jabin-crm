@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
+import { hasLegacyRole } from '@/lib/auth/permissions';
 import { AttendanceStatus, EmployeeStatus, LeaveStatus } from '@prisma/client';
 
 function startOfLocalDay(d = new Date()) {
@@ -17,11 +18,15 @@ function isLateCheckIn(checkIn: Date | null | undefined) {
 }
 
 /**
- * Company-wide attendance + personal punch state + daily sales-activity pulse.
+ * Company-wide attendance (workspace admins only) + personal punch state + daily
+ * sales-activity pulse.
  */
 export const GET = withTenantRoute(async (_req, { companyId, userId, session }) => {
   const dayStart = startOfLocalDay();
   const dayEnd = endOfLocalDay();
+  // The team roster (who is late / absent / on leave and why) is HR data — the
+  // attendance and leave pages are admin-only, so the summary is too.
+  const canSeeTeam = hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN');
 
   // The session employeeId belongs to the user's home workspace; resolve the
   // employee profile (if any) that belongs to the requested workspace.
@@ -34,6 +39,8 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, session }) 
   const activeEmployees = await prisma.employee.findMany({
     where: {
       companyId,
+      // Non-admins only need their own row (personal punch state)
+      ...(canSeeTeam ? {} : { id: employeeId ?? '__none__' }),
       status: EmployeeStatus.ACTIVE,
       isApproved: true,
     },
@@ -210,7 +217,8 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, session }) 
 
   return jsonOk({
     asOf: new Date().toISOString(),
-    attendance: {
+    attendance: canSeeTeam
+      ? {
       present,
       late,
       onLeave,
@@ -221,7 +229,8 @@ export const GET = withTenantRoute(async (_req, { companyId, userId, session }) 
       lateList: lateList.slice(0, 8),
       outsideGeofenceList: outsideGeofenceList.slice(0, 8),
       onLeaveList: onLeaveList.slice(0, 8),
-    },
+    }
+      : null,
     me: {
       name: session.user?.name ?? 'there',
       hasEmployeeProfile: !!employeeId,

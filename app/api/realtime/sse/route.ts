@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id) {
     return new Response('Unauthorized', { status: 401 });
   }
+  // Staff stream only — portal customers belong to the company but must not see
+  // other visitors' chats, every ticket change or internal project activity.
+  if (session.user.role === 'CUSTOMER') {
+    return new Response('Forbidden', { status: 403 });
+  }
 
   let companyId: string;
   try {

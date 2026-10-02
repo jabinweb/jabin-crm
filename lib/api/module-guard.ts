@@ -14,12 +14,22 @@ import type { FeatureModuleKey } from '@/lib/feature-module-keys';
 
 type QuotaKind = 'leads' | 'emails' | 'campaigns';
 
+/**
+ * Session + plan-module gate for staff APIs. Portal customers are rejected unless the
+ * route serves them deliberately (`allowCustomer`) and scopes data to their own account.
+ */
 export async function withModuleAccess(
   module: FeatureModuleKey,
-  options?: { quota?: QuotaKind }
+  options?: { quota?: QuotaKind; allowCustomer?: boolean }
 ): Promise<Session> {
   const session = await auth();
-  await guardAgentFeature(session?.user as { id: string; role?: string }, module);
+  if (!session?.user?.id) {
+    throw ApiErrors.unauthorized();
+  }
+  if (session.user.role === 'CUSTOMER' && !options?.allowCustomer) {
+    throw ApiErrors.forbidden();
+  }
+  await guardAgentFeature(session.user as { id: string; role?: string }, module);
 
   if (options?.quota && session?.user?.id) {
     if (options.quota === 'leads') await requireLeadQuota(session.user.id);

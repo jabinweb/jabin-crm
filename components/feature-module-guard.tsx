@@ -11,6 +11,13 @@ type ModuleMap = Partial<Record<FeatureModuleKey, boolean>>;
 let cachedModules: ModuleMap | null = null;
 let fetchFailed = false;
 let cachePromise: Promise<ModuleMap> | null = null;
+/** Workspace the cache belongs to — plans differ per workspace for multi-workspace users. */
+let cachedFor: string | null = null;
+
+function currentWorkspaceKey() {
+  if (typeof window === 'undefined') return '';
+  return window.location.pathname.split('/')[1] ?? '';
+}
 
 export function didFeatureModulesFetchFail() {
   return fetchFailed;
@@ -18,12 +25,20 @@ export function didFeatureModulesFetchFail() {
 
 /** Shared module map fetch — one in-flight request for sidebar + guards. */
 export async function fetchFeatureModules(): Promise<ModuleMap> {
+  const key = currentWorkspaceKey();
+  if (cachedFor !== key) {
+    cachedModules = null;
+    fetchFailed = false;
+    cachePromise = null;
+    cachedFor = key;
+  }
   if (cachedModules !== null && !fetchFailed) return cachedModules;
   if (!cachePromise) {
     cachePromise = (async () => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 6_000);
       try {
+        // The proxy derives the workspace from the page making the call (Referer)
         const res = await fetch('/api/features/me', { signal: controller.signal });
         if (!res.ok) {
           fetchFailed = true;

@@ -2,13 +2,16 @@ import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { requireEmployeeModule } from '@/lib/api/employee-guard';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
+import type { NextRequest } from 'next/server';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const session = await requireEmployeeModule('LEADS');
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
 
     const activities = await prisma.leadActivity.findMany({
-      where: { employeeId: session.user.employeeId },
+      where: { employeeId: session.user.employeeId, lead: { companyId } },
       orderBy: { createdAt: 'desc' },
       take: 20,
       include: {
