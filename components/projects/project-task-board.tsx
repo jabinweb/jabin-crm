@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -10,7 +11,7 @@ import {
 } from '@/components/pipelines/pipeline-board';
 import { UNMAPPED_STAGE_ID, type PipelineStageDef } from '@/lib/pipelines';
 import { PROJECT_PRIORITIES } from '@/lib/projects/task-board';
-import { resolveProjectTaskColumns } from '@/lib/projects/task-statuses';
+import { resolveDoneStatusIds, resolveProjectTaskColumns } from '@/lib/projects/task-statuses';
 import { UserAvatar } from '@/components/ui/user-avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,15 @@ import {
   Plus,
   Trash2,
   ListTodo,
+  Search,
+  CalendarDays,
+  AlertTriangle,
+  MessageSquare,
+  ChevronsUp,
+  ChevronUp,
+  ChevronDown,
+  Equal,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -91,7 +101,8 @@ export type ProjectTaskRow = PipelineBoardCard & {
     email: string | null;
     image?: string | null;
   } | null;
-  _count?: { subtasks?: number };
+  _count?: { subtasks?: number; comments?: number };
+  labels?: Array<{ label: { id: string; name: string; color?: string } }>;
 };
 
 export type ProjectMemberOption = {
@@ -113,6 +124,31 @@ const PRIORITY_LABEL: Record<string, string> = {
   HIGH: 'High',
   URGENT: 'Urgent',
 };
+
+const PRIORITY_ICON: Record<string, { Icon: typeof ChevronUp; className: string }> = {
+  URGENT: { Icon: ChevronsUp, className: 'text-destructive' },
+  HIGH: { Icon: ChevronUp, className: 'text-orange-500' },
+  MEDIUM: { Icon: Equal, className: 'text-amber-500' },
+  LOW: { Icon: ChevronDown, className: 'text-sky-500' },
+};
+
+function PriorityIcon({ priority }: { priority: string }) {
+  const meta = PRIORITY_ICON[priority] ?? PRIORITY_ICON.MEDIUM;
+  const label = `${PRIORITY_LABEL[priority] ?? priority} priority`;
+  return (
+    <span title={label} aria-label={label} className="inline-flex">
+      <meta.Icon className={cn('size-4', meta.className)} aria-hidden />
+    </span>
+  );
+}
+
+function isOverdue(dueDate: string | null | undefined, done: boolean) {
+  if (!dueDate || done) return false;
+  const due = new Date(dueDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return due < today;
+}
 
 function formatDue(value?: string | null) {
   if (!value) return null;
@@ -154,6 +190,8 @@ type Props = {
   projectTaskStatuses?: unknown;
   /** Viewer can't change tasks (the task APIs would refuse) — hide edit controls. */
   readOnly?: boolean;
+  /** Controlled view (the page's tabs); omit to show the board's own Board/List toggle. */
+  view?: 'board' | 'list';
 };
 
 export function ProjectTaskBoard({
@@ -163,10 +201,18 @@ export function ProjectTaskBoard({
   statusColumns,
   projectTaskStatuses,
   readOnly = false,
+  view: controlledView,
 }: Props) {
   const { slug, workspaceFetch, path } = useWorkspacePaths();
   const queryClient = useQueryClient();
-  const [view, setView] = useState<'board' | 'list'>('board');
+  const { data: session } = useSession();
+  const [ownView, setView] = useState<'board' | 'list'>('board');
+  const view = controlledView ?? ownView;
+  // Board filters (Jira-style): text, people, priority, "only my tasks"
+  const [query, setQuery] = useState('');
+  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [mineOnly, setMineOnly] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [editTask, setEditTask] = useState<ProjectTaskRow | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -179,11 +225,58 @@ export function ProjectTaskBoard({
     );
   }, [statusColumns, projectTaskStatuses]);
 
-  const tasks = initialTasks.map((t) => ({ ...t, stage: t.status }));
+  const allTasks = useMemo(
+    () => initialTasks.map((t) => ({ ...t, stage: t.status })),
+    [initialTasks]
+  );
+  const doneStatusIds = useMemo(
+    () => resolveDoneStatusIds(projectTaskStatuses ? { projectTaskStatuses } : undefined),
+    [projectTaskStatuses]
+  );
+
+  const myId = session?.user?.id;
+  const filtersActive =
+    query.trim() !== '' || assigneeFilter.length > 0 || priorityFilter !== 'all' || mineOnly;
+  const clearFilters = () => {
+    setQuery('');
+    setAssigneeFilter([]);
+    setPriorityFilter('all');
+    setMineOnly(false);
+  };
+
+  const tasks = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allTasks.filter((t) => {
+      if (q && !t.title.toLowerCase().includes(q) &&
+        !(t.labels ?? []).some((l) => l.label.name.toLowerCase().includes(q))) {
+        return false;
+      }
+      if (mineOnly && t.assigneeId !== myId) return false;
+      if (assigneeFilter.length > 0) {
+        const key = t.assigneeId || '__none__';
+        if (!assigneeFilter.includes(key)) return false;
+      }
+      if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+      return true;
+    });
+  }, [allTasks, query, mineOnly, myId, assigneeFilter, priorityFilter]);
+
+  // People shown in the filter: the team plus anyone holding a task here
+  const filterPeople = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string | null; email: string | null; image?: string | null }>();
+    for (const m of members) byId.set(m.id, m);
+    for (const t of allTasks) if (t.assignee) byId.set(t.assignee.id, t.assignee);
+    return Array.from(byId.values());
+  }, [members, allTasks]);
+  const hasUnassigned = allTasks.some((t) => !t.assigneeId);
 
   const { columns, itemsByStage } = useMemo(
     () => buildBoardState(tasks, boardColumns),
     [tasks, boardColumns]
+  );
+  const { itemsByStage: allItemsByStage } = useMemo(
+    () => buildBoardState(allTasks, boardColumns),
+    [allTasks, boardColumns]
   );
 
   const invalidate = () => {
@@ -279,7 +372,7 @@ export function ProjectTaskBoard({
       toStatus: string;
       fromStatus: string;
     }) => {
-      const destItems = (itemsByStage[toStatus] || []).filter((t) => t.id !== id);
+      const destItems = (allItemsByStage[toStatus] || []).filter((t) => t.id !== id);
       const moves = [
         ...destItems.map((t, i) => ({
           id: t.id,
@@ -289,7 +382,7 @@ export function ProjectTaskBoard({
         { id, status: toStatus, sortOrder: destItems.length },
       ];
       if (fromStatus !== toStatus) {
-        const srcItems = (itemsByStage[fromStatus] || []).filter((t) => t.id !== id);
+        const srcItems = (allItemsByStage[fromStatus] || []).filter((t) => t.id !== id);
         for (let i = 0; i < srcItems.length; i++) {
           moves.push({
             id: srcItems[i]!.id,
@@ -369,12 +462,19 @@ export function ProjectTaskBoard({
     </div>
   );
 
-  const renderCard = (item: ProjectTaskRow & { stage: string }) => (
+  const renderCard = (item: ProjectTaskRow & { stage: string }) => {
+    const done = doneStatusIds.includes(item.status);
+    const overdue = isOverdue(item.dueDate, done);
+    const labels = item.labels ?? [];
+    return (
     <div className="group relative flex flex-col gap-2 p-3">
       <div className="flex items-start justify-between gap-2">
         <Link
           href={taskHref(item.id)}
-          className="min-w-0 flex-1 text-left text-sm font-medium leading-snug hover:underline underline-offset-2"
+          className={cn(
+            'line-clamp-3 min-w-0 flex-1 text-left text-sm leading-snug hover:underline underline-offset-2',
+            done && 'text-muted-foreground'
+          )}
         >
           {item.title}
         </Link>
@@ -416,36 +516,66 @@ export function ProjectTaskBoard({
         </DropdownMenu>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Badge
-          variant="outline"
-          className={cn('text-[10px] font-medium', PRIORITY_CLASS[item.priority])}
-        >
-          {PRIORITY_LABEL[item.priority] ?? item.priority}
-        </Badge>
-        {(item._count?.subtasks ?? 0) > 0 ? (
-          <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground">
-            <ListTodo className="size-3" />
-            {item._count!.subtasks}
-          </span>
-        ) : null}
-        {item.dueDate ? (
-          <span className="text-[10px] text-muted-foreground">
-            {formatDue(item.dueDate)}
-          </span>
-        ) : null}
-      </div>
-
-      {item.assignee ? (
-        <div className="flex items-center gap-2">
-          <UserAvatar person={item.assignee} size="xs" />
-          <span className="truncate text-[11px] text-muted-foreground">
-            {item.assignee.name || item.assignee.email}
-          </span>
+      {labels.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {labels.slice(0, 3).map((l) => (
+            <span
+              key={l.label.id}
+              className="max-w-full truncate rounded border px-1.5 py-px text-[10px] text-muted-foreground"
+            >
+              {l.label.name}
+            </span>
+          ))}
+          {labels.length > 3 ? (
+            <span className="text-[10px] text-muted-foreground">+{labels.length - 3}</span>
+          ) : null}
         </div>
       ) : null}
+
+      {item.dueDate ? (
+        <span
+          className={cn(
+            'inline-flex w-fit items-center gap-1 text-[11px]',
+            overdue ? 'font-medium text-destructive' : 'text-muted-foreground'
+          )}
+          title={overdue ? 'Overdue' : 'Due date'}
+        >
+          <CalendarDays className="size-3" aria-hidden />
+          {formatDue(item.dueDate)}
+          {overdue ? <AlertTriangle className="size-3" aria-label="Overdue" /> : null}
+        </span>
+      ) : null}
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
+          <PriorityIcon priority={item.priority} />
+          {(item._count?.subtasks ?? 0) > 0 ? (
+            <span className="inline-flex items-center gap-0.5" title="Subtasks">
+              <ListTodo className="size-3.5" aria-hidden />
+              {item._count!.subtasks}
+            </span>
+          ) : null}
+          {(item._count?.comments ?? 0) > 0 ? (
+            <span className="inline-flex items-center gap-0.5" title="Comments">
+              <MessageSquare className="size-3.5" aria-hidden />
+              {item._count!.comments}
+            </span>
+          ) : null}
+        </div>
+        {item.assignee ? (
+          <span title={item.assignee.name || item.assignee.email || ''}>
+            <UserAvatar person={item.assignee} size="sm" />
+          </span>
+        ) : (
+          <span
+            title="Unassigned"
+            className="inline-block h-7 w-7 rounded-full border border-dashed border-muted-foreground/40"
+          />
+        )}
+      </div>
     </div>
-  );
+    );
+  };
 
   const taskFormFields = (
     <div className="grid gap-4 py-2">
@@ -528,7 +658,101 @@ export function ProjectTaskBoard({
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <div className="flex flex-row flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-row flex-wrap items-center gap-2">
+        <div className="relative w-full sm:w-56">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search board"
+            aria-label="Search tasks"
+            className="h-9 pl-9"
+          />
+        </div>
+
+        {filterPeople.length > 0 || hasUnassigned ? (
+          <div className="flex items-center" role="group" aria-label="Filter by assignee">
+            {filterPeople.slice(0, 8).map((p) => {
+              const active = assigneeFilter.includes(p.id);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  title={p.name || p.email || ''}
+                  aria-pressed={active}
+                  onClick={() =>
+                    setAssigneeFilter((cur) =>
+                      cur.includes(p.id) ? cur.filter((x) => x !== p.id) : [...cur, p.id]
+                    )
+                  }
+                  className={cn(
+                    '-ml-1 first:ml-0 rounded-full ring-2 transition-transform hover:z-10 hover:-translate-y-0.5',
+                    active ? 'z-10 ring-primary' : 'ring-background'
+                  )}
+                >
+                  <UserAvatar person={p} size="md" />
+                </button>
+              );
+            })}
+            {hasUnassigned ? (
+              <button
+                type="button"
+                title="Unassigned"
+                aria-pressed={assigneeFilter.includes('__none__')}
+                onClick={() =>
+                  setAssigneeFilter((cur) =>
+                    cur.includes('__none__')
+                      ? cur.filter((x) => x !== '__none__')
+                      : [...cur, '__none__']
+                  )
+                }
+                className={cn(
+                  '-ml-1 h-8 w-8 rounded-full border border-dashed border-muted-foreground/50 bg-background ring-2 hover:z-10',
+                  assigneeFilter.includes('__none__') ? 'z-10 ring-primary' : 'ring-background'
+                )}
+              >
+                <span className="sr-only">Unassigned</span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+          <SelectTrigger className="h-9 w-[140px]" aria-label="Filter by priority">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">All priorities</SelectItem>
+              {PROJECT_PRIORITIES.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {PRIORITY_LABEL[p] ?? p}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+
+        {myId ? (
+          <Button
+            type="button"
+            size="sm"
+            variant={mineOnly ? 'secondary' : 'ghost'}
+            aria-pressed={mineOnly}
+            className="h-9"
+            onClick={() => setMineOnly((v) => !v)}
+          >
+            Only my tasks
+          </Button>
+        ) : null}
+        {filtersActive ? (
+          <Button type="button" size="sm" variant="ghost" className="h-9 text-muted-foreground" onClick={clearFilters}>
+            <X className="mr-1 size-3.5" />
+            Clear filters
+          </Button>
+        ) : null}
+
+        <div className="ml-auto flex items-center gap-2">
         <ToggleGroup
           type="single"
           value={view}
@@ -537,7 +761,7 @@ export function ProjectTaskBoard({
           }}
           variant="outline"
           size="sm"
-          className="w-fit justify-start"
+          className={cn('w-fit justify-start', controlledView && 'hidden')}
         >
           <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
             <LayoutGrid className="size-3.5" />
@@ -549,13 +773,23 @@ export function ProjectTaskBoard({
           </ToggleGroupItem>
         </ToggleGroup>
 
-        <Button size="sm" onClick={() => openCreate()} className={readOnly ? 'hidden' : undefined}>
+        <Button size="sm" onClick={() => openCreate()} className={cn('h-9', readOnly && 'hidden')}>
           <Plus className="mr-1.5 size-3.5" />
           New task
         </Button>
+        </div>
       </div>
 
-      {view === 'board' ? (
+      {filtersActive && tasks.length === 0 && allTasks.length > 0 ? (
+        <EmptyState
+          icon={Search}
+          title="No tasks match these filters"
+          description="Try a different search or clear the filters."
+          actionLabel="Clear filters"
+          onAction={clearFilters}
+          className="rounded-lg border border-dashed"
+        />
+      ) : view === 'board' ? (
         tasks.length === 0 ? (
           <EmptyState
             icon={ListTodo}
@@ -579,7 +813,7 @@ export function ProjectTaskBoard({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="mt-auto h-8 w-full justify-start text-muted-foreground"
+                className="h-8 w-full justify-start text-muted-foreground hover:text-foreground"
                 onClick={() => openCreate(stageId)}
               >
                 <Plus className="mr-1.5 size-3.5" />

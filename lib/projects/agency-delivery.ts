@@ -56,7 +56,9 @@ export function nextBillDate(
 /** Shared include for board / project-detail task lists (top-level cards). */
 export const PROJECT_TASK_LIST_INCLUDE = {
   assignee: { select: { id: true, name: true, email: true, image: true } },
-  _count: { select: { subtasks: true } },
+  // Board cards show labels and comment counts (Jira-style)
+  labels: { select: { label: { select: { id: true, name: true, color: true } } } },
+  _count: { select: { subtasks: true, comments: true } },
 } as const;
 
 export const PROJECT_INCLUDE = {
