@@ -3,9 +3,10 @@
 import { useSession } from 'next-auth/react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, CreditCard, FileText, Info, Key, Palette, Slack, Sparkles } from 'lucide-react';
+import { Bot, Building, CreditCard, FileText, Info, Key, Palette, Slack, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SlackDestinations } from '@/components/settings/integrations/slack-destinations';
+import { McpTokens } from '@/components/settings/integrations/mcp-tokens';
 import { useUserProfileSettings } from '@/hooks/use-user-profile-settings';
 import { FormSkeleton } from '@/components/loading';
 import { BusinessTab } from './business-tab';
@@ -84,6 +85,10 @@ export default function UserProfileSettings() {
             <Slack className="h-4 w-4" />
             <span className="hidden sm:inline">Slack alerts</span>
           </TabsTrigger>
+          <TabsTrigger value="mcp" className="gap-2">
+            <Bot className="h-4 w-4" />
+            <span className="hidden sm:inline">AI clients (MCP)</span>
+          </TabsTrigger>
         </TabsList>
 
         <form onSubmit={settings.handleSubmit}>
@@ -107,6 +112,21 @@ export default function UserProfileSettings() {
             </CardHeader>
             <CardContent>
               <SlackDestinations scope="personal" />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Outside the profile form: tokens save on their own */}
+        <TabsContent value="mcp">
+          <Card>
+            <CardHeader>
+              <CardTitle>AI clients (MCP)</CardTitle>
+              <CardDescription>
+                Use Opslane from Claude, Cursor and other MCP clients with your own permissions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <McpTokens />
             </CardContent>
           </Card>
         </TabsContent>

@@ -26,6 +26,7 @@ import { RazorpayIntegrationForm } from '@/components/settings/integrations/razo
 import { WebhooksIntegrationForm } from '@/components/settings/integrations/webhooks-integration-form';
 import { EmailIntegrationForm } from '@/components/settings/integrations/email-integration-form';
 import { SlackDestinations } from '@/components/settings/integrations/slack-destinations';
+import { McpTokens } from '@/components/settings/integrations/mcp-tokens';
 import { GoogleCalendarSettings } from '@/components/crm/google-calendar-settings';
 import { INTEGRATION_CATEGORY_LABELS } from '@/lib/integrations/catalog';
 import type { IntegrationStatusRow } from '@/lib/integrations/types';
@@ -348,6 +349,17 @@ function PersonalIntegrations() {
         </CardHeader>
         <CardContent>
           <GoogleCalendarSettings />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>AI clients (MCP)</CardTitle>
+          <CardDescription>
+            Use Opslane from Claude, Cursor and other MCP clients with your own permissions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <McpTokens />
         </CardContent>
       </Card>
     </div>
