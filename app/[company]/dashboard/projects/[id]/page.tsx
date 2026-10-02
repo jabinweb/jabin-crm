@@ -33,7 +33,16 @@ import {
   FileText,
   Receipt,
   BookOpen,
+  Plus,
+  X,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { cn } from '@/lib/utils';
@@ -265,6 +274,77 @@ export default function ProjectDetailPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const [newMilestone, setNewMilestone] = useState('');
+  const invalidateProject = () =>
+    queryClient.invalidateQueries({ queryKey: ['project', slug, projectId] });
+
+  const addMilestoneMutation = useMutation({
+    mutationFn: async (title: string) => {
+      const res = await workspaceFetch(`/api/projects/${projectId}/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to add milestone');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      setNewMilestone('');
+      invalidateProject();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteMilestoneMutation = useMutation({
+    mutationFn: async (milestoneId: string) => {
+      const res = await workspaceFetch(
+        `/api/projects/${projectId}/milestones?milestoneId=${encodeURIComponent(milestoneId)}`,
+        { method: 'DELETE' }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to remove milestone');
+      }
+      return res.json();
+    },
+    onSuccess: () => invalidateProject(),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Project lead picker (same roles that may edit the project)
+  const { data: staff = [] } = useQuery<Array<{ id: string; name: string | null; email: string }>>({
+    queryKey: ['project-staff', slug, projectId],
+    queryFn: async () => {
+      const res = await workspaceFetch(`/api/projects/${projectId}/mentionable`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!project?.canManage,
+  });
+
+  const leadMutation = useMutation({
+    mutationFn: async (pmUserId: string | null) => {
+      const res = await workspaceFetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pmUserId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to set project lead');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      invalidateProject();
+      toast.success('Project lead updated');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const budgetMutation = useMutation({
     mutationFn: async (budgetHours: number | null) => {
       const res = await workspaceFetch(`/api/projects/${projectId}`, {
@@ -367,6 +447,11 @@ export default function ProjectDetailPage() {
             Docs
           </Link>
         </Button>
+        {isAdminRole && (
+          <Button variant="outline" size="sm" asChild>
+            <Link href={path('/dashboard/retainers')}>Retainers</Link>
+          </Button>
+        )}
       </DetailChrome>
 
       <div>
@@ -443,9 +528,104 @@ export default function ProjectDetailPage() {
                 {formatDate(project.startDate)} → {formatDate(project.endDate)}
               </span>
             </div>
+            <Card className="mt-3">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="size-4" />
+                  Milestones
+                </CardTitle>
+                <CardDescription>The big phases of this project — tick them off as you go.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {project.milestones.length === 0 ? (
+                  <p className="py-2 text-sm text-muted-foreground">
+                    {project.canManage ? 'No milestones yet — add the first one below.' : 'No milestones yet.'}
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {project.milestones.map((m) => {
+                      const done = m.status === 'DONE';
+                      return (
+                        <li
+                          key={m.id}
+                          className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
+                        >
+                          <Checkbox
+                            checked={done}
+                            disabled={milestoneMutation.isPending || !project.canManage}
+                            onCheckedChange={(checked) => {
+                              void milestoneMutation.mutate({
+                                id: m.id,
+                                status: checked ? 'DONE' : 'PENDING',
+                              });
+                            }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className={cn('font-medium', done && 'text-muted-foreground line-through')}>
+                              {m.title}
+                            </p>
+                            {m.dueDate ? (
+                              <p className="text-xs text-muted-foreground">
+                                Due {formatDate(m.dueDate)}
+                              </p>
+                            ) : null}
+                          </div>
+                          {m.status !== 'PENDING' && m.status !== 'DONE' ? (
+                            <Badge variant="outline" className="shrink-0 font-normal capitalize">
+                              {m.status.replace(/_/g, ' ').toLowerCase()}
+                            </Badge>
+                          ) : null}
+                          {project.canManage ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 text-muted-foreground"
+                              aria-label={`Remove ${m.title}`}
+                              disabled={deleteMilestoneMutation.isPending}
+                              onClick={() => deleteMilestoneMutation.mutate(m.id)}
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {project.canManage ? (
+                  <form
+                    className="mt-3 flex gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const title = newMilestone.trim();
+                      if (title) addMilestoneMutation.mutate(title);
+                    }}
+                  >
+                    <Input
+                      value={newMilestone}
+                      onChange={(e) => setNewMilestone(e.target.value)}
+                      placeholder="Add a milestone"
+                      className="h-9"
+                      aria-label="New milestone"
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 shrink-0"
+                      disabled={!newMilestone.trim() || addMilestoneMutation.isPending}
+                    >
+                      <Plus className="mr-1 size-4" />
+                      Add
+                    </Button>
+                  </form>
+                ) : null}
+              </CardContent>
+            </Card>
           </div>
 
-          <Card className="w-full shrink-0 lg:w-64">
+          <Card className="w-full shrink-0 lg:sticky lg:top-4 lg:w-72">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Delivery health
@@ -476,18 +656,15 @@ export default function ProjectDetailPage() {
                       {(project.hoursLogged ?? 0).toFixed(1)}
                     </p>
                     <p className="text-[11px] text-muted-foreground underline-offset-2 hover:underline">
-                      Hours (burn)
+                      Hours logged
                     </p>
                   </Link>
                 </div>
               </div>
-              {(project.timesheetHours != null || project.worklogHours != null) && (
+              {((project.timesheetHours ?? 0) > 0 || (project.worklogHours ?? 0) > 0) && (
                 <p className="text-[11px] text-muted-foreground text-center">
-                  {(project.timesheetHours ?? 0).toFixed(1)}h timesheets ·{' '}
-                  {(project.worklogHours ?? 0).toFixed(1)}h worklogs
-                  <span className="block opacity-80">
-                    Burn prefers worklogs over task-linked timesheets
-                  </span>
+                  {(project.worklogHours ?? 0).toFixed(1)}h on tasks ·{' '}
+                  {(project.timesheetHours ?? 0).toFixed(1)}h on timesheets
                 </p>
               )}
               {(() => {
@@ -516,6 +693,9 @@ export default function ProjectDetailPage() {
                           disabled={!project.canManage}
                           placeholder="e.g. 80"
                           onChange={(e) => setBudgetDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') e.currentTarget.blur();
+                          }}
                           onBlur={() => {
                             const raw = budgetDraft.trim();
                             const next =
@@ -534,7 +714,7 @@ export default function ProjectDetailPage() {
                     {pct != null ? (
                       <>
                         <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Burn</span>
+                          <span className="text-muted-foreground">Budget used</span>
                           <span
                             className={cn(
                               'font-medium tabular-nums',
@@ -551,7 +731,9 @@ export default function ProjectDetailPage() {
                       </>
                     ) : (
                       <p className="text-[11px] text-muted-foreground">
-                        Set a budget to track burn vs logged hours.
+                        {project.canManage
+                          ? 'Set the hours you planned; saves when you press Enter.'
+                          : 'No hour budget set.'}
                       </p>
                     )}
                     {retainerHours > 0 ? (
@@ -566,61 +748,6 @@ export default function ProjectDetailPage() {
           </Card>
         </div>
       </div>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <CheckCircle2 className="size-4" />
-            Milestones
-          </CardTitle>
-          <CardDescription>Track delivery phases — mark done as you ship.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {project.milestones.length === 0 ? (
-            <EmptyState
-              title="No milestones"
-              description="Milestones appear when this project is set up for delivery."
-              className="py-8"
-            />
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {project.milestones.map((m) => {
-                const done = m.status === 'DONE';
-                return (
-                  <li
-                    key={m.id}
-                    className="flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm"
-                  >
-                    <Checkbox
-                      checked={done}
-                      disabled={milestoneMutation.isPending || !project.canManage}
-                      onCheckedChange={(checked) => {
-                        void milestoneMutation.mutate({
-                          id: m.id,
-                          status: checked ? 'DONE' : 'PENDING',
-                        });
-                      }}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className={cn('font-medium', done && 'text-muted-foreground line-through')}>
-                        {m.title}
-                      </p>
-                      {m.dueDate ? (
-                        <p className="text-xs text-muted-foreground">
-                          Due {formatDate(m.dueDate)}
-                        </p>
-                      ) : null}
-                    </div>
-                    <Badge variant="outline" className="shrink-0 font-normal">
-                      {m.status.replace(/_/g, ' ')}
-                    </Badge>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
 
       <Card className="min-w-0">
         <CardHeader className="pb-3">
@@ -705,19 +832,40 @@ export default function ProjectDetailPage() {
               <CardTitle className="text-base font-semibold">Team</CardTitle>
               <CardDescription>People delivering this engagement.</CardDescription>
             </div>
-            {isAdminRole && (
-              <Button variant="ghost" size="sm" asChild className="h-8 text-xs">
-                <Link href={path('/dashboard/retainers')}>Retainers</Link>
-              </Button>
-            )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
+            {project.canManage ? (
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Project lead</Label>
+                <Select
+                  value={project.pmUser?.id ?? 'none'}
+                  disabled={leadMutation.isPending}
+                  onValueChange={(v) => leadMutation.mutate(v === 'none' ? null : v)}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="Choose a lead" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No lead</SelectItem>
+                    {staff.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name || u.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             {!project.pmUser && project.members.length === 0 ? (
               <EmptyState
                 icon={Users}
                 title="No team assigned"
-                description="Assign a project lead or members to collaborate here."
-                className="py-8"
+                description={
+                  project.canManage
+                    ? 'Pick a project lead below to own this project.'
+                    : 'Ask an admin to assign a project lead.'
+                }
+                className="py-6"
               />
             ) : (
               <div className="flex flex-col gap-2">

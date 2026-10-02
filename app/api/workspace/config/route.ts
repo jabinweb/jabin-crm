@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     const company = await prisma.company.findUnique({
       where: { id: companyId },
-      select: { settings: true },
+      select: { settings: true, name: true },
     });
 
     const stored =
@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       workspace: workspaceSettings,
       config,
       templates: INDUSTRY_PICKER_OPTIONS,
+      companyName: company?.name,
     });
   } catch (error) {
     if (error instanceof TenantError) {

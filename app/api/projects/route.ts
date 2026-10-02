@@ -3,7 +3,7 @@ import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { getDataPrisma } from '@/lib/prisma-tenant';
 import {
-  DEFAULT_MILESTONE_TEMPLATES,
+  milestoneTemplatesFor,
   PROJECT_INCLUDE,
   invalidProjectLink,
 } from '@/lib/projects/agency-delivery';
@@ -75,10 +75,10 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       customerId,
       dealId,
       pmUserId,
-      ...(withMilestones
+      ...(withMilestones && milestoneTemplatesFor(projectType).length > 0
         ? {
             milestones: {
-              create: DEFAULT_MILESTONE_TEMPLATES.map((m) => ({
+              create: milestoneTemplatesFor(projectType).map((m) => ({
                 title: m.title,
                 sortOrder: m.sortOrder,
                 status: 'PENDING',

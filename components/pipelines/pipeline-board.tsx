@@ -63,8 +63,9 @@ export function PipelineBoard<T extends PipelineBoardCard>({
         {columns.map((stage) => {
           const items = itemsByStage[stage.id] || [];
           const isUnmapped = stage.id === UNMAPPED_STAGE_ID;
+          // Phones/tablets: fixed-width swipeable columns. Wide screens: columns share the width
           return (
-            <div key={stage.id} className="w-[85vw] max-w-80 flex-shrink-0 snap-start sm:w-72 md:w-80">
+            <div key={stage.id} className="w-[85vw] max-w-80 flex-shrink-0 snap-start sm:w-72 xl:w-auto xl:min-w-[200px] xl:max-w-none xl:flex-1 xl:basis-0">
               <div className="mb-3 flex items-center justify-between gap-2">
                 <h3 className="font-semibold flex items-center gap-2 text-sm">
                   <span className={cn('h-2.5 w-2.5 rounded-full', stage.color)} />
@@ -78,7 +79,8 @@ export function PipelineBoard<T extends PipelineBoardCard>({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      'flex min-h-[280px] flex-col gap-2 rounded-md border bg-muted/40 p-2 transition-colors sm:min-h-[420px]',
+                      // Short enough that empty columns don't stretch; still a comfortable drop target
+                      'flex min-h-[120px] flex-col gap-2 rounded-md border bg-muted/40 p-2 transition-colors',
                       snapshot.isDraggingOver && 'bg-accent/60',
                       isUnmapped && 'border-dashed opacity-90'
                     )}

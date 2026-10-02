@@ -2,13 +2,9 @@ import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
-import {
-  assertProjectTask,
-  logProjectTaskActivity,
-  stripHtmlToPreview,
-} from '@/lib/projects/task-activity';
-import { isRichTextEmpty, sanitizeRichText } from '@/lib/html/sanitize-rich-text';
-import { extractMentionIds } from '@/lib/projects/mentions';
+import { assertProjectTask } from '@/lib/projects/task-activity';
+import { sanitizeRichText } from '@/lib/html/sanitize-rich-text';
+import { addProjectTaskComment } from '@/lib/projects/add-comment';
 
 export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
   const params = await routeContext!.params;
@@ -31,105 +27,17 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   if (!(await canWriteProjectDelivery(session, companyId, params.id))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const task = await assertProjectTask(companyId, params.id, params.taskId);
-  if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
   const body = await request.json().catch(() => ({}));
-  const rawBody = sanitizeRichText(
-    typeof body.body === 'string'
-      ? body.body
-      : typeof body.content === 'string'
-        ? body.content
-        : ''
-  );
-  if (isRichTextEmpty(rawBody)) {
-    return NextResponse.json({ error: 'Comment required' }, { status: 400 });
-  }
-
-  const comment = await prisma.projectTaskComment.create({
-    data: {
-      taskId: params.taskId,
-      authorId: session.user.id,
-      body: rawBody,
-    },
-    include: {
-      author: { select: { id: true, name: true, email: true, image: true } },
-    },
-  });
-
-  const attachmentUrls = Array.isArray(body.attachments) ? body.attachments : [];
-  if (attachmentUrls.length > 0) {
-    await prisma.projectTaskAttachment.createMany({
-      data: attachmentUrls
-        .filter(
-          (a: { url?: string }) =>
-            a && typeof a.url === 'string' && /^(https?:\/\/|\/(?!\/))/i.test(a.url)
-        )
-        .map(
-          (a: {
-            url: string;
-            name?: string;
-            mimeType?: string;
-            size?: number;
-            fileId?: string;
-          }) => ({
-            taskId: params.taskId,
-            commentId: comment.id,
-            url: a.url,
-            name: a.name || null,
-            mimeType: a.mimeType || null,
-            size: typeof a.size === 'number' ? a.size : null,
-            fileId: a.fileId || null,
-            uploadedById: session.user.id,
-            source: 'COMMENT',
-          })
-        ),
-    });
-  }
-
-  const actorName = session.user.name || session.user.email || 'User';
-  await logProjectTaskActivity({
+  const result = await addProjectTaskComment({
+    session,
+    companyId,
+    projectId: params.id,
     taskId: params.taskId,
-    actorId: session.user.id,
-    eventType: 'COMMENT_ADDED',
-    description: `${actorName} added a comment`,
-    metadata: { commentId: comment.id },
+    bodyHtml:
+      typeof body.body === 'string' ? body.body : typeof body.content === 'string' ? body.content : '',
+    attachments: Array.isArray(body.attachments) ? body.attachments : [],
   });
-
-  // Auto-watch commenter
-  await prisma.projectTaskWatcher.upsert({
-    where: {
-      taskId_userId: { taskId: params.taskId, userId: session.user.id },
-    },
-    create: { taskId: params.taskId, userId: session.user.id },
-    update: {},
-  });
-
-  const mentionedIds = extractMentionIds(rawBody);
-  const excerpt = stripHtmlToPreview(rawBody, 240);
-  after(async () => {
-    const notifications = await import('@/lib/projects/task-notifications');
-    const base = {
-      companyId,
-      projectId: params.id,
-      actorId: session.user.id,
-      actorName,
-    };
-    // Mentions first: those people get the more specific notification only
-    const mentioned = await notifications.notifyProjectMentions({
-      ...base,
-      mentionedIds,
-      excerpt,
-      target: { kind: 'task-comment', taskId: params.taskId, title: task.title },
-    });
-    await notifications.notifyProjectTaskCommented({
-      ...base,
-      taskId: params.taskId,
-      taskTitle: task.title,
-      excerpt,
-      excludeUserIds: mentioned,
-    });
-  });
-
-  return jsonOk(comment, { status: 201 });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  after(result.effects);
+  return jsonOk(result.comment, { status: 201 });
 });

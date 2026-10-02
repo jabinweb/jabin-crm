@@ -140,7 +140,7 @@ export function DashboardLayoutClient({
               <div className="min-h-0 flex-1">{children}</div>
             </div>
           ) : (
-            <div className="mx-auto w-full max-w-7xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+            <div className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8">
               <UsageBanner />
               {children}
             </div>

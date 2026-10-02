@@ -352,7 +352,8 @@ export async function runAgentTurn(params: {
   let finalReply = '';
   let modelUsed = chain[0];
 
-  const maxLoops = 6;
+  // Project work often chains lookups (project → person → task) before acting
+  const maxLoops = 8;
   for (let i = 0; i < maxLoops; i++) {
     const { result: response, modelUsed: used } = await generateWithModelFallback({
       apiKey,

@@ -26,7 +26,10 @@ type DetailChromeProps = {
   children?: React.ReactNode;
 };
 
-/** Consistent detail header: breadcrumbs + back to list (not browser history). */
+/**
+ * Consistent detail header: breadcrumbs on larger screens, a back-to-list button on
+ * phones (one way back, not two), with page actions on the same row.
+ */
 export function DetailChrome({
   crumbs,
   backHref,
@@ -37,8 +40,8 @@ export function DetailChrome({
   const parents = crumbs.slice(0, -1);
 
   return (
-    <div className="flex flex-col gap-3">
-      <Breadcrumb>
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Breadcrumb className="hidden min-w-0 sm:block">
         <BreadcrumbList>
           {parents.map((c, i) => (
             <span key={`${c.label}-${i}`} className="contents">
@@ -67,15 +70,13 @@ export function DetailChrome({
         </BreadcrumbList>
       </Breadcrumb>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
-          <Link href={backHref}>
-            <ArrowLeft className="mr-1.5 size-4" />
-            {backLabel}
-          </Link>
-        </Button>
-        {children}
-      </div>
+      <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground sm:hidden">
+        <Link href={backHref}>
+          <ArrowLeft className="mr-1.5 size-4" />
+          {backLabel}
+        </Link>
+      </Button>
+      {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
     </div>
   );
 }

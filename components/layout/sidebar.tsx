@@ -632,7 +632,10 @@ export function Sidebar({ onNavigate }: SidebarProps) {
           <div className="flex items-center gap-3">
             <OpslaneLogo size={28} priority />
             <div className="min-w-0">
-              <h2 className="truncate text-sm font-semibold text-foreground">{brand.appName}</h2>
+              {/* The top bar already shows the app name; this names the workspace you are in */}
+              <h2 className="truncate text-sm font-semibold text-foreground">
+                {workspaceData?.companyName || brand.appName}
+              </h2>
               <p className="truncate text-xs text-muted-foreground mt-0.5">
                 {activeModuleId === 'home' ? 'Workspace' : activeDef.label}
               </p>

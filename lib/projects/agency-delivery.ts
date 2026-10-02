@@ -11,6 +11,29 @@ export const DEFAULT_MILESTONE_TEMPLATES = [
   { title: 'Launch', sortOrder: 4 },
 ] as const;
 
+const MILESTONE_TEMPLATES_BY_TYPE: Record<string, ReadonlyArray<{ title: string; sortOrder: number }>> = {
+  website: DEFAULT_MILESTONE_TEMPLATES,
+  webapp: DEFAULT_MILESTONE_TEMPLATES,
+  branding: [
+    { title: 'Discovery & brief', sortOrder: 0 },
+    { title: 'Concepts', sortOrder: 1 },
+    { title: 'Refinement', sortOrder: 2 },
+    { title: 'Final assets & guidelines', sortOrder: 3 },
+    { title: 'Handover', sortOrder: 4 },
+  ],
+  seo: [
+    { title: 'Audit', sortOrder: 0 },
+    { title: 'Strategy', sortOrder: 1 },
+    { title: 'Implementation', sortOrder: 2 },
+    { title: 'Reporting', sortOrder: 3 },
+  ],
+};
+
+/** Starter milestones that fit the project type; retainers and other start empty. */
+export function milestoneTemplatesFor(projectType: string | null | undefined) {
+  return MILESTONE_TEMPLATES_BY_TYPE[projectType ?? ''] ?? [];
+}
+
 export function computeProgressFromMilestones(
   milestones: Array<{ status: string }>
 ): number {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
-import { computeProgressFromMilestones } from '@/lib/projects/agency-delivery';
+import { syncProjectProgress } from '@/lib/projects/sync-project-progress';
 
 async function assertProject(companyId: string, projectId: string) {
   return prisma.project.findFirst({
@@ -11,15 +11,9 @@ async function assertProject(companyId: string, projectId: string) {
   });
 }
 
-async function refreshProgress(projectId: string) {
-  const milestones = await prisma.projectMilestone.findMany({
-    where: { projectId },
-    select: { status: true },
-  });
-  const progress = computeProgressFromMilestones(milestones);
-  await prisma.project.update({ where: { id: projectId }, data: { progress } });
-  return progress;
-}
+// Same rule as task changes: tasks drive progress, milestones only when there are no tasks
+const refreshProgress = (projectId: string, companyId: string) =>
+  syncProjectProgress(projectId, companyId);
 
 export const GET = withTenantRoute(async (_request, { companyId }, routeContext) => {
   const projectId = (await routeContext!.params).id;
@@ -63,7 +57,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
           : (max._max.sortOrder ?? -1) + 1,
     },
   });
-  await refreshProgress(projectId);
+  await refreshProgress(projectId, companyId);
   return jsonOk(milestone, { status: 201 });
 });
 
@@ -100,7 +94,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     where: { id: milestoneId },
     data,
   });
-  const progress = await refreshProgress(projectId);
+  const progress = await refreshProgress(projectId, companyId);
   return jsonOk({ milestone, progress });
 });
 
@@ -122,6 +116,6 @@ export const DELETE = withTenantRoute(async (request, { session, companyId }, ro
     where: { id: milestoneId, projectId },
   });
   if (!deleted.count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const progress = await refreshProgress(projectId);
+  const progress = await refreshProgress(projectId, companyId);
   return jsonOk({ ok: true, progress });
 });
