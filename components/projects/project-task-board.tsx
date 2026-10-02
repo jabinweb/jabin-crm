@@ -76,12 +76,14 @@ import {
   CalendarDays,
   AlertTriangle,
   MessageSquare,
-  ChevronsUp,
-  ChevronUp,
-  ChevronDown,
-  Equal,
   X,
 } from 'lucide-react';
+import {
+  PRIORITY_LABEL,
+  PriorityIcon,
+  formatDue,
+  isOverdue,
+} from '@/components/projects/task-meta';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -112,53 +114,6 @@ export type ProjectMemberOption = {
   name: string | null;
   email: string | null;
 };
-
-const PRIORITY_CLASS: Record<string, string> = {
-  LOW: 'border-border text-muted-foreground',
-  MEDIUM: 'border-primary/30 text-foreground',
-  HIGH: 'border-amber-500/40 text-amber-700 dark:text-amber-400',
-  URGENT: 'border-destructive/40 text-destructive',
-};
-
-const PRIORITY_LABEL: Record<string, string> = {
-  LOW: 'Low',
-  MEDIUM: 'Medium',
-  HIGH: 'High',
-  URGENT: 'Urgent',
-};
-
-const PRIORITY_ICON: Record<string, { Icon: typeof ChevronUp; className: string }> = {
-  URGENT: { Icon: ChevronsUp, className: 'text-destructive' },
-  HIGH: { Icon: ChevronUp, className: 'text-orange-500' },
-  MEDIUM: { Icon: Equal, className: 'text-amber-500' },
-  LOW: { Icon: ChevronDown, className: 'text-sky-500' },
-};
-
-function PriorityIcon({ priority }: { priority: string }) {
-  const meta = PRIORITY_ICON[priority] ?? PRIORITY_ICON.MEDIUM;
-  const label = `${PRIORITY_LABEL[priority] ?? priority} priority`;
-  return (
-    <span title={label} aria-label={label} className="inline-flex">
-      <meta.Icon className={cn('size-4', meta.className)} aria-hidden />
-    </span>
-  );
-}
-
-function isOverdue(dueDate: string | null | undefined, done: boolean) {
-  if (!dueDate || done) return false;
-  const due = new Date(dueDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return due < today;
-}
-
-function formatDue(value?: string | null) {
-  if (!value) return null;
-  return new Date(value).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-  });
-}
 
 function toDateInput(value?: string | null) {
   if (!value) return '';
