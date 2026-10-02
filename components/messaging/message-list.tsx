@@ -218,6 +218,8 @@ function MessageRow({
   const deleted = !!message.deletedAt;
   const created = new Date(message.createdAt);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Open menus keep the hover toolbar shown — a hidden trigger leaves the menu unanchored (top-left)
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div
@@ -315,7 +317,7 @@ function MessageRow({
         <div
           className={cn(
             'absolute -top-3 right-2 z-10 flex items-center rounded-md border bg-popover shadow-sm',
-            pickerOpen ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'
+            pickerOpen || menuOpen ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'
           )}
         >
           <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
@@ -354,7 +356,7 @@ function MessageRow({
           >
             <CornerUpLeft className="h-4 w-4" />
           </button>
-          <DropdownMenu>
+          <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
