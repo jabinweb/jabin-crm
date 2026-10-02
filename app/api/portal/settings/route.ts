@@ -8,6 +8,10 @@ import {
 
 export async function GET() {
   const session = await auth();
+  if (session?.user?.role === 'ADMIN' || session?.user?.role === 'SUPER_ADMIN') {
+    // Staff preview of the portal settings page
+    return NextResponse.json({ notifications: DEFAULT_PORTAL_NOTIFICATION_PREFS, preview: true });
+  }
   if (!session?.user?.id || session.user.role !== 'CUSTOMER') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

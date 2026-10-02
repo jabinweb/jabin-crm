@@ -365,6 +365,23 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 {/* Page Content — same horizontal padding as header; full width of main pane */}
                 <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                     <div className="w-full px-4 py-4 sm:p-6 lg:p-8">
+                        {session.user.role !== 'CUSTOMER' && (
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                                <span>
+                                    <strong>Staff preview.</strong> This is the client portal layout; each client
+                                    sees their own tickets, quotes and invoices here when they sign in.
+                                </span>
+                                <Link
+                                    href={resolvePostLoginPath({
+                                        role: session.user.role,
+                                        companySlug: (session.user as { companySlug?: string }).companySlug,
+                                    })}
+                                    className="font-medium underline underline-offset-2"
+                                >
+                                    Back to dashboard
+                                </Link>
+                            </div>
+                        )}
                         {children}
                     </div>
                 </main>

@@ -1,19 +1,26 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { resolvePortalDataAccess } from '@/lib/api/portal-access';
 import { prisma } from '@/lib/prisma';
 import { resolveCompanyTicketConfig } from '@/lib/support/resolve-company-ticket-config';
 
 export async function GET() {
   try {
     const session = await auth();
-    if (!session?.user?.customerId) {
+    // Staff previewing the portal see their own workspace's configuration
+    const staffPreview = resolvePortalDataAccess(session);
+    const staffCompanyId =
+      staffPreview.ok && staffPreview.scope === 'staff' ? session?.user?.companyId ?? null : null;
+    if (!session?.user?.customerId && !staffCompanyId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const customer = await prisma.customer.findUnique({
-      where: { id: session.user.customerId },
-      select: { companyId: true },
-    });
+    const customer = staffCompanyId
+      ? { companyId: staffCompanyId }
+      : await prisma.customer.findUnique({
+          where: { id: session!.user!.customerId! },
+          select: { companyId: true },
+        });
 
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });

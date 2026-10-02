@@ -31,6 +31,8 @@ import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 
 export default function PortalSettingsPage() {
     const { data: session } = useSession();
+    // Staff previewing the portal have no client record to save to
+    const isStaffPreview = !!session?.user?.role && session.user.role !== 'CUSTOMER';
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const { data: workspaceData } = useWorkspaceConfig();
@@ -251,7 +253,7 @@ export default function PortalSettingsPage() {
                         </div>
                     </div>
                     <div className="flex justify-end pt-1">
-                        <Button onClick={handleSaveProfile} disabled={savingProfile} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button onClick={handleSaveProfile} disabled={savingProfile || isStaffPreview} className="bg-blue-600 hover:bg-blue-700 text-white">
                             {savingProfile ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                             Save Profile
                         </Button>
@@ -285,7 +287,7 @@ export default function PortalSettingsPage() {
                         </div>
                     ))}
                     <div className="flex justify-end pt-1">
-                        <Button onClick={handleSaveNotifications} disabled={savingNotifications} className="bg-blue-600 hover:bg-blue-700 text-white">
+                        <Button onClick={handleSaveNotifications} disabled={savingNotifications || isStaffPreview} className="bg-blue-600 hover:bg-blue-700 text-white">
                             {savingNotifications ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
                             Save Preferences
                         </Button>

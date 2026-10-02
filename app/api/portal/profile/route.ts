@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { resolvePortalDataAccess } from '@/lib/api/portal-access';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
     const session = await auth();
+    const access = resolvePortalDataAccess(session);
+    if (access.ok && access.scope === 'staff') {
+      // Staff preview: the admin's own details; saving is for clients only
+      return NextResponse.json({
+        name: session?.user?.name ?? '',
+        email: session?.user?.email ?? '',
+        phone: '',
+        address: '',
+        organizationName: 'Staff preview',
+        companyId: session?.user?.companyId ?? null,
+        preview: true,
+      });
+    }
     if (!session?.user?.customerId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

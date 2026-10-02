@@ -24,6 +24,8 @@ export async function GET() {
     const session = await auth();
     const scope = await resolvePortalCustomerScope(session);
     if (!scope.ok) {
+      // Staff previewing the portal have no client of their own: show the empty state
+      if (scope.status === 403) return NextResponse.json({ documents: [] });
       return NextResponse.json({ error: scope.error }, { status: scope.status });
     }
 
