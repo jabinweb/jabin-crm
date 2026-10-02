@@ -36,6 +36,18 @@ const RESERVED = new Set([
   'icons',
   '_next',
   'monitoring',
+  // Top-level app routes — a workspace with one of these slugs would be unreachable
+  'start',
+  'pricing',
+  'workspace',
+  'payment',
+  'privacy',
+  'terms',
+  'embed',
+  'ticket',
+  'unsubscribe',
+  'service-request',
+  'opslane',
 ])
 
 function normalizeSlug(raw: string) {
@@ -72,6 +84,10 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = session.user.id
+    if (session.user.role === 'CUSTOMER') {
+      // Portal customers must not promote themselves to a workspace ADMIN
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     const json = await req.json().catch(() => ({}))
     const parsed = bodySchema.safeParse(json)
     if (!parsed.success) {

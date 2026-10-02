@@ -38,14 +38,20 @@ export const PATCH = withSessionRoute(async (req, { session }, routeContext) => 
     return NextResponse.json({ error: 'Task not found' }, { status: 404 });
   }
 
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
+  if (body.dueDate && Number.isNaN(new Date(body.dueDate).getTime())) {
+    return NextResponse.json({ error: 'Invalid due date' }, { status: 400 });
+  }
+  if (body.status && !['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(body.status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+  }
   const task = await taskService.updateTask(id, {
     title: body.title,
     description: body.description,
     type: body.type,
     priority: body.priority,
     status: body.status,
-    dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+    dueDate: body.dueDate ? new Date(body.dueDate) : body.dueDate === null ? null : undefined,
   });
 
   return jsonOk(task);

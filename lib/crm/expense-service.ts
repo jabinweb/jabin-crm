@@ -1,3 +1,4 @@
+import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 import { prisma } from '@/lib/prisma';
 import type { ExpenseStatus, Prisma, TravelExpenseCategory } from '@prisma/client';
 
@@ -55,9 +56,12 @@ export class ExpenseService {
       status?: ExpenseStatus;
       startDate?: Date;
       endDate?: Date;
+      /** Limit to technicians of this workspace (creator may belong to several). */
+      companyId?: string;
     }
   ) {
     const where: Prisma.TravelExpenseWhereInput = { userId };
+    if (filters?.companyId) where.technician = workspaceStaffWhere(filters.companyId);
     if (filters?.technicianId) where.technicianId = filters.technicianId;
     if (filters?.ticketId) where.ticketId = filters.ticketId;
     if (filters?.category) where.category = filters.category;
@@ -123,9 +127,12 @@ export class ExpenseService {
     });
   }
 
-  async getExpenseStats(userId: string) {
+  async getExpenseStats(userId: string, companyId?: string) {
     const expenses = await prisma.travelExpense.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(companyId ? { technician: workspaceStaffWhere(companyId) } : {}),
+      },
       select: {
         status: true,
         amount: true,

@@ -21,7 +21,8 @@ function parseLineItems(raw: unknown): LineItem[] {
       const productId = typeof r.productId === 'string' ? r.productId : '';
       const quantity = Number(r.quantity);
       const unitPrice = Number(r.unitPrice);
-      if (!productId || !(quantity > 0) || Number.isNaN(unitPrice) || unitPrice < 0) {
+      // Product stock is an integer count, so received quantities must be whole numbers
+      if (!productId || !Number.isInteger(quantity) || quantity <= 0 || Number.isNaN(unitPrice) || unitPrice < 0) {
         return null;
       }
       return {
@@ -79,10 +80,15 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   const lineItems = parseLineItems(body.lineItems);
   let totalAmount = Number(body.totalAmount);
   if (lineItems.length) {
-    totalAmount = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+    totalAmount =
+      Math.round(lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100;
   }
   const statusRaw = typeof body.status === 'string' ? body.status.trim().toUpperCase() : 'DRAFT';
-  const status = PO_STATUSES.has(statusRaw as POStatus) ? (statusRaw as POStatus) : 'DRAFT';
+  // A new PO can only start as DRAFT/SENT; RECEIVED must go through the receive flow (adds stock)
+  const status =
+    PO_STATUSES.has(statusRaw as POStatus) && (statusRaw === 'DRAFT' || statusRaw === 'SENT')
+      ? (statusRaw as POStatus)
+      : 'DRAFT';
   const notes = typeof body.notes === 'string' ? body.notes : null;
 
   if (!supplierId || Number.isNaN(totalAmount) || totalAmount < 0) {
@@ -101,7 +107,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   }
 
   if (lineItems.length) {
-    const ids = lineItems.map((i) => i.productId);
+    const ids = Array.from(new Set(lineItems.map((i) => i.productId)));
     const products = await prisma.product.findMany({
       where: { id: { in: ids }, companyId },
       select: { id: true },
@@ -112,7 +118,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   }
 
   const poNumber = `PO-${Date.now()}`;
-  const productConnect = lineItems.map((i) => ({ id: i.productId }));
+  const productConnect = Array.from(new Set(lineItems.map((i) => i.productId))).map((pid) => ({ id: pid }));
 
   const order = await prisma.purchaseOrder.create({
     data: {

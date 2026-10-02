@@ -5,8 +5,12 @@ import {
   getDemoUnit,
   updateDemoUnit,
 } from '@/lib/crm/demo-equipment';
+import { validateDemoUnitRefs } from '../_validate-refs';
 
-export const GET = withStaffRoute(async (_request, { companyId }, routeContext) => {
+export const GET = withStaffRoute(async (_request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
@@ -18,12 +22,24 @@ export const GET = withStaffRoute(async (_request, { companyId }, routeContext) 
   return jsonOk(unit);
 });
 
-export const PATCH = withStaffRoute(async (request, { companyId }, routeContext) => {
+export const PATCH = withStaffRoute(async (request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
   const { id } = await routeContext!.params;
   const body = await request.json();
+  const refError = await validateDemoUnitRefs(companyId, {
+    productId: body.productId,
+    locationId: body.currentLocationId,
+    customerId: body.currentCustomerId,
+    custodianUserId: body.custodianUserId,
+  });
+  if (refError) {
+    return NextResponse.json({ error: refError }, { status: 400 });
+  }
   const unit = await updateDemoUnit(companyId, id, body);
   if (!unit) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -31,7 +47,10 @@ export const PATCH = withStaffRoute(async (request, { companyId }, routeContext)
   return jsonOk(unit);
 });
 
-export const DELETE = withStaffRoute(async (_request, { companyId }, routeContext) => {
+export const DELETE = withStaffRoute(async (_request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }

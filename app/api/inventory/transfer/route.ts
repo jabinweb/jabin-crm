@@ -33,6 +33,18 @@ export async function POST(request: Request) {
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return new Response(JSON.stringify({ error: 'Quantity must be a positive whole number' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    if (sourceLocationId === targetLocationId) {
+      return new Response(
+        JSON.stringify({ error: 'Source and target locations must be different' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
 
     const productOk = await prisma.product.findFirst({
       where: { id: productId, companyId },
@@ -50,19 +62,24 @@ export async function POST(request: Request) {
     }
 
     const result = await prisma.$transaction(async (tx: InventoryTransferTx) => {
-      const sourceInventory = await tx.inventoryRecord.findFirst({
-        where: {
-          productId,
-          locationId: sourceLocationId,
-          type: 'IN_STOCK',
-          companyId,
-        },
+      // Location balance = all movements at the source location (TRANSFER_OUT rows are
+      // stored negative; outbound stock rows are stored positive and must be subtracted).
+      const movements = await tx.inventoryRecord.findMany({
+        where: { productId, locationId: sourceLocationId, companyId },
+        select: { quantity: true, type: true, price: true },
         orderBy: { createdAt: 'desc' },
       })
+      const OUTBOUND = new Set(['OUT', 'SERVICE_OUT', 'STOCK_OUT', 'ADJUSTMENT_OUT'])
+      const available = movements.reduce(
+        (sum, m) =>
+          sum + (OUTBOUND.has(String(m.type).toUpperCase()) ? -Math.abs(m.quantity) : m.quantity),
+        0
+      )
 
-      if (!sourceInventory || sourceInventory.quantity < quantity) {
-        throw new Error('Insufficient stock at source location')
+      if (available < quantity) {
+        throw new Error(`Insufficient stock at source location. Available: ${Math.max(0, available)}`)
       }
+      const sourceInventory = { price: movements[0]?.price ?? 0 }
 
       const stockTransfer = await tx.stockTransfer.create({
         data: {
@@ -105,7 +122,7 @@ export async function POST(request: Request) {
       })
 
       return stockTransfer
-    })
+    }, { isolationLevel: 'Serializable' })
 
     return new Response(JSON.stringify({ success: true, data: result }), {
       status: 200,
@@ -118,12 +135,14 @@ export async function POST(request: Request) {
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    const insufficient =
+      error instanceof Error && error.message.startsWith('Insufficient stock')
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'Failed to process transfer',
+        error: insufficient ? (error as Error).message : 'Failed to process transfer',
       }),
       {
-        status: 500,
+        status: insufficient ? 400 : 500,
         headers: { 'Content-Type': 'application/json' },
       }
     )

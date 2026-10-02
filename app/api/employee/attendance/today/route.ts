@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { attendanceDateOnly } from '@/lib/hr/leave-year';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,18 +10,14 @@ export async function GET(req: NextRequest) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    const today = new Date();
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
-
-    const attendance = await prisma.attendance.findFirst({
+    // Same calendar-day key check-in/check-out use (HR timezone, not server-local).
+    const attendance = await prisma.attendance.findUnique({
       where: {
-        employeeId: session.user.employeeId,
-        createdAt: {
-          gte: startOfDay,
-          lte: endOfDay
-        }
-      }
+        employeeId_date: {
+          employeeId: session.user.employeeId,
+          date: attendanceDateOnly(),
+        },
+      },
     });
 
     if (!attendance) {

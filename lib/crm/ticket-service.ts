@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { TicketPriority, TicketStatus } from '@prisma/client';
+import { TicketChannel, TicketPriority, TicketStatus } from '@prisma/client';
+import { ApiErrors } from '@/lib/api-error-handler';
 import { getNextAvailableAgent } from '@/lib/support/ticket-assignment';
 import { getSlaConfigForTicket } from '@/lib/crm/sla-policies';
 import { parseSupportSettings } from '@/lib/support/ticket-types';
@@ -54,6 +55,13 @@ export class TicketService {
      * Create a new support ticket and auto-assign an agent (group-aware).
      */
     async createTicket(data: CreateTicketData) {
+        // Reject bad enum values with a 400 instead of a Prisma 500.
+        if (data.priority && !(Object.values(TicketPriority) as string[]).includes(data.priority)) {
+            throw ApiErrors.badRequest('Invalid priority');
+        }
+        if (data.channel && !(Object.values(TicketChannel) as string[]).includes(data.channel)) {
+            throw ApiErrors.badRequest('Invalid channel');
+        }
         const customer = await prisma.customer.findUnique({
             where: { id: data.customerId },
             select: { companyId: true },
@@ -233,6 +241,9 @@ export class TicketService {
      * Update ticket status — validates against configured pipeline when available.
      */
     async updateStatus(ticketId: string, status: TicketStatus, performedById?: string) {
+        if (!(Object.values(TicketStatus) as string[]).includes(status)) {
+            throw ApiErrors.badRequest('Invalid status');
+        }
         const existing = await prisma.supportTicket.findUnique({
             where: { id: ticketId },
             select: {

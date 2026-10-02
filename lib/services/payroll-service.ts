@@ -56,14 +56,70 @@ export class PayrollService {
       (a) => a.status === 'PRESENT' || a.status === 'LATE'
     ).length
     const halfDays = attendance.filter((a) => a.status === 'HALF_DAY').length
-    const presentEquivalent = presentDays + halfDays * 0.5
-    const attendanceRate = workingDays > 0 ? presentEquivalent / workingDays : 0
+
+    // Approved paid leave and company holidays on working days are paid, not LOP.
+    // Days that already have a PRESENT/LATE/HALF_DAY punch are not counted twice.
+    const monthStartUtc = new Date(Date.UTC(year, monthIndex, 1))
+    const monthEndUtc = new Date(Date.UTC(year, monthIndex + 1, 0))
+    const dayKey = (d: Date) => d.toISOString().slice(0, 10)
+    const workedKeys = new Set(
+      attendance
+        .filter((a) => a.status === 'PRESENT' || a.status === 'LATE' || a.status === 'HALF_DAY')
+        .map((a) => dayKey(a.date))
+    )
+    const paidDayKeys = new Set<string>()
+    const addPaidRange = (from: Date, to: Date) => {
+      const cur = new Date(
+        Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate())
+      )
+      const last = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth(), to.getUTCDate()))
+      while (cur <= last) {
+        const dow = cur.getUTCDay()
+        if (
+          cur >= monthStartUtc &&
+          cur <= monthEndUtc &&
+          dow !== 0 &&
+          dow !== 6 &&
+          !workedKeys.has(dayKey(cur))
+        ) {
+          paidDayKeys.add(dayKey(cur))
+        }
+        cur.setUTCDate(cur.getUTCDate() + 1)
+      }
+    }
+    const [paidLeaves, holidays] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where: {
+          employeeId,
+          status: 'APPROVED',
+          startDate: { lt: new Date(Date.UTC(year, monthIndex + 1, 1)) },
+          endDate: { gte: monthStartUtc },
+          OR: [{ policyId: null }, { policy: { isPaid: true } }],
+        },
+        select: { startDate: true, endDate: true },
+      }),
+      employee?.companyId
+        ? prisma.companyHoliday.findMany({
+            where: {
+              companyId: employee.companyId,
+              date: { gte: monthStartUtc, lt: new Date(Date.UTC(year, monthIndex + 1, 1)) },
+            },
+            select: { date: true },
+          })
+        : Promise.resolve([] as { date: Date }[]),
+    ])
+    for (const l of paidLeaves) addPaidRange(l.startDate, l.endDate)
+    for (const h of holidays) addPaidRange(h.date, h.date)
+
+    const presentEquivalent = presentDays + halfDays * 0.5 + paidDayKeys.size
+    const attendanceRate =
+      workingDays > 0 ? Math.min(1, presentEquivalent / workingDays) : 0
 
     const overtimeMinutes = attendance.reduce((sum, a) => sum + (a.overtime || 0), 0)
     const hourlyRate = salary.basicSalary / (workingDays * 8 || 1)
     const overtimePay = Math.round((overtimeMinutes / 60) * hourlyRate * 1.5)
 
-    const basic = salary.basicSalary * attendanceRate
+    const basic = Math.round(salary.basicSalary * attendanceRate * 100) / 100
     const houseRent = salary.houseRent
     const transport = salary.transport
     const medical = salary.medicalAllowance
@@ -79,11 +135,13 @@ export class PayrollService {
     )
     const tds = tdsResult.amount
 
-    const attendanceDeduction = salary.basicSalary * (1 - attendanceRate)
+    const attendanceDeduction = Math.round((salary.basicSalary - basic) * 100) / 100
     const other = salary.otherDeductions
     const statutoryEmployee = pf.employee + esi.employee + pt + tds
 
-    const total = gross - statutoryEmployee - other - attendanceDeduction
+    // `basic` is already pro-rated by attendance; `attendanceDeduction` is the LOP amount
+    // shown on the slip for information and must not be subtracted a second time.
+    const total = gross - statutoryEmployee - other
 
     return {
       employee,
@@ -127,11 +185,21 @@ export class PayrollService {
   }
 
   static async generatePayslip(employeeId: string, month: number, year: number) {
+    const existing = await prisma.payslip.findUnique({
+      where: { employeeId_month_year: { employeeId, month, year } },
+      select: { isPaid: true },
+    })
+    if (existing?.isPaid) {
+      throw Object.assign(new Error('Payslip already paid; it cannot be regenerated'), {
+        status: 409,
+      })
+    }
+
     const calculation = await this.calculateSalary(employeeId, month, year)
+    // Attendance (LOP) is already reflected in the pro-rated basic, so it is not a deduction here.
     const deductions =
       calculation.components.deductions.tax +
       calculation.components.deductions.other +
-      calculation.components.deductions.attendance +
       calculation.components.deductions.pf +
       calculation.components.deductions.esi +
       calculation.components.deductions.pt

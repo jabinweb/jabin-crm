@@ -11,6 +11,9 @@ export async function GET(req: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (session.user.role === 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     await ensureFeatureEnabled(session.user.id, 'SUPPORT_INBOX');
 
     const companyId = await resolveOptionalStaffCompanyScope(session, req);

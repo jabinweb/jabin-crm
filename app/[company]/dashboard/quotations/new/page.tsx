@@ -168,8 +168,8 @@ export default function NewQuotationPage() {
   const selectLead = (leadId: string) => {
     const lead = leads?.leads.find((l: any) => l.id === leadId);
     if (lead) {
-      handleChange('customerName', lead.name);
-      handleChange('customerEmail', lead.email);
+      handleChange('customerName', lead.name || lead.contactName || lead.companyName || '');
+      handleChange('customerEmail', lead.email || '');
       handleChange('customerPhone', lead.phone || '');
       handleChange('customerAddress', lead.address || '');
     }
@@ -187,9 +187,17 @@ export default function NewQuotationPage() {
     return calculateSubtotal() + calculateTaxAmount() - formData.discount;
   };
 
+  // API takes validityDays; derive it from the chosen valid-until date
+  const validityDaysFromDate = () => {
+    const until = new Date(formData.validUntil + 'T23:59:59');
+    if (Number.isNaN(until.getTime())) return undefined;
+    return Math.max(1, Math.ceil((until.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+  };
+
   const handleSaveDraft = () => {
     const quotationData = {
       ...formData,
+      validityDays: validityDaysFromDate(),
       status: 'DRAFT',
       items: items.filter(item => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),
@@ -203,6 +211,7 @@ export default function NewQuotationPage() {
   const handleSaveAndSend = async () => {
     const quotationData = {
       ...formData,
+      validityDays: validityDaysFromDate(),
       status: 'DRAFT',
       items: items.filter(item => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),

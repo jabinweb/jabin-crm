@@ -1,3 +1,4 @@
+import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { sequenceService } from '@/lib/crm/sequence-service';
 import { handleApiError } from '@/lib/api-error-handler';
@@ -9,9 +10,16 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('EMAIL_OUTREACH');
+    const session = await withModuleAccess('EMAIL_OUTREACH');
 
     const params = await context.params;
+    const owned = await prisma.emailSequence.findFirst({
+      where: { id: params.id, userId: session.user.id },
+      select: { id: true },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: 'Sequence not found' }, { status: 404 });
+    }
     const stats = await sequenceService.getSequenceWithStats(params.id);
     return NextResponse.json(stats);
   } catch (error) {

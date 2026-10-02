@@ -36,9 +36,9 @@ import { confirmAction } from '@/lib/confirm-action';
 
 interface FileRecord {
     id: string;
-    filename: string;
-    originalName: string;
-    mimeType: string;
+    filename: string | null;
+    originalName: string | null;
+    mimeType: string | null;
     size: number;
     url: string;
     folder: string;
@@ -181,7 +181,8 @@ export default function FileManagerPage() {
         return new Date(dateString).toLocaleString();
     };
 
-    const getFileIcon = (mimeType: string) => {
+    const getFileIcon = (mimeType: string | null) => {
+        if (!mimeType) return <FileText className="w-4 h-4 text-gray-500" />;
         if (mimeType.startsWith('image/')) {
             return <FileText className="w-4 h-4 text-blue-500" />;
         }
@@ -196,8 +197,8 @@ export default function FileManagerPage() {
 
     const folders = Array.from(new Set(files.map(f => f.folder)));
     const filteredFiles = files.filter(file => {
-        const matchesSearch = file.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            file.originalName.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = (file.filename ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (file.originalName ?? '').toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFolder = selectedFolder === 'all' || file.folder === selectedFolder;
         return matchesSearch && matchesFolder;
     });
@@ -477,7 +478,7 @@ export default function FileManagerPage() {
                                                             <Button
                                                                 variant="ghost"
                                                                 size="sm"
-                                                                onClick={() => deleteFile(file.id, file.originalName)}
+                                                                onClick={() => deleteFile(file.id, file.originalName ?? file.filename ?? 'file')}
                                                                 disabled={deleting === file.id}
                                                             >
                                                                 <Trash2 className="w-4 h-4 text-red-500" />

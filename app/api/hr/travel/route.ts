@@ -48,6 +48,9 @@ export async function POST(request: Request) {
     if (!purpose || !fromDate || !toDate) {
       return NextResponse.json({ error: 'purpose, fromDate, toDate required' }, { status: 400 })
     }
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || toDate < fromDate) {
+      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 })
+    }
     const row = await prisma.travelRequest.create({
       data: {
         companyId: emp.companyId,
@@ -75,6 +78,12 @@ export async function PATCH(request: Request) {
       where: { id, companyId: ctx.companyId },
     })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (existing.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Request already processed' }, { status: 400 })
+    }
+    if (existing.employeeId === ctx.session.user.employeeId) {
+      return NextResponse.json({ error: 'You cannot approve your own request' }, { status: 403 })
+    }
     const status = body.status === 'REJECTED' ? 'REJECTED' : 'APPROVED'
     const updated = await prisma.travelRequest.update({
       where: { id },

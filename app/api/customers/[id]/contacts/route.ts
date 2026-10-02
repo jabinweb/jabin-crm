@@ -22,6 +22,10 @@ export const GET = withStaffRoute(async (request, ctx, routeContext) => {
 });
 
 export const POST = withStaffRoute(async (request, ctx, routeContext) => {
+  // Portal (CUSTOMER) users may read their own record but not modify it.
+  if (ctx.session.user?.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const { id } = await routeContext!.params;
   const access = await assertCustomerTenantAccess(ctx.session, request, id);
   if (!access) {

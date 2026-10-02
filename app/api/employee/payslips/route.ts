@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const year = parseInt(searchParams.get("year") || new Date().getFullYear().toString())
+    const year = parseInt(searchParams.get("year") || "", 10) || new Date().getFullYear()
 
     const payslips = await prisma.payslip.findMany({
       where: {

@@ -103,6 +103,10 @@ export const POST = withTenantRoute(async (request, { companyId, employeeId }, r
     if (!name || !url) {
       throw ApiErrors.badRequest('name and url are required');
     }
+    // Rendered as a link — block javascript:/data: etc.
+    if (!/^https?:\/\//i.test(url)) {
+      throw ApiErrors.badRequest('url must be an http(s) URL');
+    }
     if (!type) {
       type = 'application/octet-stream';
     }

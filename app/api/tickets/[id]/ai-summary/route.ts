@@ -21,6 +21,11 @@ export async function POST(
     const guard = await requireTicketRouteAccess(session, request, id);
     if (!guard.ok) return guard.response;
 
+    // Summary is built from all activities, including internal notes — staff only.
+    if (guard.session.user.role === 'CUSTOMER') {
+      throw ApiErrors.forbidden();
+    }
+
     const profile = await prisma.userProfile.findUnique({
       where: { userId: guard.session.user.id },
       select: { geminiApiKey: true, aiModel: true },

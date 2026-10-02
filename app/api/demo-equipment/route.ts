@@ -4,9 +4,13 @@ import {
   createDemoUnit,
   listDemoUnits,
 } from '@/lib/crm/demo-equipment';
+import { validateDemoUnitRefs } from './_validate-refs';
 import type { DemoUnitKind, DemoUnitStatus } from '@prisma/client';
 
-export const GET = withStaffRoute(async (request, { companyId }) => {
+export const GET = withStaffRoute(async (request, { session, companyId }) => {
+  if (session.user.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
@@ -18,13 +22,25 @@ export const GET = withStaffRoute(async (request, { companyId }) => {
   return jsonOk({ units });
 });
 
-export const POST = withStaffRoute(async (request, { companyId }) => {
+export const POST = withStaffRoute(async (request, { session, companyId }) => {
+  if (session.user.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
   const body = await request.json();
   if (!body.name?.trim()) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  }
+  const refError = await validateDemoUnitRefs(companyId, {
+    productId: body.productId,
+    locationId: body.currentLocationId,
+    customerId: body.currentCustomerId,
+    custodianUserId: body.custodianUserId,
+  });
+  if (refError) {
+    return NextResponse.json({ error: refError }, { status: 400 });
   }
   const unit = await createDemoUnit(companyId, {
     name: body.name,

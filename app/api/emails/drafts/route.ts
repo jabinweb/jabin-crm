@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
 
 // GET /api/emails/drafts - Fetch all drafts for current user
 export async function GET(request: NextRequest) {
@@ -68,10 +69,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Only link leads from the current workspace (send-from-draft writes lead activity).
+    let ownLeadId: string | undefined;
+    if (typeof leadId === 'string' && leadId) {
+      const { companyId } = await resolveCompanyContextFromRequest(session, request);
+      const lead = await prisma.lead.findFirst({
+        where: { id: leadId, companyId },
+        select: { id: true },
+      });
+      if (!lead) {
+        return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+      }
+      ownLeadId = lead.id;
+    }
+
     const draft = await prisma.emailDraft.create({
       data: {
         userId: user.id,
-        leadId,
+        leadId: ownLeadId,
         companyName,
         recipientEmail,
         contactName,
@@ -84,6 +99,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ draft }, { status: 201 });
   } catch (error) {
+    if (isApiException(error)) return handleApiError(error);
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error creating email draft:', error);
     return NextResponse.json(
       { error: 'Failed to create email draft' },

@@ -652,6 +652,14 @@ export const AGENT_TOOLS_BASE: AgentToolDef[] = [
         throw new Error('Could not resolve teammate — provide employeeId, userId, or nameOrEmail');
       }
 
+      // The resolved user may come straight from args — it must be staff of this workspace
+      if (receiverUserId) {
+        const { isWorkspaceStaff } = await import('@/lib/auth/workspace-staff');
+        if (!(await isWorkspaceStaff(ctx.companyId, receiverUserId))) {
+          throw new Error('User not found in this company');
+        }
+      }
+
       const channels: string[] = [];
       let dmId: string | null = null;
 

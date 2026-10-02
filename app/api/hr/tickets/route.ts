@@ -76,6 +76,13 @@ export async function PATCH(request: Request) {
       where: { id, companyId: ctx.companyId },
     })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (body.assigneeId) {
+      const assignee = await prisma.employee.findFirst({
+        where: { id: String(body.assigneeId), companyId: ctx.companyId },
+        select: { id: true },
+      })
+      if (!assignee) return NextResponse.json({ error: 'Invalid assignee' }, { status: 400 })
+    }
     const updated = await prisma.hrTicket.update({
       where: { id },
       data: {

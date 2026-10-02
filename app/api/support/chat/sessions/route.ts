@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
       if (!(e instanceof TenantError) || e.status !== 400) throw e;
     }
 
+    if (session.user.role === 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (!companyId && session.user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Company context required' }, { status: 400 });
+    }
+
     const sessions = await listOpenChatSessions(companyId);
     return NextResponse.json({ sessions });
   } catch (error) {
@@ -62,7 +69,8 @@ export async function POST(request: NextRequest) {
       visitorToken: body.visitorToken,
       visitorName: body.visitorName ?? session?.user?.name,
       visitorEmail: body.visitorEmail ?? session?.user?.email ?? undefined,
-      customerId: session?.user?.customerId ?? body.customerId,
+      // Never trust a client-supplied customerId — it links the chat (and its auto-ticket) to that account.
+      customerId: session?.user?.role === 'CUSTOMER' ? session.user.customerId ?? undefined : undefined,
       companyId: body.companyId,
     });
 

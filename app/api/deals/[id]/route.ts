@@ -95,9 +95,28 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('DEALS');
+    const session = await withModuleAccess('DEALS');
 
     const params = await context.params;
+
+    let companyId: string | undefined;
+    if (isCompanyAdmin(session.user.role)) {
+      try {
+        const ctx = await resolveCompanyContextFromRequest(session, req);
+        companyId = ctx.companyId;
+      } catch {
+        /* user-scoped */
+      }
+    }
+
+    const existing = await dealService.getDealById(params.id, {
+      userId: session.user.id,
+      companyId,
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+    }
+
     await dealService.deleteDeal(params.id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

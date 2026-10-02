@@ -7,7 +7,10 @@ import {
 } from '@/lib/api/portal-billing-scope';
 import { invoiceService } from '@/lib/crm/invoice-service';
 
-async function assertOwnedInvoice(id: string, scope: { customerId: string; email: string | null }) {
+async function assertOwnedInvoice(
+  id: string,
+  scope: { customerId: string; email: string | null; companyId: string | null }
+) {
   return prisma.invoice.findFirst({
     where: {
       id,

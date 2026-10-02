@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   try {
     // Verify cron secret
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -18,18 +18,14 @@ export async function GET(req: NextRequest) {
       select: { id: true },
     });
 
-    const results = await Promise.allSettled(
-      users.map((user) => emailQueueService.processQueue())
-    );
-
-    const totalSent = results
-      .filter((r) => r.status === 'fulfilled')
-      .reduce((sum, r: any) => sum + (r.value?.sent || 0), 0);
+    // processQueue() handles every user's pending mail in one pass; running it once per
+    // user concurrently picked up the same PENDING rows several times (duplicate sends).
+    const result: any = await emailQueueService.processQueue();
 
     return NextResponse.json({
       users: users.length,
-      totalSent,
-      processed: results.length,
+      totalSent: result?.sent || 0,
+      processed: 1,
     });
   } catch (error: any) {
     console.error('Error processing email queue:', error);

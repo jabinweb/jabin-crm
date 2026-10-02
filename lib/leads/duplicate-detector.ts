@@ -89,7 +89,8 @@ function getEmailDomain(email: string): string {
 export async function findDuplicatesForLead(
   leadId: string,
   userId: string,
-  threshold: number = 0.8
+  threshold: number = 0.8,
+  companyId?: string
 ): Promise<DuplicateMatch[]> {
   const lead = await prisma.lead.findUnique({
     where: { id: leadId },
@@ -98,7 +99,7 @@ export async function findDuplicatesForLead(
     },
   });
 
-  if (!lead || lead.userId !== userId) {
+  if (!lead || lead.userId !== userId || (companyId && lead.companyId !== companyId)) {
     return [];
   }
 
@@ -107,6 +108,7 @@ export async function findDuplicatesForLead(
     where: {
       userId,
       id: { not: leadId },
+      ...(companyId ? { companyId } : {}),
     },
     include: {
       enrichmentData: true,
@@ -140,10 +142,11 @@ export async function findDuplicatesForLead(
  */
 export async function findAllDuplicates(
   userId: string,
-  threshold: number = 0.8
+  threshold: number = 0.8,
+  companyId?: string
 ): Promise<DuplicateGroup[]> {
   const allLeads = await prisma.lead.findMany({
-    where: { userId },
+    where: { userId, ...(companyId ? { companyId } : {}) },
     include: {
       enrichmentData: true,
       activities: {
@@ -334,18 +337,16 @@ export async function mergeLeads(
   primaryLeadId: string,
   duplicateLeadIds: string[],
   userId: string,
-  strategy: 'keep-primary' | 'keep-newest' | 'keep-most-complete' = 'keep-most-complete'
+  strategy: 'keep-primary' | 'keep-newest' | 'keep-most-complete' = 'keep-most-complete',
+  companyId?: string
 ): Promise<{ success: boolean; mergedLead: any; deletedCount: number }> {
-  // Fetch all leads
+  // Fetch all leads (scoped to the workspace when known, so leads the same user
+  // created in another workspace are never merged across tenants)
   const leads = await prisma.lead.findMany({
     where: {
       id: { in: [primaryLeadId, ...duplicateLeadIds] },
       userId,
-    },
-    include: {
-      enrichmentData: true,
-      activities: true,
-      emailCampaignLeads: true,
+      ...(companyId ? { companyId } : {}),
     },
   });
 
@@ -355,12 +356,13 @@ export async function mergeLeads(
 
   // Determine the primary lead based on strategy
   let primaryLead = leads.find(l => l.id === primaryLeadId);
-  
+
   if (!primaryLead) {
     throw new Error('Primary lead not found');
   }
 
   const duplicates = leads.filter(l => l.id !== primaryLeadId);
+  const duplicateIds = duplicates.map((d) => d.id);
 
   // Merge data based on strategy
   const mergedData = mergeLeadData(primaryLead, duplicates, strategy);
@@ -373,24 +375,46 @@ export async function mergeLeads(
       data: mergedData,
     });
 
-    // Reassign activities from duplicates to primary lead
-    for (const duplicate of duplicates) {
-      await tx.leadActivity.updateMany({
-        where: { leadId: duplicate.id },
-        data: { leadId: primaryLeadId },
+    if (duplicateIds.length > 0) {
+      const toDup = { leadId: { in: duplicateIds } };
+      const toPrimary = { leadId: primaryLeadId };
+
+      // Children with (x, leadId) unique keys: drop rows that would collide first.
+      const primaryCampaigns = await tx.emailCampaignLead.findMany({
+        where: { leadId: primaryLeadId },
+        select: { campaignId: true },
+      });
+      await tx.emailCampaignLead.deleteMany({
+        where: { ...toDup, campaignId: { in: primaryCampaigns.map((c) => c.campaignId) } },
+      });
+      const primarySequences = await tx.sequenceEnrollment.findMany({
+        where: { leadId: primaryLeadId },
+        select: { sequenceId: true },
+      });
+      await tx.sequenceEnrollment.deleteMany({
+        where: { ...toDup, sequenceId: { in: primarySequences.map((s) => s.sequenceId) } },
       });
 
-      // Reassign email campaign leads
-      await tx.emailCampaignLead.updateMany({
-        where: { leadId: duplicate.id },
-        data: { leadId: primaryLeadId },
-      });
+      // Reassign everything that would otherwise be cascade-deleted (or orphaned)
+      // with the duplicates: deals, tasks, documents, contacts, emails, etc.
+      await tx.leadActivity.updateMany({ where: toDup, data: toPrimary });
+      await tx.emailCampaignLead.updateMany({ where: toDup, data: toPrimary });
+      await tx.sequenceEnrollment.updateMany({ where: toDup, data: toPrimary });
+      await tx.deal.updateMany({ where: toDup, data: toPrimary });
+      await tx.task.updateMany({ where: toDup, data: toPrimary });
+      await tx.contact.updateMany({ where: toDup, data: toPrimary });
+      await tx.leadDocument.updateMany({ where: toDup, data: toPrimary });
+      await tx.emailLog.updateMany({ where: toDup, data: toPrimary });
+      await tx.calendarEvent.updateMany({ where: toDup, data: toPrimary });
+      await tx.quotation.updateMany({ where: toDup, data: toPrimary });
+      await tx.invoice.updateMany({ where: toDup, data: toPrimary });
+      await tx.whatsAppMessage.updateMany({ where: toDup, data: toPrimary });
     }
 
-    // Delete duplicate leads (cascade will handle related records)
+    // Delete duplicate leads (remaining 1:1 records like score/enrichment cascade)
     await tx.lead.deleteMany({
       where: {
-        id: { in: duplicateLeadIds },
+        id: { in: duplicateIds },
         userId,
       },
     });
@@ -491,16 +515,24 @@ function mergeLeadData(
   }
   merged.tags = Array.from(allTags);
 
-  // Keep the best status (most advanced in the pipeline)
-  const statusOrder = ['NEW', 'CONTACTED', 'RESPONDED', 'QUALIFIED', 'CONVERTED'];
+  // Keep the best status (most advanced in the pipeline). An unsubscribe on any
+  // record must survive the merge; terminal/off-pipeline primary statuses
+  // (LOST, ON_HOLD) are kept as-is.
+  const statusOrder = [
+    'NEW', 'CONTACTED', 'RESPONDED', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'WON', 'CONVERTED',
+  ];
   let bestStatus = primary.status;
   let bestStatusIndex = statusOrder.indexOf(bestStatus);
-  
-  for (const lead of duplicates) {
-    const index = statusOrder.indexOf(lead.status);
-    if (index > bestStatusIndex) {
-      bestStatus = lead.status;
-      bestStatusIndex = index;
+
+  if (allLeads.some((l) => l.status === 'UNSUBSCRIBED')) {
+    bestStatus = 'UNSUBSCRIBED';
+  } else if (bestStatusIndex >= 0) {
+    for (const lead of duplicates) {
+      const index = statusOrder.indexOf(lead.status);
+      if (index > bestStatusIndex) {
+        bestStatus = lead.status;
+        bestStatusIndex = index;
+      }
     }
   }
   merged.status = bestStatus;
@@ -518,7 +550,20 @@ function mergeLeadData(
   merged.isVerified = allLeads.some(l => l.isVerified);
   merged.isEnriched = allLeads.some(l => l.isEnriched);
 
-  return merged;
+  // Only return the merged scalar fields (never id/userId/companyId/timestamps).
+  const data: Record<string, unknown> = {};
+  for (const field of [
+    ...stringFields,
+    ...numberFields,
+    'tags',
+    'status',
+    'lastContactedAt',
+    'isVerified',
+    'isEnriched',
+  ]) {
+    if (merged[field] !== undefined) data[field] = merged[field];
+  }
+  return data;
 }
 
 /**
@@ -526,9 +571,10 @@ function mergeLeadData(
  */
 export async function autoMergeDuplicates(
   userId: string,
-  exactMatchOnly: boolean = true
+  exactMatchOnly: boolean = true,
+  companyId?: string
 ): Promise<{ mergedCount: number; groupsProcessed: number }> {
-  const duplicateGroups = await findAllDuplicates(userId, exactMatchOnly ? 1.0 : 0.95);
+  const duplicateGroups = await findAllDuplicates(userId, exactMatchOnly ? 1.0 : 0.95, companyId);
 
   let mergedCount = 0;
   let groupsProcessed = 0;
@@ -540,7 +586,7 @@ export async function autoMergeDuplicates(
 
     try {
       const duplicateIds = group.duplicates.map(d => d.id);
-      await mergeLeads(group.primaryLead.id, duplicateIds, userId, 'keep-most-complete');
+      await mergeLeads(group.primaryLead.id, duplicateIds, userId, 'keep-most-complete', companyId);
       mergedCount += duplicateIds.length;
       groupsProcessed++;
     } catch (error) {

@@ -41,7 +41,7 @@ export async function GET() {
     const reportIds = isAdmin
       ? (
           await prisma.employee.findMany({
-            where: { companyId: me.companyId },
+            where: { companyId: me.companyId, id: { not: me.id } },
             select: { id: true },
           })
         ).map((e) => e.id)
@@ -79,11 +79,11 @@ export async function POST(request: Request) {
     if ('error' in ctx && ctx.error) return ctx.error
     const { session, me, isAdmin } = ctx as {
       session: { user: { employeeId?: string | null } }
-      me: { id: string }
+      me: { id: string; companyId: string }
       isAdmin: boolean
     }
 
-    const body = await request.json()
+    const body = await request.json().catch(() => ({}))
     const id = typeof body.id === 'string' ? body.id : ''
     const action = body.action === 'reject' ? 'reject' : body.action === 'approve' ? 'approve' : null
     if (!id || !action) {
@@ -92,12 +92,18 @@ export async function POST(request: Request) {
 
     const leave = await prisma.leaveRequest.findUnique({
       where: { id },
-      include: { employee: { select: { managerId: true } } },
+      include: { employee: { select: { managerId: true, companyId: true } } },
     })
     if (!leave) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
-    if (!isAdmin && leave.employee.managerId !== me.id) {
+    // Admins act within their own company only; managers only on direct reports;
+    // nobody approves their own leave here.
+    if (
+      leave.employeeId === me.id ||
+      leave.employee.companyId !== me.companyId ||
+      (!isAdmin && leave.employee.managerId !== me.id)
+    ) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

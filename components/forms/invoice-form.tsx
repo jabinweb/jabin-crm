@@ -74,6 +74,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   const [customerId, setCustomerId] = useState<string>(searchParams.get('customerId') || '');
   const [projectId, setProjectId] = useState<string>(searchParams.get('projectId') || '');
   const [leadId, setLeadId] = useState<string>(searchParams.get('leadId') || '');
+  const [quotationId, setQuotationId] = useState<string>('');
   const [formData, setFormData] = useState<InvoiceFormData>({
     title: '',
     description: '',
@@ -333,8 +334,8 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     setLeadId(selectedLeadId);
     const lead = leads?.leads.find((l: any) => l.id === selectedLeadId);
     if (lead) {
-      handleChange('customerName', lead.name);
-      handleChange('customerEmail', lead.email);
+      handleChange('customerName', lead.name || lead.contactName || lead.companyName || '');
+      handleChange('customerEmail', lead.email || '');
       handleChange('customerPhone', lead.phone || '');
       handleChange('customerAddress', lead.address || '');
     }
@@ -364,6 +365,9 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   const selectQuotation = (quotationId: string) => {
     const quotation = quotations?.quotations.find((q: any) => q.id === quotationId);
     if (quotation) {
+      setQuotationId(quotation.id);
+      if (quotation.leadId) setLeadId(quotation.leadId);
+      if (quotation.dealId) setDealId(quotation.dealId);
       handleChange('title', quotation.title);
       handleChange('description', quotation.description || '');
       handleChange('customerName', quotation.customerName);
@@ -407,7 +411,6 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     const invoiceData = {
       ...formData,
       gstTaxType: formData.gstTaxType || null,
-      status: 'DRAFT',
       items: items.filter((item) => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),
       taxAmount: calculateTaxAmount(),
@@ -419,6 +422,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       ...(customerId ? { customerId } : {}),
       ...(projectId ? { projectId } : {}),
       ...(leadId ? { leadId } : {}),
+      ...(quotationId && mode === 'create' ? { quotationId } : {}),
     };
 
     if (mode === 'edit') {
@@ -432,7 +436,6 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
     const invoiceData = {
       ...formData,
       gstTaxType: formData.gstTaxType || null,
-      status: 'DRAFT',
       items: items.filter((item) => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),
       taxAmount: calculateTaxAmount(),
@@ -444,18 +447,23 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       ...(customerId ? { customerId } : {}),
       ...(projectId ? { projectId } : {}),
       ...(leadId ? { leadId } : {}),
+      ...(quotationId && mode === 'create' ? { quotationId } : {}),
     };
 
-    if (mode === 'edit') {
-      const invoice = await updateInvoiceMutation.mutateAsync(invoiceData);
-      if (invoice?.id || invoiceId) {
-        sendInvoiceMutation.mutate(invoice?.id || invoiceId!);
+    try {
+      if (mode === 'edit') {
+        const invoice = await updateInvoiceMutation.mutateAsync(invoiceData);
+        if (invoice?.id || invoiceId) {
+          sendInvoiceMutation.mutate(invoice?.id || invoiceId!);
+        }
+      } else {
+        const invoice = await createInvoiceMutation.mutateAsync(invoiceData);
+        if (invoice?.id) {
+          sendInvoiceMutation.mutate(invoice.id);
+        }
       }
-    } else {
-      const invoice = await createInvoiceMutation.mutateAsync(invoiceData);
-      if (invoice?.id) {
-        sendInvoiceMutation.mutate(invoice.id);
-      }
+    } catch {
+      /* error already surfaced via the mutation's onError toast */
     }
   };
 

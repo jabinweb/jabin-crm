@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { handleApiError } from '@/lib/api-error-handler';
+import { ApiErrors, handleApiError } from '@/lib/api-error-handler';
+import { accessibleDocWhere } from '@/lib/crm/company-doc-scope';
+import { prisma } from '@/lib/prisma';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
 import { invoiceService } from '@/lib/crm/invoice-service';
@@ -22,6 +24,7 @@ const createInvoiceSchema = z.object({
   taxRate: z.number().min(0).max(100).optional(),
   discount: z.number().min(0).optional(),
   dueInDays: z.number().min(1).optional(),
+  dueDate: z.string().optional(),
   paymentMethod: z.string().optional(),
   terms: z.string().optional(),
   notes: z.string().optional(),
@@ -52,11 +55,40 @@ export async function POST(req: NextRequest) {
     const session = await withModuleAccess('INVOICES');
 
     const validatedData = await validateRequest(req, createInvoiceSchema);
-    
+
+    let companyId: string | undefined;
+    try {
+      const { resolveCompanyContextFromRequest } = await import('@/lib/auth/company-membership');
+      companyId = (await resolveCompanyContextFromRequest(session, req)).companyId;
+    } catch {
+      /* no workspace context */
+    }
+
+    if (validatedData.quotationId) {
+      const scope = await accessibleDocWhere(session, req);
+      const quotation = await prisma.quotation.findFirst({
+        where: { id: validatedData.quotationId, ...scope },
+        select: { id: true, status: true, invoice: { select: { id: true } } },
+      });
+      if (!quotation) throw ApiErrors.notFound('Quotation');
+      if (quotation.invoice) throw ApiErrors.conflict('Quotation already converted to invoice');
+      if (quotation.status !== 'ACCEPTED') {
+        throw ApiErrors.badRequest('Only accepted quotations can be converted to invoices');
+      }
+    }
+
     const invoice = await invoiceService.createInvoice({
       ...validatedData,
       userId: session.user.id,
+      companyId,
     });
+
+    if (validatedData.quotationId) {
+      await prisma.quotation.update({
+        where: { id: validatedData.quotationId },
+        data: { status: 'CONVERTED' },
+      });
+    }
 
     return NextResponse.json(invoice, { status: 201 });
   } catch (error) {

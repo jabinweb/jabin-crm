@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withStaffRoute, jsonOk } from '@/lib/api/with-route';
 import { moveDemoUnit } from '@/lib/crm/demo-equipment';
+import { validateDemoUnitRefs } from '../../_validate-refs';
 import type { DemoMovementType } from '@prisma/client';
 
 const TYPES: DemoMovementType[] = [
@@ -12,7 +13,10 @@ const TYPES: DemoMovementType[] = [
   'RETIRE',
 ];
 
-export const POST = withStaffRoute(async (request, { companyId, userId }, routeContext) => {
+export const POST = withStaffRoute(async (request, { session, companyId, userId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   if (!companyId) {
     return NextResponse.json({ error: 'Company context required' }, { status: 400 });
   }
@@ -23,6 +27,15 @@ export const POST = withStaffRoute(async (request, { companyId, userId }, routeC
       { error: `type must be one of: ${TYPES.join(', ')}` },
       { status: 400 }
     );
+  }
+
+  const refError = await validateDemoUnitRefs(companyId, {
+    locationId: body.toLocationId,
+    customerId: body.toCustomerId,
+    custodianUserId: body.toCustodianId,
+  });
+  if (refError) {
+    return NextResponse.json({ error: refError }, { status: 400 });
   }
 
   const result = await moveDemoUnit(

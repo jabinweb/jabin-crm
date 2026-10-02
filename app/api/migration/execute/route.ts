@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { withTenantRoute } from '@/lib/api/with-route';
+import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import {
@@ -64,11 +65,17 @@ export const POST = withTenantRoute(async (request, { session, companyId, userId
 
   try {
     const csvText = await csvFile.text();
+    // The session employee is the home workspace profile — only link it when it is this workspace's
+    const workspaceEmployeeId =
+      employeeId &&
+      (await prisma.employee.count({ where: { id: employeeId, companyId } }))
+        ? employeeId
+        : undefined;
     const result = await runImport({
       object,
       csvText,
       mapping,
-      ctx: { companyId, userId, employeeId },
+      ctx: { companyId, userId, employeeId: workspaceEmployeeId },
       options: { createMissingCustomers },
     });
 

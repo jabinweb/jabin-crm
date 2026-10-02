@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { TicketPriority } from '@prisma/client';
 import { ticketService, type CreateTicketData } from '@/lib/crm/ticket-service';
 import {
   findTicketTypeDefinition,
@@ -44,7 +45,7 @@ export async function createPortalTicket(
     throw new Error(fieldError);
   }
 
-  if (typeDef.showEquipment && payload.equipmentId) {
+  if (typeDef.showEquipment && payload.equipmentId && payload.equipmentId !== 'GENERAL') {
     const equipment = await prisma.equipmentInstallation.findFirst({
       where: { id: payload.equipmentId, customerId },
       select: { id: true },
@@ -76,7 +77,10 @@ export async function createPortalTicket(
     customerId,
     subject: payload.subject.trim(),
     description: payload.description.trim(),
-    priority: payload.priority ?? typeDef.defaultPriority,
+    priority:
+      payload.priority && (Object.values(TicketPriority) as string[]).includes(payload.priority)
+        ? payload.priority
+        : typeDef.defaultPriority,
     channel: 'PORTAL',
     ticketType: typeDef.id,
     groupId,

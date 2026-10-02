@@ -161,9 +161,15 @@ export default function CompaniesPage() {
     });
     
     if (response.ok) {
-      setCompanies(companies.map(company => 
+      setCompanies((prev) => prev.map(company =>
         company.id === companyId ? { ...company, status: newStatus } : company
       ));
+    } else {
+      toast({
+        title: 'Error',
+        description: 'Failed to update company status',
+        variant: 'destructive',
+      });
     }
   };
 

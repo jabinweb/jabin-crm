@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // Total emails sent
     const totalSent = await prisma.emailLog.count({
-      where: { userId, status: { in: ['SENT', 'OPENED', 'CLICKED'] } },
+      where: { userId, status: { in: ['SENT', 'DELIVERED', 'OPENED', 'CLICKED', 'REPLIED'] } },
     });
 
     // Email engagement metrics

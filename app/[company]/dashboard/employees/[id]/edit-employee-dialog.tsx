@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { Button } from '@/components/ui/button'
@@ -53,8 +53,12 @@ type OrgOption = { id: string; name: string }
 
 export function EditEmployeeDialog({ employee, onUpdate }: EditEmployeeDialogProps) {
   const params = useParams<{ company?: string }>()
-  const tenantHeaders =
-    typeof params?.company === 'string' ? workspaceSlugHeaders(params.company) : {}
+  const company = typeof params?.company === 'string' ? params.company : undefined
+  // Memoized: a new object each render re-ran the options effect in a loop while open
+  const tenantHeaders = useMemo(
+    () => (company ? workspaceSlugHeaders(company) : {}),
+    [company]
+  )
   const [formData, setFormData] = useState({
     name: employee.name || '',
     email: employee.email || '',

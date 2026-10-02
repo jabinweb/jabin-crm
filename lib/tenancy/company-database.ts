@@ -211,7 +211,11 @@ export async function healthCheckCompanyDatabase(companyId: string) {
       where: { id: companyId },
       data: {
         databaseLastError: test.error,
-        databaseMode: 'FAILED',
+        // A live BYO tenant must stay BYO_ACTIVE: flipping it to FAILED makes
+        // getDataPrisma() silently fall back to the shared DB (split-brain writes).
+        ...(prevMode === 'BYO_ACTIVE' || prevMode === 'MIGRATING'
+          ? {}
+          : { databaseMode: 'FAILED' }),
       },
     });
     throw new Error(test.error);

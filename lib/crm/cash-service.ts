@@ -1,3 +1,4 @@
+import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 import { prisma } from '@/lib/prisma';
 import type { CashEntryType } from '@prisma/client';
 
@@ -45,9 +46,12 @@ export class CashService {
       entryType?: CashEntryType;
       startDate?: Date;
       endDate?: Date;
+      /** Limit to technicians of this workspace (creator may belong to several). */
+      companyId?: string;
     }
   ) {
     const where: any = { userId };
+    if (filters?.companyId) where.technician = workspaceStaffWhere(filters.companyId);
     if (filters?.technicianId) where.technicianId = filters.technicianId;
     if (filters?.ticketId) where.ticketId = filters.ticketId;
     if (filters?.entryType) where.entryType = filters.entryType;
@@ -71,9 +75,12 @@ export class CashService {
     });
   }
 
-  async getTechnicianBalances(userId: string) {
+  async getTechnicianBalances(userId: string, companyId?: string) {
     const entries = await prisma.cashOnHandEntry.findMany({
-      where: { userId },
+      where: {
+        userId,
+        ...(companyId ? { technician: workspaceStaffWhere(companyId) } : {}),
+      },
       select: {
         technicianId: true,
         entryType: true,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { trackEmailReply, findEmailLogForReply } from '@/lib/email/email-logger';
 import { prisma } from '@/lib/prisma';
 import { verifyEmailWebhookSecret } from '@/lib/email-webhook-auth';
+import { auth } from '@/auth';
 
 /**
  * Webhook endpoint to receive email replies (SendGrid, Mailgun, etc.).
@@ -101,15 +102,28 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { emailLogId, replySubject, replyBody } = await request.json();
-    
+
     if (!emailLogId || !replySubject || !replyBody) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
       );
     }
-    
+
+    const owned = await prisma.emailLog.findFirst({
+      where: { id: emailLogId, userId: session.user.id },
+      select: { id: true },
+    });
+    if (!owned) {
+      return NextResponse.json({ error: 'Email not found' }, { status: 404 });
+    }
+
     const log = await trackEmailReply(emailLogId, replySubject, replyBody);
     
     return NextResponse.json({ success: true, log });

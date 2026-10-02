@@ -46,7 +46,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
 
   const body = await request.json().catch(() => ({}));
   const action = body.action as DocAiAction;
-  if (!(action in ACTIONS)) {
+  if (typeof action !== 'string' || !Object.prototype.hasOwnProperty.call(ACTIONS, action)) {
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   }
 

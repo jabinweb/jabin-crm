@@ -6,8 +6,44 @@ function parseHm(hm: string): { h: number; m: number } {
   return { h: h || 0, m: m || 0 }
 }
 
-function minutesSinceMidnight(d: Date): number {
-  return d.getHours() * 60 + d.getMinutes()
+/**
+ * Wall-clock timezone for HR punches. Shift times like "09:00" are local to the
+ * workforce, not the server (which usually runs in UTC).
+ */
+export const HR_TIME_ZONE = process.env.HR_TIMEZONE || 'Asia/Kolkata'
+
+/** Calendar date and time-of-day of `d` in the HR timezone. */
+export function hrZonedParts(d: Date): {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+} {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: HR_TIME_ZONE,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hourCycle: 'h23',
+  }).formatToParts(d)
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? '0', 10) || 0
+  return {
+    year: get('year'),
+    month: get('month'),
+    day: get('day'),
+    hour: get('hour') % 24,
+    minute: get('minute'),
+  }
+}
+
+/** Minutes since midnight in the HR timezone. */
+export function minutesSinceMidnight(d: Date): number {
+  const { hour, minute } = hrZonedParts(d)
+  return hour * 60 + minute
 }
 
 export async function getActiveShiftForEmployee(employeeId: string, at = new Date()) {

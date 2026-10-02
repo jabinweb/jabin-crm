@@ -3,7 +3,10 @@ import type { Session } from 'next-auth'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { hasLegacyRole } from '@/lib/auth/permissions'
-import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership'
+import {
+  resolveCompanyContextFromRequest,
+  userHasCompanyAccess,
+} from '@/lib/auth/company-membership'
 import { asNextRequest } from '@/lib/api/as-next-request'
 
 function companyIdFromSessionUser(user: unknown): string | undefined {
@@ -61,6 +64,14 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const fromQuery = searchParams.get('companyId')?.trim()
+    // ?companyId= is only honoured for a workspace the caller belongs to
+    if (
+      fromQuery &&
+      !hasLegacyRole(session, 'SUPER_ADMIN') &&
+      !(await userHasCompanyAccess(session.user.id!, fromQuery))
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
     const companyId = fromQuery || (await resolveCompanyId(session, request))
 
     if (!companyId) {

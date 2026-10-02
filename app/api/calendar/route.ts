@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { calendarService } from '@/lib/crm/calendar-service';
 import { CalendarEventType } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,6 +69,30 @@ export async function POST(request: NextRequest) {
         { error: 'Title, start time, and end time are required' },
         { status: 400 }
       );
+    }
+    if (
+      Number.isNaN(new Date(startTime).getTime()) ||
+      Number.isNaN(new Date(endTime).getTime())
+    ) {
+      return NextResponse.json({ error: 'Invalid start or end time' }, { status: 400 });
+    }
+
+    // A linked lead / deal must belong to the workspace making the request
+    if (leadId || dealId) {
+      let companyId: string | undefined;
+      try {
+        companyId = (await resolveCompanyContextFromRequest(session, request)).companyId;
+      } catch {
+        /* no workspace */
+      }
+      if (
+        !companyId ||
+        (leadId && !(await prisma.lead.count({ where: { id: String(leadId), companyId } }))) ||
+        (dealId &&
+          !(await prisma.deal.count({ where: { id: String(dealId), lead: { companyId } } })))
+      ) {
+        return NextResponse.json({ error: 'Lead or deal not found' }, { status: 404 });
+      }
     }
 
     const event = await calendarService.createEvent({

@@ -191,7 +191,7 @@ export default function TasksPage() {
           description: form.description,
           type: form.type,
           priority: form.priority,
-          dueDate: form.dueDate || undefined,
+          dueDate: form.dueDate || null,
         }),
       });
       if (!res.ok) {

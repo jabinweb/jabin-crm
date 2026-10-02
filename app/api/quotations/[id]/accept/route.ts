@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { accessibleDocWhere } from '@/lib/crm/company-doc-scope';
+import { prisma } from '@/lib/prisma';
 import { quotationService } from '@/lib/crm/quotation-service';
 
 export async function POST(
@@ -9,8 +11,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('QUOTATIONS');
+    const session = await withModuleAccess('QUOTATIONS');
     const { id } = await params;
+
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.quotation.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+    }
     
     const quotation = await quotationService.acceptQuotation(id);
 

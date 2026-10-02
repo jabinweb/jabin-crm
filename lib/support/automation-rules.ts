@@ -34,7 +34,13 @@ export interface SupportAutomationSettings {
 export function parseAutomationRules(raw: unknown): AutomationRule[] {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return [];
   const obj = raw as SupportAutomationSettings;
-  return Array.isArray(obj.rules) ? obj.rules : [];
+  // Rules are admin-supplied JSON; drop malformed entries so the engine can't crash on them.
+  return Array.isArray(obj.rules)
+    ? obj.rules.filter(
+        (r): r is AutomationRule =>
+          !!r && typeof r === 'object' && typeof r.trigger === 'string' && Array.isArray(r.actions)
+      )
+    : [];
 }
 
 export function ruleMatches(

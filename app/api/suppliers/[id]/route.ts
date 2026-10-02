@@ -14,7 +14,21 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (typeof body.email === 'string') data.email = body.email.trim();
   if (typeof body.phone === 'string') data.phone = body.phone.trim();
   if (typeof body.address === 'string') data.address = body.address.trim();
-  if (body.rating !== undefined) data.rating = Number(body.rating);
+  if (body.rating === null || body.rating === '') {
+    data.rating = null;
+  } else if (body.rating !== undefined) {
+    const rating = Number(body.rating);
+    if (Number.isNaN(rating) || rating < 0 || rating > 5) {
+      return NextResponse.json({ error: 'rating must be between 0 and 5' }, { status: 400 });
+    }
+    data.rating = rating;
+  }
+  if ((data.name === '' || data.email === '' || data.phone === '' || data.address === '')) {
+    return NextResponse.json(
+      { error: 'name, email, phone, and address cannot be empty' },
+      { status: 400 }
+    );
+  }
 
   const updated = await prisma.supplier.updateMany({
     where: { id, companyId },

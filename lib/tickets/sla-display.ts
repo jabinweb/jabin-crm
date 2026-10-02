@@ -11,6 +11,8 @@ export function getPrimarySlaDue(ticket: {
   status?: string;
   responseDueAt?: string | Date | null;
   resolutionDueAt?: string | Date | null;
+  firstRespondedAt?: string | Date | null;
+  /** @deprecated legacy name; schema field is firstRespondedAt */
   firstResponseAt?: string | Date | null;
 }): Date | null {
   const closed = ticket.status === 'RESOLVED' || ticket.status === 'CLOSED';
@@ -18,7 +20,7 @@ export function getPrimarySlaDue(ticket: {
 
   const responseDue = ticket.responseDueAt ? new Date(ticket.responseDueAt) : null;
   const resolutionDue = ticket.resolutionDueAt ? new Date(ticket.resolutionDueAt) : null;
-  const hasResponded = Boolean(ticket.firstResponseAt);
+  const hasResponded = Boolean(ticket.firstRespondedAt ?? ticket.firstResponseAt);
 
   if (!hasResponded && responseDue) return responseDue;
   return resolutionDue ?? responseDue;

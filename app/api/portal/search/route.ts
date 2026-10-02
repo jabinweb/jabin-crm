@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       prisma.quotation.findMany({
         where: {
           customerId: access.customerId,
+          status: { not: 'DRAFT' },
           OR: [{ title: contains }, { quotationNumber: contains }],
         },
         select: {

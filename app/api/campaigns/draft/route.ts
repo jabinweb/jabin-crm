@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/api-error-handler';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { withModuleAccess, afterCampaignCreated } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,6 +20,15 @@ export async function POST(request: NextRequest) {
 
     if (!leadId || !subject || !body) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
+    const lead = await prisma.lead.findFirst({
+      where: { id: leadId, companyId },
+      select: { id: true },
+    });
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
 
     // Create a campaign for this draft
@@ -64,6 +74,6 @@ export async function POST(request: NextRequest) {
     if (!isApiException(error)) {
       console.error('Error saving draft:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }

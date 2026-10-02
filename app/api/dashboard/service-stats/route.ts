@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { resolveOptionalStaffCompanyScope } from '@/lib/tenant/scope-staff-query';
 import { listRenewalAlerts } from '@/lib/crm/service-contract-service';
+import { TenantError } from '@/lib/auth/company-membership';
+import { handleRouteError } from '@/lib/api/tenant-response';
 
 function hoursBetween(a: Date, b: Date): number {
   return (b.getTime() - a.getTime()) / (1000 * 60 * 60);
@@ -22,7 +24,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Company context required' }, { status: 400 });
     }
 
-    const days = parseInt(req.nextUrl.searchParams.get('days') ?? '30', 10);
+    const parsedDays = parseInt(req.nextUrl.searchParams.get('days') ?? '30', 10);
+    const days = Number.isFinite(parsedDays) ? Math.min(Math.max(parsedDays, 1), 365) : 30;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const ticketWhere = {
       createdAt: { gte: since },
@@ -127,6 +130,10 @@ export async function GET(req: NextRequest) {
       renewalsDue: renewals,
     });
   } catch (error) {
+    // TenantError (403/404) and feature-gate ApiException (403) keep their status
+    if (error instanceof TenantError || (error instanceof Error && 'statusCode' in error)) {
+      return handleRouteError(error);
+    }
     console.error('[service-stats]', error);
     return NextResponse.json({ error: 'Failed to load service stats' }, { status: 500 });
   }

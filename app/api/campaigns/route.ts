@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/api-error-handler';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { withModuleAccess, afterCampaignCreated } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (!isApiException(error)) {
       console.error('Error fetching campaigns:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }
 
@@ -50,6 +51,20 @@ export async function POST(request: NextRequest) {
     const session = await withModuleAccess('EMAIL_OUTREACH', { quota: 'campaigns' });
 
     const data = await request.json();
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
+
+    // Only leads from the current workspace may be added as recipients.
+    const requestedIds: string[] = Array.isArray(data.leadIds)
+      ? Array.from(new Set<string>(data.leadIds.filter((x: unknown) => typeof x === 'string')))
+      : [];
+    const leadIds = requestedIds.length
+      ? (
+          await prisma.lead.findMany({
+            where: { id: { in: requestedIds }, companyId },
+            select: { id: true },
+          })
+        ).map((l) => l.id)
+      : [];
 
     // Create campaign
     const campaign = await prisma.emailCampaign.create({
@@ -67,9 +82,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Add leads to campaign
-    if (data.leadIds && data.leadIds.length > 0) {
+    if (leadIds.length > 0) {
       await prisma.emailCampaignLead.createMany({
-        data: data.leadIds.map((leadId: string) => ({
+        data: leadIds.map((leadId: string) => ({
           campaignId: campaign.id,
           leadId,
           status: 'PENDING',
@@ -79,7 +94,7 @@ export async function POST(request: NextRequest) {
       // Update total recipients
       await prisma.emailCampaign.update({
         where: { id: campaign.id },
-        data: { totalRecipients: data.leadIds.length },
+        data: { totalRecipients: leadIds.length },
       });
     }
 
@@ -90,6 +105,6 @@ export async function POST(request: NextRequest) {
     if (!isApiException(error)) {
       console.error('Error creating campaign:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }

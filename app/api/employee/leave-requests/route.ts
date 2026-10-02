@@ -82,6 +82,19 @@ export async function POST(request: Request) {
       })
       if (!balance) throw new Error('Leave balance missing')
 
+      const overlapping = await tx.leaveRequest.findFirst({
+        where: {
+          employeeId: session.user.employeeId!,
+          status: { in: ['PENDING', 'APPROVED'] },
+          startDate: { lte: end },
+          endDate: { gte: start },
+        },
+        select: { id: true },
+      })
+      if (overlapping) {
+        throw new Error('These dates overlap an existing pending or approved leave request')
+      }
+
       const remaining = balance.entitled - balance.used - balance.pending
       if (days > remaining) {
         throw new Error(

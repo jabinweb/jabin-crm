@@ -94,6 +94,19 @@ export async function POST(request: Request) {
       })
       if (!balance) throw new Error('Leave balance missing')
 
+      const overlapping = await tx.leaveRequest.findFirst({
+        where: {
+          employeeId: session.user.employeeId!,
+          status: { in: ['PENDING', 'APPROVED'] },
+          startDate: { lte: end },
+          endDate: { gte: start },
+        },
+        select: { id: true },
+      })
+      if (overlapping) {
+        throw new Error('These dates overlap an existing pending or approved leave request')
+      }
+
       const remaining = balance.entitled - balance.used - balance.pending
       if (days > remaining) {
         throw new Error(
@@ -163,6 +176,17 @@ export async function PATCH(request: Request) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Only cancel if still pending (a manager may have acted concurrently).
+      const claimed = await tx.leaveRequest.updateMany({
+        where: { id, status: 'PENDING' },
+        data: {
+          status: 'REJECTED',
+          comment: body.comment || 'Cancelled by employee',
+          actionById: session.user.employeeId,
+          actionAt: new Date(),
+        },
+      })
+      if (claimed.count === 0) return null
       if (existing.policyId) {
         const year = existing.startDate.getFullYear()
         const balance = await tx.leaveBalance.findUnique({
@@ -183,16 +207,11 @@ export async function PATCH(request: Request) {
           })
         }
       }
-      return tx.leaveRequest.update({
-        where: { id },
-        data: {
-          status: 'REJECTED',
-          comment: body.comment || 'Cancelled by employee',
-          actionById: session.user.employeeId,
-          actionAt: new Date(),
-        },
-      })
+      return tx.leaveRequest.findUnique({ where: { id } })
     })
+    if (!updated) {
+      return NextResponse.json({ error: 'Only pending leave can be cancelled' }, { status: 400 })
+    }
 
     return NextResponse.json(updated)
   } catch (error) {

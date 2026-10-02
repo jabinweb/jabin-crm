@@ -19,9 +19,17 @@ function isLateCheckIn(checkIn: Date | null | undefined) {
 /**
  * Company-wide attendance + personal punch state + daily sales-activity pulse.
  */
-export const GET = withTenantRoute(async (_req, { companyId, userId, employeeId, session }) => {
+export const GET = withTenantRoute(async (_req, { companyId, userId, session }) => {
   const dayStart = startOfLocalDay();
   const dayEnd = endOfLocalDay();
+
+  // The session employeeId belongs to the user's home workspace; resolve the
+  // employee profile (if any) that belongs to the requested workspace.
+  const myEmployee = await prisma.employee.findFirst({
+    where: { userId, companyId },
+    select: { id: true },
+  });
+  const employeeId = myEmployee?.id;
 
   const activeEmployees = await prisma.employee.findMany({
     where: {

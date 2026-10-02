@@ -37,11 +37,18 @@ export async function deleteCompanyCascade(
       const deletedUserIds: string[] = [];
       const detachedUserIds: string[] = [];
 
+      // Platform owners may hold a membership for support access — never delete them
+      const superAdmins = await tx.user.findMany({
+        where: { id: { in: memberUserIds }, role: 'SUPER_ADMIN' },
+        select: { id: true },
+      });
+      const superAdminIds = new Set<string>(superAdmins.map((u: { id: string }) => u.id));
+
       for (const userId of memberUserIds) {
         const otherMemberships = await tx.userCompany.count({
           where: { userId, NOT: { companyId } },
         });
-        if (otherMemberships === 0) {
+        if (otherMemberships === 0 && !superAdminIds.has(userId)) {
           deletedUserIds.push(userId);
         } else {
           detachedUserIds.push(userId);

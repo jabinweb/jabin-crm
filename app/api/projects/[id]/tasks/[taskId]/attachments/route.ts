@@ -30,9 +30,23 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   const task = await assertProjectTask(companyId, params.id, params.taskId);
   if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const url = typeof body.url === 'string' ? body.url.trim() : '';
   if (!url) return NextResponse.json({ error: 'url required' }, { status: 400 });
+  // Rendered as a link — only http(s) or same-origin paths (no javascript:/data:)
+  if (!/^(https?:\/\/|\/(?!\/))/i.test(url)) {
+    return NextResponse.json({ error: 'Invalid url' }, { status: 400 });
+  }
+
+  let commentId: string | null = null;
+  if (typeof body.commentId === 'string' && body.commentId) {
+    const comment = await prisma.projectTaskComment.findFirst({
+      where: { id: body.commentId, taskId: params.taskId },
+      select: { id: true },
+    });
+    if (!comment) return NextResponse.json({ error: 'Comment not found' }, { status: 404 });
+    commentId = comment.id;
+  }
 
   const source =
     typeof body.source === 'string' &&
@@ -50,7 +64,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
       fileId: typeof body.fileId === 'string' ? body.fileId : null,
       uploadedById: session.user.id,
       source,
-      commentId: typeof body.commentId === 'string' ? body.commentId : null,
+      commentId,
     },
     include: {
       uploadedBy: { select: { id: true, name: true } },

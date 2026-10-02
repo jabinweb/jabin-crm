@@ -8,6 +8,26 @@ import {
   TenantError,
 } from '@/lib/auth/company-membership';
 
+/** Keep only user ids that belong to the workspace (support groups drive auto-assignment). */
+async function filterWorkspaceMemberIds(companyId: string, ids: unknown): Promise<string[]> {
+  if (!Array.isArray(ids)) return [];
+  const wanted = Array.from(new Set(ids.filter((v): v is string => typeof v === 'string' && !!v)));
+  if (!wanted.length) return [];
+  const users = await prisma.user.findMany({
+    where: {
+      id: { in: wanted },
+      role: { not: 'CUSTOMER' },
+      OR: [
+        { companyId },
+        { primaryCompanyId: companyId },
+        { userCompanies: { some: { companyId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return users.map((u) => u.id);
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -31,12 +51,16 @@ export async function PATCH(
       return NextResponse.json({ error: 'Group not found' }, { status: 404 });
     }
 
+    const memberIds = Array.isArray(body.memberIds)
+      ? await filterWorkspaceMemberIds(companyId, body.memberIds)
+      : null;
+
     const group = await prisma.$transaction(async (tx) => {
-      if (Array.isArray(body.memberIds)) {
+      if (memberIds) {
         await tx.supportGroupMember.deleteMany({ where: { groupId: id } });
-        if (body.memberIds.length) {
+        if (memberIds.length) {
           await tx.supportGroupMember.createMany({
-            data: body.memberIds.map((userId: string) => ({ groupId: id, userId })),
+            data: memberIds.map((userId: string) => ({ groupId: id, userId })),
           });
         }
       }

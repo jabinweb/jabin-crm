@@ -1,9 +1,24 @@
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { Prisma } from '@prisma/client';
 import type { Invoice, InvoiceItem, InvoiceStatus } from '@prisma/client';
+import { ApiErrors } from '@/lib/api-error-handler';
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Infer the stored GST split type from a saved taxBreakup JSON. */
+function gstTypeFromBreakup(breakup: unknown): 'CGST_SGST' | 'IGST' | null {
+  if (!breakup || typeof breakup !== 'object') return null;
+  const b = breakup as { cgst?: number; sgst?: number; igst?: number };
+  if ((b.igst ?? 0) > 0) return 'IGST';
+  if ((b.cgst ?? 0) > 0 || (b.sgst ?? 0) > 0) return 'CGST_SGST';
+  return null;
+}
 
 export interface CreateInvoiceInput {
   userId: string;
+  /** Request workspace; used to scope auto-created leads */
+  companyId?: string;
   leadId?: string;
   dealId?: string;
   customerId?: string;
@@ -19,6 +34,8 @@ export interface CreateInvoiceInput {
   taxRate?: number;
   discount?: number;
   dueInDays?: number;
+  /** Explicit due date (YYYY-MM-DD or ISO); takes precedence over dueInDays */
+  dueDate?: string;
   paymentMethod?: string;
   terms?: string;
   notes?: string;
@@ -80,15 +97,16 @@ export class InvoiceService {
           startsWith: `${prefix}${year}${month}`,
         },
       },
+      // Highest number, not most recent row (rows can be created out of sequence)
       orderBy: {
-        createdAt: 'desc',
+        invoiceNumber: 'desc',
       },
     });
 
     let sequence = 1;
     if (lastInvoice) {
-      const lastSequence = parseInt(lastInvoice.invoiceNumber.slice(-4));
-      sequence = lastSequence + 1;
+      const lastSequence = parseInt(lastInvoice.invoiceNumber.slice(`${prefix}${year}${month}`.length), 10);
+      sequence = (Number.isFinite(lastSequence) ? lastSequence : 0) + 1;
     }
 
     return `${prefix}${year}${month}${sequence.toString().padStart(4, '0')}`;
@@ -118,17 +136,19 @@ export class InvoiceService {
    */
   async createInvoice(input: CreateInvoiceInput) {
     try {
-      const invoiceNumber = await this.generateInvoiceNumber();
-      
       const { subtotal, taxAmount, total } = this.calculateTotals(
         input.items,
         input.taxRate || 0,
         input.discount || 0
       );
 
-      const dueDate = input.dueInDays
-        ? new Date(Date.now() + input.dueInDays * 24 * 60 * 60 * 1000)
-        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
+      const explicitDue = input.dueDate ? new Date(input.dueDate) : null;
+      const dueDate =
+        explicitDue && !Number.isNaN(explicitDue.getTime())
+          ? explicitDue
+          : input.dueInDays
+            ? new Date(Date.now() + input.dueInDays * 24 * 60 * 60 * 1000)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
 
       // Auto-create customer as lead if they don't exist
       let leadId = input.leadId;
@@ -137,6 +157,8 @@ export class InvoiceService {
           where: {
             userId: input.userId,
             email: input.customerEmail,
+            // Do not attach the invoice to a lead from another workspace
+            ...(input.companyId ? { companyId: input.companyId } : {}),
           },
         });
 
@@ -154,6 +176,7 @@ export class InvoiceService {
               companyName: input.customerName, // Using customer name as company name for now
               status: 'NEW',
               source: 'INVOICE',
+              companyId: input.companyId ?? null,
             },
           });
           leadId = newLead.id;
@@ -170,18 +193,23 @@ export class InvoiceService {
         customerId: input.customerId,
         customerEmail: input.customerEmail,
         userId: input.userId,
+        companyId: input.companyId,
       });
 
       const currency = await resolveDocumentCurrency({
         explicit: input.currency,
         customerId,
         customerEmail: input.customerEmail,
+        companyId: input.companyId,
         userId: input.userId,
       });
 
       const taxBreakup = buildGstTaxBreakup(taxAmount, input.gstTaxType);
 
-      const invoice = await prisma.invoice.create({
+      // Invoice numbers are globally unique; retry when a concurrent create took ours.
+      const createWithNumber = async () => {
+        const invoiceNumber = await this.generateInvoiceNumber();
+        return prisma.invoice.create({
         data: {
           invoiceNumber,
           userId: input.userId,
@@ -239,6 +267,21 @@ export class InvoiceService {
           quotation: true,
         },
       });
+      };
+
+      let invoice!: Awaited<ReturnType<typeof createWithNumber>>;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          invoice = await createWithNumber();
+          break;
+        } catch (err) {
+          const isNumberClash =
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002' &&
+            JSON.stringify(err.meta ?? {}).includes('invoiceNumber');
+          if (!isNumberClash || attempt >= 4) throw err;
+        }
+      }
 
       logger.info({
         invoiceId: invoice.id,
@@ -258,10 +301,20 @@ export class InvoiceService {
    */
   async sendInvoice(invoiceId: string) {
     try {
+      const existing = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        select: { status: true },
+      });
+      if (!existing) throw ApiErrors.notFound('Invoice');
+      if (existing.status === 'CANCELLED' || existing.status === 'REFUNDED') {
+        throw ApiErrors.badRequest(`Cannot send a ${existing.status.toLowerCase()} invoice`);
+      }
+
       const invoice = await prisma.invoice.update({
         where: { id: invoiceId },
         data: {
-          status: 'SENT',
+          // Re-sending must not move a paid/partial/overdue invoice back to SENT
+          status: existing.status === 'DRAFT' ? 'SENT' : existing.status,
           sentAt: new Date(),
         },
         include: {
@@ -314,15 +367,18 @@ export class InvoiceService {
       });
 
       if (!invoice) {
-        throw new Error('Invoice not found');
+        throw ApiErrors.notFound('Invoice');
       }
 
       if (invoice.status === 'PAID') {
-        throw new Error('Invoice is already paid');
+        throw ApiErrors.badRequest('Invoice is already paid');
+      }
+      if (invoice.status === 'CANCELLED' || invoice.status === 'REFUNDED') {
+        throw ApiErrors.badRequest(`Cannot record a payment on a ${invoice.status.toLowerCase()} invoice`);
       }
 
-      const newAmountPaid = invoice.amountPaid + paymentInput.amount;
-      const newAmountDue = invoice.total - newAmountPaid;
+      const newAmountPaid = round2(invoice.amountPaid + paymentInput.amount);
+      const newAmountDue = round2(invoice.total - newAmountPaid);
 
       let newStatus: InvoiceStatus = invoice.status;
       if (newAmountDue <= 0) {
@@ -339,6 +395,15 @@ export class InvoiceService {
       ]
         .filter(Boolean)
         .join(' · ');
+
+      // Optimistic concurrency: fail instead of losing a concurrent payment
+      const guard = await prisma.invoice.updateMany({
+        where: { id: invoiceId, amountPaid: invoice.amountPaid, status: invoice.status },
+        data: { amountPaid: newAmountPaid },
+      });
+      if (guard.count === 0) {
+        throw ApiErrors.conflict('Invoice was updated concurrently; please retry');
+      }
 
       const updatedInvoice = await prisma.invoice.update({
         where: { id: invoiceId },
@@ -537,6 +602,14 @@ export class InvoiceService {
               id: true,
               name: true,
               email: true,
+              profile: {
+                select: {
+                  companyName: true,
+                  companyEmail: true,
+                  companyPhone: true,
+                  companyAddress: true,
+                },
+              },
             },
           },
           payments: true,
@@ -730,7 +803,7 @@ export class InvoiceService {
       });
 
       if (!existingInvoice) {
-        throw new Error('Invoice not found or access denied');
+        throw ApiErrors.notFound('Invoice');
       }
 
       let updateData: any = {
@@ -752,6 +825,11 @@ export class InvoiceService {
           : {}),
       };
 
+      if (input.dueDate) {
+        const due = new Date(input.dueDate);
+        if (!Number.isNaN(due.getTime())) updateData.dueDate = due;
+      }
+
       // Handle payment details
       if (input.bankName || input.accountName || input.accountNumber || 
           input.routingNumber || input.swiftCode || input.iban || 
@@ -767,38 +845,43 @@ export class InvoiceService {
         });
       }
 
-      // Update items if provided
-      if (input.items && input.items.length > 0) {
+      const hasNewItems = !!(input.items && input.items.length > 0);
+      const gstTaxType =
+        input.gstTaxType !== undefined
+          ? input.gstTaxType
+          : gstTypeFromBreakup(existingInvoice.taxBreakup);
+
+      // Recompute totals whenever items, tax rate or discount change (fall back to stored values)
+      if (hasNewItems || input.taxRate !== undefined || input.discount !== undefined) {
         const { subtotal, taxAmount, total } = this.calculateTotals(
-          input.items,
-          input.taxRate || 0,
-          input.discount || 0
+          hasNewItems ? input.items! : existingInvoice.items,
+          input.taxRate ?? existingInvoice.taxRate,
+          input.discount ?? existingInvoice.discount
         );
 
         updateData.subtotal = subtotal;
         updateData.taxAmount = taxAmount;
         updateData.total = total;
-        updateData.amountDue = total - existingInvoice.amountPaid;
-        updateData.taxBreakup = buildGstTaxBreakup(taxAmount, input.gstTaxType) ?? undefined;
+        updateData.amountDue = Math.max(0, round2(total - existingInvoice.amountPaid));
+        updateData.taxBreakup = buildGstTaxBreakup(taxAmount, gstTaxType) ?? Prisma.DbNull;
+      } else if (input.gstTaxType !== undefined) {
+        updateData.taxBreakup =
+          buildGstTaxBreakup(existingInvoice.taxAmount, input.gstTaxType) ?? Prisma.DbNull;
+      }
 
-        // Delete existing items and create new ones
-        await prisma.invoiceItem.deleteMany({
-          where: { invoiceId },
-        });
-
+      if (hasNewItems) {
+        // Replace items atomically with the invoice update
         updateData.items = {
-          create: input.items.map((item) => ({
+          deleteMany: {},
+          create: input.items!.map((item) => ({
             name: item.name,
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
-            amount: item.quantity * item.unitPrice,
+            amount: round2(item.quantity * item.unitPrice),
             hsnSac: item.hsnSac?.trim() || null,
           })),
         };
-      } else if (input.gstTaxType !== undefined) {
-        updateData.taxBreakup =
-          buildGstTaxBreakup(existingInvoice.taxAmount, input.gstTaxType) ?? undefined;
       }
 
       const invoice = await prisma.invoice.update({

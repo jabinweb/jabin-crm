@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 
 type AttendanceRow = {
   id: string
+  date?: string
   createdAt: string
   checkIn: string | null
   checkOut: string | null
@@ -71,7 +72,8 @@ export default function AttendancePage() {
   const byDay = useMemo(() => {
     const map = new Map<string, AttendanceRow>()
     for (const row of monthRows) {
-      const key = format(new Date(row.createdAt), 'yyyy-MM-dd')
+      // `date` is the attendance calendar day (UTC midnight); fall back to createdAt.
+      const key = row.date ? row.date.slice(0, 10) : format(new Date(row.createdAt), 'yyyy-MM-dd')
       map.set(key, row)
     }
     return map

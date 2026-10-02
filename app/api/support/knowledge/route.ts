@@ -142,11 +142,16 @@ export async function GET(req: NextRequest) {
         ...(adminList && companyId ? { companyId } : companyFilter),
         ...tagFilter,
         ...(category ? { category } : {}),
+        // AND (not OR) so the search clause can't overwrite companyFilter's OR
         ...(q
           ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { content: { contains: q, mode: 'insensitive' } },
+              AND: [
+                {
+                  OR: [
+                    { title: { contains: q, mode: 'insensitive' as const } },
+                    { content: { contains: q, mode: 'insensitive' as const } },
+                  ],
+                },
               ],
             }
           : {}),
@@ -204,6 +209,9 @@ export async function POST(req: NextRequest) {
 
     const { companyId } = await resolveCompanyContextFromRequest(session, req);
     const body = await req.json();
+    if (typeof body.title !== 'string' || !body.title.trim() || typeof body.content !== 'string') {
+      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
+    }
     const slug =
       body.slug ||
       body.title
@@ -219,7 +227,7 @@ export async function POST(req: NextRequest) {
         category: body.category,
         tags: body.tags ?? [],
         published: body.published ?? false,
-        companyId: body.companyId ?? companyId,
+        companyId: role === 'SUPER_ADMIN' && body.companyId ? body.companyId : companyId,
       },
     });
 

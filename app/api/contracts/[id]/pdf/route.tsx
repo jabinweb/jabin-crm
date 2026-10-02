@@ -43,7 +43,9 @@ export const GET = withTenantRoute(async (_req, { companyId }, routeContext) => 
   const element = <ContractPDF contract={pdfData} />;
   const buffer = await renderToBuffer(element);
 
-  const filename = `contract-${contract.contractNumber || contract.id.slice(0, 8)}.pdf`;
+  // contractNumber is user-entered; keep the Content-Disposition header well-formed
+  const safeNumber = (contract.contractNumber || contract.id.slice(0, 8)).replace(/[^A-Za-z0-9._-]/g, '_');
+  const filename = `contract-${safeNumber}.pdf`;
   return new NextResponse(Buffer.from(buffer), {
     status: 200,
     headers: {

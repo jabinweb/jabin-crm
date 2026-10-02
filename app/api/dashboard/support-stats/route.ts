@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { TenantError } from '@/lib/auth/company-membership';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { ensureFeatureEnabled } from '@/lib/feature-modules';
 import { resolveOptionalStaffCompanyScope } from '@/lib/tenant/scope-staff-query';
 
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Company context required' }, { status: 400 });
     }
 
-    const days = parseInt(req.nextUrl.searchParams.get('days') ?? '30', 10);
+    const parsedDays = parseInt(req.nextUrl.searchParams.get('days') ?? '30', 10);
+    const days = Number.isFinite(parsedDays) ? Math.min(Math.max(parsedDays, 1), 365) : 30;
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
     const ticketWhere = {
@@ -159,6 +161,10 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+    // Feature-gate ApiException (403) keeps its status instead of becoming a 500
+    if (error instanceof Error && 'statusCode' in error) {
+      return handleRouteError(error);
     }
     console.error('[api/dashboard/support-stats]', error);
     return NextResponse.json({ error: 'Failed to load support stats' }, { status: 500 });

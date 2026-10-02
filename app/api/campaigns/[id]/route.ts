@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/api-error-handler';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { withModuleAccess } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function GET(
   request: NextRequest,
@@ -44,7 +45,7 @@ export async function GET(
     if (!isApiException(error)) {
       console.error('Error fetching campaign:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }
 
@@ -91,28 +92,43 @@ export async function PATCH(
     });
 
     // Update leads if provided
-    if (data.leadIds) {
+    if (Array.isArray(data.leadIds)) {
+      // Only leads from the current workspace may be added as recipients.
+      const { companyId } = await resolveCompanyContextFromRequest(session, request);
+      const requestedIds = Array.from(
+        new Set<string>(data.leadIds.filter((x: unknown) => typeof x === 'string'))
+      );
+      const leadIds = requestedIds.length
+        ? (
+            await prisma.lead.findMany({
+              where: { id: { in: requestedIds }, companyId },
+              select: { id: true },
+            })
+          ).map((l) => l.id)
+        : [];
+
       // Remove existing leads
       await prisma.emailCampaignLead.deleteMany({
         where: { campaignId: id },
       });
 
       // Add new leads
-      if (data.leadIds.length > 0) {
+      if (leadIds.length > 0) {
         await prisma.emailCampaignLead.createMany({
-          data: data.leadIds.map((leadId: string) => ({
+          data: leadIds.map((leadId: string) => ({
             campaignId: id,
             leadId,
             status: 'PENDING',
           })),
         });
-
-        // Update total recipients
-        await prisma.emailCampaign.update({
-          where: { id },
-          data: { totalRecipients: data.leadIds.length },
-        });
       }
+
+      // Update total recipients (also resets to 0 when all leads are removed)
+      const updated = await prisma.emailCampaign.update({
+        where: { id },
+        data: { totalRecipients: leadIds.length },
+      });
+      return NextResponse.json(updated);
     }
 
     return NextResponse.json(campaign);
@@ -120,7 +136,7 @@ export async function PATCH(
     if (!isApiException(error)) {
       console.error('Error updating campaign:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }
 
@@ -160,6 +176,6 @@ export async function DELETE(
     if (!isApiException(error)) {
       console.error('Error deleting campaign:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }

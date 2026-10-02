@@ -93,13 +93,21 @@ export function handleApiError(error: unknown, context?: Record<string, any>): N
   // Custom API errors
   if (error instanceof Error && 'statusCode' in error) {
     const apiError = error as ApiError;
+    const status =
+      typeof apiError.statusCode === 'number' && apiError.statusCode >= 400 && apiError.statusCode <= 599
+        ? apiError.statusCode
+        : 500;
+    // Third-party errors (SDKs, HTTP clients) also carry `statusCode`; only our own
+    // ApiException messages are safe to echo for server-side failures in production.
+    const expose =
+      error instanceof ApiException || status < 500 || process.env.NODE_ENV !== 'production';
     return NextResponse.json(
       {
-        error: apiError.message,
-        code: apiError.code || 'API_ERROR',
-        details: apiError.details,
+        error: expose ? apiError.message : 'An unexpected error occurred',
+        code: (expose && apiError.code) || 'API_ERROR',
+        ...(error instanceof ApiException ? { details: apiError.details } : {}),
       },
-      { status: apiError.statusCode || 500 }
+      { status }
     );
   }
 

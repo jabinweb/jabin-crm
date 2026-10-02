@@ -50,13 +50,31 @@ export default function EmployeeTimesheetsPage() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const today = new Date().toISOString().slice(0, 10)
+      // Local calendar date (toISOString() is UTC and gives "yesterday" early morning in IST)
+      const now = new Date()
+      const ymd = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const today = ymd(now)
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + (now.getDay() === 0 ? -6 : 1 - now.getDay()))
+      // The API replaces the whole week's entries, so keep the other days already logged.
+      const thisWeek = sheets.find((s) => s.weekStart.slice(0, 10) === ymd(monday))
+      const otherDays = (thisWeek?.entries ?? [])
+        .filter((e) => e.date.slice(0, 10) !== today)
+        .map((e) => ({
+          date: e.date.slice(0, 10),
+          hours: e.hours,
+          note: e.note ?? undefined,
+          projectId: e.projectId ?? undefined,
+        }))
       const res = await fetch('/api/hr/timesheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'upsert',
+          weekStart: ymd(monday),
           entries: [
+            ...otherDays,
             {
               date: today,
               hours: Number(hours),
@@ -67,9 +85,13 @@ export default function EmployeeTimesheetsPage() {
           ],
         }),
       })
-      if (!res.ok) throw new Error('Failed')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed')
+      }
       return res.json()
     },
+    onError: (e: Error) => toast.error(e.message || 'Could not save timesheet'),
     onSuccess: (sheet: { id: string }) => {
       toast.success('Saved')
       void qc.invalidateQueries({ queryKey: ['my-timesheets'] })

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
-import { PROJECT_INCLUDE } from '@/lib/projects/agency-delivery';
+import { PROJECT_INCLUDE, invalidProjectLink } from '@/lib/projects/agency-delivery';
 import { aggregateProjectHours } from '@/lib/projects/delivery-hours';
 import {
   getCompanyProjectTaskSettings,
@@ -76,7 +76,7 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   }
 
   const id = (await routeContext!.params).id;
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
 
   const data: Record<string, unknown> = {};
   if (typeof body.name === 'string') data.name = body.name.trim();
@@ -123,6 +123,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
   if (!existing) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
+  const linkError = await invalidProjectLink(prisma, companyId, {
+    customerId: data.customerId as string | null | undefined,
+    dealId: data.dealId as string | null | undefined,
+    pmUserId: data.pmUserId as string | null | undefined,
+  });
+  if (linkError) return NextResponse.json({ error: linkError }, { status: 400 });
 
   const project = await prisma.project.update({
     where: { id },

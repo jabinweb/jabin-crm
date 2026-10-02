@@ -59,6 +59,16 @@ export function withApiRoute(options: {
           }
         }
 
+        // Portal customers carry companyId/primaryCompanyId, so membership checks pass for
+        // them — but staff tenant routes are not theirs. Portal APIs resolve the tenant
+        // themselves (resolveCompanyContextFromRequest / withStaffRoute with own checks).
+        if (
+          (authMode === 'tenant' || authMode === 'tenant-optional') &&
+          hasLegacyRole(session as Session, 'CUSTOMER')
+        ) {
+          throw ApiErrors.forbidden();
+        }
+
         if (authMode === 'tenant') {
           const tenant = await resolveCompanyContextFromRequest(session, request);
           companyId = tenant.companyId;

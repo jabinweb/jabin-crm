@@ -544,9 +544,11 @@ export function validateCustomFields(
   type: PortalTicketTypeDefinition,
   customFields: Record<string, string> | undefined
 ): string | null {
-  const values = customFields ?? {};
+  const values: Record<string, unknown> =
+    customFields && typeof customFields === 'object' ? customFields : {};
   for (const field of type.fields) {
-    const value = values[field.id]?.trim() ?? '';
+    const raw = values[field.id];
+    const value = raw === undefined || raw === null ? '' : String(raw).trim();
     if (field.required && !value) {
       return `${field.label} is required`;
     }

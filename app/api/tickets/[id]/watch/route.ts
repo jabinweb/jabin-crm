@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma'
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route'
 import { ticketService } from '@/lib/crm/ticket-service'
 
-export const GET = withTenantRoute(async (request, { session }, routeContext) => {
+export const GET = withTenantRoute(async (request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const ticketId = (await routeContext.params).id
   const ticket = await prisma.supportTicket.findFirst({
-    where: { id: ticketId },
-    include: { customer: { select: { companyId: true } } },
+    where: { id: ticketId, customer: { companyId } },
+    select: { id: true },
   })
   if (!ticket) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -19,9 +20,13 @@ export const GET = withTenantRoute(async (request, { session }, routeContext) =>
   return jsonOk({ watching, watchers })
 })
 
-export const POST = withTenantRoute(async (_request, { session }, routeContext) => {
+export const POST = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const ticketId = (await routeContext.params).id
-  const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } })
+  const ticket = await prisma.supportTicket.findFirst({
+    where: { id: ticketId, customer: { companyId } },
+    select: { id: true },
+  })
   if (!ticket) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   await prisma.ticketWatcher.upsert({
@@ -33,7 +38,9 @@ export const POST = withTenantRoute(async (_request, { session }, routeContext) 
     ticketId,
     'WATCH',
     `${session.user.name || 'Agent'} started watching`,
-    session.user.id
+    session.user.id,
+    undefined,
+    true
   )
   return jsonOk({ watching: true })
 })

@@ -10,6 +10,7 @@ import {
 import {
   evaluateCheckInStatus,
   getActiveShiftForEmployee,
+  minutesSinceMidnight,
 } from '@/lib/hr/shift-attendance';
 import { attendanceDateOnly } from '@/lib/hr/leave-year';
 
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (shift && status === AttendanceStatus.LATE) {
       const [h, m] = shift.startTime.split(':').map((x) => parseInt(x, 10));
       const startMins = (h || 0) * 60 + (m || 0);
-      const actual = now.getHours() * 60 + now.getMinutes();
+      const actual = minutesSinceMidnight(now);
       lateMinutes = Math.max(0, actual - startMins - shift.graceMinutes);
     }
 

@@ -9,6 +9,8 @@ import {
 } from '@/lib/auth/company-membership'
 import { resolveOrgLabels } from '@/lib/hr/employee-id'
 import { logEmployeeActivity } from '@/lib/hr/activity'
+import { hasLegacyRole } from '@/lib/auth/permissions'
+import type { Prisma } from '@prisma/client'
 
 export async function GET(
   request: NextRequest,
@@ -19,6 +21,9 @@ export async function GET(
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const employee = await prisma.employee.findUnique({
@@ -74,6 +79,10 @@ export async function PATCH(
       })
     }
 
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const id = (await params).id
     const role = (session.user as { role?: string }).role as string
     const hasWorkspace = request.headers.get(WORKSPACE_SLUG_HEADER)?.trim()
@@ -96,23 +105,70 @@ export async function PATCH(
       }
     }
 
-    const body = await request.json()
+    const raw = await request.json().catch(() => ({}))
+    // Only HR-editable profile fields; never id/companyId/userId/employeeId/isApproved etc.
+    const EDITABLE = [
+      'name', 'email', 'phone', 'address', 'jobTitle', 'department', 'avatar',
+      'employmentType', 'status', 'role', 'dateJoined', 'dateOfBirth', 'gender',
+      'emergencyContact', 'customFields',
+      'departmentId', 'designationId', 'branchId', 'managerId',
+    ] as const
+    const body: Record<string, unknown> = {}
+    for (const key of EDITABLE) {
+      if (raw && typeof raw === 'object' && key in raw) body[key] = (raw as Record<string, unknown>)[key]
+    }
+    for (const key of ['dateJoined', 'dateOfBirth'] as const) {
+      if (body[key] != null) {
+        const d = new Date(body[key] as string)
+        if (Number.isNaN(d.getTime())) {
+          return NextResponse.json({ error: `Invalid ${key}` }, { status: 400 })
+        }
+        body[key] = d
+      }
+    }
+    if (body.managerId === id) {
+      return NextResponse.json({ error: 'An employee cannot be their own manager' }, { status: 400 })
+    }
+    const refChecks: Array<Promise<unknown>> = [
+      body.departmentId
+        ? prisma.hrDepartment.findFirst({ where: { id: String(body.departmentId), companyId: existing.companyId }, select: { id: true } })
+        : Promise.resolve(true),
+      body.designationId
+        ? prisma.hrDesignation.findFirst({ where: { id: String(body.designationId), companyId: existing.companyId }, select: { id: true } })
+        : Promise.resolve(true),
+      body.branchId
+        ? prisma.hrBranch.findFirst({ where: { id: String(body.branchId), companyId: existing.companyId }, select: { id: true } })
+        : Promise.resolve(true),
+      body.managerId
+        ? prisma.employee.findFirst({ where: { id: String(body.managerId), companyId: existing.companyId }, select: { id: true } })
+        : Promise.resolve(true),
+    ]
+    if ((await Promise.all(refChecks)).some((r) => !r)) {
+      return NextResponse.json(
+        { error: 'Invalid department, designation, branch or manager' },
+        { status: 400 }
+      )
+    }
+
     const labels = await resolveOrgLabels({
-      departmentId: body.departmentId !== undefined ? body.departmentId : existing.departmentId,
-      designationId: body.designationId !== undefined ? body.designationId : existing.designationId,
-      department: body.department,
-      jobTitle: body.jobTitle,
+      departmentId:
+        body.departmentId !== undefined ? (body.departmentId as string | null) : existing.departmentId,
+      designationId:
+        body.designationId !== undefined ? (body.designationId as string | null) : existing.designationId,
+      department: body.department as string | undefined,
+      jobTitle: body.jobTitle as string | undefined,
     })
 
     const employee = await prisma.employee.update({
       where: { id },
       data: {
-        ...body,
+        ...(body as unknown as Prisma.EmployeeUncheckedUpdateInput),
         ...(labels.department ? { department: labels.department } : {}),
         ...(labels.jobTitle ? { jobTitle: labels.jobTitle } : {}),
       },
       include: {
-        user: true,
+        // Never return the linked user's password hash / tokens
+        user: { select: { id: true, name: true, email: true, role: true, image: true } },
         hrDepartment: { select: { id: true, name: true } },
         designation: { select: { id: true, name: true } },
         branch: { select: { id: true, name: true } },
@@ -164,6 +220,9 @@ export async function DELETE(
         error: "Unauthorized",
         message: "You must be logged in to delete an employee"
       }, { status: 401 });
+    }
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { companyId } = await resolveCompanyContextFromRequest(session, request)

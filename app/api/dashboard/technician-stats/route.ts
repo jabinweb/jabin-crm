@@ -1,21 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { endOfMonth, startOfMonth } from 'date-fns';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
+import { tenantErrorResponse } from '@/lib/api/tenant-response';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        // A user can belong to several workspaces — only this workspace's tickets
+        const { companyId } = await resolveCompanyContextFromRequest(session, request);
+
         const technicianId = session.user.id;
         const now = new Date();
         const monthStart = startOfMonth(now);
         const monthEnd = endOfMonth(now);
 
-        const ticketBase = { assignedTechnicianId: technicianId };
+        const ticketBase = { assignedTechnicianId: technicianId, customer: { companyId } };
 
         const [assigned, inProgress, resolved, activeTickets, recentReports] =
             await Promise.all([
@@ -52,7 +57,7 @@ export async function GET() {
                     },
                 }),
                 prisma.serviceReport.findMany({
-                    where: { technicianId },
+                    where: { technicianId, ticket: { customer: { companyId } } },
                     orderBy: { createdAt: 'desc' },
                     take: 6,
                     select: {
@@ -79,6 +84,7 @@ export async function GET() {
             recentReports,
         });
     } catch (error) {
+        if (error instanceof TenantError) return tenantErrorResponse(error);
         console.error('[api/dashboard/technician-stats]', error);
         return NextResponse.json(
             { error: 'Internal server error' },

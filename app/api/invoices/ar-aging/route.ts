@@ -28,7 +28,8 @@ export const GET = withTenantRoute(async (_req, { companyId, userId }) => {
       status: { in: OPEN_STATUSES },
       amountDue: { gt: 0 },
       OR: [
-        { userId },
+        // Own invoices only when not linked to another workspace's customer/lead
+        { userId, customerId: null, leadId: null },
         { customer: { companyId } },
         { lead: { companyId } },
       ],

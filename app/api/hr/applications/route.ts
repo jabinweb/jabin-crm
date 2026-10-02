@@ -109,6 +109,13 @@ export async function POST(request: Request) {
         where: { id: applicationId, job: { companyId } },
       })
       if (!app) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      if (body.interviewerId) {
+        const interviewer = await prisma.employee.findFirst({
+          where: { id: String(body.interviewerId), companyId },
+          select: { id: true },
+        })
+        if (!interviewer) return NextResponse.json({ error: 'Interviewer not found' }, { status: 400 })
+      }
 
       const interview = await prisma.interview.create({
         data: {
@@ -154,6 +161,19 @@ export async function POST(request: Request) {
         include: { candidate: true, job: true },
       })
       if (!app) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      if (app.stage === 'HIRED') {
+        return NextResponse.json({ error: 'Candidate already hired' }, { status: 400 })
+      }
+      const emailTaken = await prisma.employee.findUnique({
+        where: { email: app.candidate.email },
+        select: { id: true },
+      })
+      if (emailTaken) {
+        return NextResponse.json(
+          { error: 'An employee with this email already exists' },
+          { status: 409 }
+        )
+      }
 
       const { nextEmployeeCode } = await import('@/lib/hr/employee-id')
       const { startOnboardingForEmployee } = await import('@/lib/hr/onboarding')

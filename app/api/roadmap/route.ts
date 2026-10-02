@@ -3,8 +3,9 @@ import { prisma } from '@/lib/prisma'
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route'
 import { hasLegacyRole } from '@/lib/auth/permissions'
 
-export const GET = withTenantRoute(async (request, { companyId }) => {
-  const publishedOnly = new URL(request.url).searchParams.get('public') === '1'
+export const GET = withTenantRoute(async (request, { session, companyId }) => {
+  const publishedOnly =
+    new URL(request.url).searchParams.get('public') === '1' || session.user.role === 'CUSTOMER'
   const items = await prisma.roadmapItem.findMany({
     where: {
       companyId: companyId!,

@@ -189,7 +189,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
               <div className="flex items-center gap-2 mb-4">
                 {/* <DollarSign className="h-5 w-5 text-muted-foreground" /> */}
                 <span className="text-2xl font-semibold">
-                  ${product.price.toFixed(2)}
+                  ${(product.price ?? 0).toFixed(2)}
                 </span>
               </div>
               <Separator className="my-4" />

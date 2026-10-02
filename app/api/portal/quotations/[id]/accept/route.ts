@@ -23,7 +23,7 @@ export async function POST(
     const { id } = await params;
     const existing = await prisma.quotation.findFirst({
       where: { id, ...portalBillingWhere(scope) },
-      select: { id: true, status: true },
+      select: { id: true, status: true, validUntil: true },
     });
     if (!existing) {
       return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
@@ -31,6 +31,13 @@ export async function POST(
     if (!ACCEPTABLE.has(existing.status)) {
       return NextResponse.json(
         { error: `Cannot accept a quotation in ${existing.status} status` },
+        { status: 400 }
+      );
+    }
+
+    if (existing.validUntil && existing.validUntil.getTime() < Date.now()) {
+      return NextResponse.json(
+        { error: 'This quotation has expired. Please contact us for an updated quote.' },
         { status: 400 }
       );
     }

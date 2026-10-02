@@ -42,6 +42,9 @@ export default function EmployeeDashboard() {
 
     if (session?.user?.employeeId) {
       fetchEmployeeData()
+    } else if (session) {
+      // No employee profile to load — don't leave the skeleton up forever
+      setLoading(false)
     }
   }, [session])
 

@@ -28,10 +28,14 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
   const task = await assertProjectTask(companyId, params.id, params.taskId);
   if (!task) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const hours = Number(body.hours);
   if (!Number.isFinite(hours) || hours <= 0) {
     return NextResponse.json({ error: 'Valid hours required' }, { status: 400 });
+  }
+  const loggedAt = body.loggedAt ? new Date(body.loggedAt) : new Date();
+  if (Number.isNaN(loggedAt.getTime())) {
+    return NextResponse.json({ error: 'Invalid date' }, { status: 400 });
   }
 
   const worklog = await prisma.projectTaskWorklog.create({
@@ -40,7 +44,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
       userId: session.user.id,
       hours,
       note: typeof body.note === 'string' ? body.note.trim() || null : null,
-      loggedAt: body.loggedAt ? new Date(body.loggedAt) : new Date(),
+      loggedAt,
     },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },

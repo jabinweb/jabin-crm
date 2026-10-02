@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { accessibleDocWhere } from '@/lib/crm/company-doc-scope';
+import { prisma } from '@/lib/prisma';
 import { quotationService } from '@/lib/crm/quotation-service';
 import { validateRequest } from '@/lib/validations/server';
 import { z } from 'zod';
@@ -13,6 +15,7 @@ const updateQuotationSchema = z.object({
   customerEmail: z.string().email().optional(),
   customerPhone: z.string().optional(),
   customerAddress: z.string().optional(),
+  currency: z.string().optional(),
   taxRate: z.number().min(0).max(100).optional(),
   discount: z.number().min(0).optional(),
   validityDays: z.number().min(1).optional(),
@@ -33,8 +36,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('QUOTATIONS');
+    const session = await withModuleAccess('QUOTATIONS');
     const { id } = await params;
+
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.quotation.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+    }
     
     const quotation = await quotationService.getQuotation(id);
     
@@ -54,8 +63,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('QUOTATIONS');
+    const session = await withModuleAccess('QUOTATIONS');
     const { id } = await params;
+
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.quotation.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+    }
     
     const validatedData = await validateRequest(req, updateQuotationSchema);
     
@@ -73,8 +88,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('QUOTATIONS');
+    const session = await withModuleAccess('QUOTATIONS');
     const { id } = await params;
+
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.quotation.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Quotation not found' }, { status: 404 });
+    }
     
     await quotationService.deleteQuotation(id);
 

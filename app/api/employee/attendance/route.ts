@@ -12,13 +12,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const today = attendanceDateOnly()
+    const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1))
     const attendance = await prisma.attendance.findMany({
       where: {
         employeeId: session.user.employeeId,
-        createdAt: {
-          gte: new Date(new Date().setDate(1)), // Start of current month
-          lte: new Date(), // Today
-        },
+        // Whole current month (HR-timezone calendar days), not from "now" on the 1st.
+        date: { gte: monthStart, lte: today },
       },
       orderBy: {
         createdAt: 'desc',
@@ -38,8 +38,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const session = await auth()
-    console.log('Session:', JSON.stringify(session, null, 2))
-    
+
     if (!session?.user?.employeeId) {
       console.log('No employeeId in session:', session?.user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -49,16 +48,13 @@ export async function POST(request: Request) {
     console.log('Action:', action)
     
     const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
 
-    // Check if attendance record exists for today
-    let attendance = await prisma.attendance.findFirst({
+    // Today's row, keyed the same way as the unique (employeeId, date) constraint
+    let attendance = await prisma.attendance.findUnique({
       where: {
-        employeeId: session.user.employeeId,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
+        employeeId_date: {
+          employeeId: session.user.employeeId,
+          date: attendanceDateOnly(now),
         },
       },
     })
@@ -100,16 +96,20 @@ export async function POST(request: Request) {
         })
       }
 
-      console.log('Creating new attendance record for today')
-      attendance = await prisma.attendance.create({
-        data: {
-          id: randomUUID(),
-          employeeId: session.user.employeeId,
-          date: attendanceDateOnly(now),
-          checkIn: now,
-          status: AttendanceStatus.PRESENT,
-        },
-      })
+      attendance = attendance
+        ? await prisma.attendance.update({
+            where: { id: attendance.id },
+            data: { checkIn: now, status: AttendanceStatus.PRESENT },
+          })
+        : await prisma.attendance.create({
+            data: {
+              id: randomUUID(),
+              employeeId: session.user.employeeId,
+              date: attendanceDateOnly(now),
+              checkIn: now,
+              status: AttendanceStatus.PRESENT,
+            },
+          })
       console.log('Created attendance:', attendance)
     } else if (action === 'clockOut') {
       // For clock out, use today's attendance or the most recent unclosed one

@@ -1,6 +1,7 @@
 import type { Session } from 'next-auth';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getDataPrisma } from '@/lib/prisma-tenant';
 import {
   resolveCompanyContextFromRequest,
   TenantError,
@@ -66,34 +67,45 @@ type TicketTenantRow = {
   customer: { companyId: string | null } | null;
 };
 
+/** Data-plane client for a portal customer's workspace (BYO aware). */
+async function customerDataPrisma(session: Session) {
+  const companyId = session.user?.companyId ?? session.user?.primaryCompanyId;
+  return companyId ? getDataPrisma(companyId) : prisma;
+}
+
 /** Returns null when ticket missing or caller lacks tenant access (use 404). */
 export async function assertTicketTenantAccess(
   session: Session,
   req: NextRequest,
   ticketId: string
 ): Promise<TicketTenantRow | null> {
-  const ticket = await prisma.supportTicket.findUnique({
-    where: { id: ticketId },
-    select: {
-      id: true,
-      customerId: true,
-      customer: { select: { companyId: true } },
-    },
-  });
-  if (!ticket) return null;
+  const select = {
+    id: true,
+    customerId: true,
+    customer: { select: { companyId: true } },
+  };
 
   if (session.user?.role === 'CUSTOMER') {
+    const db = await customerDataPrisma(session);
+    const ticket = await db.supportTicket.findUnique({ where: { id: ticketId }, select });
+    if (!ticket) return null;
     return ticket.customerId === session.user.customerId ? ticket : null;
   }
 
+  // Resolve the tenant first so BYO workspaces read the ticket from their own database
   const companyId = await resolveStaffCompanyScope(session, req, {
     allowGlobalForSuperAdmin: true,
   });
   if (!companyId) {
-    if (session.user?.role === 'SUPER_ADMIN') return ticket;
+    if (session.user?.role === 'SUPER_ADMIN') {
+      return prisma.supportTicket.findUnique({ where: { id: ticketId }, select });
+    }
     throw new TenantError(400, 'Company context required');
   }
 
+  const db = await getDataPrisma(companyId);
+  const ticket = await db.supportTicket.findUnique({ where: { id: ticketId }, select });
+  if (!ticket) return null;
   return ticket.customer?.companyId === companyId ? ticket : null;
 }
 
@@ -103,13 +115,12 @@ export async function assertCustomerTenantAccess(
   req: NextRequest,
   customerId: string
 ): Promise<{ id: string; companyId: string | null } | null> {
-  const customer = await prisma.customer.findUnique({
-    where: { id: customerId },
-    select: { id: true, companyId: true },
-  });
-  if (!customer) return null;
+  const select = { id: true, companyId: true };
 
   if (session.user?.role === 'CUSTOMER') {
+    const db = await customerDataPrisma(session);
+    const customer = await db.customer.findUnique({ where: { id: customerId }, select });
+    if (!customer) return null;
     return customer.id === session.user.customerId ? customer : null;
   }
 
@@ -117,9 +128,14 @@ export async function assertCustomerTenantAccess(
     allowGlobalForSuperAdmin: true,
   });
   if (!companyId) {
-    if (session.user?.role === 'SUPER_ADMIN') return customer;
+    if (session.user?.role === 'SUPER_ADMIN') {
+      return prisma.customer.findUnique({ where: { id: customerId }, select });
+    }
     throw new TenantError(400, 'Company context required');
   }
 
+  const db = await getDataPrisma(companyId);
+  const customer = await db.customer.findUnique({ where: { id: customerId }, select });
+  if (!customer) return null;
   return customer.companyId === companyId ? customer : null;
 }

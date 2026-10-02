@@ -4,6 +4,7 @@ import { withTenantRoute, jsonOk } from '@/lib/api/with-route'
 import { hasLegacyRole } from '@/lib/auth/permissions'
 import { ticketService } from '@/lib/crm/ticket-service'
 import { TicketPriority, TicketStatus } from '@prisma/client'
+import { isWorkspaceStaff } from '@/lib/auth/workspace-staff'
 
 export const POST = withTenantRoute(async (request, { session, companyId }) => {
   if (!hasLegacyRole(session, 'ADMIN', 'SUPPORT_MANAGER', 'SUPER_ADMIN', 'TECHNICIAN', 'SALES')) {
@@ -22,6 +23,20 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
 
   const action = body.action as string
   let updated = 0
+
+  if (body.status && !Object.values(TicketStatus).includes(body.status)) {
+    return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
+  }
+  if (body.priority && !Object.values(TicketPriority).includes(body.priority)) {
+    return NextResponse.json({ error: 'Invalid priority' }, { status: 400 })
+  }
+  if (
+    action === 'assign' &&
+    body.assignedTechnicianId &&
+    !(await isWorkspaceStaff(companyId!, String(body.assignedTechnicianId)))
+  ) {
+    return NextResponse.json({ error: 'Technician is not a member of this workspace' }, { status: 400 })
+  }
 
   if (action === 'set_status' && body.status) {
     for (const id of validIds) {

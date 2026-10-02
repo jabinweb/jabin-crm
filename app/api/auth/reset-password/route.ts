@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const record = await prisma.verificationToken.findFirst({
-      where: { identifier: email, token },
+      where: { identifier: { equals: email, mode: 'insensitive' }, token },
     });
 
     if (!record || record.expires < new Date()) {
@@ -40,7 +40,9 @@ export async function POST(request: NextRequest) {
       where: { id: user.id },
       data: { password: hashed },
     });
-    await prisma.verificationToken.deleteMany({ where: { identifier: email } });
+    await prisma.verificationToken.deleteMany({
+      where: { identifier: { equals: email, mode: 'insensitive' } },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

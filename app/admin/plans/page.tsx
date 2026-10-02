@@ -103,18 +103,29 @@ export default function PlansPage() {
       name: formData.name,
       displayName: formData.displayName,
       description: formData.description || null,
-      price: parseInt(formData.price) * 100, // Convert to paise
+      // Convert to paise — parseInt dropped the decimal part (₹499.50 → 49900)
+      price: Math.round(parseFloat(formData.price) * 100),
       currency: formData.currency,
       interval: formData.interval,
       maxLeads: parseInt(formData.maxLeads),
       maxEmails: parseInt(formData.maxEmails),
       maxCampaigns: parseInt(formData.maxCampaigns),
       isActive: formData.isActive,
-      features: formData.features
-        ? JSON.parse(formData.features)
-        : [],
       modules: formData.modules,
-    };
+    } as Record<string, unknown>;
+
+    // The form has no features editor: send [] on create, but leave an edited plan's
+    // existing features alone instead of wiping them on every save.
+    if (formData.features) {
+      try {
+        data.features = JSON.parse(formData.features);
+      } catch {
+        toast({ title: "Error", description: "Features must be valid JSON", variant: "destructive" });
+        return;
+      }
+    } else if (!editingPlan) {
+      data.features = [];
+    }
 
     try {
       const url = editingPlan

@@ -105,7 +105,7 @@ export default function InventoryPage() {
 
   const filteredStockLevels = inventoryData.data.products?.filter(product => 
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    (product.sku ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
 
   const handleStockAdjustment = async (data: {
@@ -286,8 +286,8 @@ export default function InventoryPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>${product.price.toFixed(2)}</TableCell>
-                      <TableCell>${(product.quantity * product.price).toFixed(2)}</TableCell>
+                      <TableCell>${(product.price ?? 0).toFixed(2)}</TableCell>
+                      <TableCell>${(product.quantity * (product.price ?? 0)).toFixed(2)}</TableCell>
                       <TableCell>
                         <Badge variant={
                           product.stockStatus.isLowStock

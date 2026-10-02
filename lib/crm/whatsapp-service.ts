@@ -542,9 +542,53 @@ export class WhatsAppService {
     };
   }
 
+  /**
+   * Verify Twilio's X-Twilio-Signature: base64(HMAC-SHA1(authToken, url + sorted key/value pairs)).
+   * `url` must be the exact public URL Twilio called (including the query string).
+   */
+  async verifyTwilioSignature(
+    userId: string,
+    url: string,
+    params: URLSearchParams,
+    signature: string | null
+  ): Promise<boolean> {
+    if (!signature) return false;
+    const config = await this.getProviderConfig(userId);
+    const authToken = config?.twilioAuthToken ? decrypt(config.twilioAuthToken) : '';
+    if (!authToken) return false;
+    const { createHmac, timingSafeEqual } = await import('crypto');
+    const data =
+      url +
+      Array.from(params.keys())
+        .filter((k, i, all) => all.indexOf(k) === i)
+        .sort()
+        .map((k) => params.getAll(k).map((v) => k + v).join(''))
+        .join('');
+    const expected = Buffer.from(createHmac('sha1', authToken).update(data).digest('base64'));
+    const given = Buffer.from(signature);
+    return expected.length === given.length && timingSafeEqual(expected, given);
+  }
+
+  /**
+   * Verify Meta's X-Hub-Signature-256 (`sha256=<hex HMAC of raw body with the app secret>`).
+   * The app secret isn't stored per user, so it comes from META_APP_SECRET; returns
+   * null when that env var is unset (verification not possible).
+   */
+  async verifyMetaSignature(rawBody: string, signature: string | null): Promise<boolean | null> {
+    const secret = process.env.META_APP_SECRET;
+    if (!secret) return null;
+    if (!signature) return false;
+    const { createHmac, timingSafeEqual } = await import('crypto');
+    const expected = Buffer.from(
+      `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`
+    );
+    const given = Buffer.from(signature);
+    return expected.length === given.length && timingSafeEqual(expected, given);
+  }
+
   async handleTwilioWebhook(formData: URLSearchParams, userId?: string) {
     const messageSid = formData.get('MessageSid');
-    const messageStatus = (formData.get('EmployeeMessageStatus') || '').toUpperCase();
+    const messageStatus = (formData.get('MessageStatus') || '').toUpperCase();
     const from = formData.get('From') || '';
     const to = formData.get('To') || '';
     const body = formData.get('Body') || '';
@@ -560,7 +604,7 @@ export class WhatsAppService {
 
     if (messageSid) {
       const existing = await prisma.whatsAppMessage.findFirst({
-        where: { externalMessageId: messageSid },
+        where: { externalMessageId: messageSid, ...(userId ? { userId } : {}) },
       });
 
       if (existing) {
@@ -609,7 +653,7 @@ export class WhatsAppService {
               : 'SENT';
 
       const existing = await prisma.whatsAppMessage.findFirst({
-        where: { externalMessageId: status.id },
+        where: { externalMessageId: status.id, ...(userId ? { userId } : {}) },
       });
       if (existing) {
         await prisma.whatsAppMessage.update({

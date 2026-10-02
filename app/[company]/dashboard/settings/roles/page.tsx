@@ -30,11 +30,11 @@ type RolesResponse = {
 const ROLE_OPTIONS = ['ADMIN', 'SALES', 'SUPPORT_MANAGER', 'TECHNICIAN'] as const;
 
 export default function RolesPermissionsPage() {
-  const { workspaceFetch } = useWorkspacePaths();
+  const { slug, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
-    queryKey: ['workspace-roles'],
+    queryKey: ['workspace-roles', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/workspace/roles');
       if (!res.ok) throw new Error('Failed to load roles');
@@ -54,7 +54,7 @@ export default function RolesPermissionsPage() {
         throw new Error(err.error || 'Failed to update role');
       }
       toast.success('Role updated');
-      queryClient.invalidateQueries({ queryKey: ['workspace-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-roles', slug] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Update failed');
     }

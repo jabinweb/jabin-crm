@@ -165,7 +165,25 @@ async function resolveInlineImage(
   }
   if (!image.url) return null;
   try {
-    const res = await fetch(image.url);
+    // Client-supplied URL fetched server-side: public https hosts only (no SSRF into
+    // localhost, private networks or cloud metadata endpoints)
+    const target = new URL(image.url);
+    const host = target.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+    if (
+      target.protocol !== 'https:' ||
+      host === 'localhost' ||
+      host.endsWith('.localhost') ||
+      host.endsWith('.internal') ||
+      /^(0|10|127)\./.test(host) ||
+      /^169\.254\./.test(host) ||
+      /^192\.168\./.test(host) ||
+      /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+      /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host) ||
+      host.includes(':')
+    ) {
+      return null;
+    }
+    const res = await fetch(target);
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     // Cap ~4MB decoded
@@ -549,15 +567,21 @@ export async function confirmToolRun(params: {
     throw new Error('Not allowed to run this tool');
   }
 
-  const apiKey = await resolveApiKey(params.userId);
-  const ctx = await buildAgentContext({
-    companyId: params.companyId,
-    userId: params.userId,
-    userRole: params.userRole,
-    userName: params.userName,
+  // Claim the run atomically so a double-click / retry cannot execute the write twice
+  const claimed = await prisma.agentToolRun.updateMany({
+    where: { id: run.id, status: 'pending' },
+    data: { status: 'executing' },
   });
+  if (claimed.count === 0) throw new Error('Pending tool run not found');
 
   try {
+    const apiKey = await resolveApiKey(params.userId);
+    const ctx = await buildAgentContext({
+      companyId: params.companyId,
+      userId: params.userId,
+      userRole: params.userRole,
+      userName: params.userName,
+    });
     const result = await tool.execute(
       run.args as Record<string, unknown>,
       ctx,

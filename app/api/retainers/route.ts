@@ -51,10 +51,22 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   const billingCycle =
     typeof body.billingCycle === 'string' ? body.billingCycle : 'MONTHLY';
   const startDate = body.startDate ? new Date(body.startDate) : new Date();
+  if (Number.isNaN(startDate.getTime())) {
+    return NextResponse.json({ error: 'Invalid startDate' }, { status: 400 });
+  }
   const projectId =
     typeof body.projectId === 'string' && body.projectId.trim()
       ? body.projectId.trim()
       : null;
+  if (projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, companyId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+  }
 
   let includedHours: number | null = null;
   if (body.includedHours !== undefined && body.includedHours !== null && body.includedHours !== '') {

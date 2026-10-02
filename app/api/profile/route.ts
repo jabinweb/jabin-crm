@@ -256,7 +256,21 @@ export async function POST(request: NextRequest) {
       isComplete: profile.isComplete,
     });
 
-    return NextResponse.json(profile);
+    // Same masked shape as GET — never echo stored (encrypted) secrets to the browser
+    const {
+      smtpPassword: savedSmtpPassword,
+      imapPassword: savedImapPassword,
+      geminiApiKey: savedGeminiApiKey,
+      googlePlacesApiKey: savedGooglePlacesApiKey,
+      ...profileData
+    } = profile;
+    return NextResponse.json({
+      ...profileData,
+      hasSmtpPassword: !!savedSmtpPassword,
+      hasImapPassword: !!savedImapPassword,
+      geminiApiKey: savedGeminiApiKey ? '••••••••' : '',
+      googlePlacesApiKey: savedGooglePlacesApiKey ? '••••••••' : '',
+    });
   } catch (error) {
     logError(error, { endpoint: 'POST /api/profile' });
     return handleApiError(error, {

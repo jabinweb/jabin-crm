@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
+
+function isHttpUrl(value: string): boolean {
+  if (value.startsWith('/') && !value.startsWith('//')) return true;
+  try {
+    const u = new URL(value);
+    return u.protocol === 'https:' || u.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
 
 export async function GET(
   req: NextRequest,
@@ -13,6 +23,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const { id } = await params;
+    const guard = await requireTicketRouteAccess(session, req, id);
+    if (!guard.ok) return guard.response;
+
     const attachments = await prisma.ticketAttachment.findMany({
       where: { ticketId: id },
       orderBy: { createdAt: 'desc' },
@@ -43,31 +56,12 @@ export async function POST(
       fileName?: string;
       contentType?: string;
     };
-    if (!url || typeof url !== 'string') {
-      return NextResponse.json({ error: 'url is required' }, { status: 400 });
+    if (!url || typeof url !== 'string' || !isHttpUrl(url)) {
+      return NextResponse.json({ error: 'A valid http(s) url is required' }, { status: 400 });
     }
 
-    const ticket = await prisma.supportTicket.findUnique({
-      where: { id },
-      select: { id: true, customer: { select: { companyId: true } } },
-    });
-    if (!ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
-    }
-
-    try {
-      const ctx = await resolveCompanyContextFromRequest(session, req);
-      if (
-        ticket.customer.companyId &&
-        ctx.companyId &&
-        ticket.customer.companyId !== ctx.companyId &&
-        session.user.role !== 'SUPER_ADMIN'
-      ) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-    } catch {
-      // portal customers may not have company context
-    }
+    const guard = await requireTicketRouteAccess(session, req, id);
+    if (!guard.ok) return guard.response;
 
     const attachment = await prisma.ticketAttachment.create({
       data: {

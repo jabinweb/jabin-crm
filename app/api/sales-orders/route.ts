@@ -83,7 +83,8 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   const lineItems = parseLineItems(body.lineItems);
   let totalAmount = Number(body.totalAmount);
   if (lineItems.length) {
-    totalAmount = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+    totalAmount =
+      Math.round(lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0) * 100) / 100;
   }
   const statusRaw = typeof body.status === 'string' ? body.status.trim().toUpperCase() : 'PENDING';
   const status = SO_STATUSES.has(statusRaw as SOStatus) ? (statusRaw as SOStatus) : 'PENDING';
@@ -97,7 +98,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   }
 
   if (lineItems.length) {
-    const ids = lineItems.map((i) => i.productId);
+    const ids = Array.from(new Set(lineItems.map((i) => i.productId)));
     const products = await prisma.product.findMany({
       where: { id: { in: ids }, companyId },
       select: { id: true },
@@ -108,7 +109,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   }
 
   const orderNumber = `SO-${Date.now()}`;
-  const productConnect = lineItems.map((i) => ({ id: i.productId }));
+  const productConnect = Array.from(new Set(lineItems.map((i) => i.productId))).map((pid) => ({ id: pid }));
 
   const order = await prisma.salesOrder.create({
     data: {

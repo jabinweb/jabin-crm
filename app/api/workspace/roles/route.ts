@@ -62,6 +62,13 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }) => 
     return NextResponse.json({ error: 'Valid userId and role are required' }, { status: 400 });
   }
 
+  // `hr:admin` holders may manage staff roles but must not mint workspace admins
+  // (or demote one) — that stays with ADMIN / SUPER_ADMIN.
+  const callerIsAdmin = hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN');
+  if (roleRaw === UserRole.ADMIN && !callerIsAdmin) {
+    return NextResponse.json({ error: 'Only an admin can grant the ADMIN role' }, { status: 403 });
+  }
+
   const member = await prisma.user.findFirst({
     where: {
       id: userId,
@@ -79,6 +86,31 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }) => 
 
   if (member.role === UserRole.SUPER_ADMIN) {
     return NextResponse.json({ error: 'Cannot change SUPER_ADMIN role' }, { status: 400 });
+  }
+  if (member.role === UserRole.ADMIN && !callerIsAdmin) {
+    return NextResponse.json({ error: 'Only an admin can change an admin' }, { status: 403 });
+  }
+
+  // User.role is global: changing it here would also change the user's rights in every
+  // other workspace they belong to, so only allow it for users scoped to this one.
+  if (!hasLegacyRole(session, 'SUPER_ADMIN')) {
+    const otherWorkspace = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        OR: [
+          { primaryCompanyId: { not: companyId } },
+          { companyId: { not: companyId } },
+          { userCompanies: { some: { companyId: { not: companyId } } } },
+        ],
+      },
+      select: { id: true },
+    });
+    if (otherWorkspace) {
+      return NextResponse.json(
+        { error: 'This user also belongs to another workspace; their role cannot be changed here' },
+        { status: 409 }
+      );
+    }
   }
 
   const updated = await prisma.user.update({

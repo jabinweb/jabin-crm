@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { handleApiError } from '@/lib/api-error-handler';
+import { handleRouteError } from '@/lib/api/tenant-response';
 import { withModuleAccess, afterEmailSent } from '@/lib/api/module-guard';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { sendEmail, createEmailHTML } from '@/lib/email/nodemailer';
 import { createEmailLog, updateEmailLogStatus } from '@/lib/email/email-logger';
 import { getUserSmtpConfig } from '@/lib/smtp-config';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +23,27 @@ export async function POST(request: NextRequest) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(to)) {
         return NextResponse.json({ error: 'Invalid email address' }, { status: 400 });
+      }
+
+      // Lead / campaign links must belong to the caller's workspace / user.
+      if (leadId) {
+        const { companyId } = await resolveCompanyContextFromRequest(session, request);
+        const ownLead = await prisma.lead.findFirst({
+          where: { id: leadId, companyId },
+          select: { id: true },
+        });
+        if (!ownLead) {
+          return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+        }
+      }
+      if (campaignId) {
+        const ownCampaign = await prisma.emailCampaign.findFirst({
+          where: { id: campaignId, userId: session.user.id },
+          select: { id: true },
+        });
+        if (!ownCampaign) {
+          return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+        }
       }
 
       // Create email log first
@@ -337,6 +359,6 @@ export async function POST(request: NextRequest) {
     if (!isApiException(error)) {
       console.error('Error in send email API:', error);
     }
-    return handleApiError(error);
+    return handleRouteError(error);
   }
 }

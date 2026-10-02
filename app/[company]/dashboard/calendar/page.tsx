@@ -194,8 +194,9 @@ export default function CalendarPage() {
           description: formData.description || undefined,
           location: formData.location || undefined,
           eventType: formData.eventType,
-          startTime: formData.startTime,
-          endTime: formData.endTime,
+          // datetime-local has no zone — send the user's local time as an absolute instant
+          startTime: new Date(formData.startTime).toISOString(),
+          endTime: new Date(formData.endTime).toISOString(),
           allDay: formData.allDay,
           attendees: formData.attendees ? formData.attendees.split(',').map(e => e.trim()) : undefined,
           meetingLink: formData.meetingLink || undefined,

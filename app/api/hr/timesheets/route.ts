@@ -4,12 +4,13 @@ import { prisma } from '@/lib/prisma'
 import { isHrAdminResult, requireHrAdmin } from '@/lib/hr/api-auth'
 import { attendanceDateOnly } from '@/lib/hr/leave-year'
 
+/** Monday of the HR-timezone week containing `d`, as a UTC-midnight date. */
 function weekStart(d = new Date()) {
-  const x = new Date(d)
-  const day = x.getDay()
+  const x = attendanceDateOnly(d)
+  const day = x.getUTCDay()
   const diff = day === 0 ? -6 : 1 - day
-  x.setDate(x.getDate() + diff)
-  return attendanceDateOnly(x)
+  x.setUTCDate(x.getUTCDate() + diff)
+  return x
 }
 
 export async function GET(request: Request) {
@@ -57,7 +58,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const body = await request.json()
-    const start = body.weekStart ? attendanceDateOnly(new Date(body.weekStart)) : weekStart()
+    const requested = body.weekStart ? new Date(body.weekStart) : new Date()
+    if (Number.isNaN(requested.getTime())) {
+      return NextResponse.json({ error: 'Invalid weekStart' }, { status: 400 })
+    }
+    // Always key by Monday so one week cannot get several sheets
+    const start = weekStart(requested)
 
     if (body.action === 'upsert') {
       const entries = Array.isArray(body.entries) ? body.entries : []
@@ -75,6 +81,12 @@ export async function POST(request: Request) {
         },
         update: {},
       })
+      if (sheet.status === 'APPROVED') {
+        return NextResponse.json(
+          { error: 'Approved timesheets cannot be edited' },
+          { status: 400 }
+        )
+      }
       await prisma.timesheetEntry.deleteMany({ where: { timesheetId: sheet.id } })
       if (entries.length) {
         await prisma.timesheetEntry.createMany({
@@ -109,6 +121,9 @@ export async function POST(request: Request) {
         where: { id, employeeId: session.user.employeeId },
       })
       if (!sheet) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      if (sheet.status === 'APPROVED') {
+        return NextResponse.json({ error: 'Timesheet already approved' }, { status: 400 })
+      }
       const updated = await prisma.timesheet.update({
         where: { id },
         data: { status: 'SUBMITTED' },
@@ -133,6 +148,9 @@ export async function PATCH(request: Request) {
       where: { id, employee: { companyId: ctx.companyId } },
     })
     if (!sheet) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (sheet.employeeId === ctx.session.user.employeeId) {
+      return NextResponse.json({ error: 'You cannot approve your own timesheet' }, { status: 403 })
+    }
     const status = body.status === 'REJECTED' ? 'REJECTED' : 'APPROVED'
     const updated = await prisma.timesheet.update({
       where: { id },

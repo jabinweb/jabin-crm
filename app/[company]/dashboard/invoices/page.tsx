@@ -86,7 +86,7 @@ export default function InvoicesPage() {
       const statsData = await statsRes.json();
       
       setInvoices(invoicesData.invoices || []);
-      setStats(statsData);
+      setStats(statsRes.ok ? statsData : null);
     } catch (error) {
       console.error("Failed to fetch invoices:", error);
     } finally {

@@ -100,9 +100,9 @@ export async function GET(request: NextRequest) {
         isWorkspaceAdmin
           ? (async () => {
               try {
-                const companyId =
-                  sessionCompanyId ||
-                  (await resolveCompanyContextFromRequest(session, request)).companyId
+                // The workspace being viewed, not the user's home company
+                const companyId = activeCompanyId || sessionCompanyId
+                if (!companyId) return null
                 return {
                   companyId,
                   count: await prisma.leaveRequest.count({

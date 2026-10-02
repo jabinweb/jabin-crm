@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { LeadStatus, AttendanceStatus, ActivityType } from '@prisma/client'
 import { NextRequest } from 'next/server'
+import { attendanceDateOnly } from '@/lib/hr/leave-year'
 
 export async function GET(req: NextRequest) {
   try {
@@ -113,13 +114,8 @@ export async function GET(req: NextRequest) {
         return unreadTotal(companyId, session.user.id);
       })(),
       prisma.attendance.findFirst({
-        where: {
-          employeeId,
-          AND: [
-            { createdAt: { gte: startOfDay } },
-            { createdAt: { lte: endOfDay } }
-          ]
-        },
+        // Same HR-timezone day key that check-in/check-out write
+        where: { employeeId, date: attendanceDateOnly(today) },
         select: {
           status: true,
           checkIn: true,

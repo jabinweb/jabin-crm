@@ -34,6 +34,15 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     typeof body.projectId === 'string' && body.projectId.trim()
       ? body.projectId.trim()
       : null;
+  if (projectId) {
+    const project = await prisma.project.findFirst({
+      where: { id: projectId as string, companyId },
+      select: { id: true },
+    });
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+  }
 
   const budget = await prisma.budget.create({
     data: { year, amount, companyId, projectId },

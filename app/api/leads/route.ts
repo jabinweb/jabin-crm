@@ -11,7 +11,8 @@ import '@/types/auth';
 
 const listHeaders = {
   'Content-Type': 'application/json',
-  'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=59',
+  // Tenant/user-specific data: never let shared caches store it.
+  'Cache-Control': 'private, no-store',
 };
 
 export const GET = withStaffRoute(async (req, { session }) => {
@@ -57,6 +58,11 @@ export const GET = withStaffRoute(async (req, { session }) => {
         { email: { contains: query, mode: 'insensitive' } },
       ],
     }),
+    // Used by the campaign recipient picker's industry / source filters.
+    ...(searchParams.get('industry') && {
+      industry: { equals: searchParams.get('industry')!, mode: 'insensitive' },
+    }),
+    ...(searchParams.get('source') && { source: searchParams.get('source')! }),
     ...(!isAdmin && employeeId && { employeeId }),
   };
 

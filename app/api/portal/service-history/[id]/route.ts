@@ -13,8 +13,8 @@ async function assertPortalAccess(reportId: string, userId: string) {
   const report = await serviceReportService.getReportById(reportId);
   if (!report) return { error: 'Not found' as const, status: 404 as const };
 
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  if (!isAdmin && user?.customerId !== report.ticket.customerId) {
+  // Customer-only: staff use /api/service-reports/[id]/pdf (tenant-scoped).
+  if (user?.role !== 'CUSTOMER' || !user.customerId || user.customerId !== report.ticket.customerId) {
     return { error: 'Forbidden' as const, status: 403 as const };
   }
   return { report };
@@ -88,9 +88,17 @@ export async function POST(
     );
   }
 
+  if (access.report!.signedAt) {
+    return NextResponse.json({ error: 'Report has already been signed' }, { status: 409 });
+  }
+  const signatureDataUrl = String(body.signatureDataUrl);
+  if (!/^data:image\/(png|jpeg);base64,/.test(signatureDataUrl) || signatureDataUrl.length > 2_000_000) {
+    return NextResponse.json({ error: 'Invalid signature image' }, { status: 400 });
+  }
+
   const updated = await serviceReportService.acknowledgeReport(id, {
     customerSignerName: String(body.customerSignerName),
-    signatureDataUrl: String(body.signatureDataUrl),
+    signatureDataUrl,
   });
   return NextResponse.json(updated);
 }

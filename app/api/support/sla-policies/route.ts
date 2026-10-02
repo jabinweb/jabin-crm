@@ -59,13 +59,28 @@ export async function POST(request: NextRequest) {
     if (!priority || !body.name || body.responseHours == null || body.resolutionHours == null) {
       return NextResponse.json({ error: 'Invalid SLA policy payload' }, { status: 400 });
     }
+    const responseHours = Number(body.responseHours);
+    const resolutionHours = Number(body.resolutionHours);
+    if (
+      !Object.values(TicketPriority).includes(priority) ||
+      !Number.isFinite(responseHours) ||
+      !Number.isFinite(resolutionHours) ||
+      responseHours <= 0 ||
+      resolutionHours <= 0
+    ) {
+      return NextResponse.json({ error: 'Invalid SLA policy payload' }, { status: 400 });
+    }
+    // Without a workspace this would overwrite the platform-wide default policy.
+    if (!companyId && role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ error: 'Company context required' }, { status: 400 });
+    }
 
     const policy = await upsertSlaPolicy({
       companyId,
       priority,
       name: body.name,
-      responseHours: Number(body.responseHours),
-      resolutionHours: Number(body.resolutionHours),
+      responseHours,
+      resolutionHours,
     });
 
     return NextResponse.json(policy);

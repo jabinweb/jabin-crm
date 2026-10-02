@@ -67,8 +67,18 @@ export class TaskService {
           OR: [
             { lead: { companyId: filters.companyId } },
             { deal: { lead: { companyId: filters.companyId } } },
-            { user: { primaryCompanyId: filters.companyId } },
-            { user: { userCompanies: { some: { companyId: filters.companyId } } } },
+            // Unlinked tasks of this workspace's members — a task tied to another
+            // workspace's lead/deal belongs to that workspace, not this one
+            {
+              leadId: null,
+              dealId: null,
+              user: {
+                OR: [
+                  { primaryCompanyId: filters.companyId },
+                  { userCompanies: { some: { companyId: filters.companyId } } },
+                ],
+              },
+            },
           ],
         }
       : { userId };
@@ -152,8 +162,10 @@ export class TaskService {
       const inCompany =
         task.lead?.companyId === scope.companyId ||
         task.deal?.lead?.companyId === scope.companyId ||
-        task.user.primaryCompanyId === scope.companyId ||
-        task.user.userCompanies.some((c) => c.companyId === scope.companyId);
+        (!task.leadId &&
+          !task.dealId &&
+          (task.user.primaryCompanyId === scope.companyId ||
+            task.user.userCompanies.some((c) => c.companyId === scope.companyId)));
       if (!inCompany) return null;
       return task;
     }
@@ -165,7 +177,10 @@ export class TaskService {
   /**
    * Update task
    */
-  async updateTask(taskId: string, data: Partial<CreateTaskData> & { status?: string }) {
+  async updateTask(
+    taskId: string,
+    data: Omit<Partial<CreateTaskData>, 'dueDate'> & { dueDate?: Date | null; status?: string }
+  ) {
     const updateData: any = {};
 
     if (data.title) updateData.title = data.title;

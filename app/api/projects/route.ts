@@ -5,6 +5,7 @@ import { getDataPrisma } from '@/lib/prisma-tenant';
 import {
   DEFAULT_MILESTONE_TEMPLATES,
   PROJECT_INCLUDE,
+  invalidProjectLink,
 } from '@/lib/projects/agency-delivery';
 
 export const GET = withTenantRoute(async (_request, { companyId }) => {
@@ -28,7 +29,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
   }
   const db = await getDataPrisma(companyId);
 
-  const body = await request.json();
+  const body = await request.json().catch(() => ({}));
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   if (!name) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -59,6 +60,8 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
       ? body.pmUserId.trim()
       : null;
   const withMilestones = body.withMilestones !== false;
+  const linkError = await invalidProjectLink(db, companyId, { customerId, dealId, pmUserId });
+  if (linkError) return NextResponse.json({ error: linkError }, { status: 400 });
 
   const project = await db.project.create({
     data: {

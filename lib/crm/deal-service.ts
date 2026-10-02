@@ -52,7 +52,7 @@ export class DealService {
         value: data.value,
         currency,
         stage: data.stage || 'PROSPECTING',
-        probability: data.probability || 50,
+        probability: data.probability ?? 50,
         expectedCloseDate: data.expectedCloseDate,
         notes: data.notes,
       },
@@ -98,10 +98,14 @@ export class DealService {
       minValue?: number;
       maxValue?: number;
       companyId?: string;
+      /** With companyId: only this user's deals in that workspace (non-admin view). */
+      ownOnly?: boolean;
     }
   ) {
     const where: any = filters?.companyId
-      ? { lead: { companyId: filters.companyId } }
+      ? filters.ownOnly
+        ? { userId, lead: { companyId: filters.companyId } }
+        : { lead: { companyId: filters.companyId } }
       : { userId };
 
     if (filters?.stage) where.stage = filters.stage;

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
 import { rejectIfOutsideCompanyPipeline } from '@/lib/pipelines/assert-stage';
+import { LeadStatus } from '@prisma/client';
+import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
 
 export async function PATCH(
   request: NextRequest,
@@ -20,15 +22,31 @@ export async function PATCH(
     const resolvedParams = await params;
     const data = await request.json();
 
+    if (
+      typeof data?.status !== 'string' ||
+      !(Object.values(LeadStatus) as string[]).includes(data.status)
+    ) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+    }
+
     const lead = await prisma.lead.findUnique({
       where: { id: resolvedParams.id },
     });
+
+    // Elevated roles may move any lead, but only within the request's workspace.
+    let workspaceId: string | undefined;
+    try {
+      workspaceId = (await resolveCompanyContextFromRequest(session, request)).companyId;
+    } catch {
+      /* fall back to creator-only access */
+    }
 
     const role = (session.user as { role?: string }).role;
     const canAccess =
       lead &&
       (lead.userId === session.user.id ||
-        (lead.companyId &&
+        (!!lead.companyId &&
+          lead.companyId === workspaceId &&
           ['ADMIN', 'SUPER_ADMIN', 'SALES', 'SUPPORT_MANAGER'].includes(String(role))));
 
     if (!canAccess) {

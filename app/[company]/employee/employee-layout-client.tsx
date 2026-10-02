@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DashboardSidebar from '@/components/layout/dashboard-sidebar'
 import { TopBar } from '@/components/navigation/top-bar'
@@ -32,6 +32,9 @@ export function EmployeeLayoutClient({
 }) {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const pathname = usePathname()
+  // Sign-in / self-registration pages must stay reachable without a session
+  const isPublicAuthPage = /\/employee\/(login|register)(\/|$)/.test(pathname ?? '')
   const { employeePath, path, slug } = useWorkspacePaths()
   const [moduleMap, setModuleMap] = useState<Record<string, boolean>>({})
 
@@ -46,7 +49,7 @@ export function EmployeeLayoutClient({
     if (status === 'loading') return
 
     if (!session) {
-      router.push(employeePath('/employee/login'))
+      if (!isPublicAuthPage) router.push(employeePath('/employee/login'))
       return
     }
 
@@ -60,7 +63,7 @@ export function EmployeeLayoutClient({
         })
       )
     }
-  }, [session, status, router, employeePath, slug])
+  }, [session, status, router, employeePath, slug, isPublicAuthPage])
 
   const employeeNav = filterNavByModules(NAV_ITEMS.EMPLOYEE, moduleMap)
 

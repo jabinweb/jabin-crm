@@ -3,6 +3,7 @@ import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
 import { prisma } from '@/lib/prisma';
+import { userHasCompanyAccess } from '@/lib/auth/company-membership';
 
 // Assign a deal to a team member
 export async function PATCH(
@@ -15,6 +16,26 @@ export async function PATCH(
     const params = await context.params;
     const body = await request.json();
     const { assignedToId } = body;
+
+    const existing = await prisma.deal.findFirst({
+      where: { id: params.id, userId: session.user.id },
+      select: { lead: { select: { companyId: true } } },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: 'Deal not found' }, { status: 404 });
+    }
+
+    // Assignee must belong to the deal's workspace.
+    if (assignedToId) {
+      const dealCompanyId = existing.lead?.companyId;
+      if (
+        typeof assignedToId !== 'string' ||
+        !dealCompanyId ||
+        !(await userHasCompanyAccess(assignedToId, dealCompanyId))
+      ) {
+        return NextResponse.json({ error: 'Invalid assignee' }, { status: 400 });
+      }
+    }
 
     const deal = await prisma.deal.update({
       where: {

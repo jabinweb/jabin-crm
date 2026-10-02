@@ -3,6 +3,7 @@ import { invoiceService } from '@/lib/crm/invoice-service';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { accessibleDocWhere } from '@/lib/crm/company-doc-scope';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { InvoicePDF } from '@/lib/pdf/invoice-pdf';
 import { prisma } from '@/lib/prisma';
@@ -12,8 +13,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('INVOICES');
+    const session = await withModuleAccess('INVOICES');
     const { id } = await params;
+
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    }
     
     const invoice = await invoiceService.getInvoice(id);
     

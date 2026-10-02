@@ -105,26 +105,40 @@ export function isSubscriptionActive(subscription: {
 export async function resolveCompanyBillingUserId(
   companyId: string
 ): Promise<string | null> {
-  const admins = await prisma.user.findMany({
+  const adminSelect = {
+    id: true,
+    createdAt: true,
+    primaryCompanyId: true,
+    subscription: {
+      select: {
+        status: true,
+        currentPeriodEnd: true,
+        trialEndsAt: true,
+        plan: { select: { price: true, name: true } },
+      },
+    },
+  };
+  let admins = await prisma.user.findMany({
     where: {
       OR: [{ companyId }, { primaryCompanyId: companyId }],
       role: { in: ['ADMIN', 'SUPER_ADMIN'] },
     },
-    select: {
-      id: true,
-      createdAt: true,
-      primaryCompanyId: true,
-      subscription: {
-        select: {
-          status: true,
-          currentPeriodEnd: true,
-          trialEndsAt: true,
-          plan: { select: { price: true, name: true } },
-        },
-      },
-    },
+    select: adminSelect,
     orderBy: { createdAt: 'asc' },
   });
+  // Workspaces whose admins only joined via UserCompany had no billing owner at all.
+  // Only fall back to them when no home-workspace admin exists, so an admin of another
+  // company who was added here never lends this workspace their own company's plan.
+  if (!admins.length) {
+    admins = await prisma.user.findMany({
+      where: {
+        userCompanies: { some: { companyId } },
+        role: { in: ['ADMIN', 'SUPER_ADMIN'] },
+      },
+      select: adminSelect,
+      orderBy: { createdAt: 'asc' },
+    });
+  }
 
   if (!admins.length) return null;
 

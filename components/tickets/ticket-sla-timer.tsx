@@ -13,6 +13,7 @@ type TicketSlaTimerProps = {
     status?: string;
     responseDueAt?: string | Date | null;
     resolutionDueAt?: string | Date | null;
+    firstRespondedAt?: string | Date | null;
     firstResponseAt?: string | Date | null;
   };
   className?: string;

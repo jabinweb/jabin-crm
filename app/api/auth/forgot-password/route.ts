@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { randomBytes } from 'crypto';
 import { normalizeAuthEmail } from '@/lib/auth/normalize-email';
 import { sendEmail, createEmailHTML } from '@/lib/email/nodemailer';
+import { getAppBaseUrl } from '@/lib/app-url';
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,9 +34,8 @@ export async function POST(request: NextRequest) {
       data: { identifier: user.email, token, expires },
     });
 
-    const baseUrl =
-      process.env.NEXTAUTH_URL ??
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+    // AUTH_URL / NEXT_PUBLIC_APP_URL aware (NEXTAUTH_URL alone is unset on Auth.js v5 installs)
+    const baseUrl = getAppBaseUrl().replace(/\/+$/, '');
     const resetUrl = `${baseUrl}/auth/reset-password?token=${token}&email=${encodeURIComponent(user.email)}`;
 
     try {

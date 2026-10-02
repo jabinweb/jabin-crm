@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
+import { accessibleDocWhere } from '@/lib/crm/company-doc-scope';
+import { prisma } from '@/lib/prisma';
 import { invoiceService } from '@/lib/crm/invoice-service';
 import { validateRequest } from '@/lib/validations/server';
 import { z } from 'zod';
@@ -18,8 +20,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('INVOICES');
+    const session = await withModuleAccess('INVOICES');
     const { id } = await params;
+
+    const scope = await accessibleDocWhere(session, req);
+    const allowed = await prisma.invoice.findFirst({ where: { id, ...scope }, select: { id: true } });
+    if (!allowed) {
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+    }
     
     const validatedData = await validateRequest(req, paymentSchema);
     

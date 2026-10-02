@@ -65,7 +65,7 @@ export const DELETE = withAuthorization(
             );
         }
     },
-    { roles: ['admin'] }
+    { roles: ['SUPER_ADMIN'] }
 );
 
 export const GET = withAuthorization(
@@ -117,5 +117,5 @@ export const GET = withAuthorization(
             );
         }
     },
-    { roles: ['admin', 'moderator'] }
+    { roles: ['SUPER_ADMIN'] }
 );

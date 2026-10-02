@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     const { productId, quantity, reason, notes, type = 'IN_STOCK' } = await req.json()
 
     const qty = Number(quantity)
-    if (!productId || !Number.isFinite(qty) || qty <= 0) {
+    if (!productId || !Number.isInteger(qty) || qty <= 0) {
       return NextResponse.json({ error: 'Valid productId and positive quantity are required' }, { status: 400 })
     }
 
@@ -128,15 +128,23 @@ export async function POST(req: Request) {
         }
       })
 
-      // Update product quantity
-      const updatedProduct = await tx.product.update({
-        where: { id: productId },
-        data: {
-          quantity: isOutbound
-            ? { decrement: qty }
-            : { increment: qty }
+      // Update product quantity; outbound decrement is conditional so concurrent
+      // stock-outs can never drive quantity negative.
+      if (isOutbound) {
+        const dec = await tx.product.updateMany({
+          where: { id: productId, quantity: { gte: qty } },
+          data: { quantity: { decrement: qty } },
+        })
+        if (dec.count === 0) {
+          throw new Error(`Insufficient stock for ${product.name}`)
         }
-      })
+      } else {
+        await tx.product.update({
+          where: { id: productId },
+          data: { quantity: { increment: qty } },
+        })
+      }
+      const updatedProduct = await tx.product.findUniqueOrThrow({ where: { id: productId } })
 
       return {
         inventory: record,
@@ -155,6 +163,9 @@ export async function POST(req: Request) {
     }
     if (error instanceof Error && error.message.includes('Insufficient stock')) {
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    if (error instanceof Error && error.message === 'Product not found') {
+      return NextResponse.json({ error: error.message }, { status: 404 })
     }
     return handleError(error, "Failed to create inventory record")
   }

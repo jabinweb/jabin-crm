@@ -274,7 +274,7 @@ export default function DealsPage() {
             title="No deals yet"
             description="Create a deal from a lead or add one to start the pipeline."
             actionLabel="New deal"
-            actionHref={path('/dashboard/deals/new')}
+            onAction={() => void openCreate()}
             className="rounded-lg border border-dashed py-16"
           />
         }

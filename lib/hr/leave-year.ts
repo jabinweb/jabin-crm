@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { ensureEmployeeLeaveBalances, ensureLeavePolicies } from '@/lib/hr/leave-service'
+import { hrZonedParts } from '@/lib/hr/shift-attendance'
 
 /** Year-end leave carry-forward using policy.carryForwardMax. */
 export async function carryForwardLeaveBalances(
@@ -83,6 +84,8 @@ export async function grantCompOff(
   })
 }
 
+/** Attendance calendar day (HR timezone) as a UTC-midnight Date for `@db.Date` columns. */
 export function attendanceDateOnly(d = new Date()): Date {
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const { year, month, day } = hrZonedParts(d)
+  return new Date(Date.UTC(year, month - 1, day))
 }

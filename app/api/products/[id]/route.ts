@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasLegacyRole } from '@/lib/auth/permissions';
 import "@/types/auth";
 import {
   resolveCompanyContextFromRequest,
@@ -98,6 +99,12 @@ export async function DELETE(
       );
     }
 
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return new NextResponse(JSON.stringify({ error: 'Forbidden. Admin only.' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const { companyId } = await resolveCompanyContextFromRequest(session, request)
     const resolvedParams = await params;
     const productId = resolvedParams.id;
@@ -151,6 +158,12 @@ export async function PATCH(
       );
     }
 
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return new NextResponse(JSON.stringify({ error: 'Forbidden. Admin only.' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
     const { companyId } = await resolveCompanyContextFromRequest(session, request)
     const resolvedParams = await params;
     const productId = resolvedParams.id;
@@ -172,9 +185,12 @@ export async function PATCH(
       data: {
         name: data.name,
         description: data.description,
-        price: data.price,
+        price: typeof data.price === 'number' && Number.isFinite(data.price) ? data.price : undefined,
         category: data.category,
-        quantity: data.quantity,
+        quantity:
+          typeof data.quantity === 'number' && Number.isInteger(data.quantity) && data.quantity >= 0
+            ? data.quantity
+            : undefined,
         sku: data.sku,
         imageUrl: data.imageUrl,
       },

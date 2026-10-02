@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -26,6 +26,8 @@ export function useEmailsInbox() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [emailReplies, setEmailReplies] = useState<Reply[]>([]);
   const [loadingReplies, setLoadingReplies] = useState(false);
+  /** Latest email whose replies were requested — stale responses are ignored. */
+  const repliesForRef = useRef<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [composeOpen, setComposeOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -445,12 +447,15 @@ export function useEmailsInbox() {
   };
 
   const fetchEmailReplies = async (emailId: string): Promise<Reply[]> => {
+    repliesForRef.current = emailId;
     setLoadingReplies(true);
     try {
       const response = await fetch(`/api/emails/${emailId}/replies`);
+      if (repliesForRef.current !== emailId) return [];
       if (response.ok) {
         const data = await response.json();
         const replies = data.replies || [];
+        if (repliesForRef.current !== emailId) return [];
         setEmailReplies(replies);
         return replies;
       } else {
@@ -460,10 +465,10 @@ export function useEmailsInbox() {
       }
     } catch (error) {
       console.error('Error fetching replies:', error);
-      setEmailReplies([]);
+      if (repliesForRef.current === emailId) setEmailReplies([]);
       return [];
     } finally {
-      setLoadingReplies(false);
+      if (repliesForRef.current === emailId) setLoadingReplies(false);
     }
   };
 

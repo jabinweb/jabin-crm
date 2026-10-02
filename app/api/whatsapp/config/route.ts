@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { validateRequest } from '@/lib/validations/server';
 import { prisma } from '@/lib/prisma';
@@ -66,6 +67,35 @@ export const GET = withSessionRoute(async (_req, { userId }) => {
 export const POST = withSessionRoute(async (req, { userId }) => {
   await ensureFeatureEnabled(userId, 'WHATSAPP');
   const body = await validateRequest(req, saveConfigSchema);
+
+  // The server calls this URL with the user's API key — public http(s) hosts only
+  if (body.summoraBaseUrl) {
+    let host = '';
+    let protocol = '';
+    try {
+      const parsed = new URL(body.summoraBaseUrl);
+      host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+      protocol = parsed.protocol;
+    } catch {
+      /* invalid */
+    }
+    const isProd = process.env.NODE_ENV === 'production';
+    if (
+      (protocol !== 'https:' && protocol !== 'http:') ||
+      !host ||
+      /^169\.254\./.test(host) ||
+      (isProd &&
+        (host === 'localhost' ||
+          host.endsWith('.localhost') ||
+          host.endsWith('.internal') ||
+          /^(0|10|127)\./.test(host) ||
+          /^192\.168\./.test(host) ||
+          /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+          host.includes(':')))
+    ) {
+      return NextResponse.json({ error: 'Invalid Summora base URL' }, { status: 400 });
+    }
+  }
 
   const existing = await prisma.whatsAppProviderConfig.findUnique({
     where: { userId },

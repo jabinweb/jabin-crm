@@ -42,7 +42,12 @@ export default logger;
 
 // Helper functions for common logging patterns
 export const logError = (error: unknown, context?: Record<string, any>) => {
-  logger.error({ err: error, ...context }, error instanceof Error ? error.message : 'Unknown error');
+  // Error instances JSON.stringify to `{}` — serialize the useful fields for production logs
+  const err =
+    error instanceof Error
+      ? { name: error.name, message: error.message, stack: error.stack }
+      : error;
+  logger.error({ err, ...context }, error instanceof Error ? error.message : 'Unknown error');
 };
 
 export const logInfo = (message: string, context?: Record<string, any>) => {

@@ -17,7 +17,8 @@ async function assertCannedAccess(session: Session, req: NextRequest, id: string
     },
   });
   if (!existing) return { error: NextResponse.json({ error: 'Not found' }, { status: 404 }) };
-  if (existing.companyId && existing.companyId !== companyId) {
+  // Shared platform templates (companyId null) are readable by all, editable only by SUPER_ADMIN.
+  if (existing.companyId !== companyId && session.user.role !== 'SUPER_ADMIN') {
     return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) };
   }
   return { companyId, existing };

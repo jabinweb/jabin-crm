@@ -7,14 +7,34 @@ export class UnsubscribeService {
    * Generate unsubscribe token
    */
   generateToken(email: string): string {
-    return Buffer.from(email).toString('base64url');
+    const payload = Buffer.from(email).toString('base64url');
+    return `${payload}.${this.sign(payload)}`;
   }
 
   /**
-   * Decode unsubscribe token
+   * Decode unsubscribe token. Throws when the token is malformed or its
+   * signature doesn't match (prevents unsubscribing arbitrary addresses).
    */
   decodeToken(token: string): string {
-    return Buffer.from(token, 'base64url').toString('utf-8');
+    const [payload, sig] = token.split('.');
+    if (!payload || !sig) throw new Error('Invalid token');
+    const expected = Buffer.from(this.sign(payload));
+    const given = Buffer.from(sig);
+    if (expected.length !== given.length || !crypto.timingSafeEqual(expected, given)) {
+      throw new Error('Invalid token');
+    }
+    const email = Buffer.from(payload, 'base64url').toString('utf-8');
+    if (!email || !email.includes('@')) throw new Error('Invalid token');
+    return email;
+  }
+
+  private sign(payload: string): string {
+    const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+    if (!secret) throw new Error('AUTH_SECRET is not configured');
+    return crypto
+      .createHmac('sha256', `unsubscribe:${secret}`)
+      .update(payload)
+      .digest('base64url');
   }
 
   /**
@@ -27,8 +47,13 @@ export class UnsubscribeService {
       leadId?: string;
       reason?: string;
       source?: string;
+      /** When set, only this workspace's leads / queued emails are touched. */
+      companyId?: string;
     }
   ) {
+    const leadWhere = options?.companyId
+      ? { email, companyId: options.companyId }
+      : { email };
     // Add to unsubscribe list
     const unsubscribe = await prisma.unsubscribeList.upsert({
       where: { email },
@@ -62,13 +87,13 @@ export class UnsubscribeService {
 
     // Find and update all leads with this email
     await prisma.lead.updateMany({
-      where: { email },
+      where: leadWhere,
       data: { status: 'UNSUBSCRIBED' },
     });
 
     // Stop all active sequence enrollments
     const leads = await prisma.lead.findMany({
-      where: { email },
+      where: leadWhere,
       select: { id: true },
     });
 
@@ -92,6 +117,7 @@ export class UnsubscribeService {
       where: {
         to: email,
         status: 'PENDING',
+        ...(options?.companyId ? { leadId: { in: leads.map((l) => l.id) } } : {}),
       },
       data: {
         status: 'CANCELLED',
@@ -192,11 +218,12 @@ export class UnsubscribeService {
   /**
    * Bulk import unsubscribe list
    */
-  async bulkImport(emails: string[], userId?: string) {
+  async bulkImport(emails: string[], userId?: string, companyId?: string) {
     const results = await Promise.allSettled(
       emails.map((email) =>
         this.unsubscribe(email, {
           userId,
+          companyId,
           source: 'MANUAL',
           reason: 'Bulk imported',
         })

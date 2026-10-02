@@ -1,3 +1,6 @@
+import type { prisma } from '@/lib/prisma';
+import { isWorkspaceStaff } from '@/lib/auth/workspace-staff';
+
 /** Shared helpers for web-agency delivery projects. */
 
 export const DEFAULT_MILESTONE_TEMPLATES = [
@@ -60,3 +63,27 @@ export const PROJECT_INCLUDE = {
     },
   },
 } as const;
+
+/**
+ * Customer / deal / PM picked for a project must belong to the same workspace —
+ * otherwise another tenant's record would be linked and shown on the project.
+ * Returns an error message, or null when every given id is valid.
+ */
+export async function invalidProjectLink(
+  db: typeof prisma,
+  companyId: string,
+  links: { customerId?: string | null; dealId?: string | null; pmUserId?: string | null }
+): Promise<string | null> {
+  if (links.customerId) {
+    const n = await db.customer.count({ where: { id: links.customerId, companyId } });
+    if (!n) return 'Customer not found';
+  }
+  if (links.dealId) {
+    const n = await db.deal.count({ where: { id: links.dealId, lead: { companyId } } });
+    if (!n) return 'Deal not found';
+  }
+  if (links.pmUserId) {
+    if (!(await isWorkspaceStaff(companyId, links.pmUserId))) return 'Project manager not found';
+  }
+  return null;
+}

@@ -36,7 +36,21 @@ function dayKey(iso?: string | null) {
   if (!iso) return 'unscheduled';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return 'unscheduled';
-  return d.toISOString().slice(0, 10);
+  return localDateKey(d);
+}
+
+/** YYYY-MM-DD in the viewer's timezone (toISOString would use UTC and shift the day). */
+function localDateKey(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+/** Value for a datetime-local input, in local time. */
+function toLocalInputValue(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${localDateKey(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default function ServiceJobBoardPage() {
@@ -46,7 +60,7 @@ export default function ServiceJobBoardPage() {
   const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('tickets');
   const [optimistic, setOptimistic] = useState<Record<string, string>>({});
   const [view, setView] = useState<BoardView>('status');
-  const [dayFilter, setDayFilter] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dayFilter, setDayFilter] = useState(() => localDateKey(new Date()));
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['service-job-board', slug],
@@ -167,7 +181,10 @@ export default function ServiceJobBoardPage() {
       const res = await workspaceFetch(`/api/tickets/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scheduledFor: scheduledFor || null }),
+        // datetime-local has no zone; convert in the browser so the server doesn't apply its own TZ.
+        body: JSON.stringify({
+          scheduledFor: scheduledFor ? new Date(scheduledFor).toISOString() : null,
+        }),
       });
       if (!res.ok) throw new Error('Failed to schedule');
       await queryClient.invalidateQueries({ queryKey: ['service-job-board', slug] });
@@ -204,7 +221,7 @@ export default function ServiceJobBoardPage() {
         className="h-8 text-xs"
         value={
           ticket.scheduledFor
-            ? new Date(ticket.scheduledFor).toISOString().slice(0, 16)
+            ? toLocalInputValue(ticket.scheduledFor)
             : ''
         }
         onChange={(e) => scheduleTicket(ticket.id, e.target.value)}

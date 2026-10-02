@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { completeSubscriptionPayment } from '@/lib/payments/complete-subscription-payment';
+import { resolveBillingUserId } from '@/lib/plan-modules';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +18,8 @@ export async function POST(request: NextRequest) {
       razorpayOrderId: razorpay_order_id,
       razorpayPaymentId: razorpay_payment_id,
       razorpaySignature: razorpay_signature,
-      userId: session.user.id,
+      // Orders are recorded against the company billing account (see create-order)
+      userId: await resolveBillingUserId(session.user.id),
       planId,
     });
 

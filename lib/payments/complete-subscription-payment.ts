@@ -19,7 +19,9 @@ export function verifyRazorpayPaymentSignature(
 
   const body = `${orderId}|${paymentId}`;
   const expected = crypto.createHmac('sha256', keySecret).update(body).digest('hex');
-  return expected === signature;
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(String(signature ?? ''), 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export async function completeSubscriptionPayment(input: {

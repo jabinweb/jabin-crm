@@ -49,7 +49,12 @@ export const PATCH = withApiRoute({
       return NextResponse.json({ error: 'Invalid company ID' }, { status: 400 });
     }
 
-    if (!hasLegacyRole(session, 'SUPER_ADMIN')) {
+    const isSuperAdmin = hasLegacyRole(session, 'SUPER_ADMIN');
+    if (!isSuperAdmin) {
+      // Workspace profile edits are admin-only; plain members must not rename the tenant
+      if (!hasLegacyRole(session, 'ADMIN')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       const { resolveCompanyContextFromRequest } = await import('@/lib/auth/company-membership');
       const ctx = await resolveCompanyContextFromRequest(session, request);
       if (ctx.companyId !== companyId) {
@@ -57,7 +62,7 @@ export const PATCH = withApiRoute({
       }
     }
 
-    const data = await request.json();
+    const data = await request.json().catch(() => ({}));
 
     const company = await prisma.company.update({
       where: { id: companyId },
@@ -65,7 +70,8 @@ export const PATCH = withApiRoute({
         name: data.name,
         website: data.website,
         logo: data.logo,
-        status: data.status,
+        // Approval status is a platform decision — a workspace must not self-approve
+        ...(isSuperAdmin ? { status: data.status } : {}),
       },
     });
 

@@ -95,6 +95,12 @@ export async function syncEveryoneMemberships(companyId: string, userId: string)
     select: { id: true },
   });
   if (missing.length === 0) return;
+  // Portal customers can resolve a workspace too — only staff join "everyone" conversations
+  const staff = await prisma.user.findFirst({
+    where: { id: userId, ...workspaceStaffWhere(companyId) },
+    select: { id: true },
+  });
+  if (!staff) return;
   await prisma.conversationMember.createMany({
     data: missing.map((c: { id: string }) => ({ conversationId: c.id, userId, role: 'MEMBER' })),
     skipDuplicates: true,
@@ -373,6 +379,11 @@ export async function sendDirectMessage(params: {
   recipientId: string;
   content: string;
 }) {
+  const recipient = await prisma.user.findFirst({
+    where: { id: params.recipientId, ...workspaceStaffWhere(params.companyId) },
+    select: { id: true },
+  });
+  if (!recipient) throw new Error('That person is not in this workspace');
   const conversation = await findOrCreateDirect(params.companyId, params.sender.id, params.recipientId);
   return postMessage({
     companyId: params.companyId,

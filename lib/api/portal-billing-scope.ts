@@ -1,6 +1,7 @@
 import type { Session } from 'next-auth';
 import { prisma } from '@/lib/prisma';
 import { resolvePortalDataAccess } from '@/lib/api/portal-access';
+import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 
 export type PortalCustomerScope =
   | { ok: false; status: number; error: string }
@@ -34,14 +35,25 @@ export async function resolvePortalCustomerScope(
   };
 }
 
-/** Prisma where for invoices/quotations belonging to this portal customer. */
+/**
+ * Prisma where for invoices/quotations belonging to this portal customer.
+ *
+ * Email matches only count for documents created by staff of the customer's own
+ * workspace — the same address can be a customer of several tenants.
+ */
 export function portalBillingWhere(scope: {
   customerId: string;
   email: string | null;
+  companyId: string | null;
 }) {
   const emailClause =
-    scope.email && scope.email.trim()
-      ? [{ customerEmail: { equals: scope.email.trim(), mode: 'insensitive' as const } }]
+    scope.email && scope.email.trim() && scope.companyId
+      ? [
+          {
+            customerEmail: { equals: scope.email.trim(), mode: 'insensitive' as const },
+            user: workspaceStaffWhere(scope.companyId),
+          },
+        ]
       : [];
 
   return {
@@ -51,24 +63,36 @@ export function portalBillingWhere(scope: {
 }
 
 /**
- * Link billing docs to Customer by email within the creator's company when possible.
+ * Link billing docs to a Customer of the document's workspace (the request workspace
+ * when known, else the creator's home company). A client-supplied `customerId` is only
+ * honoured when it belongs to that workspace; otherwise it falls back to email matching.
  */
 export async function resolveBillingCustomerId(params: {
   customerId?: string | null;
   customerEmail: string;
   userId: string;
+  companyId?: string | null;
 }): Promise<string | undefined> {
-  if (params.customerId) return params.customerId;
+  let companyId = params.companyId || null;
+  if (!companyId) {
+    const user = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { primaryCompanyId: true, companyId: true },
+    });
+    companyId = user?.primaryCompanyId || user?.companyId || null;
+  }
+  if (!companyId) return undefined;
+
+  if (params.customerId) {
+    const owned = await prisma.customer.findFirst({
+      where: { id: params.customerId, companyId },
+      select: { id: true },
+    });
+    if (owned) return owned.id;
+  }
 
   const email = params.customerEmail?.trim();
   if (!email) return undefined;
-
-  const user = await prisma.user.findUnique({
-    where: { id: params.userId },
-    select: { primaryCompanyId: true, companyId: true },
-  });
-  const companyId = user?.primaryCompanyId || user?.companyId;
-  if (!companyId) return undefined;
 
   const customer = await prisma.customer.findFirst({
     where: {

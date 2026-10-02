@@ -14,6 +14,10 @@ export async function POST(
     const guard = await requireTicketRouteAccess(session, request, id);
     if (!guard.ok) return guard.response;
 
+    if (guard.session.user.role === 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     await ensureFeatureEnabled(guard.session.user.id, 'TICKET_ADVANCED');
 
     const { subject, description } = await request.json();

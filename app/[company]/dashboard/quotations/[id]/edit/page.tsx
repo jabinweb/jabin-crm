@@ -153,8 +153,14 @@ export default function EditQuotationPage() {
   };
 
   const handleSave = () => {
+    // API takes validityDays; derive it from the chosen valid-until date
+    const until = new Date(formData.validUntil + 'T23:59:59');
+    const validityDays = Number.isNaN(until.getTime())
+      ? undefined
+      : Math.max(1, Math.ceil((until.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
     const quotationData = {
       ...formData,
+      validityDays,
       items: items.filter(item => item.name.trim() !== ''),
       subtotal: calculateSubtotal(),
       taxAmount: calculateTaxAmount(),

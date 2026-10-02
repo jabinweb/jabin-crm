@@ -55,7 +55,10 @@ export default async function CompanyLayout({
     notFound();
   }
 
-  // Serialize for the client-side context provider
+  // Serialize for the client-side context provider. This layout also renders for
+  // logged-out visitors, so only UI-safe settings go to the client — `settings` holds
+  // integration credentials (e.g. Razorpay keySecret).
+  const rawSettings = company.settings as Record<string, unknown> | null;
   const companyData: CompanyData = {
     id: company.id,
     name: company.name,
@@ -65,7 +68,9 @@ export default async function CompanyLayout({
     phone: company.phone,
     website: company.website,
     status: company.status,
-    settings: company.settings as Record<string, unknown> | null,
+    settings: rawSettings?.customization
+      ? { customization: rawSettings.customization }
+      : null,
   };
 
   return <CompanyProvider company={companyData}>{children}</CompanyProvider>;

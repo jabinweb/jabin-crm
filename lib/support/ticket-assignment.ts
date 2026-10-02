@@ -12,6 +12,8 @@ export interface AssignmentOptions {
  */
 export async function getNextAvailableAgent(options: AssignmentOptions = {}) {
   const { companyId, groupId } = options;
+  // Without a workspace we'd pick agents from any tenant.
+  if (!companyId) return null;
 
   let candidateUserIds: string[] | undefined;
 

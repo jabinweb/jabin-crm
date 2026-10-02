@@ -49,9 +49,9 @@ export default function ReportsPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
 
   const { data: reportData, isLoading } = useQuery({
-    queryKey: ['reports', dateRange],
+    queryKey: ['reports', slug, dateRange],
     queryFn: async () => {
-      const response = await fetch(`/api/dashboard/reports?range=${dateRange}`);
+      const response = await workspaceFetch(`/api/dashboard/reports?range=${dateRange}`);
       if (!response.ok) throw new Error('Failed to fetch reports');
       return response.json();
     },

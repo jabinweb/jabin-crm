@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const description = typeof body.description === 'string' ? body.description.trim() : ''
     const amount = Number(body.amount)
-    if (!description || Number.isNaN(amount)) {
+    if (!description || !Number.isFinite(amount) || amount <= 0) {
       return NextResponse.json({ error: 'description and amount required' }, { status: 400 })
     }
     const row = await prisma.expense.create({
@@ -83,6 +83,12 @@ export async function PATCH(request: Request) {
       where: { id, companyId: ctx.companyId },
     })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (existing.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Claim already processed' }, { status: 400 })
+    }
+    if (existing.employeeId && existing.employeeId === ctx.session.user.employeeId) {
+      return NextResponse.json({ error: 'You cannot approve your own claim' }, { status: 403 })
+    }
     const status = body.status === 'REJECTED' ? 'REJECTED' : 'APPROVED'
     const updated = await prisma.expense.update({
       where: { id },

@@ -11,6 +11,7 @@ import { REALTIME_EVENTS } from '@/lib/realtime/events'
 
 /** Presence heartbeat + guest link mint/revoke for a ticket. */
 export const GET = withTenantRoute(async (_request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const ticketId = (await routeContext.params).id
   const ticket = await prisma.supportTicket.findFirst({
     where: { id: ticketId, customer: { companyId: companyId! } },
@@ -45,6 +46,7 @@ export const GET = withTenantRoute(async (_request, { session, companyId }, rout
 })
 
 export const POST = withTenantRoute(async (request, { session, companyId }, routeContext) => {
+  if (session.user.role === 'CUSTOMER') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const ticketId = (await routeContext.params).id
   const ticket = await prisma.supportTicket.findFirst({
     where: { id: ticketId, customer: { companyId: companyId! } },

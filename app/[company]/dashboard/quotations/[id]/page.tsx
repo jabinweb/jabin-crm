@@ -182,7 +182,7 @@ export default function QuotationDetailPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
-          {(quotation.status === 'DRAFT' || quotation.status === 'SENT') && (
+          {quotation.status === 'DRAFT' && (
             <Button variant="outline" onClick={() => router.push(path(`/dashboard/quotations/${params.id}/edit`))} className="flex-1 sm:flex-none">
               <Edit className="w-4 h-4 mr-2" />
               Edit

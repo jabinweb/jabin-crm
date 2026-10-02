@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
         take: 8,
       }),
       prisma.leadActivity.findMany({
-        where: { lead: { userId } },
+        where: { lead: { userId, companyId } },
         orderBy: { createdAt: 'desc' },
         take: 12,
         include: { lead: { select: { companyName: true } } },

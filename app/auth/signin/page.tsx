@@ -35,7 +35,11 @@ function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const rawCallback = searchParams.get('callbackUrl') || '/workspace';
-  const callbackUrl = rawCallback.startsWith('/monitoring') ? '/workspace' : rawCallback;
+  // Same-origin paths only — an absolute or protocol-relative URL here is an open redirect
+  const isSafeCallback =
+    rawCallback.startsWith('/') && !rawCallback.startsWith('//') && !rawCallback.startsWith('/\\');
+  const callbackUrl =
+    !isSafeCallback || rawCallback.startsWith('/monitoring') ? '/workspace' : rawCallback;
   const authError = searchParams.get('error');
   const authErrorMessage = authError
     ? (AUTH_ERROR_MESSAGES[authError] ?? 'Sign-in failed. Please try again.')

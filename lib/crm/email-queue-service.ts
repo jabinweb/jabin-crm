@@ -182,9 +182,10 @@ export class EmailQueueService {
    */
   private async sendQueuedEmail(queueItem: any) {
     try {
-      // Update status to sending
-      await prisma.emailQueue.update({
-        where: { id: queueItem.id },
+      // Atomically claim the item (PENDING -> SENDING) so overlapping queue runs
+      // never send the same email twice.
+      const claim = await prisma.emailQueue.updateMany({
+        where: { id: queueItem.id, status: 'PENDING' },
         data: {
           status: 'SENDING',
           attempts: {
@@ -192,6 +193,10 @@ export class EmailQueueService {
           },
         },
       });
+      if (claim.count === 0) {
+        // Another worker already took (or finished) this item.
+        return null;
+      }
 
       // Get SMTP config
       const smtpConfig = await getUserSmtpConfig(queueItem.userId);
@@ -212,9 +217,8 @@ export class EmailQueueService {
         },
       });
 
-      // Generate unsubscribe link
-      const unsubscribeToken = Buffer.from(queueItem.to).toString('base64');
-      const unsubscribeLink = `${getAppBaseUrl()}/unsubscribe/${unsubscribeToken}`;
+      // Generate signed unsubscribe link (the token is HMAC-verified on unsubscribe)
+      const unsubscribeLink = unsubscribeService.generateUnsubscribeLink(queueItem.to);
 
       // Add unsubscribe footer
       const unsubscribeHtml = `<p style="font-size: 12px; color: #999; margin-top: 40px;">

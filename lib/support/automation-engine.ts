@@ -150,6 +150,7 @@ export async function runSupportAutomations(ctx: AutomationEventContext) {
         ticketId: ctx.ticketId,
         eventType: 'AUTOMATION',
         description: `Automation "${rule.name}" applied`,
+        isInternal: true,
         metadata: { ruleId: rule.id, trigger: ctx.trigger },
       },
     });

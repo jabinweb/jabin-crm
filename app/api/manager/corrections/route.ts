@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
-import { evaluateCheckInStatus, evaluateCheckOut, getActiveShiftForEmployee } from '@/lib/hr/shift-attendance'
+import {
+  evaluateCheckInStatus,
+  evaluateCheckOut,
+  getActiveShiftForEmployee,
+  minutesSinceMidnight,
+} from '@/lib/hr/shift-attendance'
 import { attendanceDateOnly } from '@/lib/hr/leave-year'
 
 async function requireManager(sessionEmployeeId: string) {
@@ -43,7 +48,8 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const body = await request.json()
-    const id = body.id as string
+    const id = typeof body.id === 'string' ? body.id : ''
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
     const approve = body.status !== 'REJECTED'
     const row = await prisma.attendanceCorrection.findFirst({
       where: {
@@ -52,6 +58,9 @@ export async function PATCH(request: Request) {
       },
     })
     if (!row) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (row.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Correction already processed' }, { status: 400 })
+    }
 
     const updated = await prisma.attendanceCorrection.update({
       where: { id },
@@ -72,8 +81,7 @@ export async function PATCH(request: Request) {
         const [h, m] = shift.startTime.split(':').map((x) => parseInt(x, 10))
         lateMinutes = Math.max(
           0,
-          row.requestedCheckIn.getHours() * 60 +
-            row.requestedCheckIn.getMinutes() -
+          minutesSinceMidnight(row.requestedCheckIn) -
             ((h || 0) * 60 + (m || 0)) -
             shift.graceMinutes
         )

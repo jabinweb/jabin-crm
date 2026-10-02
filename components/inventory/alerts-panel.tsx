@@ -36,8 +36,8 @@ export function AlertsPanel() {
     <Card className="p-4">
       <h3 className="font-semibold mb-4">Inventory Alerts</h3>
       <div className="space-y-4">
-        {alerts.map((alert) => (
-          <Alert key={`${alert.type}-${alert.product.id}`}>
+        {alerts.map((alert, idx) => (
+          <Alert key={`${alert.type}-${alert.product.id}-${idx}`}>
             <AlertCircle className="h-4 w-4" />
             <AlertTitle className="flex items-center gap-2">
               {alert.type === 'LOW_STOCK' ? (

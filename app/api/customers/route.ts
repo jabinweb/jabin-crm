@@ -5,6 +5,10 @@ import { withTenantRoute, withApiRoute, jsonOk } from '@/lib/api/with-route';
 export const GET = withApiRoute({
   auth: 'tenant-optional',
   handler: async (request, { companyId }) => {
+    // Without a workspace the list would be unscoped (every tenant's customers).
+    if (!companyId) {
+      return NextResponse.json({ error: 'Workspace required' }, { status: 400 });
+    }
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || undefined;
     const city = searchParams.get('city') || undefined;

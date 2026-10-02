@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
 import { mergeLeads } from '@/lib/leads/duplicate-detector';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
@@ -30,13 +31,15 @@ export async function POST(request: NextRequest) {
     }
 
     const validStrategies = ['keep-primary', 'keep-newest', 'keep-most-complete'];
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
     const mergeStrategy = validStrategies.includes(strategy) ? strategy : 'keep-most-complete';
 
     const result = await mergeLeads(
       primaryLeadId,
       duplicateLeadIds,
       session.user.id,
-      mergeStrategy
+      mergeStrategy,
+      companyId
     );
 
     return NextResponse.json({
@@ -48,6 +51,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     if (isApiException(error)) return handleApiError(error);
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error merging leads:', error);
     return NextResponse.json({ 
       error: 'Failed to merge leads',

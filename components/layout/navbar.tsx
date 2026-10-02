@@ -109,7 +109,8 @@ export function Navbar() {
   const homeHref = session?.user
     ? resolvePostLoginPath({
         role: session.user.role,
-        companySlug: (session.user as { companySlug?: string }).companySlug,
+        // Stay in the workspace being browsed, not the sign-in (home) workspace
+        companySlug: workspaceSlug,
       })
     : '/workspace';
   const [open, setOpen] = useState(false);

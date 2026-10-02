@@ -45,12 +45,17 @@ function ManagerCorrections() {
               <Button
                 size="sm"
                 onClick={async () => {
-                  await fetch('/api/manager/corrections', {
+                  const res = await fetch('/api/manager/corrections', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: r.id, status: 'APPROVED' }),
                   })
-                  toast.success('Approved')
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}))
+                    toast.error(err.error || 'Could not approve')
+                  } else {
+                    toast.success('Approved')
+                  }
                   void qc.invalidateQueries({ queryKey: ['manager-corrections'] })
                 }}
               >
@@ -60,11 +65,15 @@ function ManagerCorrections() {
                 size="sm"
                 variant="outline"
                 onClick={async () => {
-                  await fetch('/api/manager/corrections', {
+                  const res = await fetch('/api/manager/corrections', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: r.id, status: 'REJECTED' }),
                   })
+                  if (!res.ok) {
+                    const err = await res.json().catch(() => ({}))
+                    toast.error(err.error || 'Could not reject')
+                  }
                   void qc.invalidateQueries({ queryKey: ['manager-corrections'] })
                 }}
               >

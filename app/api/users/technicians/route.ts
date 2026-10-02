@@ -1,31 +1,24 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { withTenantRoute } from '@/lib/api/with-route';
 import { prisma } from '@/lib/prisma';
+import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 
-export async function GET() {
-    try {
-        const session = await auth();
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/** Technicians of the current workspace only (was: every technician on the platform). */
+export const GET = withTenantRoute(async (_request, { companyId }) => {
+    const technicians = await prisma.user.findMany({
+        where: {
+            ...workspaceStaffWhere(companyId),
+            role: 'TECHNICIAN',
+        },
+        select: {
+            id: true,
+            name: true,
+            email: true
+        },
+        orderBy: {
+            name: 'asc'
         }
+    });
 
-        const technicians = await prisma.user.findMany({
-            where: {
-                role: 'TECHNICIAN'
-            },
-            select: {
-                id: true,
-                name: true,
-                email: true
-            },
-            orderBy: {
-                name: 'asc'
-            }
-        });
-
-        return NextResponse.json(technicians);
-    } catch (error) {
-        console.error('Error fetching technicians:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+    return NextResponse.json(technicians);
+});

@@ -3,7 +3,8 @@ import { handleApiError } from '@/lib/api-error-handler';
 import { isApiException } from '@/lib/api/subscription-guards';
 import { withModuleAccess } from '@/lib/api/module-guard';
 import { dealService } from '@/lib/crm/deal-service';
-import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
+import { prisma } from '@/lib/prisma';
 
 function isCompanyAdmin(role?: string) {
   return role === 'ADMIN' || role === 'SUPER_ADMIN';
@@ -16,18 +17,18 @@ export async function GET(req: NextRequest) {
     const stage = searchParams.get('stage') || undefined;
 
     let companyId: string | undefined;
-    if (isCompanyAdmin(session.user.role)) {
-      try {
-        const ctx = await resolveCompanyContextFromRequest(session, req);
-        companyId = ctx.companyId;
-      } catch {
-        /* fall back to user-scoped */
-      }
+    try {
+      const ctx = await resolveCompanyContextFromRequest(session, req);
+      companyId = ctx.companyId;
+    } catch {
+      /* fall back to user-scoped */
     }
 
+    // Admins see the whole workspace; others only their own deals in this workspace.
     const deals = await dealService.getUserDeals(session.user.id, {
       stage,
       companyId,
+      ownOnly: !isCompanyAdmin(session.user.role),
     });
     return NextResponse.json(deals);
   } catch (error: any) {
@@ -51,6 +52,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
+    const lead = await prisma.lead.findFirst({
+      where: { id: leadId, companyId },
+      select: { id: true },
+    });
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+    if (!Number.isFinite(Number(value))) {
+      return NextResponse.json({ error: 'Invalid value' }, { status: 400 });
+    }
+
     const deal = await dealService.createDeal(session.user.id, {
       title,
       value: Number(value),
@@ -65,6 +78,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(deal, { status: 201 });
   } catch (error: any) {
     if (isApiException(error)) return handleApiError(error);
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error creating deal:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'next/navigation'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,8 +18,12 @@ interface SalaryFormProps {
 
 export function SalaryForm({ employeeId, onSuccess, initialData }: SalaryFormProps) {
   const params = useParams<{ company?: string }>()
-  const tenantHeaders =
-    typeof params?.company === 'string' ? workspaceSlugHeaders(params.company) : {}
+  const company = typeof params?.company === 'string' ? params.company : undefined
+  // Memoized: a fresh object each render would re-run the fetch effect in a loop.
+  const tenantHeaders = useMemo(
+    () => (company ? workspaceSlugHeaders(company) : {}),
+    [company]
+  )
   const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState<SalaryStructure>({
@@ -34,11 +38,12 @@ export function SalaryForm({ employeeId, onSuccess, initialData }: SalaryFormPro
   useEffect(() => {
     async function fetchCurrentSalary() {
       try {
-        const res = await fetch(`/api/employees/${employeeId}/salary`)
+        const res = await fetch(`/api/employees/${employeeId}/salary`, {
+          headers: { ...tenantHeaders },
+        })
         if (res.ok) {
           const data = await res.json()
           if (data) {
-            console.log('Fetched salary data:', data)
             setFormData({
               basicSalary: data.basicSalary || 0,
               houseRent: data.houseRent || 0,

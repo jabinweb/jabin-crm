@@ -46,6 +46,8 @@ function isPublicPath(pathname: string) {
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return true;
   if (/^\/[^/]+\/register\/?$/.test(pathname)) return true;
   if (/^\/[^/]+\/employee\/register\/?$/.test(pathname)) return true;
+  // Employee sign-in page (registration redirects here; its layout skips the tenant check)
+  if (/^\/[^/]+\/employee\/login\/?$/.test(pathname)) return true;
   return false;
 }
 
@@ -278,6 +280,10 @@ export async function proxy(req: NextRequest) {
     requestHeaders.set('x-geo-country', geoCountry.toUpperCase());
   }
 
+  // Identity headers are only ever derived from the JWT — drop client-sent copies
+  for (const h of ['x-user-id', 'x-user-role', 'x-company-id', 'x-company-slug', 'x-employee-id']) {
+    requestHeaders.delete(h);
+  }
   if (isLoggedIn) {
     requestHeaders.set('x-user-id', String(user?.id ?? ''));
     requestHeaders.set('x-user-role', role ?? '');

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { unsubscribeService } from '@/lib/crm/unsubscribe-service';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,8 +25,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
-    const { emails } = body;
+    const { companyId } = await resolveCompanyContextFromRequest(session, req);
+
+    const body = await req.json().catch(() => null);
+    const emails = body?.emails;
 
     if (!emails || !Array.isArray(emails)) {
       return NextResponse.json(
@@ -34,9 +37,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await unsubscribeService.bulkImport(emails, session.user.id);
+    const cleaned = (emails as unknown[])
+      .filter((e: unknown): e is string => typeof e === 'string')
+      .map((e: string) => e.trim().toLowerCase())
+      .filter((e: string) => e.includes('@'));
+
+    // Lead/queue side effects are limited to the caller's workspace.
+    const result = await unsubscribeService.bulkImport(cleaned, session.user.id, companyId);
     return NextResponse.json(result);
   } catch (error: any) {
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error bulk importing unsubscribes:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

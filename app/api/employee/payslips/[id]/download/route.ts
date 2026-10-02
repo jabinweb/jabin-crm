@@ -23,7 +23,9 @@ export async function GET(
         employeeId: session.user.employeeId,
       },
       include: {
-        employee: true,
+        employee: {
+          select: { name: true, employeeId: true, company: { select: { name: true } } },
+        },
       },
     })
 
@@ -85,7 +87,7 @@ export async function GET(
 
 function generatePayslipPDF(doc: InstanceType<typeof PDFDocument>, payslip: any) {
   // Company Header
-  doc.fontSize(20).text('Company Name', { align: 'center' })
+  doc.fontSize(20).text(payslip.employee.company?.name || 'Payslip', { align: 'center' })
   doc.moveDown()
 
   // Payslip Header
@@ -101,17 +103,18 @@ function generatePayslipPDF(doc: InstanceType<typeof PDFDocument>, payslip: any)
 
   // Salary Details
   doc.text('Earnings:', { underline: true })
-  doc.text(`Basic Salary: $${payslip.basicSalary.toFixed(2)}`)
-  doc.text(`Allowances: $${payslip.additions.toFixed(2)}`)
+  // Payroll is INR (Razorpay payouts); the built-in PDF font has no rupee glyph.
+  doc.text(`Basic Salary: INR ${payslip.basicSalary.toFixed(2)}`)
+  doc.text(`Allowances: INR ${payslip.additions.toFixed(2)}`)
   doc.moveDown()
 
   doc.text('Deductions:', { underline: true })
-  doc.text(`Total Deductions: $${payslip.deductions.toFixed(2)}`)
+  doc.text(`Total Deductions: INR ${payslip.deductions.toFixed(2)}`)
   doc.moveDown()
 
   // Net Salary
   doc.fontSize(14)
-  doc.text(`Net Salary: $${payslip.netSalary.toFixed(2)}`, { underline: true })
+  doc.text(`Net Salary: INR ${payslip.netSalary.toFixed(2)}`, { underline: true })
   
   // Payment Status
   doc.moveDown()

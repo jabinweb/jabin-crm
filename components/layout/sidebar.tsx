@@ -59,7 +59,7 @@ import Link from 'next/link';
 import { getClientBrandConfig } from '@/lib/branding';
 import { OpslaneLogo } from '@/components/brand/opslane-logo';
 import { usePathname, useSearchParams, useParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { getCompanyUrl, resolveWorkspaceDashboardHref } from '@/lib/company-url';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import {
@@ -521,6 +521,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const switchModule = (id: string) => {
     const mod = availableModules.find((m) => m.id === id);
     if (!mod) return;
+    // The SaaS control plane lives at the global /admin, not the workspace /{slug}/admin
+    if (mod.id === 'platform') {
+      router.push(mod.href);
+      onNavigate?.();
+      return;
+    }
     const preferred = resolveModuleSwitchHref(mod.id, {
       vertical,
       companySlug: companySlug || '',
@@ -692,9 +698,11 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             </>
           ) : activeModuleId === 'people' && peopleSections.length > 0 ? (
             <>
-              {peopleSections.map((section) =>
-                renderNavGroup(section.items, section.title)
-              )}
+              {peopleSections.map((section) => (
+                <Fragment key={section.title}>
+                  {renderNavGroup(section.items, section.title)}
+                </Fragment>
+              ))}
               <div className="px-1 py-3 mt-3 border-t border-border/80">
                 <RecentEntitiesList compact />
               </div>

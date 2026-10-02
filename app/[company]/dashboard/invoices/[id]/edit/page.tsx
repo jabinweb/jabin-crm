@@ -58,6 +58,14 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
     currency: invoice.currency || 'USD',
     terms: invoice.terms || '',
     notes: invoice.notes || '',
+    // Preserve GST fields (otherwise the form submits blanks and wipes them)
+    gstin: invoice.gstin || '',
+    placeOfSupply: invoice.placeOfSupply || '',
+    gstTaxType: (invoice.taxBreakup?.igst > 0
+      ? 'IGST'
+      : invoice.taxBreakup?.cgst > 0 || invoice.taxBreakup?.sgst > 0
+        ? 'CGST_SGST'
+        : '') as '' | 'CGST_SGST' | 'IGST',
     bankName: (paymentDetails as any).bankName || '',
     accountName: (paymentDetails as any).accountName || '',
     accountNumber: (paymentDetails as any).accountNumber || '',

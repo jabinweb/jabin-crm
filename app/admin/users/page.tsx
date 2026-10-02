@@ -158,17 +158,21 @@ export default function UsersPage() {
         method: "DELETE",
       });
 
-      if (!response.ok) throw new Error("Failed to delete user");
+      if (!response.ok) {
+        // Surface the API reason (e.g. 409 "created N salary record(s) — suspend instead")
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to delete user");
+      }
 
       toast({
         title: "Success",
         description: "User deleted successfully",
       });
       fetchUsers();
-    } catch {
+    } catch (err) {
       toast({
         title: "Error",
-        description: "Failed to delete user",
+        description: err instanceof Error ? err.message : "Failed to delete user",
         variant: "destructive",
       });
     } finally {

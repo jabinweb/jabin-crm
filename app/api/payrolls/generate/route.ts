@@ -20,10 +20,15 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { companyId, month, year, employeeId } = body
+    const { companyId, employeeId } = body
+    const month = Number(body.month)
+    const year = Number(body.year)
 
     if (!companyId || !month || !year) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (!Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year) || year < 2000 || year > 2100) {
+      return NextResponse.json({ error: 'Invalid month or year' }, { status: 400 })
     }
 
     if (role !== 'SUPER_ADMIN') {
@@ -80,6 +85,13 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (error instanceof TenantError) {
       return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    const status = (error as { status?: number })?.status
+    if (status && status >= 400 && status < 500) {
+      return NextResponse.json({ error: (error as Error).message }, { status })
+    }
+    if (error instanceof Error && error.message === 'No salary configuration found') {
+      return NextResponse.json({ error: error.message }, { status: 400 })
     }
     console.error('Bulk payroll generation error:', error)
     return NextResponse.json(

@@ -73,11 +73,11 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
         const data = await response.json()
         form.reset({
           name: data.name,
-          description: data.description,
-          price: data.price.toString(),
-          category: data.category,
-          quantity: data.quantity.toString(),
-          sku: data.sku,
+          description: data.description ?? "",
+          price: data.price != null ? String(data.price) : "",
+          category: data.category ?? "",
+          quantity: data.quantity != null ? String(data.quantity) : "0",
+          sku: data.sku ?? "",
           imageUrl: data.imageUrl || "",
         })
       } catch (error) {

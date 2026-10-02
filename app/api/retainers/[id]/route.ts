@@ -22,7 +22,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 
   if (typeof body.name === 'string') data.name = body.name.trim();
   if (typeof body.description === 'string') data.description = body.description;
-  if (typeof body.amount === 'number') data.amount = body.amount;
+  if (body.amount !== undefined) {
+    if (typeof body.amount !== 'number' || !Number.isFinite(body.amount) || body.amount < 0) {
+      return NextResponse.json({ error: 'amount must be a non-negative number' }, { status: 400 });
+    }
+    data.amount = body.amount;
+  }
   if (typeof body.currency === 'string') data.currency = body.currency;
   if (typeof body.billingCycle === 'string') data.billingCycle = body.billingCycle;
   if (typeof body.status === 'string') data.status = body.status;
@@ -34,6 +39,15 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
       typeof body.projectId === 'string' && body.projectId.trim()
         ? body.projectId.trim()
         : null;
+    if (data.projectId) {
+      const project = await prisma.project.findFirst({
+        where: { id: data.projectId as string, companyId },
+        select: { id: true },
+      });
+      if (!project) {
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+      }
+    }
   }
   if (body.endDate !== undefined) {
     data.endDate = body.endDate ? new Date(body.endDate) : null;
@@ -41,6 +55,12 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
 
   /** Generate a draft invoice for this retainer period */
   if (body.action === 'bill_now') {
+    if (existing.status === 'CANCELLED' || existing.status === 'ENDED') {
+      return NextResponse.json(
+        { error: `Cannot bill a ${existing.status.toLowerCase()} retainer` },
+        { status: 400 }
+      );
+    }
     const invoiceNumber = `RET-${Date.now().toString(36).toUpperCase()}`;
     const due = new Date();
     due.setDate(due.getDate() + 14);

@@ -32,12 +32,29 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     return NextResponse.json({ error: 'Product name is required' }, { status: 400 });
   }
 
-  const { companyId: _strip, ...rest } = data;
+  // Whitelist writable fields (no mass-assignment of id/companyId/supplierId etc.)
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  const num = (v: unknown) => {
+    const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() ? Number(v) : NaN;
+    return Number.isFinite(n) ? n : undefined;
+  };
+  const quantity = num(data.quantity);
+  const price = num(data.price);
   const product = await productService.createProduct({
-    ...rest,
-    name: data.name,
+    name: String(data.name).trim(),
+    category: str(data.category),
+    description: str(data.description),
+    manufacturer: str(data.manufacturer),
+    modelNumber: str(data.modelNumber),
+    ...(data.type === 'EQUIPMENT' || data.type === 'CONSUMABLE'
+      ? { type: data.type }
+      : {}),
+    ...(str(data.sku) ? { sku: str(data.sku) } : {}),
+    ...(str(data.imageUrl) ? { imageUrl: str(data.imageUrl) } : {}),
+    ...(price !== undefined && price >= 0 ? { price } : {}),
+    ...(quantity !== undefined && quantity >= 0 ? { quantity: Math.floor(quantity) } : {}),
     companyId,
-  });
+  } as Parameters<typeof productService.createProduct>[0]);
 
   return jsonOk(product, { status: 201 });
 });

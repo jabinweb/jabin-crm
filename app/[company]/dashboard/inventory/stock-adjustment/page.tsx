@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { toast } from '@/hooks/use-toast'
 import { StockAdjustmentDialog } from "@/components/inventory/stock-adjustment-dialog"
 import { TransactionHistoryDialog } from "@/components/inventory/transaction-history-dialog"
 import { AlertsPanel } from "@/components/inventory/alerts-panel"
@@ -24,7 +26,7 @@ export default function StockAdjustmentPage() {
     })
     if (response.ok) {
       const data = await response.json()
-      setProducts(data.data.products)
+      setProducts(data?.data?.products ?? [])
     }
   }
 
@@ -33,13 +35,14 @@ export default function StockAdjustmentPage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-6">
           {/* Stock Adjustment content */}
+          <Button onClick={() => setShowAdjustmentDialog(true)}>Adjust stock</Button>
           <StockAdjustmentDialog
             open={showAdjustmentDialog}
             onOpenChange={setShowAdjustmentDialog}
             products={products}
             onSubmit={async (data) => {
               // Handle adjustment submission
-              await fetch('/api/inventory', {
+              const res = await fetch('/api/inventory', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -47,6 +50,16 @@ export default function StockAdjustmentPage() {
                 },
                 body: JSON.stringify(data),
               })
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description: typeof err.error === 'string' ? err.error : 'Failed to update inventory',
+                })
+              } else {
+                toast({ title: "Success", description: "Inventory updated successfully" })
+              }
               fetchProducts()
             }}
           />

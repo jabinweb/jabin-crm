@@ -4,8 +4,12 @@ import { handleApiError } from '@/lib/api-error-handler';
 import { withModuleAccess } from '@/lib/api/module-guard';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { isApiException } from '@/lib/api/subscription-guards';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 
-export const GET = withTenantRoute(async (_req, { companyId }) => {
+export const GET = withTenantRoute(async (_req, { session, companyId }) => {
+    if (session.user.role === 'CUSTOMER') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     await withModuleAccess('SERVICE_REPORTS');
     const reports = await serviceReportService.listReportsForCompany(companyId);
     return jsonOk({ reports });
@@ -18,9 +22,16 @@ export async function POST(request: NextRequest) {
         const data = await request.json();
         const technicianId = session.user.id;
 
+        if (session.user.role === 'CUSTOMER') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
         if (!data.ticketId || !data.serviceNotes) {
             return NextResponse.json({ error: 'Ticket ID and service notes are required' }, { status: 400 });
         }
+
+        const guard = await requireTicketRouteAccess(session, request, String(data.ticketId));
+        if (!guard.ok) return guard.response;
 
         const report = await serviceReportService.createReport({
             ...data,

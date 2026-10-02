@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@/auth'
 import { handleRouteError } from '@/lib/api/tenant-response';
 import { prisma } from '@/lib/prisma'
+import { hasLegacyRole } from '@/lib/auth/permissions'
 import {
   resolveCompanyContextFromRequest,
   TenantError,
@@ -15,6 +16,13 @@ export async function GET(
     const session = await auth()
     if (!session?.user) {
       return new Response('Unauthorized', { status: 401 })
+    }
+    // Salary is HR-admin only (employees see their own pay via payslips)
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const { companyId } = await resolveCompanyContextFromRequest(session, req)
@@ -66,9 +74,16 @@ export async function POST(
     if (!session?.user) {
       return new Response('Unauthorized', { status: 401 })
     }
+    // Salary is HR-admin only (employees see their own pay via payslips)
+    if (!hasLegacyRole(session, 'ADMIN', 'SUPER_ADMIN')) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
     const { companyId } = await resolveCompanyContextFromRequest(session, req)
-    const data = await req.json()
+    const data = await req.json().catch(() => ({}))
     const employeeId = (await params).id
 
     const employee = await prisma.employee.findFirst({
@@ -79,16 +94,30 @@ export async function POST(
       return new Response('Employee not found', { status: 404 })
     }
 
+    const amount = (v: unknown) => (v === undefined || v === null || v === '' ? 0 : Number(v))
+    const fields = {
+      basicSalary: amount(data.basicSalary),
+      houseRent: amount(data.houseRent),
+      transport: amount(data.transport),
+      medicalAllowance: amount(data.medicalAllowance),
+      taxDeduction: amount(data.taxDeduction),
+      otherDeductions: amount(data.otherDeductions),
+    }
+    if (
+      !(fields.basicSalary > 0) ||
+      Object.values(fields).some((n) => !Number.isFinite(n) || n < 0)
+    ) {
+      return new Response(
+        JSON.stringify({ error: 'basicSalary must be positive and amounts non-negative numbers' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     const salary = await prisma.employeeSalary.create({
       data: {
         employee: { connect: { id: employeeId } },
         createdBy: { connect: { id: session.user.id } },
-        basicSalary: Number(data.basicSalary),
-        houseRent: Number(data.houseRent),
-        transport: Number(data.transport),
-        medicalAllowance: Number(data.medicalAllowance),
-        taxDeduction: Number(data.taxDeduction),
-        otherDeductions: Number(data.otherDeductions),
+        ...fields,
         effectiveFrom: new Date(),
       },
     })

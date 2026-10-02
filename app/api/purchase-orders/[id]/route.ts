@@ -94,6 +94,9 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     if (existing.status === 'CANCELLED') {
       return NextResponse.json({ error: 'Cancelled PO cannot be received' }, { status: 400 });
     }
+    if (existing.status === 'RECEIVED') {
+      return NextResponse.json({ error: 'PO has already been received' }, { status: 400 });
+    }
     const items = (Array.isArray(existing.lineItems) ? existing.lineItems : []) as LineItem[];
     if (!items.length) {
       return NextResponse.json(
@@ -102,7 +105,13 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
       );
     }
 
-    await prisma.$transaction(async (tx) => {
+    const received = await prisma.$transaction(async (tx) => {
+      // Claim the PO first so a concurrent/double receive cannot add stock twice
+      const claimed = await tx.purchaseOrder.updateMany({
+        where: { id, companyId, status: { notIn: ['RECEIVED', 'CANCELLED'] } },
+        data: { status: 'RECEIVED', receivedAt: new Date() },
+      });
+      if (claimed.count === 0) return false;
       for (const item of items) {
         await tx.product.updateMany({
           where: { id: item.productId, companyId },
@@ -119,11 +128,11 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
           },
         });
       }
-      await tx.purchaseOrder.update({
-        where: { id },
-        data: { status: 'RECEIVED', receivedAt: new Date() },
-      });
+      return true;
     });
+    if (!received) {
+      return NextResponse.json({ error: 'PO has already been received' }, { status: 409 });
+    }
 
     const order = await prisma.purchaseOrder.findUnique({
       where: { id },

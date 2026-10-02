@@ -7,6 +7,7 @@ import { isApiException } from '@/lib/api/subscription-guards';
 import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
 import { prisma } from '@/lib/prisma';
 import { rejectIfOutsideCompanyPipeline } from '@/lib/pipelines/assert-stage';
+import { isWorkspaceStaff } from '@/lib/auth/workspace-staff';
 
 export async function GET(
   request: NextRequest,
@@ -26,6 +27,17 @@ export async function GET(
 
     if (!ticket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+    }
+
+    if (guard.session.user.role === 'CUSTOMER') {
+      // Transfer reasons and the guest token are staff-only.
+      // Customer.notes are internal staff notes.
+      return NextResponse.json({
+        ...ticket,
+        transferHistory: [],
+        guestAccessToken: null,
+        customer: ticket.customer ? { ...ticket.customer, notes: null } : ticket.customer,
+      });
     }
 
     return NextResponse.json(ticket);
@@ -60,6 +72,23 @@ export async function PATCH(
     }
 
     let result;
+
+    const ticketCompany = await prisma.supportTicket.findUnique({
+      where: { id },
+      select: { customer: { select: { companyId: true } } },
+    });
+    const ticketCompanyId = ticketCompany?.customer?.companyId ?? null;
+
+    for (const techId of [data.toTechnicianId, data.assignedTechnicianId]) {
+      if (typeof techId === 'string' && techId && ticketCompanyId) {
+        if (!(await isWorkspaceStaff(ticketCompanyId, techId))) {
+          return NextResponse.json(
+            { error: 'Technician is not a member of this workspace' },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     if (data.status) {
       const existing = await prisma.supportTicket.findUnique({
@@ -105,12 +134,21 @@ export async function PATCH(
         updateData.scheduledFor = data.scheduledFor
           ? new Date(data.scheduledFor)
           : null;
+        if (updateData.scheduledFor && Number.isNaN(updateData.scheduledFor.getTime())) {
+          return NextResponse.json({ error: 'Invalid scheduledFor date' }, { status: 400 });
+        }
       }
       if (data.estimatedDurationMin !== undefined) {
         updateData.estimatedDurationMin =
           data.estimatedDurationMin === null || data.estimatedDurationMin === ''
             ? null
-            : Number(data.estimatedDurationMin);
+            : Math.round(Number(data.estimatedDurationMin));
+        if (
+          updateData.estimatedDurationMin !== null &&
+          (!Number.isFinite(updateData.estimatedDurationMin) || updateData.estimatedDurationMin < 0)
+        ) {
+          return NextResponse.json({ error: 'Invalid estimatedDurationMin' }, { status: 400 });
+        }
       }
       if (data.assignedTechnicianId !== undefined) {
         updateData.assignedTechnicianId = data.assignedTechnicianId || null;
@@ -161,6 +199,15 @@ export async function PATCH(
         typeof data.projectId === 'string' && data.projectId.trim()
           ? data.projectId.trim()
           : null;
+      if (nextProjectId) {
+        const project = await prisma.project.findUnique({
+          where: { id: nextProjectId },
+          select: { companyId: true },
+        });
+        if (!project || (ticketCompanyId && project.companyId !== ticketCompanyId)) {
+          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        }
+      }
       result = await prisma.supportTicket.update({
         where: { id },
         data: { projectId: nextProjectId },

@@ -12,13 +12,14 @@ export async function GET() {
             select: { customerId: true, role: true },
         });
 
-        // SUPER_ADMIN / ADMIN can see all service reports
-        const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+        // Portal is customer-scoped; staff preview gets an empty list (reports of
+        // every tenant must never be listed here).
+        if (user?.role !== 'CUSTOMER' || !user.customerId) {
+            return NextResponse.json([]);
+        }
 
         const reports = await prisma.serviceReport.findMany({
-            where: isAdmin ? {} : (user?.customerId ? {
-                ticket: { customerId: user.customerId }
-            } : { id: '__none__' }),
+            where: { ticket: { customerId: user.customerId } },
             include: {
                 technician: { select: { id: true, name: true } },
                 ticket: {

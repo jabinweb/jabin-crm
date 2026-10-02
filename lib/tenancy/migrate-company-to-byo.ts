@@ -97,6 +97,7 @@ export async function migrateCompanyToByo(
   const copied: Record<string, number> = {};
   const skipped: string[] = [];
   let tenant: ReturnType<typeof createTenantPrismaClientForUrl> | null = null;
+  let cutOver = false;
 
   try {
     const provision = await provisionCompanyDatabaseSchema(url);
@@ -297,6 +298,8 @@ export async function migrateCompanyToByo(
       },
     });
 
+    cutOver = true;
+
     await purgeCompanyDataPlaneFromShared(companyId);
     evictTenantPrisma(companyId);
 
@@ -308,7 +311,9 @@ export async function migrateCompanyToByo(
     await prisma.company.update({
       where: { id: companyId },
       data: {
-        databaseMode: 'FAILED',
+        // After cutover the tenant DB holds the data — reverting to a shared-DB mode
+        // would point getDataPrisma() at the (partly purged) shared copies.
+        ...(cutOver ? {} : { databaseMode: 'FAILED' }),
         databaseLastError: scrubbed.slice(0, 2000),
       },
     });
@@ -329,12 +334,19 @@ export async function provisionCompanyDatabase(companyId: string) {
   const url = await getDecryptedCompanyDatabaseUrl(companyId);
   if (!url) throw new Error('Connect a Postgres URL before provisioning');
 
+  const current = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { databaseMode: true },
+  });
   const result = await provisionCompanyDatabaseSchema(url);
   if (!result.ok) {
     await prisma.company.update({
       where: { id: companyId },
       data: {
-        databaseMode: 'FAILED',
+        // Never knock a live BYO tenant back onto the shared DB
+        ...(current?.databaseMode === 'BYO_ACTIVE' || current?.databaseMode === 'MIGRATING'
+          ? {}
+          : { databaseMode: 'FAILED' }),
         databaseLastError: result.error.slice(0, 2000),
       },
     });

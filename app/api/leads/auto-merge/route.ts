@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
 import { autoMergeDuplicates } from '@/lib/leads/duplicate-detector';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
@@ -16,8 +17,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { exactMatchOnly = true } = body;
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
 
-    const result = await autoMergeDuplicates(session.user.id, exactMatchOnly);
+    const result = await autoMergeDuplicates(session.user.id, exactMatchOnly, companyId);
 
     return NextResponse.json({
       success: true,
@@ -28,6 +30,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     if (isApiException(error)) return handleApiError(error);
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error auto-merging duplicates:', error);
     return NextResponse.json({ 
       error: 'Failed to auto-merge duplicates',

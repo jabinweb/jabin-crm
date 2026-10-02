@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { hasLegacyRole } from '@/lib/auth/permissions'
 import { resolveCompanyContextFromRequest } from '@/lib/auth/company-membership'
 import { asNextRequest } from '@/lib/api/as-next-request'
+import { attendanceDateOnly } from '@/lib/hr/leave-year'
 
 export async function GET(request: Request) {
   try {
@@ -59,6 +60,17 @@ export async function POST(request: Request) {
     if (!reason || !date || Number.isNaN(date.getTime())) {
       return NextResponse.json({ error: 'date and reason required' }, { status: 400 })
     }
+    const attendanceId =
+      typeof body.attendanceId === 'string' && body.attendanceId ? body.attendanceId : null
+    if (attendanceId) {
+      const own = await prisma.attendance.findFirst({
+        where: { id: attendanceId, employeeId: session.user.employeeId },
+        select: { id: true },
+      })
+      if (!own) {
+        return NextResponse.json({ error: 'Attendance record not found' }, { status: 404 })
+      }
+    }
     const row = await prisma.attendanceCorrection.create({
       data: {
         employeeId: session.user.employeeId,
@@ -70,7 +82,7 @@ export async function POST(request: Request) {
         requestedCheckOut: body.requestedCheckOut
           ? new Date(body.requestedCheckOut)
           : null,
-        attendanceId: body.attendanceId || null,
+        attendanceId,
       },
     })
     return NextResponse.json(row, { status: 201 })
@@ -102,17 +114,17 @@ export async function PATCH(request: Request) {
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     if (action === 'approve') {
-      const dayStart = new Date(existing.date)
-      dayStart.setHours(0, 0, 0, 0)
-      const dayEnd = new Date(dayStart)
-      dayEnd.setDate(dayEnd.getDate() + 1)
+      const day = attendanceDateOnly(new Date(existing.date))
 
-      let attendance = existing.attendanceId
-        ? await prisma.attendance.findUnique({ where: { id: existing.attendanceId } })
-        : await prisma.attendance.findFirst({
+      // Look up by the unique (employeeId, date) key so approval never collides with an
+      // existing row, and never touches another employee's attendance.
+      const attendance = existing.attendanceId
+        ? await prisma.attendance.findFirst({
+            where: { id: existing.attendanceId, employeeId: existing.employeeId },
+          })
+        : await prisma.attendance.findUnique({
             where: {
-              employeeId: existing.employeeId,
-              createdAt: { gte: dayStart, lt: dayEnd },
+              employeeId_date: { employeeId: existing.employeeId, date: day },
             },
           })
 
@@ -129,11 +141,11 @@ export async function PATCH(request: Request) {
         await prisma.attendance.create({
           data: {
             employeeId: existing.employeeId,
-            date: existing.date,
+            date: day,
             checkIn: existing.requestedCheckIn,
             checkOut: existing.requestedCheckOut,
             status: 'PRESENT',
-            createdAt: dayStart,
+            createdAt: day,
           },
         })
       }

@@ -81,6 +81,9 @@ export async function PATCH(
 
     return NextResponse.json(event);
   } catch (error) {
+    if ((error as { code?: string })?.code === 'P2025') {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
     console.error('Calendar event update error:', error);
     return NextResponse.json(
       { error: 'Failed to update calendar event' },
@@ -104,6 +107,9 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if ((error as { code?: string })?.code === 'P2025') {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
     console.error('Calendar event deletion error:', error);
     return NextResponse.json(
       { error: 'Failed to delete calendar event' },

@@ -8,7 +8,7 @@ import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
 import { getClientBrandConfig } from '@/lib/branding';
 import { cn } from '@/lib/utils';
 
-const STORAGE_KEY = 'live_chat_visitor_token';
+const STORAGE_KEY_PREFIX = 'live_chat_visitor_token';
 
 export function LiveChatWidget({ companyId }: { companyId?: string }) {
   const brand = getClientBrandConfig();
@@ -16,6 +16,8 @@ export function LiveChatWidget({ companyId }: { companyId?: string }) {
   const [open, setOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [visitorToken, setVisitorToken] = useState<string | null>(null);
+  // Per-workspace key so a visitor's session with one workspace isn't reused for another.
+  const STORAGE_KEY = `${STORAGE_KEY_PREFIX}:${companyId ?? 'global'}`;
   const [visitorName, setVisitorName] = useState('');
   const [visitorEmail, setVisitorEmail] = useState('');
   const [started, setStarted] = useState(false);

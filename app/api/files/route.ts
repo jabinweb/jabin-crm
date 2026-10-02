@@ -60,5 +60,5 @@ export const GET = withAuthorization(
             );
         }
     },
-    { roles: ['admin', 'moderator'] }
+    { roles: ['SUPER_ADMIN'] }
 );

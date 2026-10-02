@@ -54,6 +54,9 @@ export async function POST(request: Request) {
       if (!name || !startDate || !endDate) {
         return NextResponse.json({ error: 'name, startDate, endDate required' }, { status: 400 })
       }
+      if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || endDate < startDate) {
+        return NextResponse.json({ error: 'Invalid date range' }, { status: 400 })
+      }
       const cycle = await prisma.performanceCycle.create({
         data: {
           companyId: ctx.companyId,
@@ -73,6 +76,18 @@ export async function POST(request: Request) {
       if (!cycleId || !employeeId || !title) {
         return NextResponse.json({ error: 'cycleId, employeeId, title required' }, { status: 400 })
       }
+      // Cycle, employee and reviewing manager must all belong to this workspace
+      const managerId = typeof body.managerId === 'string' && body.managerId ? body.managerId : null
+      const [cycle, emp, mgr] = await Promise.all([
+        prisma.performanceCycle.findFirst({ where: { id: cycleId, companyId: ctx.companyId }, select: { id: true } }),
+        prisma.employee.findFirst({ where: { id: employeeId, companyId: ctx.companyId }, select: { id: true } }),
+        managerId
+          ? prisma.employee.findFirst({ where: { id: managerId, companyId: ctx.companyId }, select: { id: true } })
+          : Promise.resolve(true),
+      ])
+      if (!cycle || !emp || !mgr) {
+        return NextResponse.json({ error: 'Cycle, employee or manager not found' }, { status: 404 })
+      }
       const goal = await prisma.performanceGoal.create({
         data: {
           cycleId,
@@ -87,7 +102,7 @@ export async function POST(request: Request) {
         create: {
           cycleId,
           employeeId,
-          managerId: body.managerId || null,
+          managerId,
           status: 'PENDING',
         },
         update: {},
@@ -116,10 +131,14 @@ export async function PATCH(request: Request) {
         where: { id: reviewId, employeeId: session.user.employeeId },
       })
       if (!review) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      const selfScore = Number(body.selfScore)
+      if (!Number.isFinite(selfScore)) {
+        return NextResponse.json({ error: 'selfScore must be a number' }, { status: 400 })
+      }
       const updated = await prisma.performanceReview.update({
         where: { id: reviewId },
         data: {
-          selfScore: Number(body.selfScore),
+          selfScore,
           selfNotes: body.selfNotes || null,
           status: 'SELF_DONE',
         },
@@ -141,11 +160,26 @@ export async function PATCH(request: Request) {
       if (!review) {
         const ctx = await requireHrAdmin(request)
         if (isHrAdminResult(ctx)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        // Admin fallback is limited to reviews in the admin's workspace
+        const inCompany = await prisma.performanceReview.findFirst({
+          where: { id: reviewId, cycle: { companyId: ctx.companyId } },
+          select: { employeeId: true },
+        })
+        if (!inCompany) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+        if (inCompany.employeeId === session.user.employeeId) {
+          return NextResponse.json({ error: 'You cannot review yourself' }, { status: 403 })
+        }
+      } else if (review.employeeId === session.user.employeeId) {
+        return NextResponse.json({ error: 'You cannot review yourself' }, { status: 403 })
+      }
+      const managerScore = Number(body.managerScore)
+      if (!Number.isFinite(managerScore)) {
+        return NextResponse.json({ error: 'managerScore must be a number' }, { status: 400 })
       }
       const updated = await prisma.performanceReview.update({
         where: { id: reviewId },
         data: {
-          managerScore: Number(body.managerScore),
+          managerScore,
           managerNotes: body.managerNotes || null,
           managerId: session.user.employeeId,
           status: 'COMPLETED',

@@ -27,6 +27,21 @@ export async function processLeaveAction(input: {
   const year = existingRequest.startDate.getFullYear()
 
   const updatedRequest = await prisma.$transaction(async (tx) => {
+    // Claim the request atomically: two concurrent approvals must not both move the
+    // balance (the PENDING check above is only a fast path).
+    const claimed = await tx.leaveRequest.updateMany({
+      where: { id: input.leaveRequestId, status: 'PENDING' },
+      data: {
+        status: input.action === 'approve' ? 'APPROVED' : 'REJECTED',
+        comment: input.comment ?? null,
+        actionById: input.actorEmployeeId ?? null,
+        actionAt: new Date(),
+      },
+    })
+    if (claimed.count === 0) {
+      throw Object.assign(new Error('Leave request already processed'), { status: 400 })
+    }
+
     if (existingRequest.policyId) {
       const balance = await tx.leaveBalance.findUnique({
         where: {
@@ -56,15 +71,8 @@ export async function processLeaveAction(input: {
       }
     }
 
-    return tx.leaveRequest.update({
+    return tx.leaveRequest.findUniqueOrThrow({
       where: { id: input.leaveRequestId },
-      data: {
-        status: input.action === 'approve' ? 'APPROVED' : 'REJECTED',
-        comment: input.comment ?? null,
-        actionById: input.actorEmployeeId ?? null,
-        actionAt: new Date(),
-        updatedAt: new Date(),
-      },
     })
   })
 

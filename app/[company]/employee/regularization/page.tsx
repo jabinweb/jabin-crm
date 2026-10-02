@@ -36,8 +36,9 @@ export default function RegularizationPage() {
         body: JSON.stringify({
           date,
           reason,
-          requestedCheckIn: checkIn ? `${date}T${checkIn}:00` : null,
-          requestedCheckOut: checkOut ? `${date}T${checkOut}:00` : null,
+          // Browser-local wall time -> absolute ISO instant (the server runs in UTC)
+          requestedCheckIn: checkIn ? new Date(`${date}T${checkIn}:00`).toISOString() : null,
+          requestedCheckOut: checkOut ? new Date(`${date}T${checkOut}:00`).toISOString() : null,
         }),
       })
       if (!res.ok) {

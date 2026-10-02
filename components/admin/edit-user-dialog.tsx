@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -42,9 +42,18 @@ export function EditUserDialog({
   const [formData, setFormData] = useState({
     name: user?.name || "",
     email: user?.email || "",
-    role: user?.role || "user",
+    role: user?.role || "SALES",
   });
   const { toast } = useToast();
+
+  // The dialog stays mounted while the page switches users — reload the form each time
+  useEffect(() => {
+    setFormData({
+      name: user?.name || "",
+      email: user?.email || "",
+      role: user?.role || "SALES",
+    });
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,8 +127,12 @@ export function EditUserDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">User</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  {/* Must match the UserRole enum — the API ignores anything else */}
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                  <SelectItem value="SALES">Sales</SelectItem>
+                  <SelectItem value="SUPPORT_MANAGER">Support manager</SelectItem>
+                  <SelectItem value="TECHNICIAN">Technician</SelectItem>
+                  <SelectItem value="CUSTOMER">Customer</SelectItem>
                 </SelectContent>
               </Select>
             </div>

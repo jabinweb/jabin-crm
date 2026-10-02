@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/hooks/use-toast'
+import { format } from 'date-fns'
 
 const formSchema = z.object({
   policyId: z.string().min(1, 'Leave type is required'),
@@ -73,8 +74,10 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
         body: JSON.stringify({
           policyId: data.policyId,
           type: policy?.code || 'ANNUAL',
-          startDate: data.startDate.toISOString(),
-          endDate: data.endDate.toISOString(),
+          // Calendar days, not local-midnight instants (IST midnight is the previous
+          // day in UTC, which shifted leave dates/years on the server)
+          startDate: format(data.startDate, 'yyyy-MM-dd'),
+          endDate: format(data.endDate, 'yyyy-MM-dd'),
           reason: data.reason,
         }),
       })

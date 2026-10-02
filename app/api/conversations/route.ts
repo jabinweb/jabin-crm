@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { hasLegacyRole } from '@/lib/auth/permissions';
-import { workspaceStaffWhere } from '@/lib/auth/workspace-staff';
+import { isWorkspaceStaff, workspaceStaffWhere } from '@/lib/auth/workspace-staff';
 import { chatPlainText } from '@/lib/messaging/mentions';
 import {
   PERSON_SELECT,
@@ -112,6 +112,9 @@ export const GET = withTenantRoute(async (_request, { session, companyId }) => {
  */
 export const POST = withTenantRoute(async (request, { session, companyId }) => {
   const me = session.user.id;
+  if (!(await isWorkspaceStaff(companyId, me))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
   const body = await request.json().catch(() => ({}));
   const type = body.type;
 

@@ -3,6 +3,29 @@ import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 
+/** Reject links to equipment / employees that belong to another workspace. */
+async function invalidAssetLinks(
+  companyId: string,
+  equipmentInstallationId: string | null | undefined,
+  assignedToEmployeeId: string | null | undefined
+): Promise<string | null> {
+  if (equipmentInstallationId) {
+    const eq = await prisma.equipmentInstallation.findFirst({
+      where: { id: equipmentInstallationId, customer: { companyId } },
+      select: { id: true },
+    });
+    if (!eq) return 'Equipment not found';
+  }
+  if (assignedToEmployeeId) {
+    const emp = await prisma.employee.findFirst({
+      where: { id: assignedToEmployeeId, companyId },
+      select: { id: true },
+    });
+    if (!emp) return 'Employee not found';
+  }
+  return null;
+}
+
 export const GET = withTenantRoute(async (request, { companyId }) => {
   const employeeId = new URL(request.url).searchParams.get('employeeId')
   const assets = await prisma.asset.findMany({
@@ -60,6 +83,11 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     typeof body.assignedToEmployeeId === 'string' && body.assignedToEmployeeId.trim()
       ? body.assignedToEmployeeId.trim()
       : null;
+
+  const linkError = await invalidAssetLinks(companyId, equipmentInstallationId, assignedToEmployeeId);
+  if (linkError) {
+    return NextResponse.json({ error: linkError }, { status: 404 });
+  }
 
   const asset = await prisma.asset.create({
     data: {

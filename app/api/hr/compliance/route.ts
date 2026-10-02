@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { isHrAdminResult, requireHrAdmin } from '@/lib/hr/api-auth'
 
+/** Quote a CSV text cell; neutralise spreadsheet formula prefixes. */
+function csvText(v: string | null | undefined): string {
+  let t = String(v ?? '')
+  if (/^[=+\-@]/.test(t)) t = `'${t}`
+  return `"${t.replace(/"/g, '""')}"`
+}
+
 export async function GET(request: Request) {
   try {
     const ctx = await requireHrAdmin(request)
@@ -35,7 +42,7 @@ export async function GET(request: Request) {
       const rows = payslips
         .map(
           (p) =>
-            `${p.employee.employeeId},"${p.employee.name}",${p.netSalary},${p.isPaid}`
+            `${p.employee.employeeId},${csvText(p.employee.name)},${p.netSalary},${p.isPaid}`
         )
         .join('\n')
       return new NextResponse(header + rows, {
@@ -54,7 +61,7 @@ export async function GET(request: Request) {
             components?: { deductions?: { pf?: number }; employer?: { pf?: number }; basic?: number }
             statutory?: { uan?: string; pfNumber?: string }
           }
-          return `${p.employee.employeeId},"${p.employee.name}",${
+          return `${p.employee.employeeId},${csvText(p.employee.name)},${
             p.employee.statutoryProfile?.uan || b.statutory?.uan || ''
           },${p.employee.statutoryProfile?.pfNumber || ''},${
             b.components?.deductions?.pf ?? 0
@@ -76,7 +83,7 @@ export async function GET(request: Request) {
           const b = (p.breakdown || {}) as {
             components?: { deductions?: { esi?: number }; employer?: { esi?: number } }
           }
-          return `${p.employee.employeeId},"${p.employee.name}",${
+          return `${p.employee.employeeId},${csvText(p.employee.name)},${
             p.employee.statutoryProfile?.esiNumber || ''
           },${b.components?.deductions?.esi ?? 0},${b.components?.employer?.esi ?? 0},${
             p.basicSalary + p.additions

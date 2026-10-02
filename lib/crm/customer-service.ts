@@ -197,7 +197,25 @@ export class CustomerService {
 
   async updateCustomer(id: string, data: Partial<CreateCustomerData>) {
     const { isCurrencyCode } = await import('@/lib/currency');
-    const payload: Partial<CreateCustomerData> = { ...data };
+    // Whitelist editable fields: never let a request body move the record to
+    // another tenant (companyId) or touch id / serviceRequestToken etc.
+    const editable = [
+      'organizationName',
+      'contactPerson',
+      'email',
+      'phone',
+      'address',
+      'city',
+      'state',
+      'industry',
+      'accountType',
+      'notes',
+      'billingCurrency',
+    ] as const;
+    const payload: Partial<CreateCustomerData> = {};
+    for (const key of editable) {
+      if (key in data) (payload as Record<string, unknown>)[key] = data[key];
+    }
     if ('billingCurrency' in payload) {
       if (!payload.billingCurrency || payload.billingCurrency === '') {
         payload.billingCurrency = null;
@@ -371,7 +389,44 @@ export class CustomerService {
     });
   }
 
+  /**
+   * Drop contact / department / tag ids that don't belong to this customer or
+   * workspace, so a visit can't link (and then echo back) another tenant's records.
+   */
+  private async scopeVisitRefs<T extends Partial<CreateVisitData>>(
+    customerId: string,
+    companyId: string | null,
+    data: T
+  ): Promise<T> {
+    const out: Partial<CreateVisitData> = { ...data };
+    if (Array.isArray(data.contactIds) && data.contactIds.length) {
+      const rows = await prisma.customerContact.findMany({
+        where: { id: { in: data.contactIds }, customerId },
+        select: { id: true },
+      });
+      out.contactIds = rows.map((r) => r.id);
+    }
+    if (Array.isArray(data.tagIds) && data.tagIds.length) {
+      const rows = companyId
+        ? await prisma.visitTag.findMany({
+            where: { id: { in: data.tagIds }, companyId },
+            select: { id: true },
+          })
+        : [];
+      out.tagIds = rows.map((r) => r.id);
+    }
+    if (data.departmentId) {
+      const dept = await prisma.customerDepartment.findFirst({
+        where: { id: data.departmentId, customerId },
+        select: { id: true },
+      });
+      if (!dept) throw new Error('Invalid department');
+    }
+    return out as T;
+  }
+
   async createVisit(customerId: string, companyId: string, data: CreateVisitData, createdById?: string) {
+    data = await this.scopeVisitRefs(customerId, companyId, data);
     const scheduledAt = new Date(data.scheduledAt);
     if (Number.isNaN(scheduledAt.getTime())) {
       throw new Error('Invalid scheduledAt');
@@ -421,6 +476,8 @@ export class CustomerService {
       where: { id: visitId, customerId },
     });
     if (!existing) return null;
+
+    data = await this.scopeVisitRefs(customerId, existing.companyId, data);
 
     const wasCompleted = existing.status === 'COMPLETED';
     const nextStatus = data.status;

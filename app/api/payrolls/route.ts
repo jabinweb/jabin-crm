@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const session = await auth()
     if (!(session?.user as any)?.role || !['ADMIN', 'SUPER_ADMIN'].includes((session?.user as any).role)) {
@@ -56,7 +56,30 @@ export async function POST(req: Request) {
       })
     }
 
-    const { employeeId, month, year } = await req.json()
+    const body = await req.json().catch(() => ({}))
+    const employeeId = typeof body.employeeId === 'string' ? body.employeeId : ''
+    const month = Number(body.month)
+    const year = Number(body.year)
+    if (!employeeId || !Number.isInteger(month) || month < 1 || month > 12 || !Number.isInteger(year)) {
+      return NextResponse.json({ error: 'employeeId, month (1-12) and year required' }, { status: 400 })
+    }
+
+    // Employee must belong to the request workspace
+    const { companyId } = await resolveCompanyContextFromRequest(session, req)
+    const employee = await prisma.employee.findFirst({
+      where: { id: employeeId, companyId },
+      select: { id: true },
+    })
+    if (!employee) {
+      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+    }
+    const duplicate = await prisma.payslip.findUnique({
+      where: { employeeId_month_year: { employeeId, month, year } },
+      select: { id: true },
+    })
+    if (duplicate) {
+      return NextResponse.json({ error: 'Payslip already exists for this period' }, { status: 409 })
+    }
 
     // Get employee's salary configuration
     const salaryConfig = await prisma.employeeSalary.findFirst({
@@ -90,7 +113,7 @@ export async function POST(req: Request) {
         isPaid: false,
       },
       include: {
-        employee: true,
+        employee: { select: { id: true, name: true, email: true } },
       },
     })
 
@@ -100,6 +123,9 @@ export async function POST(req: Request) {
     })
 
   } catch (error) {
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
     console.error('Payroll generation error:', error)
     return new Response(JSON.stringify({
       error: 'Failed to generate payslip',

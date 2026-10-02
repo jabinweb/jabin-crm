@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { resolveBillingUserId } from '@/lib/plan-modules';
 
 export async function GET() {
   try {
@@ -12,7 +13,8 @@ export async function GET() {
 
     const subscription = await prisma.subscription.findFirst({
       where: {
-        userId: session.user.id,
+        // Workspace plans live on the company billing account (same as /usage, create-order)
+        userId: await resolveBillingUserId(session.user.id),
         status: {
           in: ['ACTIVE', 'TRIALING', 'PAST_DUE'],
         },

@@ -24,12 +24,19 @@ export async function POST(request: Request) {
     const body = await request.json()
     const name = typeof body.name === 'string' ? body.name.trim() : ''
     if (!name) return NextResponse.json({ error: 'name required' }, { status: 400 })
+    if (typeof body.parentId === 'string' && body.parentId) {
+      const parent = await prisma.hrDepartment.findFirst({
+        where: { id: body.parentId, companyId: ctx.companyId },
+        select: { id: true },
+      })
+      if (!parent) return NextResponse.json({ error: 'Parent department not found' }, { status: 400 })
+    }
     const row = await prisma.hrDepartment.create({
       data: {
         companyId: ctx.companyId,
         name,
         code: typeof body.code === 'string' ? body.code.trim() || null : null,
-        parentId: typeof body.parentId === 'string' ? body.parentId : null,
+        parentId: typeof body.parentId === 'string' && body.parentId ? body.parentId : null,
         active: body.active !== false,
       },
     })
@@ -51,6 +58,15 @@ export async function PATCH(request: Request) {
       where: { id, companyId: ctx.companyId },
     })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (body.parentId) {
+      const parent =
+        body.parentId !== id &&
+        (await prisma.hrDepartment.findFirst({
+          where: { id: String(body.parentId), companyId: ctx.companyId },
+          select: { id: true },
+        }))
+      if (!parent) return NextResponse.json({ error: 'Invalid parent department' }, { status: 400 })
+    }
     const row = await prisma.hrDepartment.update({
       where: { id },
       data: {

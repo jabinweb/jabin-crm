@@ -5,14 +5,35 @@ import { withModuleAccess } from '@/lib/api/module-guard';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { ServiceReportPDF } from '@/lib/pdf/service-report-pdf';
 import { serviceReportService } from '@/lib/crm/service-report-service';
+import { prisma } from '@/lib/prisma';
+import { requireTicketRouteAccess } from '@/lib/tenant/ticket-route-guard';
+import type { Session } from 'next-auth';
+
+/** Report must belong to a ticket the caller can access (own ticket for portal customers). */
+async function requireServiceReportAccess(session: Session, req: NextRequest, reportId: string) {
+  const row = await prisma.serviceReport.findUnique({
+    where: { id: reportId },
+    select: { ticketId: true },
+  });
+  if (!row) {
+    return { ok: false as const, response: NextResponse.json({ error: 'Report not found' }, { status: 404 }) };
+  }
+  const guard = await requireTicketRouteAccess(session, req, row.ticketId);
+  if (!guard.ok) {
+    return { ok: false as const, response: NextResponse.json({ error: 'Report not found' }, { status: 404 }) };
+  }
+  return { ok: true as const };
+}
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await withModuleAccess('SERVICE_REPORTS');
+    const session = await withModuleAccess('SERVICE_REPORTS');
     const { id } = await params;
+    const guard = await requireServiceReportAccess(session, req, id);
+    if (!guard.ok) return guard.response;
     const report = await serviceReportService.getReportById(id);
     if (!report) {
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });

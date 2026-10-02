@@ -118,7 +118,36 @@ export async function PATCH(req: NextRequest) {
 
     const { companyId } = await resolveCompanyContextFromRequest(session, req)
 
-    const { company: companyData, settings: settingsData } = await req.json()
+    let body: unknown
+    try {
+      body = await req.json()
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const isPlainObject = (v: unknown): v is Record<string, unknown> =>
+      !!v && typeof v === 'object' && !Array.isArray(v)
+    if (!isPlainObject(body)) {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const companyData = body.company as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const settingsData = body.settings as any
+    if (
+      (companyData != null && !isPlainObject(companyData)) ||
+      (settingsData != null && !isPlainObject(settingsData))
+    ) {
+      return new Response(JSON.stringify({ error: 'company and settings must be objects' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
     const existing = await prisma.company.findUnique({
       where: { id: companyId },
@@ -207,11 +236,9 @@ export async function PATCH(req: NextRequest) {
     }
     console.error('[API] Settings update error:', error)
     return new Response(
-      JSON.stringify({
-        message: error instanceof Error ? error.message : 'Internal Server Error',
-      }),
+      JSON.stringify({ error: 'Internal Server Error' }),
       {
-        status: error instanceof Error ? 400 : 500,
+        status: 500,
         headers: { 'Content-Type': 'application/json' },
       }
     )

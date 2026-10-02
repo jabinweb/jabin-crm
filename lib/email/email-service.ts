@@ -188,7 +188,8 @@ export class EmailService {
 
     for (const [key, value] of Object.entries(variables)) {
       const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'g');
-      result = result.replace(regex, value);
+      // Function replacer so `$&`, `$1` etc. in lead data are inserted literally.
+      result = result.replace(regex, () => value);
     }
 
     return result;
@@ -266,6 +267,26 @@ export class CampaignManager {
           continue;
         }
 
+        // Respect unsubscribes (lead status or global unsubscribe list).
+        const unsubscribed =
+          campaignLead.lead.status === 'UNSUBSCRIBED' ||
+          !!(await prisma.unsubscribeList.findUnique({
+            where: { email: campaignLead.lead.email },
+            select: { id: true },
+          }));
+        if (unsubscribed) {
+          await this.updateCampaignLeadStatus(campaignLead.id, 'UNSUBSCRIBED');
+          continue;
+        }
+
+        // Atomically claim this recipient so concurrent sends (double click,
+        // cron + manual) never email the same lead twice.
+        const claimed = await prisma.emailCampaignLead.updateMany({
+          where: { id: campaignLead.id, status: 'PENDING' },
+          data: { status: 'SENT', sentAt: new Date() },
+        });
+        if (claimed.count === 0) continue;
+
         // Prepare email variables
         const variables = {
           companyName: campaignLead.lead.companyName || '',
@@ -342,7 +363,7 @@ export class CampaignManager {
       where: { id: campaignId },
       data: {
         status: 'SENT',
-        sentCount: campaign.sentCount + sentCount,
+        sentCount: { increment: sentCount },
       },
     });
 
@@ -402,7 +423,8 @@ export class CampaignManager {
         logError(error, { context: 'Error processing scheduled campaign', campaignId: campaign.id });
         await prisma.emailCampaign.update({
           where: { id: campaign.id },
-          data: { status: 'FAILED' as any },
+          // CampaignStatus has no FAILED value; pause so it can be retried.
+          data: { status: 'PAUSED' },
         });
       }
     }

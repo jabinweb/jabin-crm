@@ -8,11 +8,34 @@ import {
   TenantError,
 } from '@/lib/auth/company-membership';
 
+/** Keep only user ids that belong to the workspace (support groups drive auto-assignment). */
+async function filterWorkspaceMemberIds(companyId: string, ids: unknown): Promise<string[]> {
+  if (!Array.isArray(ids)) return [];
+  const wanted = Array.from(new Set(ids.filter((v): v is string => typeof v === 'string' && !!v)));
+  if (!wanted.length) return [];
+  const users = await prisma.user.findMany({
+    where: {
+      id: { in: wanted },
+      role: { not: 'CUSTOMER' },
+      OR: [
+        { companyId },
+        { primaryCompanyId: companyId },
+        { userCompanies: { some: { companyId } } },
+      ],
+    },
+    select: { id: true },
+  });
+  return users.map((u) => u.id);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (session.user.role === 'CUSTOMER') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     await ensureFeatureEnabled(session.user.id, 'SUPPORT_GROUPS');
 
@@ -69,6 +92,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Group name is required' }, { status: 400 });
     }
 
+    const memberIds = await filterWorkspaceMemberIds(companyId, body.memberIds);
+
     const group = await prisma.supportGroup.create({
       data: {
         name: body.name.trim(),
@@ -76,9 +101,9 @@ export async function POST(req: NextRequest) {
         email: body.email,
         companyId: companyId,
         isDefault: body.isDefault ?? false,
-        members: body.memberIds?.length
+        members: memberIds.length
           ? {
-              create: body.memberIds.map((userId: string) => ({ userId })),
+              create: memberIds.map((userId: string) => ({ userId })),
             }
           : undefined,
       },

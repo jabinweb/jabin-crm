@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import logger from '@/lib/logger';
+import { Prisma } from '@prisma/client';
 import type { Quotation, QuotationItem, QuotationStatus } from '@prisma/client';
+import { ApiErrors } from '@/lib/api-error-handler';
 
 export interface CreateQuotationInput {
   userId: string;
@@ -29,6 +31,7 @@ export interface CreateQuotationInput {
 
 export interface UpdateQuotationInput {
   title?: string;
+  currency?: string;
   description?: string;
   customerName?: string;
   customerEmail?: string;
@@ -62,15 +65,16 @@ export class QuotationService {
           startsWith: `${prefix}${year}${month}`,
         },
       },
+      // Highest number, not most recent row
       orderBy: {
-        createdAt: 'desc',
+        quotationNumber: 'desc',
       },
     });
 
     let sequence = 1;
     if (lastQuotation) {
-      const lastSequence = parseInt(lastQuotation.quotationNumber.slice(-4));
-      sequence = lastSequence + 1;
+      const lastSequence = parseInt(lastQuotation.quotationNumber.slice(`${prefix}${year}${month}`.length), 10);
+      sequence = (Number.isFinite(lastSequence) ? lastSequence : 0) + 1;
     }
 
     return `${prefix}${year}${month}${sequence.toString().padStart(4, '0')}`;
@@ -100,8 +104,6 @@ export class QuotationService {
    */
   async createQuotation(input: CreateQuotationInput) {
     try {
-      const quotationNumber = await this.generateQuotationNumber();
-      
       const { subtotal, taxAmount, total } = this.calculateTotals(
         input.items,
         input.taxRate || 0,
@@ -127,7 +129,10 @@ export class QuotationService {
         userId: input.userId,
       });
 
-      const quotation = await prisma.quotation.create({
+      // Quotation numbers are globally unique; retry when a concurrent create took ours.
+      const createWithNumber = async () => {
+        const quotationNumber = await this.generateQuotationNumber();
+        return prisma.quotation.create({
         data: {
           quotationNumber,
           userId: input.userId,
@@ -166,6 +171,21 @@ export class QuotationService {
           deal: true,
         },
       });
+      };
+
+      let quotation!: Awaited<ReturnType<typeof createWithNumber>>;
+      for (let attempt = 0; ; attempt++) {
+        try {
+          quotation = await createWithNumber();
+          break;
+        } catch (err) {
+          const isNumberClash =
+            err instanceof Prisma.PrismaClientKnownRequestError &&
+            err.code === 'P2002' &&
+            JSON.stringify(err.meta ?? {}).includes('quotationNumber');
+          if (!isNumberClash || attempt >= 4) throw err;
+        }
+      }
 
       logger.info({
         quotationId: quotation.id,
@@ -191,11 +211,11 @@ export class QuotationService {
       });
 
       if (!existing) {
-        throw new Error('Quotation not found');
+        throw ApiErrors.notFound('Quotation');
       }
 
       if (existing.status !== 'DRAFT') {
-        throw new Error('Only draft quotations can be edited');
+        throw ApiErrors.badRequest('Only draft quotations can be edited');
       }
 
       let updateData: any = {
@@ -205,16 +225,20 @@ export class QuotationService {
         customerEmail: input.customerEmail,
         customerPhone: input.customerPhone,
         customerAddress: input.customerAddress,
+        currency: input.currency,
         taxRate: input.taxRate,
         discount: input.discount,
         terms: input.terms,
         notes: input.notes,
+        ...(input.validityDays
+          ? { validUntil: new Date(Date.now() + input.validityDays * 24 * 60 * 60 * 1000) }
+          : {}),
       };
 
-      // If items are updated, recalculate totals
-      if (input.items) {
+      // Recalculate totals when items, tax rate or discount change
+      if (input.items || input.taxRate !== undefined || input.discount !== undefined) {
         const { subtotal, taxAmount, total } = this.calculateTotals(
-          input.items,
+          input.items ?? existing.items,
           input.taxRate ?? existing.taxRate,
           input.discount ?? existing.discount
         );
@@ -225,11 +249,6 @@ export class QuotationService {
           taxAmount,
           total,
         };
-
-        // Delete existing items and create new ones
-        await prisma.quotationItem.deleteMany({
-          where: { quotationId },
-        });
       }
 
       const quotation = await prisma.quotation.update({
@@ -238,6 +257,8 @@ export class QuotationService {
           ...updateData,
           ...(input.items && {
             items: {
+              // Replace items atomically with the quotation update
+              deleteMany: {},
               create: input.items.map((item) => ({
                 name: item.name,
                 description: item.description,
@@ -269,10 +290,17 @@ export class QuotationService {
    */
   async sendQuotation(quotationId: string) {
     try {
+      const existing = await prisma.quotation.findUnique({
+        where: { id: quotationId },
+        select: { status: true },
+      });
+      if (!existing) throw ApiErrors.notFound('Quotation');
+
       const quotation = await prisma.quotation.update({
         where: { id: quotationId },
         data: {
-          status: 'SENT',
+          // Re-sending must not move an accepted/converted quotation back to SENT
+          status: existing.status === 'DRAFT' ? 'SENT' : existing.status,
           sentAt: new Date(),
         },
         include: {
@@ -320,6 +348,15 @@ export class QuotationService {
    */
   async acceptQuotation(quotationId: string) {
     try {
+      const existing = await prisma.quotation.findUnique({
+        where: { id: quotationId },
+        select: { status: true },
+      });
+      if (!existing) throw ApiErrors.notFound('Quotation');
+      if (existing.status === 'CONVERTED') {
+        throw ApiErrors.badRequest('Quotation has already been converted to an invoice');
+      }
+
       const quotation = await prisma.quotation.update({
         where: { id: quotationId },
         data: {
@@ -379,11 +416,11 @@ export class QuotationService {
       });
 
       if (!quotation) {
-        throw new Error('Quotation not found');
+        throw ApiErrors.notFound('Quotation');
       }
 
       if (quotation.status !== 'ACCEPTED') {
-        throw new Error('Only accepted quotations can be converted to invoices');
+        throw ApiErrors.badRequest('Only accepted quotations can be converted to invoices');
       }
 
       // Check if quotation is already converted
@@ -392,7 +429,7 @@ export class QuotationService {
       });
       
       if (existingInvoice) {
-        throw new Error('Quotation already converted to invoice');
+        throw ApiErrors.conflict('Quotation already converted to invoice');
       }
 
       // Import invoice service to avoid circular dependency
@@ -557,11 +594,11 @@ export class QuotationService {
       });
 
       if (!quotation) {
-        throw new Error('Quotation not found');
+        throw ApiErrors.notFound('Quotation');
       }
 
       if (quotation.status !== 'DRAFT') {
-        throw new Error('Only draft quotations can be deleted');
+        throw ApiErrors.badRequest('Only draft quotations can be deleted');
       }
 
       await prisma.quotation.delete({

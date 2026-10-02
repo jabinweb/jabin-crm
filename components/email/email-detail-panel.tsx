@@ -24,6 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { extractReplyContent } from '@/lib/email/extract-reply-content';
+import { sanitizeRichText } from '@/lib/html/sanitize-rich-text';
 import { SectionSkeleton } from '@/components/loading';
 import type { Email, EmailFolder, Reply, SentimentAnalysis } from '@/types/emails-inbox';
 
@@ -211,7 +212,8 @@ export function EmailDetailPanel({
             <div
               className="whitespace-pre-wrap text-sm leading-relaxed"
               dangerouslySetInnerHTML={{
-                __html: selectedEmail.body || '',
+                // Bodies can contain external/AI/user HTML — sanitize before rendering.
+                __html: sanitizeRichText(selectedEmail.body),
               }}
             />
           </div>

@@ -39,7 +39,7 @@ export default function OnboardingPage() {
   const role = session?.user?.role;
   const isManager = canManageCompanyOnboarding(role);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['onboarding', slug],
     queryFn: async () => {
       const res = await fetch('/api/onboarding', { headers: workspaceSlugHeaders(slug) });
@@ -95,6 +95,27 @@ export default function OnboardingPage() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', slug] }),
   });
+
+  // A failed load used to leave the skeleton up forever (data stays undefined)
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <Card className="max-w-md w-full shadow-none">
+          <CardHeader>
+            <CardTitle>Could not load workspace setup</CardTitle>
+            <CardDescription>
+              {error instanceof Error ? error.message : 'Something went wrong.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="w-full" onClick={() => void refetch()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (sessionStatus === 'loading' || isLoading || !data) {
     return (

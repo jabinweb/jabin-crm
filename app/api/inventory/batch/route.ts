@@ -21,6 +21,23 @@ export async function POST(req: Request) {
     const { batchNumber, serialNumber, quantity, expiryDate, productId, locationId } =
       await req.json()
 
+    if (
+      typeof batchNumber !== 'string' ||
+      !batchNumber.trim() ||
+      !Number.isInteger(quantity) ||
+      quantity <= 0 ||
+      typeof productId !== 'string' ||
+      typeof locationId !== 'string' ||
+      (expiryDate && Number.isNaN(new Date(expiryDate).getTime()))
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: 'batchNumber, productId, locationId and a positive whole quantity are required',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
     const [product, location] = await Promise.all([
       prisma.product.findFirst({ where: { id: productId, companyId } }),
       prisma.location.findFirst({ where: { id: locationId, companyId } }),

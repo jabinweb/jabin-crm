@@ -159,12 +159,47 @@ export async function POST(request: NextRequest) {
               select: { companyId: true },
             });
 
-            if (
-              staffCompanyId &&
-              customer?.companyId &&
-              customer.companyId !== staffCompanyId
-            ) {
+            if (!customer) {
+              return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+            }
+
+            if (!staffCompanyId && session.user.role !== 'SUPER_ADMIN') {
+              return NextResponse.json({ error: 'Company context required' }, { status: 400 });
+            }
+
+            if (staffCompanyId && customer.companyId !== staffCompanyId) {
               return NextResponse.json({ error: 'Customer not in your workspace' }, { status: 403 });
+            }
+
+            // Linked records must belong to this customer / workspace.
+            const refCompanyId = customer.companyId;
+            if (data.equipmentId) {
+              const ok = await prisma.equipmentInstallation.findFirst({
+                where: { id: String(data.equipmentId), customerId: String(data.customerId) },
+                select: { id: true },
+              });
+              if (!ok) return NextResponse.json({ error: 'Invalid equipment selection' }, { status: 400 });
+            }
+            if (data.serviceContractId) {
+              const ok = await prisma.serviceContract.findFirst({
+                where: { id: String(data.serviceContractId), customerId: String(data.customerId) },
+                select: { id: true },
+              });
+              if (!ok) return NextResponse.json({ error: 'Invalid service contract' }, { status: 400 });
+            }
+            if (data.projectId && refCompanyId) {
+              const ok = await prisma.project.findFirst({
+                where: { id: String(data.projectId), companyId: refCompanyId },
+                select: { id: true },
+              });
+              if (!ok) return NextResponse.json({ error: 'Invalid project selection' }, { status: 400 });
+            }
+            if (data.groupId && refCompanyId) {
+              const ok = await prisma.supportGroup.findFirst({
+                where: { id: String(data.groupId), companyId: refCompanyId },
+                select: { id: true },
+              });
+              if (!ok) return NextResponse.json({ error: 'Invalid support group' }, { status: 400 });
             }
 
             if (data.ticketType) {

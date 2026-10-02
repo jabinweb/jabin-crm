@@ -21,11 +21,17 @@ export async function POST(
   req: NextRequest,
   context: { params: Promise<{ token: string }> }
 ) {
+  const params = await context.params;
+  let email: string;
   try {
-    const params = await context.params;
-    const email = unsubscribeService.decodeToken(params.token);
-    const body = await req.json();
-    const { reason } = body;
+    email = unsubscribeService.decodeToken(params.token);
+  } catch {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 400 });
+  }
+
+  try {
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 1000) : undefined;
 
     await unsubscribeService.unsubscribe(email, {
       reason,
@@ -38,6 +44,6 @@ export async function POST(
     });
   } catch (error: any) {
     console.error('Error processing unsubscribe:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to unsubscribe' }, { status: 500 });
   }
 }

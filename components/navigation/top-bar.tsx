@@ -187,7 +187,11 @@ export function TopBar({
           {showMessages && (
             <Button variant="ghost" size="icon" className="relative" asChild>
               <Link
-                href={path('/dashboard/messages')}
+                href={
+                  userRole === 'EMPLOYEE'
+                    ? employeePath('/employee/messages')
+                    : path('/dashboard/messages')
+                }
                 aria-label={unreadMessages ? `Messages, ${unreadMessages} unread` : 'Messages'}
               >
                 <MessageSquare className="h-5 w-5" />

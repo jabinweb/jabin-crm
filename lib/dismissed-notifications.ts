@@ -6,13 +6,37 @@ interface DismissedNotification {
 const DISMISSED_KEY = 'dismissed_notifications'
 const EXPIRY_DAYS = 30 // Notifications are dismissed for 30 days
 
+/** Corrupt or unavailable storage (private mode, quota) must not break notifications. */
+function readDismissed(): DismissedNotification[] {
+  try {
+    const raw = localStorage.getItem(DISMISSED_KEY)
+    if (!raw) return []
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (item): item is DismissedNotification =>
+            !!item && typeof item.id === 'string' && typeof item.dismissedAt === 'number'
+        )
+      : []
+  } catch {
+    return []
+  }
+}
+
+function writeDismissed(items: DismissedNotification[]) {
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(items))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getDismissedNotifications(): string[] {
   if (typeof window === 'undefined') return []
-  
-  const dismissed = localStorage.getItem(DISMISSED_KEY)
-  if (!dismissed) return []
 
-  const dismissedItems: DismissedNotification[] = JSON.parse(dismissed)
+  const dismissedItems = readDismissed()
+  if (dismissedItems.length === 0) return []
+
   const now = Date.now()
   const validItems = dismissedItems.filter(item => {
     const age = now - item.dismissedAt
@@ -21,22 +45,22 @@ export function getDismissedNotifications(): string[] {
 
   // Clean up expired items
   if (validItems.length !== dismissedItems.length) {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(validItems))
+    writeDismissed(validItems)
   }
 
   return validItems.map(item => item.id)
 }
 
 export function addDismissedNotification(id: string) {
-  const dismissed = localStorage.getItem(DISMISSED_KEY)
-  const dismissedItems: DismissedNotification[] = dismissed ? JSON.parse(dismissed) : []
-  
+  if (typeof window === 'undefined') return
+  const dismissedItems = readDismissed()
+
   if (!dismissedItems.some(item => item.id === id)) {
     dismissedItems.push({
       id,
       dismissedAt: Date.now()
     })
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissedItems))
+    writeDismissed(dismissedItems)
   }
 }
 

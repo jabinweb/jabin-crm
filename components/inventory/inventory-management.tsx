@@ -84,7 +84,8 @@ export function InventoryManagement({ productId }: InventoryManagementProps) {
       if (!response.ok) throw new Error("Failed to fetch inventory");
       
       const data = await response.json();
-      setInventory(data);
+      // API returns { data: { inventory, products } }
+      setInventory(Array.isArray(data) ? data : data?.data?.inventory ?? []);
       retryCount.current = 0; // Reset retry count on success
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -107,7 +108,7 @@ export function InventoryManagement({ productId }: InventoryManagementProps) {
         setIsLoading(false);
       }
     }
-  }, [productId, isLoading]);
+  }, [productId]);
 
   // Setup polling for real-time updates
   const startPolling = useCallback(() => {
@@ -171,7 +172,9 @@ export function InventoryManagement({ productId }: InventoryManagementProps) {
 
       if (!response.ok) throw new Error("Failed to update inventory");
 
-      const newEntry = await response.json();
+      const created = await response.json();
+      // POST returns { inventory, product }
+      const newEntry: InventoryEntry = created?.inventory ?? created;
       
       // Optimistic update - add to local state immediately
       setInventory(prev => [newEntry, ...prev].sort((a, b) => 

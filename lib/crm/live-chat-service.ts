@@ -20,6 +20,11 @@ export async function getOrCreateChatSession(params: {
       })
     : null;
 
+  // A token from another workspace must not resume that workspace's chat.
+  if (session && (session.companyId ?? null) !== (params.companyId ?? null)) {
+    throw new Error('Chat session not found');
+  }
+
   if (!session) {
     session = await prisma.liveChatSession.create({
       data: {
@@ -76,9 +81,13 @@ export async function addChatMessage(params: {
   if (!session.ticketId && params.sender === 'visitor') {
     let customerId = session.customerId;
 
-    if (!customerId && session.visitorEmail) {
+    if (!customerId && session.visitorEmail && session.companyId) {
       const customer = await prisma.customer.findFirst({
-        where: { email: { equals: session.visitorEmail, mode: 'insensitive' } },
+        // Only match customers of this chat's workspace (never another tenant's).
+        where: {
+          email: { equals: session.visitorEmail, mode: 'insensitive' },
+          companyId: session.companyId,
+        },
       });
       customerId = customer?.id;
     }
@@ -100,7 +109,8 @@ export async function addChatMessage(params: {
       await ticketService.addComment(
         ticket.id,
         params.body,
-        params.senderId || 'system',
+        // No user id for anonymous visitors ('system' would violate the User FK)
+        params.senderId || undefined,
         { isInternal: false }
       );
     }
@@ -108,7 +118,8 @@ export async function addChatMessage(params: {
     await ticketService.addComment(
       session.ticketId,
       params.body,
-      params.senderId || 'system',
+      // No user id for anonymous visitors ('system' would violate the User FK)
+        params.senderId || undefined,
       { isInternal: params.sender === 'agent' ? false : false }
     );
   }

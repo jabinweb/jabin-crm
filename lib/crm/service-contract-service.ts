@@ -178,9 +178,26 @@ export async function updateServiceContract(
 ) {
   const existing = await prisma.serviceContract.findFirst({
     where: { id, companyId },
-    select: { id: true },
+    select: { id: true, customerId: true, startDate: true, endDate: true },
   });
   if (!existing) throw new Error('Contract not found');
+
+  const nextStart = data.startDate ?? existing.startDate;
+  const nextEnd = data.endDate ?? existing.endDate;
+  if (Number.isNaN(nextStart.getTime()) || Number.isNaN(nextEnd.getTime())) {
+    throw new Error('Invalid start or end date');
+  }
+  if (nextEnd <= nextStart) {
+    throw new Error('End date must be after start date');
+  }
+
+  if (data.equipmentId) {
+    const equipment = await prisma.equipmentInstallation.findFirst({
+      where: { id: data.equipmentId, customerId: existing.customerId },
+      select: { id: true },
+    });
+    if (!equipment) throw new Error('Equipment does not belong to this customer');
+  }
 
   const updated = await prisma.serviceContract.update({
     where: { id },

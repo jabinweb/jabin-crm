@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
+import { resolveCompanyContextFromRequest, TenantError } from '@/lib/auth/company-membership';
 import { findAllDuplicates, findDuplicatesForLead } from '@/lib/leads/duplicate-detector';
 import { handleApiError } from '@/lib/api-error-handler';
 import { guardAgentFeature, isApiException } from '@/lib/api/subscription-guards';
@@ -17,10 +18,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get('leadId');
     const threshold = parseFloat(searchParams.get('threshold') || '0.8');
+    const { companyId } = await resolveCompanyContextFromRequest(session, request);
 
     if (leadId) {
       // Find duplicates for a specific lead
-      const duplicates = await findDuplicatesForLead(leadId, session.user.id, threshold);
+      const duplicates = await findDuplicatesForLead(leadId, session.user.id, threshold, companyId);
       
       return NextResponse.json({
         leadId,
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
       });
     } else {
       // Find all duplicate groups
-      const duplicateGroups = await findAllDuplicates(session.user.id, threshold);
+      const duplicateGroups = await findAllDuplicates(session.user.id, threshold, companyId);
       
       const summary = {
         totalGroups: duplicateGroups.length,
@@ -46,6 +48,9 @@ export async function GET(request: NextRequest) {
     }
   } catch (error: any) {
     if (isApiException(error)) return handleApiError(error);
+    if (error instanceof TenantError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error detecting duplicates:', error);
     return NextResponse.json({ 
       error: 'Failed to detect duplicates',

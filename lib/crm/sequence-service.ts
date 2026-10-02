@@ -290,6 +290,15 @@ export class EmailSequenceService {
     const subject = this.replaceVariables(nextStep.subject, enrollment.lead);
     const body = this.replaceVariables(nextStep.body, enrollment.lead);
 
+    // Atomically claim this step so overlapping cron runs don't queue it twice.
+    const claimed = await prisma.sequenceEnrollment.updateMany({
+      where: { id: enrollment.id, currentStep: enrollment.currentStep, status: 'ACTIVE' },
+      data: { currentStep: nextStepNumber },
+    });
+    if (claimed.count === 0) {
+      return { status: 'skipped', enrollmentId: enrollment.id };
+    }
+
     // Add to email queue
     const scheduledFor = new Date();
     await prisma.emailQueue.create({
