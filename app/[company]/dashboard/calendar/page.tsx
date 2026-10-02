@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, dateFnsLocalizer, View } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, View, type ToolbarProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addMonths, subMonths } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,12 +12,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useFeatureModuleMap } from '@/components/feature-module-guard';
-import { PageHeaderSkeleton, SectionSkeleton } from '@/components/loading';
 
 const locales = {
   'en-US': require('date-fns/locale/en-US'),
@@ -67,6 +67,63 @@ const EVENT_TYPES = [
   { value: 'CLOSING', label: 'Closing' },
   { value: 'OTHER', label: 'Other' },
 ];
+
+/** Event chip colours (inline, so they never depend on generated class names). */
+const EVENT_TYPE_HEX: Record<string, string> = {
+  MEETING: '#3b82f6',
+  CALL: '#10b981',
+  DEMO: '#8b5cf6',
+  FOLLOW_UP: '#f59e0b',
+  PRESENTATION: '#ec4899',
+  NEGOTIATION: '#f97316',
+  CLOSING: '#ef4444',
+  OTHER: '#64748b',
+};
+
+const VIEWS: Array<{ value: View; label: string }> = [
+  { value: 'month', label: 'Month' },
+  { value: 'week', label: 'Week' },
+  { value: 'day', label: 'Day' },
+  { value: 'agenda', label: 'Agenda' },
+];
+
+/** Google-Calendar-style header: Today, arrows, period title, one view switcher. */
+function CalendarToolbar({ label, view, onNavigate, onView, loading }: ToolbarProps & { loading?: boolean }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <Button variant="outline" size="sm" className="h-9" onClick={() => onNavigate('TODAY')}>
+        Today
+      </Button>
+      <div className="flex items-center">
+        <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Previous" onClick={() => onNavigate('PREV')}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Next" onClick={() => onNavigate('NEXT')}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+      <h2 className="min-w-0 flex-1 truncate text-lg font-semibold tracking-tight">{label}</h2>
+      {loading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label="Loading events" /> : null}
+      <div className="flex rounded-lg border bg-muted/40 p-0.5" role="tablist" aria-label="Calendar view">
+        {VIEWS.map((v) => (
+          <button
+            key={v.value}
+            type="button"
+            role="tab"
+            aria-selected={view === v.value}
+            onClick={() => onView(v.value)}
+            className={cn(
+              'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3',
+              view === v.value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
   MEETING: 'bg-blue-500',
@@ -306,31 +363,27 @@ export default function CalendarPage() {
   }));
 
   const eventStyleGetter = (event: any) => {
-    const bgColor = EVENT_TYPE_COLORS[event.resource.eventType] || 'bg-gray-500';
+    const color = EVENT_TYPE_HEX[event.resource.eventType] || EVENT_TYPE_HEX.OTHER;
+    const done = event.resource.status === 'COMPLETED' || event.resource.status === 'CANCELLED';
     return {
-      className: bgColor.replace('bg-', 'rbc-event-'),
+      style: {
+        backgroundColor: `${color}1f`,
+        borderLeft: `3px solid ${color}`,
+        color: 'hsl(var(--foreground))',
+        opacity: done ? 0.55 : 1,
+        textDecoration: event.resource.status === 'CANCELLED' ? 'line-through' : undefined,
+      },
     };
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <PageHeaderSkeleton />
-        <Card>
-          <CardContent className="pt-6">
-            <SectionSkeleton lines={12} />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  // Static header and the calendar render immediately; only the events load (no page skeleton)
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Calendar</h1>
-          <p className="text-gray-500">
+          <h1 className="mb-1 text-2xl font-bold tracking-tight sm:text-3xl">Calendar</h1>
+          <p className="text-sm text-muted-foreground">
             Manage your meetings and events.{' '}
             <a
               href={path('/dashboard/customers')}
@@ -348,9 +401,12 @@ export default function CalendarPage() {
       </div>
 
       <Card>
-        <CardContent className="p-2 sm:p-6">
-          <div style={{ height: '700px' }} className="min-w-0">
+        <CardContent className="p-3 sm:p-5">
+          <div className="opslane-calendar h-[calc(100dvh-15rem)] min-h-[560px] min-w-0">
             <Calendar
+              components={{
+                toolbar: (props: ToolbarProps) => <CalendarToolbar {...props} loading={loading} />,
+              }}
               localizer={localizer}
               events={calendarEvents}
               startAccessor="start"
@@ -363,6 +419,7 @@ export default function CalendarPage() {
               onSelectEvent={handleSelectEvent}
               selectable
               eventPropGetter={eventStyleGetter}
+              formats={{ dateFormat: 'd', weekdayFormat: 'EEE', dayFormat: 'EEE d' }}
               popup
             />
           </div>
@@ -614,21 +671,15 @@ export default function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Event Type Legend */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Event Types</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {EVENT_TYPES.map((type) => (
-              <Badge key={type.value} className={EVENT_TYPE_COLORS[type.value]}>
-                {type.label}
-              </Badge>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Event type key */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-xs text-muted-foreground">
+        {EVENT_TYPES.map((type) => (
+          <span key={type.value} className="inline-flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: EVENT_TYPE_HEX[type.value] }} />
+            {type.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
