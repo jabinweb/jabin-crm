@@ -38,6 +38,7 @@ const ATTR_RE =
   /([a-zA-Z_:][-a-zA-Z0-9_:.]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g;
 
 const MENTION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const CODE_LANGUAGE_RE = /^language-[A-Za-z0-9+#_-]{1,30}$/;
 
 function decodeEntities(value: string) {
   return value
@@ -140,6 +141,23 @@ export function sanitizeRichText(input: string | null | undefined): string {
       if (!src) continue;
       const alt = attrs.alt ? ` alt="${escapeAttr(decodeEntities(attrs.alt))}"` : '';
       out += `<img src="${escapeAttr(src)}"${alt}>`;
+      continue;
+    }
+
+    // Checklists (TipTap task list): keep the markers, drop its <label>/<input> chrome
+    if (tag === 'ul' && attrs['data-type'] === 'taskList') {
+      out += '<ul data-type="taskList">';
+      continue;
+    }
+    if (tag === 'li' && attrs['data-type'] === 'taskItem') {
+      const checked = attrs['data-checked'] === 'true' ? 'true' : 'false';
+      out += `<li data-type="taskItem" data-checked="${checked}">`;
+      continue;
+    }
+
+    // Code block language (syntax label), e.g. class="language-ts"
+    if (tag === 'code' && attrs.class && CODE_LANGUAGE_RE.test(attrs.class)) {
+      out += `<code class="${attrs.class}">`;
       continue;
     }
 

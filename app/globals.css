@@ -368,3 +368,65 @@ html {
   height: 0;
   pointer-events: none;
 }
+/* Checklists (task lists): live checkboxes in the editor… */
+.rich-text-editor .ProseMirror ul[data-type='taskList'],
+.rich-text-content ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.125rem;
+}
+.rich-text-editor .ProseMirror ul[data-type='taskList'] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.rich-text-editor .ProseMirror ul[data-type='taskList'] li > label {
+  flex-shrink: 0;
+  margin-top: 0.3rem;
+  user-select: none;
+}
+.rich-text-editor .ProseMirror ul[data-type='taskList'] li > label input {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: hsl(var(--primary));
+}
+.rich-text-editor .ProseMirror ul[data-type='taskList'] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.rich-text-editor .ProseMirror ul[data-type='taskList'] li[data-checked='true'] > div,
+.rich-text-content ul[data-type='taskList'] li[data-checked='true'] {
+  color: hsl(var(--muted-foreground));
+  text-decoration: line-through;
+}
+
+/* …and drawn boxes where saved HTML is shown read-only */
+.rich-text-content ul[data-type='taskList'] li {
+  position: relative;
+  padding-left: 1.5rem;
+}
+.rich-text-content ul[data-type='taskList'] li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.3rem;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1.5px solid hsl(var(--muted-foreground) / 0.6);
+  border-radius: 0.25rem;
+}
+.rich-text-content ul[data-type='taskList'] li[data-checked='true']::before {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+}
+.rich-text-content ul[data-type='taskList'] li[data-checked='true']::after {
+  content: '';
+  position: absolute;
+  left: 0.33rem;
+  top: 0.45rem;
+  width: 0.3rem;
+  height: 0.55rem;
+  border: solid hsl(var(--primary-foreground));
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}

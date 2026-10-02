@@ -11,7 +11,7 @@ import { useSession } from "next-auth/react";
 import { Mail, User } from "lucide-react";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
-import debounce from 'lodash/debounce'; 
+import { debounce } from '@/lib/debounce';
 
 const employeeRegisterSchema = z.object({
   name: z.string().min(2, "Your name is required"),

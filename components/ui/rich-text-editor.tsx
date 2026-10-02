@@ -14,6 +14,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
+import TaskList from '@tiptap/extension-task-list';
+import TaskItem from '@tiptap/extension-task-item';
 import {
   Bold,
   Italic,
@@ -29,11 +31,30 @@ import {
   Quote,
   Code2,
   AtSign,
+  ListChecks,
+  Sparkles,
+  ArrowUp,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import {
+  looksLikeMarkdown,
+  markdownToHtml,
+  upgradeMarkdownText,
+} from '@/lib/html/markdown-to-html';
+
+/** One-tap prompts in the AI bar (Jira "Improve description" style). */
+const AI_SUGGESTIONS = [
+  'Improve and format',
+  'Fix spelling & grammar',
+  'Make it shorter',
+  'Add acceptance criteria',
+  'Turn into a checklist',
+];
 
 export type MentionUser = {
   id: string;
@@ -60,6 +81,13 @@ type Props = {
   toolbarEnd?: ReactNode;
   /** Drop the outer border — for full-page editors. */
   borderless?: boolean;
+  /**
+   * Enables the AI button (first in the toolbar): returns new HTML for the whole content
+   * from an instruction. The result replaces the content as one undoable step.
+   */
+  onAiRewrite?: (instruction: string, html: string) => Promise<string>;
+  /** Label for the AI button, e.g. "Improve description". */
+  aiLabel?: string;
   onUploaded?: (file: {
     url: string;
     name: string;
@@ -187,7 +215,13 @@ export function RichTextEditor({
   toolbarEnd,
   borderless = false,
   onUploaded,
+  onAiRewrite,
+  aiLabel = 'Improve',
 }: Props) {
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiBusy, setAiBusy] = useState(false);
+  const aiInputRef = useRef<HTMLInputElement>(null);
   const { workspaceFetch } = useWorkspacePaths();
   const uploadingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -295,8 +329,10 @@ export function RichTextEditor({
       }),
       Placeholder.configure({ placeholder }),
       MentionNode,
+      TaskList,
+      TaskItem.configure({ nested: true }),
     ],
-    content,
+    content: upgradeMarkdownText(content),
     editorProps: {
       attributes: {
         class: cn(
@@ -330,6 +366,14 @@ export function RichTextEditor({
         const ed = editorRef.current;
         const items = event.clipboardData?.items;
         if (!items || !ed) return false;
+        const pastedHtml = event.clipboardData?.getData('text/html') ?? '';
+        const pastedText = event.clipboardData?.getData('text/plain') ?? '';
+        const htmlIsPlain = !/<(h[1-6]|ul|ol|li|strong|b|em|pre|table)\b/i.test(pastedHtml);
+        if (pastedText && htmlIsPlain && looksLikeMarkdown(pastedText)) {
+          event.preventDefault();
+          ed.chain().focus().insertContent(markdownToHtml(pastedText)).run();
+          return true;
+        }
         for (const item of Array.from(items)) {
           if (item.type.startsWith('image/')) {
             event.preventDefault();
@@ -381,10 +425,42 @@ export function RichTextEditor({
   useEffect(() => {
     if (!editor) return;
     const current = editor.getHTML();
-    if (content !== current) {
-      editor.commands.setContent(content || '', false);
+    const next = upgradeMarkdownText(content || '');
+    if (content !== current && next !== current) {
+      editor.commands.setContent(next, false);
     }
   }, [content, editor]);
+
+  const runAi = useCallback(
+    async (instruction: string) => {
+      const ed = editorRef.current;
+      if (!ed || !onAiRewrite || aiBusy) return;
+      setAiBusy(true);
+      try {
+        const html = await onAiRewrite(
+          instruction.trim() || 'Improve and format this description',
+          ed.getHTML()
+        );
+        if (!html.trim()) return;
+        // One transaction → a single Undo restores the previous description
+        ed.chain().focus().selectAll().insertContent(html).run();
+        setAiOpen(false);
+        setAiPrompt('');
+        toast.success('Description updated', {
+          action: { label: 'Undo', onClick: () => editorRef.current?.commands.undo() },
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'The assistant could not do that');
+      } finally {
+        setAiBusy(false);
+      }
+    },
+    [aiBusy, onAiRewrite]
+  );
+
+  useEffect(() => {
+    if (aiOpen) aiInputRef.current?.focus();
+  }, [aiOpen]);
 
   useEffect(() => {
     if (editor) editor.setEditable(editable);
@@ -462,6 +538,33 @@ export function RichTextEditor({
             borderless ? 'bg-background' : 'bg-muted/40'
           )}
         >
+          {onAiRewrite ? (
+            <>
+              <button
+                type="button"
+                title={aiLabel}
+                aria-expanded={aiOpen}
+                disabled={aiBusy}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setAiOpen((v) => !v)}
+                className={cn(
+                  'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-xs font-medium transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  aiOpen
+                    ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                    : 'text-violet-700 hover:bg-violet-500/10 dark:text-violet-300'
+                )}
+              >
+                {aiBusy ? (
+                  <Loader2 className={cn(ICON, 'animate-spin')} />
+                ) : (
+                  <Sparkles className={ICON} strokeWidth={2} />
+                )}
+                <span className="hidden sm:inline">{aiLabel}</span>
+              </button>
+              <ToolbarDivider />
+            </>
+          ) : null}
           {blockFormatting ? (
             <>
               <ToolbarBtn
@@ -509,6 +612,13 @@ export function RichTextEditor({
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
           >
             <ListOrdered className={ICON} strokeWidth={2} />
+          </ToolbarBtn>
+          <ToolbarBtn
+            title="Checklist"
+            active={editor.isActive('taskList')}
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+          >
+            <ListChecks className={ICON} strokeWidth={2} />
           </ToolbarBtn>
           {blockFormatting ? (
             <>
@@ -630,7 +740,71 @@ export function RichTextEditor({
           />
         </div>
       ) : null}
-      <EditorContent editor={editor} />
+      {editable && onAiRewrite && aiOpen ? (
+        <div className="border-b bg-violet-500/[0.04] px-2 py-2">
+          <form
+            className="flex items-center gap-2 rounded-lg border bg-background px-2.5 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-violet-500/40"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void runAi(aiPrompt);
+            }}
+          >
+            <Sparkles className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" aria-hidden />
+            <input
+              ref={aiInputRef}
+              value={aiPrompt}
+              disabled={aiBusy}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setAiOpen(false);
+              }}
+              placeholder="Tell AI how to change the description — or press Enter to improve it"
+              aria-label="AI prompt"
+              className="min-w-0 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <button
+              type="submit"
+              disabled={aiBusy}
+              aria-label="Run"
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {aiBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ArrowUp className="h-3.5 w-3.5" />}
+            </button>
+            <button
+              type="button"
+              aria-label="Close AI prompt"
+              onClick={() => setAiOpen(false)}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </form>
+          <div className="no-scrollbar mt-2 flex gap-1.5 overflow-x-auto">
+            {AI_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                disabled={aiBusy}
+                onClick={() => void runAi(suggestion)}
+                className="shrink-0 rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-violet-400 hover:text-foreground disabled:opacity-50"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className={cn('relative', aiBusy && 'pointer-events-none')}>
+        <EditorContent editor={editor} className={cn(aiBusy && 'opacity-50 transition-opacity')} />
+        {aiBusy ? (
+          <div className="absolute inset-x-0 top-3 flex justify-center" role="status">
+            <span className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1 text-xs text-violet-700 shadow-sm dark:text-violet-300">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Writing…
+            </span>
+          </div>
+        ) : null}
+      </div>
 
       {mention && typeof document !== 'undefined'
         ? createPortal(

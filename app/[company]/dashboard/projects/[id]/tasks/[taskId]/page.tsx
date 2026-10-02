@@ -625,9 +625,21 @@ export default function ProjectTaskDetailPage() {
                 key={task.id}
                 content={descriptionContent}
                 onChange={setDescriptionHtml}
-                placeholder="Add a description… type @ to mention a teammate"
+                placeholder="Add a description… type @ to mention a teammate, or use Improve description"
                 folder="project-tasks"
                 mentionUsers={mentionUsers}
+                blockFormatting
+                aiLabel="Improve description"
+                onAiRewrite={async (instruction, html) => {
+                  const res = await workspaceFetch(`/api/projects/${projectId}/ai/task-description`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: task.title, html, instruction }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) throw new Error(data.error || 'The assistant could not do that');
+                  return data.html as string;
+                }}
                 onUploaded={(file) => {
                   void workspaceFetch(
                     `/api/projects/${projectId}/tasks/${taskId}/attachments`,

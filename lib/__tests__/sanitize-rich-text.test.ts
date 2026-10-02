@@ -98,3 +98,29 @@ describe('mention parsing', () => {
     expect(newMentionIds(null, `<p>${a}</p>`)).toEqual(['userA']);
   });
 });
+
+describe('sanitizeRichText — checklists and code blocks', () => {
+  it('keeps task list markers and checked state, dropping the checkbox chrome', () => {
+    const html =
+      '<ul data-type="taskList"><li data-checked="true" data-type="taskItem"><label><input type="checkbox" checked="checked"><span></span></label><div><p>Ship it</p></div></li></ul>';
+    expect(sanitizeRichText(html)).toBe(
+      '<ul data-type="taskList"><li data-type="taskItem" data-checked="true"><p>Ship it</p></li></ul>'
+    );
+  });
+
+  it('normalises data-checked and ignores other attributes on task items', () => {
+    const out = sanitizeRichText(
+      '<ul data-type="taskList" onclick="x()"><li data-type="taskItem" data-checked="yes" style="color:red"><p>a</p></li></ul>'
+    );
+    expect(out).toBe('<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p>a</p></li></ul>');
+  });
+
+  it('keeps a code block language class but nothing else', () => {
+    expect(sanitizeRichText('<pre><code class="language-ts">const a = 1;</code></pre>')).toBe(
+      '<pre><code class="language-ts">const a = 1;</code></pre>'
+    );
+    expect(sanitizeRichText('<pre><code class="x" onclick="y">z</code></pre>')).toBe(
+      '<pre><code>z</code></pre>'
+    );
+  });
+});
