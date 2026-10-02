@@ -1,0 +1,46 @@
+# Self-hosted LiveKit SFU for Opslane team meetings (local / single VPS).
+# Start: docker compose -f docker-compose.livekit.yml up -d
+#
+# Point the app at it:
+#   LIVEKIT_URL=ws://localhost:7880          (wss://livekit.your-domain.com in production)
+#   LIVEKIT_API_KEY=opslane-dev
+#   LIVEKIT_API_SECRET=<secret below>
+#
+# REPLACE the key/secret before exposing this server anywhere. Generate a secret with:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+port: 7880
+bind_addresses:
+  - ""
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 50200
+  # Set true on a public VPS so clients discover the correct ICE address
+  use_external_ip: false
+  # Fall back to TCP when UDP is blocked (corporate / restricted networks)
+  allow_tcp_fallback: true
+
+keys:
+  opslane-dev: change-me-to-a-long-random-secret-at-least-32-chars
+
+turn:
+  enabled: true
+  udp_port: 3478
+  tls_port: 5349
+  domain: localhost
+
+# Exact "who's in the room" in Opslane (optional). Use the app's public URL.
+# webhook:
+#   api_key: opslane-dev
+#   urls:
+#     - https://your-app.example.com/api/webhooks/livekit
+
+logging:
+  level: info
+
+room:
+  auto_create: true
+  empty_timeout: 300
+  max_participants: 100

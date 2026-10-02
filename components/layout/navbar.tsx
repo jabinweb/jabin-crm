@@ -51,6 +51,7 @@ import { getClientBrandConfig } from '@/lib/branding';
 import { PunchButton } from '@/components/dashboard/punch-button';
 import { NotificationsPanel } from '@/components/notifications/notifications-panel';
 import { MessengerButton } from '@/components/messaging/messenger';
+import { MeetingsIndicator } from '@/components/meetings/meetings-indicator';
 import { WorkspaceSwitcherItems } from '@/components/layout/workspace-switcher';
 import type { GlobalSearchEntityType, GlobalSearchResult } from '@/lib/crm/global-search-types';
 import { Clock } from 'lucide-react';
@@ -272,6 +273,7 @@ export function Navbar({ onMenu, title }: { onMenu?: () => void; title?: string 
 
           <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             <PunchButton />
+            <MeetingsIndicator />
             <MessengerButton />
             {session?.user?.role && (
               <NotificationsPanel userRole={session.user.role} />

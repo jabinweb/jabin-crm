@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Calendar, dateFnsLocalizer, View, type ToolbarProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay, addMonths, subMonths } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,12 +12,28 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, Users, Link as LinkIcon, Plus, Trash2, Check, X, ChevronLeft, ChevronRight, Loader2, Video, Pencil, CalendarX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useFeatureModuleMap } from '@/components/feature-module-guard';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { AvatarStack } from '@/components/ui/user-avatar';
+import { useRealtime } from '@/hooks/use-realtime';
+import { REALTIME_EVENTS } from '@/lib/realtime/events';
+import { useMeetingActions, useMeetingsNow } from '@/hooks/use-meetings';
+import { MeetingPhaseBadge, phaseOf } from '@/components/meetings/meeting-status';
+import { AttendeeList, JoinButton, RsvpControl, RsvpSummaryText } from '@/components/meetings/meeting-parts';
+import {
+  MeetingFields,
+  ScheduleMeetingDialog,
+  defaultMeetingFields,
+  meetingFieldsPayload,
+  type MeetingFieldsValue,
+} from '@/components/meetings/schedule-meeting-dialog';
+import type { MeetingDTO } from '@/lib/meetings/types';
 
 const locales = {
   'en-US': require('date-fns/locale/en-US'),
@@ -55,6 +71,29 @@ interface CalendarEvent {
     value: number;
     stage: string;
   };
+  /** Team meeting details (guests, RSVPs, room) when this event is a team meeting */
+  meeting?: MeetingDTO;
+  /** Someone else's meeting I'm invited to (not editable from here) */
+  invited?: boolean;
+}
+
+/** Calendar chip: title, then guest avatars and a live dot for team meetings. */
+function CalendarEventChip({ event }: { event: { title: string; resource: CalendarEvent } }) {
+  const meeting = event.resource.meeting;
+  if (!meeting) return <span className="truncate">{event.title}</span>;
+  const phase = phaseOf(meeting, new Date());
+  const going = meeting.attendees.filter((a) => a.rsvp !== 'DECLINED').map((a) => a.user);
+  return (
+    <span className="flex min-w-0 items-center gap-1">
+      {phase === 'live' ? (
+        <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-red-500 motion-reduce:animate-none" aria-label="Live now" />
+      ) : (
+        <Video className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+      )}
+      <span className="min-w-0 flex-1 truncate">{event.title}</span>
+      {going.length > 1 ? <AvatarStack people={going} max={3} size="xs" className="hidden shrink-0 sm:inline-flex" /> : null}
+    </span>
+  );
 }
 
 const EVENT_TYPES = [
@@ -137,9 +176,18 @@ const EVENT_TYPE_COLORS: Record<string, string> = {
 };
 
 export default function CalendarPage() {
+  return (
+    <Suspense fallback={null}>
+      <CalendarPageInner />
+    </Suspense>
+  );
+}
+
+function CalendarPageInner() {
   const { toast } = useToast();
   const { formatCurrency } = useCurrency();
-  const { path } = useWorkspacePaths();
+  const { path, workspaceFetch } = useWorkspacePaths();
+  const searchParams = useSearchParams();
   // Lead/deal pickers only load for the modules on the plan
   const planModules = useFeatureModuleMap();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -147,7 +195,22 @@ export default function CalendarPage() {
   const [showEventDialog, setShowEventDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [view, setView] = useState<View>('month');
-  const [date, setDate] = useState(new Date());
+  // ?date= deep link (e.g. "Show in calendar" from a meeting)
+  const [date, setDate] = useState(() => {
+    const raw = searchParams.get('date');
+    const d = raw ? new Date(raw) : null;
+    return d && !Number.isNaN(d.getTime()) ? d : new Date();
+  });
+  // Team meetings
+  const { data: meetingsNow } = useMeetingsNow();
+  const meetingsReady = meetingsNow?.ready !== false;
+  const videoConfigured = !!meetingsNow?.video.configured;
+  const meetingActions = useMeetingActions();
+  const [meetingFields, setMeetingFields] = useState<MeetingFieldsValue>(() => defaultMeetingFields(false));
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editMeeting, setEditMeeting] = useState<MeetingDTO | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [leads, setLeads] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
@@ -175,6 +238,21 @@ export default function CalendarPage() {
     if (planModules) fetchLeadsAndDeals();
   }, [planModules]);
 
+  // Invites, replies and room changes from teammates show up without a reload
+  useRealtime({
+    types: [REALTIME_EVENTS.MEETING_UPDATED],
+    onEvent: () => {
+      void fetchEvents();
+    },
+  });
+
+  useEffect(() => {
+    if (showCreateDialog) {
+      setMeetingFields(defaultMeetingFields(videoConfigured));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when the dialog opens
+  }, [showCreateDialog]);
+
   const fetchEvents = async () => {
     try {
       setLoading(true);
@@ -190,10 +268,12 @@ export default function CalendarPage() {
         endDate: endDate.toISOString(),
       });
 
-      const response = await fetch(`/api/calendar?${params}`);
+      const response = await workspaceFetch(`/api/calendar?${params}`);
       if (response.ok) {
-        const data = await response.json();
+        const data: CalendarEvent[] = await response.json();
         setEvents(data);
+        // Keep an open event dialog in sync (RSVPs, who's in the room)
+        setSelectedEvent((prev) => (prev ? data.find((e) => e.id === prev.id) ?? prev : prev));
       }
     } catch (error) {
       console.error('Failed to fetch events:', error);
@@ -240,13 +320,49 @@ export default function CalendarPage() {
   const handleSelectEvent = (event: any) => {
     const calendarEvent = events.find((e) => e.id === event.id);
     if (calendarEvent) {
+      setConfirmCancel(false);
       setSelectedEvent(calendarEvent);
       setShowEventDialog(true);
     }
   };
 
+  const isTeamMeetingForm = formData.eventType === 'MEETING' && meetingsReady;
+
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Meetings go through the team-meetings API: guests, invites, RSVP, video room
+    if (isTeamMeetingForm) {
+      setSavingEvent(true);
+      meetingActions.create.mutate(
+        {
+          title: formData.title,
+          agenda: formData.description || undefined,
+          location: meetingFields.provider === 'NONE' ? formData.location || undefined : undefined,
+          startTime: new Date(formData.startTime).toISOString(),
+          endTime: new Date(formData.endTime).toISOString(),
+          ...meetingFieldsPayload(meetingFields),
+        },
+        {
+          onSuccess: (data) => {
+            const guests = meetingFields.attendeeIds.length;
+            toast({
+              title: data.count > 1 ? `${data.count} meetings scheduled` : 'Meeting scheduled',
+              description: guests
+                ? `Invitations sent to ${guests} ${guests === 1 ? 'person' : 'people'}.`
+                : 'It’s on your calendar.',
+            });
+            setShowCreateDialog(false);
+            resetForm();
+            fetchEvents();
+          },
+          onError: (error) =>
+            toast({ title: 'Could not schedule the meeting', description: error.message, variant: 'destructive' }),
+          onSettled: () => setSavingEvent(false),
+        }
+      );
+      return;
+    }
 
     try {
       const response = await fetch('/api/calendar', {
@@ -286,6 +402,25 @@ export default function CalendarPage() {
         variant: 'destructive',
       });
     }
+  };
+
+  const handleCancelMeeting = (meeting: MeetingDTO, series: boolean) => {
+    meetingActions.cancel.mutate(
+      { id: meeting.id, series },
+      {
+        onSuccess: (data) => {
+          toast({
+            title: data.cancelled > 1 ? `${data.cancelled} meetings cancelled` : 'Meeting cancelled',
+            description: 'Guests were notified.',
+          });
+          setConfirmCancel(false);
+          setShowEventDialog(false);
+          setSelectedEvent(null);
+          fetchEvents();
+        },
+        onError: (error) => toast({ title: 'Could not cancel', description: error.message, variant: 'destructive' }),
+      }
+    );
   };
 
   const handleDeleteEvent = async (eventId: string) => {
@@ -365,10 +500,22 @@ export default function CalendarPage() {
   const eventStyleGetter = (event: any) => {
     const color = EVENT_TYPE_HEX[event.resource.eventType] || EVENT_TYPE_HEX.OTHER;
     const done = event.resource.status === 'COMPLETED' || event.resource.status === 'CANCELLED';
+    const meeting: MeetingDTO | undefined = event.resource.meeting;
+    const rsvp = meeting && !meeting.isOrganizer ? meeting.myRsvp : null;
+    const live = meeting ? phaseOf(meeting, new Date()) === 'live' && event.resource.status !== 'CANCELLED' : false;
+    const edge = live ? '#ef4444' : color;
+    // Google-style reply states: unanswered = outlined, maybe = striped
+    const background =
+      rsvp === 'PENDING'
+        ? 'hsl(var(--background))'
+        : rsvp === 'TENTATIVE'
+          ? `repeating-linear-gradient(135deg, ${color}1f 0 6px, ${color}0a 6px 12px)`
+          : `${color}1f`;
     return {
       style: {
-        backgroundColor: `${color}1f`,
-        borderLeft: `3px solid ${color}`,
+        background,
+        border: rsvp === 'PENDING' ? `1px dashed ${color}` : undefined,
+        borderLeft: `3px solid ${edge}`,
         color: 'hsl(var(--foreground))',
         opacity: done ? 0.55 : 1,
         textDecoration: event.resource.status === 'CANCELLED' ? 'line-through' : undefined,
@@ -394,10 +541,18 @@ export default function CalendarPage() {
             are scheduled on each client&apos;s Visits tab.
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          New Event
-        </Button>
+        <div className="flex shrink-0 gap-2 self-start sm:self-auto">
+          {meetingsReady ? (
+            <Button variant="outline" onClick={() => setScheduleOpen(true)}>
+              <Video className="h-4 w-4" />
+              Schedule meeting
+            </Button>
+          ) : null}
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4" />
+            New Event
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -406,6 +561,7 @@ export default function CalendarPage() {
             <Calendar
               components={{
                 toolbar: (props: ToolbarProps) => <CalendarToolbar {...props} loading={loading} />,
+                event: CalendarEventChip as never,
               }}
               localizer={localizer}
               events={calendarEvents}
@@ -430,8 +586,12 @@ export default function CalendarPage() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Calendar Event</DialogTitle>
-            <DialogDescription>Schedule a new meeting or event</DialogDescription>
+            <DialogTitle>{isTeamMeetingForm ? 'New meeting' : 'Create Calendar Event'}</DialogTitle>
+            <DialogDescription>
+              {isTeamMeetingForm
+                ? 'Invite teammates — they get an invite to accept or decline, a reminder, and a one-click Join.'
+                : 'Schedule a new meeting or event'}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateEvent} className="space-y-4">
             <div>
@@ -462,7 +622,7 @@ export default function CalendarPage() {
                 </Select>
               </div>
 
-              <div>
+              <div className={isTeamMeetingForm ? 'hidden' : undefined}>
                 <Label htmlFor="leadId">Link to Lead</Label>
                 <Select value={formData.leadId} onValueChange={(value) => setFormData({ ...formData, leadId: value })}>
                   <SelectTrigger>
@@ -505,52 +665,78 @@ export default function CalendarPage() {
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{isTeamMeetingForm ? 'Agenda' : 'Description'}</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Event details..."
+                placeholder={isTeamMeetingForm ? 'What do you want to cover?' : 'Event details...'}
                 rows={3}
               />
             </div>
 
-            <div>
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="Office, Zoom, etc."
-              />
-            </div>
+            {isTeamMeetingForm ? (
+              <>
+                <MeetingFields value={meetingFields} onChange={setMeetingFields} videoConfigured={videoConfigured} />
+                {meetingFields.provider === 'NONE' ? (
+                  <div>
+                    <Label htmlFor="location">Location</Label>
+                    <Input
+                      id="location"
+                      value={formData.location}
+                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                      placeholder="Conference room, office…"
+                    />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="Office, Zoom, etc."
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="meetingLink">Meeting Link</Label>
-              <Input
-                id="meetingLink"
-                value={formData.meetingLink}
-                onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
-                placeholder="https://zoom.us/j/..."
-              />
-            </div>
+                <div>
+                  <Label htmlFor="meetingLink">Meeting Link</Label>
+                  <Input
+                    id="meetingLink"
+                    value={formData.meetingLink}
+                    onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
+                    placeholder="https://zoom.us/j/..."
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="attendees">Attendees</Label>
-              <Input
-                id="attendees"
-                value={formData.attendees}
-                onChange={(e) => setFormData({ ...formData, attendees: e.target.value })}
-                placeholder="email1@example.com, email2@example.com"
-              />
-              <p className="text-xs text-gray-500 mt-1">Comma-separated email addresses</p>
-            </div>
+                <div>
+                  <Label htmlFor="attendees">Attendees</Label>
+                  <Input
+                    id="attendees"
+                    value={formData.attendees}
+                    onChange={(e) => setFormData({ ...formData, attendees: e.target.value })}
+                    placeholder="email1@example.com, email2@example.com"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Comma-separated email addresses</p>
+                </div>
+              </>
+            )}
 
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => setShowCreateDialog(false)}>
                 Cancel
               </Button>
-              <Button type="submit">Create Event</Button>
+              <Button type="submit" disabled={savingEvent}>
+                {savingEvent ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {isTeamMeetingForm
+                  ? meetingFields.attendeeIds.length
+                    ? 'Send invites'
+                    : 'Create meeting'
+                  : 'Create Event'}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -558,18 +744,30 @@ export default function CalendarPage() {
 
       {/* View Event Dialog */}
       <Dialog open={showEventDialog} onOpenChange={setShowEventDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedEvent?.title}
-              <Badge className={EVENT_TYPE_COLORS[selectedEvent?.eventType || 'OTHER']}>
-                {selectedEvent?.eventType}
-              </Badge>
+            <DialogTitle className="flex flex-wrap items-center gap-2 pr-6">
+              <span className="min-w-0 break-words">{selectedEvent?.title}</span>
+              {selectedEvent?.meeting ? (
+                <Badge variant="secondary" className="gap-1">
+                  <Video className="h-3 w-3" /> Team meeting
+                </Badge>
+              ) : (
+                <Badge className={EVENT_TYPE_COLORS[selectedEvent?.eventType || 'OTHER']}>
+                  {selectedEvent?.eventType}
+                </Badge>
+              )}
             </DialogTitle>
-            <DialogDescription>
-              <Badge variant={selectedEvent?.status === 'COMPLETED' ? 'default' : 'outline'}>
-                {selectedEvent?.status}
-              </Badge>
+            <DialogDescription asChild>
+              <div>
+                {selectedEvent?.meeting ? (
+                  <MeetingPhaseBadge meeting={selectedEvent.meeting} />
+                ) : (
+                  <Badge variant={selectedEvent?.status === 'COMPLETED' ? 'default' : 'outline'}>
+                    {selectedEvent?.status}
+                  </Badge>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
 
@@ -587,10 +785,45 @@ export default function CalendarPage() {
                 </div>
               </div>
 
+              {selectedEvent.meeting ? (
+                <div className="space-y-3">
+                  {selectedEvent.meeting.status !== 'CANCELLED' ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                      <span className="text-sm text-muted-foreground">
+                        {selectedEvent.meeting.provider === 'OPSLANE'
+                          ? 'Opslane video room'
+                          : selectedEvent.meeting.provider === 'EXTERNAL'
+                            ? 'External meeting link'
+                            : 'In person'}
+                        {selectedEvent.meeting.liveCount > 0
+                          ? ` · ${selectedEvent.meeting.liveCount} in the room now`
+                          : ''}
+                      </span>
+                      <JoinButton meeting={selectedEvent.meeting} />
+                    </div>
+                  ) : null}
+                  {selectedEvent.meeting.myRsvp && !selectedEvent.meeting.isOrganizer && selectedEvent.meeting.status !== 'CANCELLED' ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-medium">Going?</span>
+                      <RsvpControl meeting={selectedEvent.meeting} />
+                    </div>
+                  ) : null}
+                  <div className="space-y-2">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="text-sm font-medium">Guests ({selectedEvent.meeting.attendees.length})</p>
+                      <RsvpSummaryText meeting={selectedEvent.meeting} />
+                    </div>
+                    <div className="max-h-56 overflow-y-auto">
+                      <AttendeeList meeting={selectedEvent.meeting} />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               {selectedEvent.description && (
                 <div>
-                  <p className="font-medium mb-1">Description</p>
-                  <p className="text-sm text-gray-600">{selectedEvent.description}</p>
+                  <p className="font-medium mb-1">{selectedEvent.meeting ? 'Agenda' : 'Description'}</p>
+                  <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{selectedEvent.description}</p>
                 </div>
               )}
 
@@ -601,7 +834,7 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {selectedEvent.meetingLink && (
+              {selectedEvent.meetingLink && !selectedEvent.meeting && (
                 <div className="flex items-start gap-2">
                   <LinkIcon className="h-4 w-4 mt-1 text-gray-500" />
                   <a
@@ -650,26 +883,85 @@ export default function CalendarPage() {
             </div>
           )}
 
-          <DialogFooter className="flex gap-2">
-            {selectedEvent?.status === 'SCHEDULED' && (
+          {selectedEvent?.meeting ? (
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-2">
+              {selectedEvent.meeting.canManage && selectedEvent.meeting.status !== 'CANCELLED' ? (
+                confirmCancel ? (
+                  <div className="flex flex-1 flex-wrap items-center gap-2">
+                    <span className="text-sm">Cancel and notify guests?</span>
+                    {selectedEvent.meeting.seriesId ? (
+                      <Button size="sm" variant="outline" onClick={() => handleCancelMeeting(selectedEvent.meeting!, true)} disabled={meetingActions.cancel.isPending}>
+                        This and following
+                      </Button>
+                    ) : null}
+                    <Button size="sm" variant="destructive" onClick={() => handleCancelMeeting(selectedEvent.meeting!, false)} disabled={meetingActions.cancel.isPending}>
+                      {selectedEvent.meeting.seriesId ? 'Only this one' : 'Yes, cancel'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmCancel(false)}>
+                      Keep
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => setConfirmCancel(true)} className="text-destructive hover:text-destructive">
+                      <CalendarX className="h-4 w-4" />
+                      Cancel meeting
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setEditMeeting(selectedEvent.meeting!);
+                        setShowEventDialog(false);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  </>
+                )
+              ) : null}
+              {!confirmCancel ? (
+                <Button asChild>
+                  <Link href={path(`/dashboard/meetings/${selectedEvent.meeting.id}`)}>Open meeting</Link>
+                </Button>
+              ) : null}
+            </DialogFooter>
+          ) : (
+            <DialogFooter className="flex gap-2">
+              {selectedEvent?.status === 'SCHEDULED' && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleCompleteEvent(selectedEvent.id)}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Mark Complete
+                </Button>
+              )}
               <Button
-                variant="outline"
-                onClick={() => handleCompleteEvent(selectedEvent.id)}
+                variant="destructive"
+                onClick={() => handleDeleteEvent(selectedEvent?.id || '')}
               >
-                <Check className="h-4 w-4 mr-2" />
-                Mark Complete
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
               </Button>
-            )}
-            <Button
-              variant="destructive"
-              onClick={() => handleDeleteEvent(selectedEvent?.id || '')}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          </DialogFooter>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
+
+      <ScheduleMeetingDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        onSaved={() => fetchEvents()}
+      />
+      <ScheduleMeetingDialog
+        open={!!editMeeting}
+        onOpenChange={(open) => {
+          if (!open) setEditMeeting(null);
+        }}
+        meeting={editMeeting}
+        onSaved={() => fetchEvents()}
+      />
 
       {/* Event type key */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-xs text-muted-foreground">
@@ -679,6 +971,25 @@ export default function CalendarPage() {
             {type.label}
           </span>
         ))}
+        {meetingsReady ? (
+          <>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-4 rounded-sm border border-dashed" style={{ borderColor: EVENT_TYPE_HEX.MEETING }} />
+              Awaiting your reply
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="h-2.5 w-4 rounded-sm"
+                style={{ background: `repeating-linear-gradient(135deg, ${EVENT_TYPE_HEX.MEETING}55 0 3px, transparent 3px 6px)` }}
+              />
+              Maybe
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              Live now
+            </span>
+          </>
+        ) : null}
       </div>
     </div>
   );

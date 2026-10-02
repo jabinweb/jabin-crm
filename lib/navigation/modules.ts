@@ -222,6 +222,7 @@ export const WORKSPACE_MODULES: WorkspaceModuleDef[] = [
       '/dashboard/docs',
       '/dashboard/settings',
       '/dashboard/calendar',
+      '/dashboard/meetings',
       '/admin',
     ],
     // First after Home: Messages, Calendar and Docs are used every day by every role
@@ -303,8 +304,8 @@ export function resolveModuleId(
     return vertical === 'web_agency' ? 'projects' : 'people';
   }
 
-  // Calendar under workspace; CRM follow-up tasks under sales
-  if (path.startsWith('/dashboard/calendar')) {
+  // Calendar and team meetings under workspace; CRM follow-up tasks under sales
+  if (path.startsWith('/dashboard/calendar') || path.startsWith('/dashboard/meetings')) {
     return 'workspace';
   }
   if (path.startsWith('/dashboard/tasks')) {
@@ -414,6 +415,7 @@ export const PROJECTS_NAV: NavItem[] = [
 export const HOME_WORK_NAV: NavItem[] = [
   { name: 'Messages', href: '/dashboard/messages', icon: 'MessageSquare', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: 'Calendar', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Meetings', href: '/dashboard/meetings', icon: 'Video', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
 ];
 
 export const SUPPORT_NAV: NavItem[] = [
@@ -585,6 +587,7 @@ export const PEOPLE_ADMIN_NAV: NavItem[] = PEOPLE_NAV_SECTIONS.flatMap((s) => s.
 export const WORKSPACE_NAV: NavItem[] = [
   { name: 'Reports hub', href: '/dashboard/reports', icon: 'BarChart3', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
   { name: 'Calendar', href: '/dashboard/calendar', icon: 'Calendar', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'SUPER_ADMIN'] },
+  { name: 'Meetings', href: '/dashboard/meetings', icon: 'Video', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
   { name: 'Messages', href: '/dashboard/messages', icon: 'MessageSquare', roles: ['ADMIN', 'SUPPORT_MANAGER', 'SALES', 'TECHNICIAN', 'SUPER_ADMIN'] },
   { name: 'Documentation', href: '/dashboard/docs', icon: 'BookOpen' },
   { name: 'Workflows', href: '/dashboard/workflows', icon: 'Zap', roles: ['ADMIN', 'SALES', 'SUPER_ADMIN'] },

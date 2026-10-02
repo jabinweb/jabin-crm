@@ -37,6 +37,8 @@ describe('navigation modules', () => {
 
   it('puts calendar under workspace and follow-ups under sales', () => {
     expect(resolveModuleId('/acme/dashboard/calendar')).toBe('workspace');
+    expect(resolveModuleId('/acme/dashboard/meetings')).toBe('workspace');
+    expect(resolveModuleId('/acme/dashboard/meetings/abc')).toBe('workspace');
     expect(resolveModuleId('/acme/dashboard/tasks')).toBe('sales');
   });
 

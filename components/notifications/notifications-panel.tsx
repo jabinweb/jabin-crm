@@ -4,7 +4,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { AtSign, Bell, Calendar, Clock, Wallet, ClipboardList, FileText, Award, MessageSquare } from 'lucide-react'
+import { AtSign, Bell, Calendar, CalendarClock, CalendarX, Clock, Wallet, ClipboardList, FileText, Award, MessageSquare, Video } from 'lucide-react'
+import { MeetingNotificationActions } from '@/components/meetings/meeting-notification-actions'
 import { useRouter } from 'next/navigation'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { cn } from '@/lib/utils'
@@ -82,6 +83,15 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
         return <FileText className="h-4 w-4" />
       case 'PERFORMANCE_REVIEW':
         return <Award className="h-4 w-4" />
+      case 'MEETING_INVITE':
+      case 'MEETING_UPDATED':
+      case 'MEETING_RSVP':
+        return <CalendarClock className="h-4 w-4" />
+      case 'MEETING_CANCELLED':
+        return <CalendarX className="h-4 w-4" />
+      case 'MEETING_REMINDER':
+      case 'MEETING_STARTED':
+        return <Video className="h-4 w-4 text-red-500" />
       default:
         return <Bell className="h-4 w-4" />
     }
@@ -173,6 +183,14 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
                     <p className="text-xs text-muted-foreground mt-1">
                       {new Date(notification.createdAt).toLocaleString()}
                     </p>
+                    <MeetingNotificationActions
+                      notification={notification}
+                      onNavigate={(href) => {
+                        setOpen(false)
+                        void markAsRead(notification.id)
+                        router.push(path(href))
+                      }}
+                    />
                   </div>
                 ))
               )}

@@ -13,7 +13,13 @@ export type NotificationType =
   | 'PROJECT_TASK_ASSIGNED'
   | 'PROJECT_TASK_COMMENTED'
   | 'PROJECT_TASK_UPDATED'
-  | 'PROJECT_MENTION';
+  | 'PROJECT_MENTION'
+  | 'MEETING_INVITE'
+  | 'MEETING_UPDATED'
+  | 'MEETING_CANCELLED'
+  | 'MEETING_RSVP'
+  | 'MEETING_REMINDER'
+  | 'MEETING_STARTED';
 
 export interface Notification {
   id: string

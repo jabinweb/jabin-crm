@@ -1,0 +1,25 @@
+# Self-hosted LiveKit for Opslane team meetings (adapted from Selah).
+# Usage:
+#   docker compose -f docker-compose.livekit.yml up -d
+# Then set in .env.local (keys must match livekit/livekit.yaml):
+#   LIVEKIT_URL=ws://localhost:7880
+#   LIVEKIT_API_KEY=opslane-dev
+#   LIVEKIT_API_SECRET=<the secret from livekit/livekit.yaml>
+# Production: put TLS in front (Caddy/Nginx/Traefik) and use wss://livekit.your-domain.com;
+# open UDP 50000-50200, TCP 7881 and the TURN ports on the host firewall.
+# Or skip all of this and use LiveKit Cloud (see the LIVEKIT_* notes in .env.example).
+
+services:
+  livekit:
+    image: livekit/livekit-server:v1.13.6
+    container_name: opslane-livekit
+    restart: unless-stopped
+    command: ["--config", "/etc/livekit.yaml"]
+    ports:
+      - "7880:7880"                     # WebSocket signaling + RoomService API
+      - "7881:7881"                     # RTC over TCP
+      - "50000-50200:50000-50200/udp"   # RTC media
+      - "3478:3478/udp"                 # TURN UDP
+      - "5349:5349/tcp"                 # TURN TLS (needs certs)
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro

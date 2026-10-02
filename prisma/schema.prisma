@@ -121,6 +121,8 @@ model User {
   slackDestinations       SlackDestination[]
   conversationsCreated    Conversation[]         @relation("ConversationCreator")
   conversationMemberships ConversationMember[]
+  teamMeetingsOrganized   TeamMeeting[]          @relation("TeamMeetingOrganizer")
+  meetingInvites          MeetingAttendee[]
   chatMessages            ChatMessage[]          @relation("ChatMessageSender")
   chatReactions           ChatMessageReaction[]
 
@@ -805,6 +807,7 @@ model CalendarEvent {
   deal               Deal?             @relation(fields: [dealId], references: [id])
   lead               Lead?             @relation(fields: [leadId], references: [id])
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamMeeting        TeamMeeting?
 
   @@index([userId])
   @@index([leadId])
@@ -2190,6 +2193,12 @@ enum NotificationType {
   PROJECT_TASK_UPDATED
   PROJECT_MENTION
   CHAT_MESSAGE
+  MEETING_INVITE
+  MEETING_UPDATED
+  MEETING_CANCELLED
+  MEETING_RSVP
+  MEETING_REMINDER
+  MEETING_STARTED
 }
 
 model Notification {
@@ -2270,6 +2279,7 @@ model Company {
   projectLabels     ProjectLabel[]
   slackDestinations SlackDestination[]
   conversations     Conversation[]
+  teamMeetings      TeamMeeting[]
   clientRetainers   ClientRetainer[]
   hrLetterTemplates HrLetterTemplate[]
   hrLetters         HrLetter[]
@@ -3344,6 +3354,60 @@ model ChatMessageReaction {
 
   @@id([messageId, userId, emoji])
   @@index([messageId])
+}
+
+/// A team meeting: the organizer's CalendarEvent (title, time, agenda, status, link)
+/// plus who is invited, how they answered, and the video room.
+/// Kept in its own table so CalendarEvent queries work with or without this migration.
+model TeamMeeting {
+  id          String    @id @default(cuid())
+  /// The organizer's calendar event; attendees see it through MeetingAttendee
+  eventId     String    @unique
+  companyId   String
+  organizerId String
+  /// OPSLANE (built-in LiveKit room) | EXTERNAL (meetingLink on the event) | NONE (in person)
+  provider    String    @default("OPSLANE")
+  /// LiveKit room name (unique, unguessable)
+  roomName    String    @unique
+  /// Occurrences created together by "Repeat" share a seriesId
+  seriesId    String?
+  /// NONE | DAILY | WEEKDAYS | WEEKLY
+  recurrence  String    @default("NONE")
+  /// First person joined the room / room closed (LiveKit webhook or "End for everyone")
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  event       CalendarEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  organizer   User      @relation("TeamMeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
+  attendees   MeetingAttendee[]
+
+  @@index([companyId])
+  @@index([organizerId])
+  @@index([seriesId])
+}
+
+model MeetingAttendee {
+  id             String      @id @default(cuid())
+  meetingId      String
+  userId         String
+  /// ORGANIZER | ATTENDEE
+  role           String      @default("ATTENDEE")
+  /// PENDING | ACCEPTED | DECLINED | TENTATIVE
+  rsvp           String      @default("PENDING")
+  respondedAt    DateTime?
+  reminderSentAt DateTime?
+  /// Last time this person entered / left the video room
+  joinedAt       DateTime?
+  leftAt         DateTime?
+  inRoom         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  meeting        TeamMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
 }
 
 /// A Slack incoming webhook that receives alerts.
