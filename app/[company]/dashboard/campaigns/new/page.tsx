@@ -16,14 +16,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
+  AlertCircle,
   ArrowLeft,
-  Mail,
   Send,
   Save,
   Loader2,
@@ -34,10 +33,10 @@ import {
   Wand2,
 } from 'lucide-react';
 import { CardListSkeleton } from '@/components/loading';
-import Link from 'next/link';
+import { EmptyState } from '@/components/ui/empty-state';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { format } from 'date-fns';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 
 export default function NewCampaignPage() {
   const router = useRouter();
@@ -103,7 +102,12 @@ export default function NewCampaignPage() {
   });
 
   // Fetch available leads with filters (only leads with email)
-  const { data: leadsData, isLoading: leadsLoading } = useQuery({
+  const {
+    data: leadsData,
+    isLoading: leadsLoading,
+    isError: leadsError,
+    refetch: refetchLeads,
+  } = useQuery({
     queryKey: ['leads-for-campaign', filterStatus, filterIndustry, filterSource, filterTag],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -154,7 +158,9 @@ export default function NewCampaignPage() {
         .filter((lead: any) => lead.status === status)
         .map((lead: any) => lead.id);
       setSelectedLeads(filtered);
-      toast.success(`Selected ${filtered.length} ${status} leads`);
+      toast.success(
+        `Selected ${filtered.length} ${humanizeEnum(status).toLowerCase()} ${filtered.length === 1 ? 'lead' : 'leads'}`
+      );
     }
   };
 
@@ -216,13 +222,35 @@ export default function NewCampaignPage() {
   };
 
   const handleSave = async (asDraft: boolean) => {
-    if (!formData.name || !formData.subject || !formData.emailTemplate) {
-      toast.error('Please fill in campaign name, subject, and email template');
+    if (saving) return;
+
+    if (!formData.name.trim() || !formData.subject.trim() || !formData.emailTemplate.trim()) {
+      toast.error('Add a campaign name, subject and email content');
+      return;
+    }
+
+    if (!formData.fromName.trim() || !formData.fromEmail.trim()) {
+      toast.error('Add the sender name and email');
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(formData.fromEmail.trim())) {
+      toast.error('Enter a valid sender email address');
+      return;
+    }
+    if (formData.replyTo.trim() && !emailPattern.test(formData.replyTo.trim())) {
+      toast.error('Enter a valid reply-to email address');
+      return;
+    }
+
+    if (formData.scheduledAt && new Date(formData.scheduledAt).getTime() <= Date.now()) {
+      toast.error('Pick a send time in the future, or clear it to keep a draft');
       return;
     }
 
     if (!asDraft && selectedLeads.length === 0) {
-      toast.error('Please select at least one recipient');
+      toast.error('Select at least one recipient');
       return;
     }
 
@@ -260,12 +288,17 @@ export default function NewCampaignPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <DashboardLink href="/dashboard/campaigns" className="inline-flex">
-            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="-ml-2 h-10 w-10 sm:h-9 sm:w-9"
+          >
+            <DashboardLink href="/dashboard/campaigns" aria-label="Back to campaigns">
               <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </DashboardLink>
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">New Campaign</h2>
+            </DashboardLink>
+          </Button>
+          <h1 className="text-2xl font-bold tracking-tight">New Campaign</h1>
           <p className="text-muted-foreground">
             Create and schedule your email campaign
           </p>
@@ -303,7 +336,7 @@ export default function NewCampaignPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2">
-                    <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">1</span>
+                    <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">1</span>
                     Select Recipients
                   </CardTitle>
                   <CardDescription>Choose which leads to send this campaign to</CardDescription>
@@ -312,6 +345,7 @@ export default function NewCampaignPage() {
                   variant="outline"
                   size="sm"
                   className="self-start sm:self-auto"
+                  aria-expanded={showLeadSelector}
                   onClick={() => setShowLeadSelector(!showLeadSelector)}
                 >
                   <Users className="mr-2 h-4 w-4" />
@@ -333,31 +367,23 @@ export default function NewCampaignPage() {
                   {/* Filters */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Filter by lead status">
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        {filterOptions?.statuses?.filter((s: any) => 
+                        <SelectItem value="all">All statuses</SelectItem>
+                        {filterOptions?.statuses?.filter((s: any) =>
                           ['NEW', 'CONTACTED', 'RESPONDED', 'QUALIFIED'].includes(s.status)
-                        ).map((s: any) => {
-                          const icons: any = {
-                            NEW: '🆕',
-                            CONTACTED: '📧',
-                            RESPONDED: '💬',
-                            QUALIFIED: '✅',
-                          };
-                          return (
-                            <SelectItem key={s.status} value={s.status}>
-                              {icons[s.status]} {s.status} ({s.count})
-                            </SelectItem>
-                          );
-                        })}
+                        ).map((s: any) => (
+                          <SelectItem key={s.status} value={s.status}>
+                            {humanizeEnum(s.status)} ({s.count})
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
 
                     <Select value={filterIndustry} onValueChange={setFilterIndustry}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Filter by industry">
                         <SelectValue placeholder="Industry" />
                       </SelectTrigger>
                       <SelectContent>
@@ -371,26 +397,18 @@ export default function NewCampaignPage() {
                     </Select>
 
                     <Select value={filterSource} onValueChange={setFilterSource}>
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Filter by source">
                         <SelectValue placeholder="Source" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Sources</SelectItem>
-                        {filterOptions?.sources?.map((src: string) => {
-                          const icons: any = {
-                            'Google Places': '📍',
-                            'Manual': '✍️',
-                            'Import': '📥',
-                          };
-                          return (
-                            <SelectItem key={src} value={src}>
-                              {icons[src] || ''} {src}
-                            </SelectItem>
-                          );
-                        })}
+                        <SelectItem value="all">All sources</SelectItem>
+                        {filterOptions?.sources?.map((src: string) => (
+                          <SelectItem key={src} value={src}>
+                            {src}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-
 
                   </div>
 
@@ -410,7 +428,7 @@ export default function NewCampaignPage() {
                       onClick={() => selectByStatus('QUALIFIED')}
                       disabled={leadsLoading}
                     >
-                      ✅ Qualified Only
+                      Qualified only
                     </Button>
                     <Button
                       variant="secondary"
@@ -418,7 +436,7 @@ export default function NewCampaignPage() {
                       onClick={() => selectByStatus('RESPONDED')}
                       disabled={leadsLoading}
                     >
-                      💬 Responded Only
+                      Responded only
                     </Button>
                     <Button
                       variant="ghost"
@@ -434,15 +452,26 @@ export default function NewCampaignPage() {
 
                   {leadsLoading ? (
                     <CardListSkeleton rows={5} />
+                  ) : leadsError ? (
+                    <EmptyState
+                      icon={AlertCircle}
+                      title="Couldn't load leads"
+                      description="Check your connection and try again."
+                      actionLabel="Try again"
+                      onAction={() => void refetchLeads()}
+                      className="py-8"
+                    />
                   ) : leadsData?.leads && leadsData.leads.length > 0 ? (
                     <div className="max-h-96 overflow-y-auto space-y-2">
                       {leadsData.leads.map((lead: any) => (
-                        <div
+                        // A <label> keeps row-click and checkbox-click to a single toggle.
+                        <label
                           key={lead.id}
-                          className="flex items-center space-x-2 p-3 rounded-none border hover:bg-accent cursor-pointer"
-                          onClick={() => toggleLead(lead.id)}
+                          htmlFor={`campaign-lead-${lead.id}`}
+                          className="flex cursor-pointer items-center gap-3 rounded-md border p-3 hover:bg-accent"
                         >
                           <Checkbox
+                            id={`campaign-lead-${lead.id}`}
                             checked={selectedLeads.includes(lead.id)}
                             onCheckedChange={() => toggleLead(lead.id)}
                           />
@@ -453,16 +482,31 @@ export default function NewCampaignPage() {
                               {lead.industry && ` • ${lead.industry}`}
                             </p>
                           </div>
-                        </div>
+                        </label>
                       ))}
                     </div>
+                  ) : filterStatus !== 'all' || filterIndustry !== 'all' || filterSource !== 'all' ? (
+                    <EmptyState
+                      icon={Users}
+                      title="No leads match these filters"
+                      description="Try a different status, industry or source."
+                      actionLabel="Clear filters"
+                      onAction={() => {
+                        setFilterStatus('all');
+                        setFilterIndustry('all');
+                        setFilterSource('all');
+                      }}
+                      className="py-8"
+                    />
                   ) : (
-                    <Alert>
-                      <Info className="h-4 w-4" />
-                      <AlertDescription>
-                        No leads available. Please scrape some leads first.
-                      </AlertDescription>
-                    </Alert>
+                    <EmptyState
+                      icon={Users}
+                      title="No leads with an email address"
+                      description="Add leads with email addresses first, then come back to pick recipients."
+                      actionLabel="Go to Leads"
+                      actionHref={path('/dashboard/leads')}
+                      className="py-8"
+                    />
                   )}
                 </div>
               )}
@@ -475,7 +519,7 @@ export default function NewCampaignPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2">
-                    <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">2</span>
+                    <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">2</span>
                     Campaign Details
                   </CardTitle>
                   <CardDescription>Write your email content and subject line</CardDescription>
@@ -617,7 +661,7 @@ export default function NewCampaignPage() {
             <CardHeader>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">3</span>
+                  <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm">3</span>
                   Sender Information
                 </CardTitle>
                 <CardDescription>Configure who the email is from</CardDescription>
@@ -682,7 +726,7 @@ export default function NewCampaignPage() {
                   onChange={(e) => handleInputChange('scheduledAt', e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Leave empty to send immediately after creation
+                  Leave empty to keep it as a draft. You can send it from the campaign page.
                 </p>
               </div>
             </CardContent>
@@ -698,21 +742,21 @@ export default function NewCampaignPage() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <p className="font-medium">✉️ Subject Lines</p>
+                <p className="font-medium">Subject lines</p>
                 <p className="text-muted-foreground">
                   Keep it under 50 characters and personalize with placeholders
                 </p>
               </div>
               <Separator />
               <div>
-                <p className="font-medium">📝 Email Content</p>
+                <p className="font-medium">Email content</p>
                 <p className="text-muted-foreground">
                   Use placeholders to personalize each email automatically
                 </p>
               </div>
               <Separator />
               <div>
-                <p className="font-medium">⏰ Timing</p>
+                <p className="font-medium">Timing</p>
                 <p className="text-muted-foreground">
                   Best send times are Tuesday-Thursday, 10 AM - 2 PM
                 </p>

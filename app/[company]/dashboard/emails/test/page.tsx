@@ -15,18 +15,20 @@ import {
 } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Mail, 
-  Send, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Mail,
+  Send,
+  CheckCircle2,
+  XCircle,
   Loader2,
-  Eye,
   Code,
-  FileText
+  FileText,
+  Settings,
 } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
 interface TestResult {
   success: boolean;
@@ -37,6 +39,7 @@ interface TestResult {
 }
 
 export default function EmailTesterPage() {
+  const { path } = useWorkspacePaths();
   const [isLoading, setIsLoading] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [viewMode, setViewMode] = useState<'visual' | 'html'>('visual');
@@ -44,8 +47,8 @@ export default function EmailTesterPage() {
   // Form state
   const [formData, setFormData] = useState({
     to: '',
-    subject: 'Test Email from Lead Gen',
-    body: 'This is a test email to verify email sending functionality.\n\nBest regards,\nYour Lead Gen System',
+    subject: 'Test email',
+    body: 'This is a test email to check that sending works.\n\nBest regards',
     htmlBody: '',
     fromName: '',
     replyTo: '',
@@ -53,8 +56,13 @@ export default function EmailTesterPage() {
   });
 
   const handleSendTest = async () => {
-    if (!formData.to) {
-      toast.error('Please enter a recipient email address');
+    if (isLoading) return;
+    if (!formData.to.trim()) {
+      toast.error('Enter a recipient email address');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.to.trim())) {
+      toast.error('Enter a valid recipient email address');
       return;
     }
 
@@ -139,7 +147,7 @@ export default function EmailTesterPage() {
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-8 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Email Tester</h2>
+          <h1 className="text-2xl font-bold tracking-tight">Email Tester</h1>
           <p className="text-muted-foreground">
             Test your email configuration and deliverability
           </p>
@@ -160,7 +168,7 @@ export default function EmailTesterPage() {
               {/* Recipient */}
               <div className="space-y-2">
                 <Label htmlFor="to">
-                  Recipient Email <span className="text-red-500">*</span>
+                  Recipient Email <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="to"
@@ -198,7 +206,7 @@ export default function EmailTesterPage() {
               <div className="space-y-2">
                 <Label htmlFor="testType">Test Type</Label>
                 <Select value={formData.testType} onValueChange={(value) => setFormData({ ...formData, testType: value })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="testType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -254,7 +262,7 @@ export default function EmailTesterPage() {
               {/* Body */}
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Label>Email Content</Label>
+                  <Label htmlFor="testBody">Email Content</Label>
                   <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="w-auto">
                     <TabsList className="h-8">
                       <TabsTrigger value="visual" className="text-xs h-7">
@@ -271,6 +279,7 @@ export default function EmailTesterPage() {
                 
                 {viewMode === 'visual' ? (
                   <Textarea
+                    id="testBody"
                     placeholder="Email body (plain text)"
                     rows={8}
                     value={formData.body}
@@ -278,6 +287,7 @@ export default function EmailTesterPage() {
                   />
                 ) : (
                   <Textarea
+                    id="testBody"
                     placeholder="Email body (HTML)"
                     rows={8}
                     value={formData.htmlBody}
@@ -319,12 +329,12 @@ export default function EmailTesterPage() {
                 <CardTitle className="flex items-center gap-2">
                   {testResult.success ? (
                     <>
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                       Test Successful
                     </>
                   ) : (
                     <>
-                      <XCircle className="h-5 w-5 text-red-500" />
+                      <XCircle className="h-5 w-5 text-destructive" />
                       Test Failed
                     </>
                   )}
@@ -341,16 +351,16 @@ export default function EmailTesterPage() {
                       {testResult.messageId && (
                         <div className="flex justify-between gap-2 text-sm">
                           <span className="text-muted-foreground">Message ID:</span>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {testResult.messageId.substring(0, 20)}...
+                          <code className="min-w-0 break-all rounded bg-muted px-2 py-1 text-xs">
+                            {testResult.messageId}
                           </code>
                         </div>
                       )}
                       {testResult.logId && (
                         <div className="flex justify-between gap-2 text-sm">
                           <span className="text-muted-foreground">Log ID:</span>
-                          <code className="text-xs bg-muted px-2 py-1 rounded">
-                            {testResult.logId.substring(0, 20)}...
+                          <code className="min-w-0 break-all rounded bg-muted px-2 py-1 text-xs">
+                            {testResult.logId}
                           </code>
                         </div>
                       )}
@@ -374,78 +384,25 @@ export default function EmailTesterPage() {
             </Card>
           )}
 
-          {/* Configuration Info */}
+          {/* Where sending / reply settings live */}
           <Card>
             <CardHeader>
-              <CardTitle>Email Configuration</CardTitle>
+              <CardTitle>Sending &amp; Reply Settings</CardTitle>
               <CardDescription>
-                Current email service configuration
+                Outgoing mail (SMTP) and reply tracking (IMAP) are set up under Integrations.
+                If a test fails with a configuration error, check those settings first.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">Provider:</span>
-                  <Badge variant="outline">Nodemailer</Badge>
-                </div>
-                <div className="flex justify-between gap-2 text-sm">
-                  <span className="text-muted-foreground">SMTP Configured:</span>
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500">
-                    Active
-                  </Badge>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* IMAP Reply Checker */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Reply Tracking</CardTitle>
-              <CardDescription>
-                Since you&apos;re using Nodemailer (SMTP), replies are received directly to your email inbox. 
-                Use the IMAP reply checker to automatically scan for and log replies.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>IMAP Configuration</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add these to your .env file to enable reply checking:
-                </p>
-                <div className="bg-muted p-3 rounded-none mt-2 font-mono text-xs space-y-1 break-all">
-                  <div>IMAP_HOST=imap.gmail.com</div>
-                  <div>IMAP_PORT=993</div>
-                  <div>IMAP_USER=your-email@gmail.com</div>
-                  <div>IMAP_PASSWORD=your-app-password</div>
-                </div>
-              </div>
-
-              <div>
-                <Label>Manual Reply Check</Label>
-                <div className="flex gap-2 mt-1">
-                  <Input
-                    readOnly
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/emails/check-replies`}
-                    className="min-w-0 font-mono text-xs"
-                  />
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        `${typeof window !== 'undefined' ? window.location.origin : ''}/api/emails/check-replies`
-                      );
-                      toast.success('API URL copied!');
-                    }}
-                  >
-                    Copy
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  POST to this endpoint or set up a cron job to periodically check for new replies
-                </p>
-              </div>
+            <CardContent className="space-y-3">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`${path('/dashboard/settings/integrations')}?panel=email`}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Open email settings
+                </Link>
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Once IMAP is connected, replies to your emails appear in the inbox automatically.
+              </p>
             </CardContent>
           </Card>
         </div>

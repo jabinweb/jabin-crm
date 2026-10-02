@@ -17,10 +17,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ChevronLeft, Loader2, Download } from 'lucide-react';
+import { ChevronLeft, Loader2, Download, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 
 function toInputDate(iso: string) {
   return new Date(iso).toISOString().slice(0, 10);
@@ -34,11 +36,12 @@ export default function ContractDetailPage() {
   const id = params.id;
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['contract', slug, id],
     queryFn: async () => {
       const res = await workspaceFetch(`/api/contracts/${id}`);
-      if (!res.ok) throw new Error('Contract not found');
+      if (res.status === 404) throw new Error('NOT_FOUND');
+      if (!res.ok) throw new Error('Failed to load contract');
       const json = await res.json();
       return (json.data ?? json) as {
         id: string;
@@ -95,6 +98,9 @@ export default function ContractDetailPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!form.title.trim()) throw new Error('Title is required');
+      if (!form.startDate || !form.endDate) throw new Error('Start and end dates are required');
+      if (form.endDate < form.startDate) throw new Error('End date must be after the start date');
       const res = await workspaceFetch(`/api/contracts/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -133,8 +139,10 @@ export default function ContractDetailPage() {
       const a = document.createElement('a');
       a.href = url;
       a.download = `contract-${data?.contractNumber || id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'PDF download failed');
     } finally {
@@ -142,17 +150,46 @@ export default function ContractDetailPage() {
     }
   };
 
+  const backLink = (
+    <Button variant="ghost" size="sm" asChild>
+      <Link href={path('/dashboard/contracts')}>
+        <ChevronLeft className="h-4 w-4 mr-1" />
+        Contracts
+      </Link>
+    </Button>
+  );
+
   if (isLoading) {
-    return <DetailSkeleton />;
+    return (
+      <div className="space-y-6 max-w-3xl">
+        {backLink}
+        <DetailSkeleton className="lg:grid-cols-1" />
+      </div>
+    );
   }
 
   if (error || !data) {
+    const notFound = error instanceof Error && error.message === 'NOT_FOUND';
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">Contract not found.</p>
-        <Button variant="outline" onClick={() => router.push(path('/dashboard/contracts'))}>
-          Back to contracts
-        </Button>
+      <div className="space-y-6 max-w-3xl">
+        {backLink}
+        <Card>
+          <EmptyState
+            icon={AlertCircle}
+            title={notFound ? 'Contract not found' : "Couldn't load this contract"}
+            description={
+              notFound
+                ? 'It may have been deleted, or you may not have access to it.'
+                : 'Check your connection and try again.'
+            }
+            actionLabel={notFound ? 'Back to contracts' : 'Retry'}
+            onAction={
+              notFound
+                ? () => router.push(path('/dashboard/contracts'))
+                : () => void refetch()
+            }
+          />
+        </Card>
       </div>
     );
   }
@@ -165,14 +202,21 @@ export default function ContractDetailPage() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href={path('/dashboard/contracts')}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Contracts
-          </Link>
-        </Button>
+        {backLink}
         <Badge variant="outline">{data.type}</Badge>
-        <Badge>{data.status}</Badge>
+        <Badge
+          variant={
+            data.status === 'ACTIVE'
+              ? 'default'
+              : data.status === 'EXPIRED'
+                ? 'destructive'
+                : data.status === 'CANCELLED'
+                  ? 'outline'
+                  : 'secondary'
+          }
+        >
+          {humanizeEnum(data.status)}
+        </Badge>
         <Button
           variant="outline"
           size="sm"
@@ -249,20 +293,22 @@ export default function ContractDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Title</Label>
+            <Label htmlFor="contract-title">Title</Label>
             <Input
+              id="contract-title"
+              required
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label htmlFor="contract-status">Status</Label>
               <Select
                 value={form.status}
                 onValueChange={(v) => setForm((f) => ({ ...f, status: v }))}
               >
-                <SelectTrigger>
+                <SelectTrigger id="contract-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -274,41 +320,53 @@ export default function ContractDetailPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Reminder (days before end)</Label>
+              <Label htmlFor="contract-reminderDays">Reminder (days before end)</Label>
               <Input
+                id="contract-reminderDays"
                 type="number"
+                inputMode="numeric"
+                min={1}
                 value={form.reminderDays}
                 onChange={(e) => setForm((f) => ({ ...f, reminderDays: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Start</Label>
+              <Label htmlFor="contract-startDate">Start</Label>
               <Input
+                id="contract-startDate"
                 type="date"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>End</Label>
+              <Label htmlFor="contract-endDate">End</Label>
               <Input
+                id="contract-endDate"
                 type="date"
+                min={form.startDate || undefined}
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Annual value ({data.currency})</Label>
+              <Label htmlFor="contract-annualValue">Annual value ({data.currency})</Label>
               <Input
+                id="contract-annualValue"
                 type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
                 value={form.annualValue}
                 onChange={(e) => setForm((f) => ({ ...f, annualValue: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Visit limit</Label>
+              <Label htmlFor="contract-visitLimit">Visit limit</Label>
               <Input
+                id="contract-visitLimit"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 placeholder="Unlimited"
                 value={form.visitLimit}
@@ -317,8 +375,9 @@ export default function ContractDetailPage() {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Notes</Label>
+            <Label htmlFor="contract-notes">Notes</Label>
             <Textarea
+              id="contract-notes"
               rows={4}
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}

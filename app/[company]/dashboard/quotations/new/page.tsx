@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Plus, Trash2, Save, Send, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useCurrency } from '@/hooks/use-currency';
@@ -29,12 +28,14 @@ interface QuotationItem {
   amount: number;
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function NewQuotationPage() {
   const router = useRouter();
   const params = useParams<{ company?: string }>();
   const workspaceSlug = typeof params?.company === 'string' ? params.company : undefined;
   const { path } = useWorkspacePaths();
-  const { currency: defaultCurrency } = useCurrency();
+  const { currency: defaultCurrency, formatCurrency: formatMoney } = useCurrency();
   const [isInitialized, setIsInitialized] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -107,17 +108,10 @@ export default function NewQuotationPage() {
         body: JSON.stringify(data),
       });
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to create quotation');
       }
       return response.json();
-    },
-    onSuccess: () => {
-      toast.success('Quotation created successfully');
-      router.push(path('/dashboard/quotations'));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
     },
   });
 
@@ -127,19 +121,18 @@ export default function NewQuotationPage() {
         method: 'POST',
       });
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json().catch(() => ({}));
         throw new Error(error.error || 'Failed to send quotation');
       }
       return response.json();
     },
-    onSuccess: () => {
-      toast.success('Quotation sent successfully');
-      router.push(path('/dashboard/quotations'));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message);
-    },
   });
+
+  // Which button started the in-flight save, so only that one shows a spinner.
+  // Stays set through the redirect so the buttons can't be pressed twice.
+  const [pendingAction, setPendingAction] = useState<'draft' | 'send' | null>(null);
+  const isBusy =
+    pendingAction !== null || createQuotationMutation.isPending || sendQuotationMutation.isPending;
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -199,62 +192,97 @@ export default function NewQuotationPage() {
     return Math.max(1, Math.ceil((until.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
   };
 
-  const handleSaveDraft = () => {
-    const quotationData = {
-      ...formData,
-      validityDays: validityDaysFromDate(),
-      status: 'DRAFT',
-      items: items.filter(item => item.name.trim() !== ''),
-      subtotal: calculateSubtotal(),
-      taxAmount: calculateTaxAmount(),
-      total: calculateTotal(),
-    };
+  const formatCurrency = (amount: number) =>
+    formatMoney(amount, formData.currency || defaultCurrency);
 
-    createQuotationMutation.mutate(quotationData);
+  const requiredMissing =
+    !formData.title.trim() || !formData.customerName.trim() || !formData.customerEmail.trim();
+
+  /** Returns an error message, or null when the quotation can be saved. */
+  const validate = (): string | null => {
+    if (requiredMissing) return 'Add a title, customer name and customer email';
+    if (!EMAIL_RE.test(formData.customerEmail.trim())) return 'Enter a valid customer email';
+    if (!formData.validUntil) return 'Choose a valid-until date';
+    if (!items.some((item) => item.name.trim() !== '')) return 'Add at least one line item with a name';
+    if (formData.discount > calculateSubtotal() + calculateTaxAmount()) {
+      return 'Discount can’t be larger than the subtotal plus tax';
+    }
+    return null;
   };
 
-  const handleSaveAndSend = async () => {
-    const quotationData = {
-      ...formData,
-      validityDays: validityDaysFromDate(),
-      status: 'DRAFT',
-      items: items.filter(item => item.name.trim() !== ''),
-      subtotal: calculateSubtotal(),
-      taxAmount: calculateTaxAmount(),
-      total: calculateTotal(),
-    };
+  const buildPayload = () => ({
+    ...formData,
+    validityDays: validityDaysFromDate(),
+    status: 'DRAFT',
+    items: items.filter(item => item.name.trim() !== ''),
+    subtotal: calculateSubtotal(),
+    taxAmount: calculateTaxAmount(),
+    total: calculateTotal(),
+  });
 
-    const quotation = await createQuotationMutation.mutateAsync(quotationData);
-    if (quotation?.id) {
-      sendQuotationMutation.mutate(quotation.id);
+  const handleSaveDraft = async () => {
+    if (isBusy) return;
+    const error = validate();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setPendingAction('draft');
+    try {
+      await createQuotationMutation.mutateAsync(buildPayload());
+      toast.success('Quotation saved as draft');
+      router.push(path('/dashboard/quotations'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create quotation');
+      setPendingAction(null);
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    const symbols: Record<string, string> = {
-      USD: '$',
-      EUR: '€',
-      GBP: '£',
-      INR: '₹',
-      AUD: 'A$',
-      CAD: 'C$',
-      JPY: '¥',
-    };
-    const symbol = symbols[formData.currency] || formData.currency;
-    return `${symbol}${amount.toFixed(2)}`;
+  const handleSaveAndSend = async () => {
+    if (isBusy) return;
+    const error = validate();
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setPendingAction('send');
+    let quotation: { id?: string } | undefined;
+    try {
+      quotation = await createQuotationMutation.mutateAsync(buildPayload());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create quotation');
+      setPendingAction(null);
+      return;
+    }
+    if (!quotation?.id) {
+      toast.success('Quotation saved as draft');
+      router.push(path('/dashboard/quotations'));
+      return;
+    }
+    try {
+      await sendQuotationMutation.mutateAsync(quotation.id);
+      toast.success('Quotation sent');
+      router.push(path(`/dashboard/quotations/${quotation.id}`));
+    } catch (err) {
+      // The draft exists — take the user to it so they can retry sending.
+      toast.error(
+        `Saved as draft, but sending failed: ${err instanceof Error ? err.message : 'unknown error'}`
+      );
+      router.push(path(`/dashboard/quotations/${quotation.id}`));
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold">Create Quotation</h1>
-          <p className="text-sm md:text-base text-muted-foreground">Generate a new quotation for your customer</p>
+          <h1 className="text-2xl font-semibold tracking-tight">New quotation</h1>
+          <p className="text-sm text-muted-foreground">Prepare a quotation for your customer</p>
         </div>
         <DashboardLink href="/dashboard/quotations">
           <Button variant="outline" size="sm" className="w-full sm:w-auto">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Quotations
+            Back to quotations
           </Button>
         </DashboardLink>
       </div>
@@ -263,7 +291,7 @@ export default function NewQuotationPage() {
         <div className="min-w-0 lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Quotation Details</CardTitle>
+              <CardTitle className="text-base">Quotation details</CardTitle>
               <CardDescription>Basic information about the quotation</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -274,7 +302,7 @@ export default function NewQuotationPage() {
                     id="title"
                     value={formData.title}
                     onChange={(e) => handleChange('title', e.target.value)}
-                    placeholder="Web Development Services"
+                    placeholder="e.g. Website redesign"
                     required
                   />
                 </div>
@@ -291,7 +319,7 @@ export default function NewQuotationPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="validUntil">Valid Until *</Label>
+                  <Label htmlFor="validUntil">Valid until *</Label>
                   <Input
                     id="validUntil"
                     type="date"
@@ -313,72 +341,78 @@ export default function NewQuotationPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Customer Information</CardTitle>
+              <CardTitle className="text-base">Customer information</CardTitle>
               <CardDescription>Who is this quotation for?</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {leads?.leads && (
-                <div className="space-y-2">
-                  <Label htmlFor="selectLead">Select from Leads</Label>
-                  <Select onValueChange={selectLead}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a lead to autofill details" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {leads.leads.map((lead: any) => (
-                        <SelectItem key={lead.id} value={lead.id}>
-                          {lead.name} - {lead.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              {leads?.leads && leads.leads.length > 0 && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="selectLead">Fill from a lead</Label>
+                    <Select onValueChange={selectLead}>
+                      <SelectTrigger id="selectLead">
+                        <SelectValue placeholder="Choose a lead to autofill details" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {leads.leads.map((lead: any) => (
+                          <SelectItem key={lead.id} value={lead.id}>
+                            {[lead.name || lead.contactName || lead.companyName, lead.email]
+                              .filter(Boolean)
+                              .join(' · ') || 'Unnamed lead'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Separator />
+                </>
               )}
-
-              <Separator />
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="customerName">Customer Name *</Label>
+                  <Label htmlFor="customerName">Customer name *</Label>
                   <Input
                     id="customerName"
+                    autoComplete="off"
                     value={formData.customerName}
                     onChange={(e) => handleChange('customerName', e.target.value)}
-                    placeholder="John Doe"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="customerEmail">Customer Email *</Label>
+                  <Label htmlFor="customerEmail">Customer email *</Label>
                   <Input
                     id="customerEmail"
                     type="email"
+                    inputMode="email"
+                    autoComplete="off"
                     value={formData.customerEmail}
                     onChange={(e) => handleChange('customerEmail', e.target.value)}
-                    placeholder="john@example.com"
+                    placeholder="name@company.com"
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="customerPhone">Customer Phone</Label>
+                  <Label htmlFor="customerPhone">Customer phone</Label>
                   <Input
                     id="customerPhone"
                     type="tel"
+                    inputMode="tel"
+                    autoComplete="off"
                     value={formData.customerPhone}
                     onChange={(e) => handleChange('customerPhone', e.target.value)}
-                    placeholder="+1 (555) 123-4567"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="customerAddress">Customer Address</Label>
+                  <Label htmlFor="customerAddress">Customer address</Label>
                   <Input
                     id="customerAddress"
+                    autoComplete="off"
                     value={formData.customerAddress}
                     onChange={(e) => handleChange('customerAddress', e.target.value)}
-                    placeholder="123 Main St, City, State"
                   />
                 </div>
               </div>
@@ -389,26 +423,27 @@ export default function NewQuotationPage() {
             <CardHeader>
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <CardTitle>Line Items</CardTitle>
+                  <CardTitle className="text-base">Line items</CardTitle>
                   <CardDescription>Add products or services</CardDescription>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addItem}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Item
+                  Add item
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
-                <div key={index} className="p-3 sm:p-4 border rounded-none space-y-3">
+                <div key={index} className="p-3 sm:p-4 border rounded-md space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Item #{index + 1}</span>
+                    <span className="text-sm font-medium">Item {index + 1}</span>
                     {items.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="h-10 w-10 p-0 sm:h-9 sm:w-auto sm:px-3"
+                        size="icon"
+                        className="h-10 w-10"
+                        aria-label={`Remove item ${index + 1}`}
                         onClick={() => removeItem(index)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -418,18 +453,20 @@ export default function NewQuotationPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2 col-span-2">
-                      <Label>Item Name *</Label>
+                      <Label htmlFor={`item-${index}-name`}>Item name *</Label>
                       <Input
+                        id={`item-${index}-name`}
                         value={item.name}
                         onChange={(e) => handleItemChange(index, 'name', e.target.value)}
-                        placeholder="Web Design"
+                        placeholder="e.g. Web design"
                         required
                       />
                     </div>
 
                     <div className="space-y-2 col-span-2">
-                      <Label>Description</Label>
+                      <Label htmlFor={`item-${index}-description`}>Description</Label>
                       <Textarea
+                        id={`item-${index}-description`}
                         value={item.description}
                         onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                         placeholder="Description of the item"
@@ -438,9 +475,11 @@ export default function NewQuotationPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Quantity *</Label>
+                      <Label htmlFor={`item-${index}-quantity`}>Quantity *</Label>
                       <Input
+                        id={`item-${index}-quantity`}
                         type="number"
+                        inputMode="decimal"
                         min="1"
                         value={item.quantity}
                         onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value) || 1)}
@@ -449,9 +488,11 @@ export default function NewQuotationPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Unit Price *</Label>
+                      <Label htmlFor={`item-${index}-unitPrice`}>Unit price *</Label>
                       <Input
+                        id={`item-${index}-unitPrice`}
                         type="number"
+                        inputMode="decimal"
                         min="0"
                         step="0.01"
                         value={item.unitPrice}
@@ -460,8 +501,8 @@ export default function NewQuotationPage() {
                       />
                     </div>
 
-                    <div className="space-y-2 col-span-2">
-                      <Label>Amount</Label>
+                    <div className="space-y-1 col-span-2">
+                      <p className="text-sm font-medium">Amount</p>
                       <div className="break-words text-xl font-bold text-primary tabular-nums sm:text-2xl">
                         {formatCurrency(item.amount)}
                       </div>
@@ -474,11 +515,11 @@ export default function NewQuotationPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Additional Information</CardTitle>
+              <CardTitle className="text-base">Additional information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="terms">Terms & Conditions</Label>
+                <Label htmlFor="terms">Terms &amp; conditions</Label>
                 <Textarea
                   id="terms"
                   value={formData.terms}
@@ -489,7 +530,7 @@ export default function NewQuotationPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Internal Notes</Label>
+                <Label htmlFor="notes">Internal notes</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
@@ -505,22 +546,23 @@ export default function NewQuotationPage() {
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Summary</CardTitle>
+              <CardTitle className="text-base">Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">{formatCurrency(calculateSubtotal())}</span>
+                  <span className="font-medium tabular-nums">{formatCurrency(calculateSubtotal())}</span>
                 </div>
 
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label htmlFor="taxRate">Tax Rate (%)</Label>
+                  <Label htmlFor="taxRate">Tax rate (%)</Label>
                   <Input
                     id="taxRate"
                     type="number"
+                    inputMode="decimal"
                     min="0"
                     max="100"
                     step="0.01"
@@ -531,7 +573,7 @@ export default function NewQuotationPage() {
 
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax</span>
-                  <span className="font-medium">{formatCurrency(calculateTaxAmount())}</span>
+                  <span className="font-medium tabular-nums">{formatCurrency(calculateTaxAmount())}</span>
                 </div>
 
                 <Separator />
@@ -541,6 +583,7 @@ export default function NewQuotationPage() {
                   <Input
                     id="discount"
                     type="number"
+                    inputMode="decimal"
                     min="0"
                     step="0.01"
                     value={formData.discount}
@@ -550,9 +593,9 @@ export default function NewQuotationPage() {
 
                 <Separator />
 
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-2">
                   <span className="text-lg font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary">
+                  <span className="break-all text-right text-2xl font-bold text-primary tabular-nums">
                     {formatCurrency(calculateTotal())}
                   </span>
                 </div>
@@ -562,51 +605,51 @@ export default function NewQuotationPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
+              <CardTitle className="text-base">Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <Button
                 className="w-full"
-                onClick={handleSaveDraft}
-                disabled={createQuotationMutation.isPending || !formData.title || !formData.customerName || !formData.customerEmail}
+                onClick={() => void handleSaveAndSend()}
+                disabled={isBusy || requiredMissing}
               >
-                {createQuotationMutation.isPending ? (
+                {pendingAction === 'send' ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    {sendQuotationMutation.isPending ? 'Sending…' : 'Saving…'}
                   </>
                 ) : (
                   <>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save as Draft
+                    <Send className="mr-2 h-4 w-4" />
+                    Save &amp; send email
                   </>
                 )}
               </Button>
 
               <Button
                 className="w-full"
-                variant="default"
-                onClick={handleSaveAndSend}
-                disabled={
-                  createQuotationMutation.isPending ||
-                  sendQuotationMutation.isPending ||
-                  !formData.title ||
-                  !formData.customerName ||
-                  !formData.customerEmail
-                }
+                variant="outline"
+                onClick={() => void handleSaveDraft()}
+                disabled={isBusy || requiredMissing}
               >
-                {sendQuotationMutation.isPending ? (
+                {pendingAction === 'draft' ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
+                    Saving…
                   </>
                 ) : (
                   <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Save & Send Email
+                    <Save className="mr-2 h-4 w-4" />
+                    Save as draft
                   </>
                 )}
               </Button>
+
+              {requiredMissing ? (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  Add a title, customer name and email to continue.
+                </p>
+              ) : null}
             </CardContent>
           </Card>
         </div>
@@ -614,4 +657,3 @@ export default function NewQuotationPage() {
     </div>
   );
 }
-

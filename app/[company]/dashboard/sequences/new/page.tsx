@@ -10,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Plus, Trash2, ArrowLeft, Sparkles, Loader2 } from 'lucide-react';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { toast } from 'sonner';
@@ -90,7 +89,7 @@ export default function NewSequencePage() {
     }
 
     setAiGenerating(true);
-    toast.loading('🤖 Generating sequence with AI...', { id: 'ai-sequence' });
+    toast.loading('Generating sequence…', { id: 'ai-sequence' });
 
     try {
       const res = await fetch('/api/ai/generate-sequence', {
@@ -99,7 +98,10 @@ export default function NewSequencePage() {
         body: JSON.stringify(aiParams),
       });
 
-      if (!res.ok) throw new Error('Failed to generate sequence');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate sequence');
+      }
 
       const data = await res.json();
       const aiSequence = data.sequence;
@@ -121,9 +123,14 @@ export default function NewSequencePage() {
 
       setSteps(generatedSteps);
       setShowAIDialog(false);
-      toast.success(`✨ Generated ${generatedSteps.length}-step sequence!`, { id: 'ai-sequence' });
+      toast.success(`Generated a ${generatedSteps.length}-step sequence. Review it before saving.`, {
+        id: 'ai-sequence',
+      });
     } catch (error) {
-      toast.error('Failed to generate sequence', { id: 'ai-sequence' });
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to generate sequence',
+        { id: 'ai-sequence' }
+      );
     } finally {
       setAiGenerating(false);
     }
@@ -131,6 +138,7 @@ export default function NewSequencePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
 
     try {
@@ -141,14 +149,15 @@ export default function NewSequencePage() {
       });
 
       if (res.ok) {
+        toast.success('Sequence created');
         router.push(path('/dashboard/sequences'));
       } else {
-        const error = await res.json();
-        alert(error.error || 'Failed to create sequence');
+        const error = await res.json().catch(() => ({}));
+        toast.error(error.error || 'Failed to create sequence');
       }
     } catch (error) {
       console.error('Failed to create sequence:', error);
-      alert('Failed to create sequence');
+      toast.error('Failed to create sequence');
     } finally {
       setLoading(false);
     }
@@ -158,15 +167,20 @@ export default function NewSequencePage() {
     <div className="max-w-5xl space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div className="min-w-0 space-y-1">
-          <DashboardLink href="/dashboard/sequences" className="inline-flex">
-            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="-ml-2 h-10 w-10 sm:h-9 sm:w-9"
+          >
+            <DashboardLink href="/dashboard/sequences" aria-label="Back to sequences">
               <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </DashboardLink>
+            </DashboardLink>
+          </Button>
           <div>
-            <h1 className="text-2xl font-bold sm:text-3xl">Create Email Sequence</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Create Email Sequence</h1>
             <p className="text-muted-foreground">
-              Build automated email campaigns with conditional logic
+              Emails that send automatically, with follow-ups based on how each lead responds
             </p>
           </div>
         </div>
@@ -174,7 +188,7 @@ export default function NewSequencePage() {
           type="button"
           variant="outline"
           onClick={() => setShowAIDialog(true)}
-          className="gap-2 self-start border-purple-300 text-purple-700 hover:bg-purple-50 sm:self-auto"
+          className="gap-2 self-start sm:self-auto"
         >
           <Sparkles className="h-4 w-4" />
           Generate with AI
@@ -224,9 +238,11 @@ export default function NewSequencePage() {
                     type="button"
                     variant="ghost"
                     size="icon"
+                    className="h-10 w-10 shrink-0"
+                    aria-label={`Remove step ${step.stepNumber}`}
                     onClick={() => removeStep(index)}
                   >
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 )}
               </div>
@@ -234,8 +250,9 @@ export default function NewSequencePage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Step Name</Label>
+                  <Label htmlFor={`step-${index}-name`}>Step Name</Label>
                   <Input
+                    id={`step-${index}-name`}
                     value={step.name}
                     onChange={(e) => updateStep(index, 'name', e.target.value)}
                     placeholder="e.g., Initial Outreach"
@@ -243,12 +260,12 @@ export default function NewSequencePage() {
                 </div>
                 {index > 0 && (
                   <div className="space-y-2">
-                    <Label>Send If</Label>
+                    <Label htmlFor={`step-${index}-condition`}>Send If</Label>
                     <Select
                       value={step.condition || 'NO_REPLY'}
                       onValueChange={(value) => updateStep(index, 'condition', value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id={`step-${index}-condition`}>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -265,25 +282,37 @@ export default function NewSequencePage() {
               {index > 0 && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Delay (Days)</Label>
+                    <Label htmlFor={`step-${index}-days`}>Delay (Days)</Label>
                     <Input
+                      id={`step-${index}-days`}
                       type="number"
+                      inputMode="numeric"
                       min="0"
-                      value={step.delayDays}
+                      value={Number.isFinite(step.delayDays) ? step.delayDays : ''}
                       onChange={(e) =>
-                        updateStep(index, 'delayDays', parseInt(e.target.value))
+                        updateStep(
+                          index,
+                          'delayDays',
+                          Math.max(0, parseInt(e.target.value, 10) || 0)
+                        )
                       }
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Additional Hours</Label>
+                    <Label htmlFor={`step-${index}-hours`}>Additional Hours</Label>
                     <Input
+                      id={`step-${index}-hours`}
                       type="number"
+                      inputMode="numeric"
                       min="0"
                       max="23"
-                      value={step.delayHours}
+                      value={Number.isFinite(step.delayHours) ? step.delayHours : ''}
                       onChange={(e) =>
-                        updateStep(index, 'delayHours', parseInt(e.target.value))
+                        updateStep(
+                          index,
+                          'delayHours',
+                          Math.min(23, Math.max(0, parseInt(e.target.value, 10) || 0))
+                        )
                       }
                     />
                   </div>
@@ -291,8 +320,9 @@ export default function NewSequencePage() {
               )}
 
               <div className="space-y-2">
-                <Label>Email Subject *</Label>
+                <Label htmlFor={`step-${index}-subject`}>Email Subject *</Label>
                 <Input
+                  id={`step-${index}-subject`}
                   value={step.subject}
                   onChange={(e) => updateStep(index, 'subject', e.target.value)}
                   placeholder="Use {{companyName}}, {{contactName}} for personalization"
@@ -301,8 +331,9 @@ export default function NewSequencePage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Email Body *</Label>
+                <Label htmlFor={`step-${index}-body`}>Email Body *</Label>
                 <Textarea
+                  id={`step-${index}-body`}
                   value={step.body}
                   onChange={(e) => updateStep(index, 'body', e.target.value)}
                   placeholder="Hi {{contactName}},&#10;&#10;I noticed {{companyName}} is..."
@@ -325,23 +356,28 @@ export default function NewSequencePage() {
 
         {/* Submit */}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-4">
-          <DashboardLink href="/dashboard/sequences" className="flex-1">
-            <Button type="button" variant="outline" className="w-full">
-              Cancel
-            </Button>
-          </DashboardLink>
+          <Button asChild variant="outline" className="flex-1">
+            <DashboardLink href="/dashboard/sequences">Cancel</DashboardLink>
+          </Button>
           <Button type="submit" disabled={loading} className="flex-1">
-            {loading ? 'Creating...' : 'Create Sequence'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating…
+              </>
+            ) : (
+              'Create Sequence'
+            )}
           </Button>
         </div>
       </form>
 
       {/* AI Generation Dialog */}
       <Dialog open={showAIDialog} onOpenChange={setShowAIDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-600" />
+              <Sparkles className="h-5 w-5 text-primary" />
               Generate Sequence with AI
             </DialogTitle>
             <DialogDescription>
@@ -374,7 +410,7 @@ export default function NewSequencePage() {
               <div className="grid gap-2">
                 <Label htmlFor="aiTone">Tone</Label>
                 <Select value={aiParams.tone} onValueChange={(value) => setAiParams({ ...aiParams, tone: value })}>
-                  <SelectTrigger>
+                  <SelectTrigger id="aiTone">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -392,7 +428,7 @@ export default function NewSequencePage() {
                   value={aiParams.stepCount.toString()}
                   onValueChange={(value) => setAiParams({ ...aiParams, stepCount: parseInt(value) })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="aiStepCount">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

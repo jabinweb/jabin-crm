@@ -39,9 +39,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { 
-  Mail, 
-  Search, 
+import {
+  AlertCircle,
+  Mail,
+  Search,
   Eye,
   CheckCircle2,
   XCircle,
@@ -53,6 +54,10 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { FullTableSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
+import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { confirmAction } from '@/lib/confirm-action';
 
 interface EmailLog {
   id: string;
@@ -92,6 +97,7 @@ const statusConfig = {
 
 export default function EmailLogPage() {
   const queryClient = useQueryClient();
+  const { path } = useWorkspacePaths();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState(() => searchParams.get('status') ?? '');
@@ -106,7 +112,7 @@ export default function EmailLogPage() {
     if (fromUrl) setStatus(fromUrl);
   }, [searchParams]);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['email-logs', { search, status, page, limit }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -130,6 +136,12 @@ export default function EmailLogPage() {
   };
 
   const handleResend = async (email: EmailLog) => {
+    const ok = await confirmAction({
+      title: `Resend this email to ${email.to}?`,
+      description: 'A new copy of the email will be sent.',
+      confirmLabel: 'Resend',
+    });
+    if (!ok) return;
     setResendingId(email.id);
     try {
       const response = await fetch('/api/emails/send', {
@@ -155,7 +167,6 @@ export default function EmailLogPage() {
         throw new Error(errorMessage);
       }
 
-      const result = await response.json();
       toast.success(`Email resent to ${email.to}`);
       
       // Refresh the email logs
@@ -169,7 +180,11 @@ export default function EmailLogPage() {
   };
 
   const getStatusBadge = (status: EmailLog['status']) => {
-    const config = statusConfig[status];
+    const config = statusConfig[status] ?? {
+      color: 'bg-muted-foreground',
+      icon: Mail,
+      label: humanizeEnum(status),
+    };
     const Icon = config.icon;
     
     return (
@@ -199,7 +214,12 @@ export default function EmailLogPage() {
     <div className="h-full overflow-y-auto">
     <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-8 pt-4 sm:px-6 sm:pt-6 lg:px-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Email Log</h2>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">Email Log</h1>
+          <p className="text-muted-foreground">
+            Every email sent from this workspace, with delivery and engagement status.
+          </p>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -284,14 +304,15 @@ export default function EmailLogPage() {
                   setPage(1);
                 }}
                 className="pl-9"
+                aria-label="Search emails"
               />
             </div>
-            
+
             <Select value={status} onValueChange={(value) => {
               setStatus(value);
               setPage(1);
             }}>
-              <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by status">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -313,13 +334,35 @@ export default function EmailLogPage() {
           {isLoading ? (
             <FullTableSkeleton columnCount={6} rowCount={5} />
           ) : error ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Failed to load email logs
-            </div>
-          ) : data?.logs?.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No email logs found
-            </div>
+            <EmptyState
+              icon={AlertCircle}
+              title="Couldn't load the email log"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => void refetch()}
+            />
+          ) : !data?.logs?.length ? (
+            search || (status && status !== 'all') ? (
+              <EmptyState
+                icon={Search}
+                title="No emails match these filters"
+                description="Try a different search term or status."
+                actionLabel="Clear filters"
+                onAction={() => {
+                  setSearch('');
+                  setStatus('all');
+                  setPage(1);
+                }}
+              />
+            ) : (
+              <EmptyState
+                icon={Mail}
+                title="No emails sent yet"
+                description="Emails you send from the inbox, campaigns and sequences will show up here."
+                actionLabel="Go to inbox"
+                actionHref={path('/dashboard/emails')}
+              />
+            )
           ) : (
             <>
               <div className="divide-y border md:hidden">
@@ -398,7 +441,11 @@ export default function EmailLogPage() {
                         <TableCell className="text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                aria-label={`Actions for email to ${email.to}`}
+                              >
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -571,7 +618,7 @@ export default function EmailLogPage() {
                         <div className="w-2 h-2 rounded-none bg-emerald-500" />
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-medium text-emerald-600">Replied</div>
+                        <div className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Replied</div>
                         <div className="text-xs text-muted-foreground mb-2">
                           {format(new Date(selectedEmail.repliedAt), 'MMM d, yyyy h:mm a')}
                         </div>
@@ -598,7 +645,7 @@ export default function EmailLogPage() {
                         <div className="w-2 h-2 rounded-none bg-red-500" />
                       </div>
                       <div>
-                        <div className="text-sm font-medium text-red-600">Error</div>
+                        <div className="text-sm font-medium text-destructive">Error</div>
                         <div className="text-xs text-muted-foreground">
                           {selectedEmail.errorMessage}
                         </div>
@@ -614,9 +661,5 @@ export default function EmailLogPage() {
     </div>
     </div>
   );
-}
-
-function Label({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={className}>{children}</div>;
 }
 

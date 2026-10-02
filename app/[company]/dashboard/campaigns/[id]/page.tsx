@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +45,9 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { DetailSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
 import { confirmAction } from '@/lib/confirm-action';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 
 export default function CampaignDetailPage() {
   const params = useParams();
@@ -55,10 +56,17 @@ export default function CampaignDetailPage() {
   const queryClient = useQueryClient();
   const campaignId = params.id as string;
 
-  const { data: campaign, isLoading } = useQuery({
+  const {
+    data: campaign,
+    isLoading,
+    isError,
+    error: loadError,
+    refetch,
+  } = useQuery({
     queryKey: ['campaign', campaignId],
     queryFn: async () => {
       const response = await fetch(`/api/campaigns/${campaignId}`);
+      if (response.status === 404) return null;
       if (!response.ok) throw new Error('Failed to fetch campaign');
       return response.json();
     },
@@ -87,6 +95,7 @@ export default function CampaignDetailPage() {
   const handleSend = async () => {
     const ok = await confirmAction({
       title: 'Send this campaign?',
+      description: 'Emails go out to every recipient right away. This cannot be undone.',
       confirmLabel: 'Send',
     });
     if (!ok) return;
@@ -123,21 +132,47 @@ export default function CampaignDetailPage() {
     deleteMutation.mutate();
   };
 
+  const backLink = (
+    <Button
+      asChild
+      variant="ghost"
+      size="icon"
+      className="-ml-2 h-10 w-10 sm:h-9 sm:w-9"
+    >
+      <DashboardLink href="/dashboard/campaigns" aria-label="Back to campaigns">
+        <ArrowLeft className="h-4 w-4" />
+      </DashboardLink>
+    </Button>
+  );
+
   if (isLoading) {
-    return <DetailSkeleton />;
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <DetailSkeleton />
+      </div>
+    );
   }
 
-  if (!campaign) {
+  if (isError || !campaign) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 space-y-4">
-        <XCircle className="h-12 w-12 text-muted-foreground" />
-        <p className="text-lg text-muted-foreground">Campaign not found</p>
-        <DashboardLink href="/dashboard/campaigns">
-          <Button variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Campaigns
-          </Button>
-        </DashboardLink>
+      <div className="space-y-4">
+        {backLink}
+        <Card>
+          <EmptyState
+            icon={isError ? AlertCircle : XCircle}
+            title={isError ? "Couldn't load this campaign" : 'Campaign not found'}
+            description={
+              isError
+                ? (loadError as Error)?.message || 'Check your connection and try again.'
+                : 'It may have been deleted, or you may not have access to it.'
+            }
+            actionLabel={isError ? 'Try again' : 'Back to campaigns'}
+            {...(isError
+              ? { onAction: () => void refetch() }
+              : { actionHref: path('/dashboard/campaigns') })}
+          />
+        </Card>
       </div>
     );
   }
@@ -156,7 +191,7 @@ export default function CampaignDetailPage() {
     return (
       <Badge variant={variant} className="gap-1">
         <Icon className="h-3 w-3" />
-        {status}
+        {humanizeEnum(status)}
       </Badge>
     );
   };
@@ -182,8 +217,8 @@ export default function CampaignDetailPage() {
     campaign.emailCampaignLeads.forEach((cl: any) => {
       const key = cl.lead?.[category] || 'Unknown';
       if (!stats[key]) {
-        stats[key] = { 
-          name: key, 
+        stats[key] = {
+          name: category === 'status' ? humanizeEnum(key) : key,
           total: 0, 
           sent: 0, 
           opened: 0, 
@@ -210,13 +245,9 @@ export default function CampaignDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <DashboardLink href="/dashboard/campaigns" className="inline-flex">
-            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </DashboardLink>
+          {backLink}
           <div className="min-w-0">
-            <h2 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{campaign.name}</h2>
+            <h1 className="break-words text-2xl font-bold tracking-tight">{campaign.name}</h1>
             <p className="break-words text-muted-foreground">{campaign.subject}</p>
           </div>
         </div>
@@ -344,7 +375,7 @@ export default function CampaignDetailPage() {
                 {statusBreakdown.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      📊 By Lead Status
+                      By lead status
                     </h4>
                     <div className="space-y-2">
                       {statusBreakdown.map((stat: any) => (
@@ -374,7 +405,7 @@ export default function CampaignDetailPage() {
                 {industryBreakdown.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      🏢 By Industry
+                      By industry
                     </h4>
                     <div className="space-y-2">
                       {industryBreakdown.slice(0, 5).map((stat: any) => (
@@ -403,7 +434,7 @@ export default function CampaignDetailPage() {
                 {sourceBreakdown.length > 0 && (
                   <div>
                     <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                      📍 By Source
+                      By source
                     </h4>
                     <div className="space-y-2">
                       {sourceBreakdown.map((stat: any) => (
@@ -418,7 +449,10 @@ export default function CampaignDetailPage() {
                           </div>
                           <div className="text-right">
                             <span className="font-medium">
-                              {((stat.sent / campaign.sentCount) * 100).toFixed(0)}% of campaign
+                              {campaign.sentCount > 0
+                                ? ((stat.sent / campaign.sentCount) * 100).toFixed(0)
+                                : 0}
+                              % of campaign
                             </span>
                           </div>
                         </div>
@@ -453,9 +487,9 @@ export default function CampaignDetailPage() {
                     {campaign.emailCampaignLeads.map((campaignLead: any) => (
                       <TableRow key={campaignLead.id}>
                         <TableCell className="font-medium">
-                          {campaignLead.lead?.companyName || 'N/A'}
+                          {campaignLead.lead?.companyName || '—'}
                         </TableCell>
-                        <TableCell>{campaignLead.lead?.email || 'N/A'}</TableCell>
+                        <TableCell>{campaignLead.lead?.email || '—'}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
@@ -466,13 +500,13 @@ export default function CampaignDetailPage() {
                                 : 'secondary'
                             }
                           >
-                            {campaignLead.status}
+                            {humanizeEnum(campaignLead.status)}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           {campaignLead.sentAt
                             ? format(new Date(campaignLead.sentAt), 'MMM d, yyyy h:mm a')
-                            : '-'}
+                            : '—'}
                         </TableCell>
                       </TableRow>
                     ))}

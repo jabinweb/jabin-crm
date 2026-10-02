@@ -85,7 +85,7 @@ export function useLeadsPage() {
     },
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['leads', { search, industry, source, status, page, limit }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -125,16 +125,22 @@ export function useLeadsPage() {
       ...(industry && industry !== 'all' && { industry }),
     });
 
-    const response = await fetch(`/api/leads/export?${params}`);
-    const blob = await response.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = `leads.${format}`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
+    try {
+      const response = await fetch(`/api/leads/export?${params}`);
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `leads.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not export leads. Please try again.');
+    }
   };
 
   const handleOpenImportPicker = () => {
@@ -205,7 +211,9 @@ export function useLeadsPage() {
       return;
     }
     window.open(`/api/leads/export?format=csv&ids=${selectedLeads.join(',')}`, '_blank');
-    toast.success(`Exporting ${selectedLeads.length} leads?`);
+    toast.success(
+      `Exporting ${selectedLeads.length} ${selectedLeads.length === 1 ? 'lead' : 'leads'}`
+    );
   };
 
   const handleBulkDelete = async () => {
@@ -213,26 +221,34 @@ export function useLeadsPage() {
       toast.error('Please select leads to delete');
       return;
     }
+    const count = selectedLeads.length;
+    const noun = count === 1 ? 'lead' : 'leads';
     const ok = await confirmAction({
-      title: `Delete ${selectedLeads.length} leads?`,
-      description: `Are you sure you want to delete ${selectedLeads.length} leads?`,
+      title: `Delete ${count} ${noun}?`,
+      description: `This permanently removes the selected ${noun} and their activity. This can't be undone.`,
       confirmLabel: 'Delete',
       variant: 'destructive',
     });
     if (!ok) return;
 
-    try {
-      await Promise.all(
-        selectedLeads.map((leadId) =>
-          fetch(`/api/leads/${leadId}`, { method: 'DELETE' })
-        )
-      );
-      toast.success(`Deleted ${selectedLeads.length} leads`);
-      setSelectedLeads([]);
-      queryClient.invalidateQueries({ queryKey: ['leads'] });
-    } catch {
-      toast.error('Some leads could not be deleted');
+    const results = await Promise.allSettled(
+      selectedLeads.map((leadId) =>
+        fetch(`/api/leads/${leadId}`, { method: 'DELETE' }).then((res) => {
+          if (!res.ok) throw new Error('Delete failed');
+        })
+      )
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const deleted = count - failed;
+    if (failed === 0) {
+      toast.success(`Deleted ${deleted} ${noun}`);
+    } else if (deleted > 0) {
+      toast.error(`Deleted ${deleted} of ${count} leads — ${failed} could not be deleted`);
+    } else {
+      toast.error(`Could not delete the selected ${noun}`);
     }
+    setSelectedLeads([]);
+    queryClient.invalidateQueries({ queryKey: ['leads'] });
   };
 
   const handleConvertLead = async (leadId: string) => {
@@ -519,6 +535,7 @@ export function useLeadsPage() {
     data,
     isLoading,
     error,
+    refetch,
     path,
     router,
     handleExport,

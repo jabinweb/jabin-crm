@@ -205,7 +205,7 @@ export function CustomerPeopleTab({
                     variant="ghost"
                     className="h-11 w-11"
                     onClick={() => openEdit(c)}
-                    aria-label="Edit"
+                    aria-label={`Edit ${c.name}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -214,7 +214,7 @@ export function CustomerPeopleTab({
                     variant="ghost"
                     className="h-11 w-11 text-destructive"
                     onClick={() => remove(c.id, c.name)}
-                    aria-label="Delete"
+                    aria-label={`Delete ${c.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

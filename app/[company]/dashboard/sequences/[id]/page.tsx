@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Dialog,
   DialogContent,
@@ -15,9 +16,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Users, Mail, TrendingUp, Play, Pause, Edit } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CircleStop,
+  Loader2,
+  Users,
+  Mail,
+  TrendingUp,
+  Play,
+  Pause,
+} from 'lucide-react';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
-import { DetailSkeleton } from '@/components/loading';
+import { CardListSkeleton, DetailSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
 
@@ -48,45 +59,61 @@ export default function SequenceDetailsPage() {
   const { path } = useWorkspacePaths();
   const [stats, setStats] = useState<SequenceStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'not-found' | 'error' | null>(null);
   const [showEnrollDialog, setShowEnrollDialog] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [availableLeads, setAvailableLeads] = useState<any[]>([]);
+  const [leadsLoading, setLeadsLoading] = useState(true);
+  const [leadsError, setLeadsError] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
+  const fetchStats = useCallback(async () => {
     if (!sequenceId) return;
-    fetchStats();
-    fetchAvailableLeads();
-  }, [sequenceId]);
-
-  const fetchStats = async () => {
     try {
       const res = await fetch(`/api/sequences/${sequenceId}/stats`);
       if (res.ok) {
         const data = await res.json();
         setStats(data);
+        setLoadError(null);
+      } else {
+        setLoadError(res.status === 404 ? 'not-found' : 'error');
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+      setLoadError('error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [sequenceId]);
 
-  const fetchAvailableLeads = async () => {
+  const fetchAvailableLeads = useCallback(async () => {
+    setLeadsLoading(true);
+    setLeadsError(false);
     try {
       const res = await fetch('/api/leads?limit=100');
-      if (res.ok) {
-        const data = await res.json();
-        setAvailableLeads(data.leads || []);
-      }
+      if (!res.ok) throw new Error('Failed to fetch leads');
+      const data = await res.json();
+      setAvailableLeads(data.leads || []);
     } catch (error) {
       console.error('Failed to fetch leads:', error);
+      setLeadsError(true);
+    } finally {
+      setLeadsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!sequenceId) return;
+    void fetchStats();
+    void fetchAvailableLeads();
+  }, [sequenceId, fetchStats, fetchAvailableLeads]);
 
   const toggleSequence = async () => {
-    if (!stats) return;
+    if (!stats || toggling) return;
 
+    setToggling(true);
     try {
       const res = await fetch(`/api/sequences/${sequenceId}`, {
         method: 'PATCH',
@@ -94,15 +121,23 @@ export default function SequenceDetailsPage() {
         body: JSON.stringify({ isActive: !stats.isActive }),
       });
 
-      if (res.ok) {
-        fetchStats();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to update sequence');
       }
+      toast.success(stats.isActive ? 'Sequence paused' : 'Sequence activated');
+      await fetchStats();
     } catch (error) {
       console.error('Failed to toggle sequence:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update sequence');
+    } finally {
+      setToggling(false);
     }
   };
 
   const enrollLeads = async () => {
+    if (enrolling || selectedLeads.length === 0) return;
+    setEnrolling(true);
     try {
       const res = await fetch(`/api/sequences/${sequenceId}/enroll`, {
         method: 'POST',
@@ -110,43 +145,90 @@ export default function SequenceDetailsPage() {
         body: JSON.stringify({ leadIds: selectedLeads }),
       });
 
-      if (res.ok) {
-        setShowEnrollDialog(false);
-        setSelectedLeads([]);
-        fetchStats();
-        alert('Leads enrolled successfully!');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to enroll leads');
       }
+      const count = selectedLeads.length;
+      setShowEnrollDialog(false);
+      setSelectedLeads([]);
+      void fetchStats();
+      toast.success(`Enrolled ${count} ${count === 1 ? 'lead' : 'leads'}`);
     } catch (error) {
       console.error('Failed to enroll leads:', error);
-      alert('Failed to enroll leads');
+      toast.error(error instanceof Error ? error.message : 'Failed to enroll leads');
+    } finally {
+      setEnrolling(false);
     }
   };
 
+  const toggleLead = (leadId: string) => {
+    setSelectedLeads((prev) =>
+      prev.includes(leadId) ? prev.filter((id) => id !== leadId) : [...prev, leadId]
+    );
+  };
+
+  const backLink = (
+    <Button asChild variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
+      <DashboardLink href="/dashboard/sequences" aria-label="Back to sequences">
+        <ArrowLeft className="h-4 w-4" />
+      </DashboardLink>
+    </Button>
+  );
+
   if (loading) {
-    return <DetailSkeleton />;
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <DetailSkeleton />
+      </div>
+    );
   }
 
   if (!stats) {
-    return <div className="space-y-6">Sequence not found</div>;
+    const isError = loadError === 'error';
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <Card>
+          <EmptyState
+            icon={AlertCircle}
+            title={isError ? "Couldn't load this sequence" : 'Sequence not found'}
+            description={
+              isError
+                ? 'Check your connection and try again.'
+                : 'It may have been deleted, or you may not have access to it.'
+            }
+            actionLabel={isError ? 'Try again' : 'Back to sequences'}
+            {...(isError
+              ? {
+                  onAction: () => {
+                    setLoading(true);
+                    void fetchStats();
+                  },
+                }
+              : { actionHref: path('/dashboard/sequences') })}
+          />
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <DashboardLink href="/dashboard/sequences" className="inline-flex">
-            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </DashboardLink>
+          {backLink}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h1 className="break-words text-2xl font-bold sm:text-3xl">{stats.name}</h1>
+              <h1 className="break-words text-2xl font-bold tracking-tight">{stats.name}</h1>
               <Badge variant={stats.isActive ? 'default' : 'secondary'}>
                 {stats.isActive ? 'Active' : 'Paused'}
               </Badge>
             </div>
-            <p className="text-muted-foreground">{stats.description || 'No description'}</p>
+            {stats.description ? (
+              <p className="break-words text-muted-foreground">{stats.description}</p>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -154,8 +236,17 @@ export default function SequenceDetailsPage() {
             <Users className="mr-2 h-4 w-4" />
             Enroll Leads
           </Button>
-          <Button variant={stats.isActive ? 'secondary' : 'default'} onClick={toggleSequence}>
-            {stats.isActive ? (
+          <Button
+            variant={stats.isActive ? 'secondary' : 'default'}
+            onClick={toggleSequence}
+            disabled={toggling}
+          >
+            {toggling ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {stats.isActive ? 'Pausing…' : 'Activating…'}
+              </>
+            ) : stats.isActive ? (
               <>
                 <Pause className="mr-2 h-4 w-4" />
                 Pause
@@ -170,24 +261,29 @@ export default function SequenceDetailsPage() {
           {!stats.isActive && (
             <Button
               variant="outline"
+              disabled={deleting}
               onClick={async () => {
                 const ok = await confirmAction({
                   title: `Delete sequence "${stats.name}"?`,
+                  description: 'This cannot be undone.',
                   confirmLabel: 'Delete',
                   variant: 'destructive',
                 });
                 if (!ok) return;
+                setDeleting(true);
                 try {
                   const res = await fetch(`/api/sequences/${sequenceId}`, {
                     method: 'DELETE',
                   });
                   if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    throw new Error(err.error || 'Failed to delete');
+                    throw new Error(err.error || 'Failed to delete sequence');
                   }
+                  toast.success('Sequence deleted');
                   router.push(path('/dashboard/sequences'));
                 } catch (error) {
-                  alert(error instanceof Error ? error.message : 'Failed to delete');
+                  toast.error(error instanceof Error ? error.message : 'Failed to delete sequence');
+                  setDeleting(false);
                 }
               }}
             >
@@ -211,7 +307,7 @@ export default function SequenceDetailsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="truncate text-sm font-medium">Active</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">{stats.enrollments.active}</div>
@@ -220,7 +316,7 @@ export default function SequenceDetailsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="truncate text-sm font-medium">Completed</CardTitle>
-            <Mail className="h-4 w-4 text-blue-500" />
+            <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">{stats.enrollments.completed}</div>
@@ -229,7 +325,7 @@ export default function SequenceDetailsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="truncate text-sm font-medium">Stopped</CardTitle>
-            <Badge variant="secondary">{stats.enrollments.stopped}</Badge>
+            <CircleStop className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold tabular-nums">{stats.enrollments.stopped}</div>
@@ -243,8 +339,13 @@ export default function SequenceDetailsPage() {
           <CardTitle>Sequence Steps</CardTitle>
         </CardHeader>
         <CardContent>
+          {stats.steps.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              This sequence has no steps yet.
+            </p>
+          ) : (
           <div className="space-y-4">
-            {stats.steps.map((step, index) => (
+            {stats.steps.map((step) => (
               <div key={step.id} className="flex items-start gap-3 p-3 border rounded-lg sm:gap-4 sm:p-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
                   {step.stepNumber}
@@ -256,12 +357,13 @@ export default function SequenceDetailsPage() {
               </div>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Enroll Dialog */}
       <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
-        <DialogContent className="max-w-2xl sm:max-h-[600px] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto sm:max-h-[600px]">
           <DialogHeader>
             <DialogTitle>Enroll Leads in Sequence</DialogTitle>
             <DialogDescription>
@@ -269,38 +371,46 @@ export default function SequenceDetailsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4">
-            {availableLeads.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No leads available</p>
+            {leadsLoading ? (
+              <CardListSkeleton rows={4} />
+            ) : leadsError ? (
+              <EmptyState
+                icon={AlertCircle}
+                title="Couldn't load leads"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => void fetchAvailableLeads()}
+                className="py-8"
+              />
+            ) : availableLeads.length === 0 ? (
+              <EmptyState
+                icon={Users}
+                title="No leads yet"
+                description="Add leads first, then enroll them in this sequence."
+                actionLabel="Go to Leads"
+                actionHref={path('/dashboard/leads')}
+                className="py-8"
+              />
             ) : (
               availableLeads.map((lead) => (
-                <div
+                // A <label> keeps row-click and checkbox-click to a single toggle.
+                <label
                   key={lead.id}
-                  className="flex items-center gap-3 p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                  onClick={() => {
-                    setSelectedLeads((prev) =>
-                      prev.includes(lead.id)
-                        ? prev.filter((id) => id !== lead.id)
-                        : [...prev, lead.id]
-                    );
-                  }}
+                  htmlFor={`enroll-lead-${lead.id}`}
+                  className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-accent"
                 >
                   <Checkbox
+                    id={`enroll-lead-${lead.id}`}
                     checked={selectedLeads.includes(lead.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedLeads([...selectedLeads, lead.id]);
-                      } else {
-                        setSelectedLeads(selectedLeads.filter((id) => id !== lead.id));
-                      }
-                    }}
+                    onCheckedChange={() => toggleLead(lead.id)}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{lead.companyName}</p>
                     <p className="break-words text-sm text-muted-foreground">
-                      {lead.email} {lead.contactName && `• ${lead.contactName}`}
+                      {lead.email || 'No email'} {lead.contactName && `• ${lead.contactName}`}
                     </p>
                   </div>
-                </div>
+                </label>
               ))
             )}
           </div>
@@ -308,7 +418,8 @@ export default function SequenceDetailsPage() {
             <Button variant="outline" onClick={() => setShowEnrollDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={enrollLeads} disabled={selectedLeads.length === 0}>
+            <Button onClick={enrollLeads} disabled={selectedLeads.length === 0 || enrolling}>
+              {enrolling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Enroll {selectedLeads.length} Lead{selectedLeads.length !== 1 ? 's' : ''}
             </Button>
           </DialogFooter>

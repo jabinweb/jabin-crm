@@ -8,6 +8,9 @@ import { workspaceSlugHeaders } from "@/lib/api/workspace-slug"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
 import type { LeadFormValues } from "@/lib/validations/lead"
+import { Button } from "@/components/ui/button"
+import { DashboardLink } from "@/components/navigation/dashboard-link"
+import { ArrowLeft } from "lucide-react"
 
 export default function NewLeadPage() {
   const router = useRouter()
@@ -72,6 +75,12 @@ export default function NewLeadPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <Button variant="ghost" size="sm" asChild className="-ml-3">
+        <DashboardLink href="/dashboard/leads">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to leads
+        </DashboardLink>
+      </Button>
       <LeadForm onSubmit={handleSubmit} isLoading={isLoading} />
     </div>
   )

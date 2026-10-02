@@ -16,7 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Truck } from 'lucide-react';
+import { AlertCircle, Loader2, Truck } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
@@ -41,7 +41,7 @@ export default function SuppliersPage() {
   const [rating, setRating] = useState('');
   const [editing, setEditing] = useState<Supplier | null>(null);
 
-  const { data: suppliers = [], isLoading } = useQuery({
+  const { data: suppliers = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['suppliers', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/suppliers');
@@ -174,7 +174,7 @@ export default function SuppliersPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="sup-phone">Phone</Label>
-            <Input id="sup-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Input id="sup-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="sup-rating">Rating (optional)</Label>
@@ -215,6 +215,9 @@ export default function SuppliersPage() {
                 Cancel
               </Button>
             )}
+            <p className="basis-full text-xs text-muted-foreground">
+              Name, email, phone and address are required.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -226,6 +229,14 @@ export default function SuppliersPage() {
         <CardContent>
           {isLoading ? (
             <FullTableSkeleton columnCount={5} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertCircle}
+              title="Couldn't load suppliers"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => void refetch()}
+            />
           ) : suppliers.length === 0 ? (
             <EmptyState
               icon={Truck}
@@ -252,6 +263,7 @@ export default function SuppliersPage() {
                       variant="ghost"
                       size="sm"
                       className="h-10"
+                      disabled={deleteMutation.isPending}
                       onClick={() => confirmDeleteSupplier(s.id)}
                     >
                       Delete
@@ -285,6 +297,7 @@ export default function SuppliersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        disabled={deleteMutation.isPending}
                         onClick={() => confirmDeleteSupplier(s.id)}
                       >
                         Delete

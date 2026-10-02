@@ -1,16 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Download, Send, CheckCircle, XCircle, FileText, Mail, Edit, Receipt } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ArrowLeft, Download, Send, FileText, Edit, Receipt, Loader2, AlertCircle } from 'lucide-react';
+import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { confirmAction } from '@/lib/confirm-action';
 import { toast } from 'sonner';
-import Link from 'next/link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailSkeleton } from '@/components/loading';
 
@@ -57,14 +60,26 @@ interface Quotation {
 }
 
 const statusColors: Record<string, string> = {
-  DRAFT: "bg-gray-500",
-  SENT: "bg-blue-500",
-  VIEWED: "bg-purple-500",
-  ACCEPTED: "bg-green-500",
-  REJECTED: "bg-red-500",
-  EXPIRED: "bg-orange-500",
-  CONVERTED: "bg-teal-500",
+  DRAFT: 'bg-gray-500',
+  SENT: 'bg-blue-500',
+  VIEWED: 'bg-purple-500',
+  ACCEPTED: 'bg-green-600',
+  REJECTED: 'bg-red-500',
+  EXPIRED: 'bg-orange-500',
+  CONVERTED: 'bg-teal-600',
 };
+
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy');
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy, h:mm a');
+}
 
 export default function QuotationDetailPage() {
   const params = useParams();
@@ -72,36 +87,51 @@ export default function QuotationDetailPage() {
   const { path } = useWorkspacePaths();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<'not_found' | 'failed' | null>(null);
   const [sending, setSending] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    fetchQuotation();
-  }, [params.id]);
-
-  const fetchQuotation = async () => {
+  const fetchQuotation = useCallback(async () => {
     try {
       const response = await fetch(`/api/quotations/${params.id}`);
+      if (response.status === 404) {
+        setLoadError('not_found');
+        return;
+      }
       if (!response.ok) throw new Error('Failed to fetch quotation');
       const data = await response.json();
       setQuotation(data);
+      setLoadError(null);
     } catch (error) {
       console.error('Failed to fetch quotation:', error);
-      toast.error('Failed to load quotation');
+      setLoadError('failed');
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    void fetchQuotation();
+  }, [fetchQuotation]);
 
   const handleSendQuotation = async () => {
+    const ok = await confirmAction({
+      title: 'Send this quotation?',
+      description: quotation?.customerEmail
+        ? `It will be emailed to ${quotation.customerEmail}. You won't be able to edit it afterwards.`
+        : "It will be emailed to the customer. You won't be able to edit it afterwards.",
+      confirmLabel: 'Send quotation',
+    });
+    if (!ok) return;
     setSending(true);
     try {
       const response = await fetch(`/api/quotations/${params.id}/send`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to send quotation');
-      toast.success('Quotation sent successfully');
-      fetchQuotation();
+      toast.success('Quotation sent');
+      void fetchQuotation();
     } catch (error) {
       console.error('Failed to send quotation:', error);
       toast.error('Failed to send quotation');
@@ -111,6 +141,7 @@ export default function QuotationDetailPage() {
   };
 
   const handleDownloadPDF = async () => {
+    setDownloading(true);
     try {
       const response = await fetch(`/api/quotations/${params.id}/pdf`);
       if (!response.ok) throw new Error('Failed to generate PDF');
@@ -121,15 +152,23 @@ export default function QuotationDetailPage() {
       a.download = `${quotation?.quotationNumber || 'quotation'}.pdf`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
     } catch (error) {
       console.error('Failed to download PDF:', error);
       toast.error('Failed to download PDF');
+    } finally {
+      setDownloading(false);
     }
   };
 
   const handleConvertToInvoice = async () => {
+    const ok = await confirmAction({
+      title: 'Convert to invoice?',
+      description: 'A new invoice due in 30 days will be created from this quotation.',
+      confirmLabel: 'Create invoice',
+    });
+    if (!ok) return;
     setConverting(true);
     try {
       const response = await fetch(`/api/quotations/${params.id}/convert`, {
@@ -150,57 +189,122 @@ export default function QuotationDetailPage() {
     }
   };
 
-  if (loading) {
-    return <DetailSkeleton />;
-  }
+  const backButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="h-10 w-10 shrink-0"
+      aria-label="Back to quotations"
+      onClick={() => router.push(path('/dashboard/quotations'))}
+    >
+      <ArrowLeft className="w-4 h-4" />
+    </Button>
+  );
 
-  if (!quotation) {
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <FileText className="w-16 h-16 text-gray-400 mb-4" />
-        <h2 className="text-2xl font-bold mb-2">Quotation not found</h2>
-        <p className="text-gray-500 mb-4">The quotation you're looking for doesn't exist.</p>
-        <Button onClick={() => router.push(path('/dashboard/quotations'))}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Quotations
-        </Button>
+      <div className="max-w-5xl space-y-6">
+        {backButton}
+        <DetailSkeleton />
       </div>
     );
   }
+
+  if (!quotation) {
+    const notFound = loadError !== 'failed';
+    return (
+      <div className="max-w-5xl space-y-6">
+        {backButton}
+        <Card>
+          <EmptyState
+            icon={notFound ? FileText : AlertCircle}
+            title={notFound ? 'Quotation not found' : "Couldn't load this quotation"}
+            description={
+              notFound
+                ? 'It may have been deleted, or you may not have access to it.'
+                : 'Check your connection and try again.'
+            }
+            actionLabel={notFound ? 'Back to quotations' : 'Retry'}
+            onAction={
+              notFound
+                ? () => router.push(path('/dashboard/quotations'))
+                : () => {
+                    setLoading(true);
+                    void fetchQuotation();
+                  }
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  const currency = quotation.currency;
 
   return (
     <div className="max-w-5xl space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => router.push(path('/dashboard/quotations'))}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+          {backButton}
           <div className="min-w-0">
-            <h1 className="break-words text-xl sm:text-2xl md:text-3xl font-bold">{quotation.quotationNumber}</h1>
-            <p className="text-sm md:text-base text-gray-500">{quotation.title}</p>
+            <h1 className="break-words text-2xl font-semibold tracking-tight">
+              {quotation.quotationNumber}
+            </h1>
+            {quotation.title ? (
+              <p className="break-words text-sm text-muted-foreground">{quotation.title}</p>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {quotation.status === 'DRAFT' && (
-            <Button variant="outline" onClick={() => router.push(path(`/dashboard/quotations/${params.id}/edit`))} className="flex-1 sm:flex-none">
+            <Button
+              variant="outline"
+              onClick={() => router.push(path(`/dashboard/quotations/${params.id}/edit`))}
+              className="flex-1 sm:flex-none"
+            >
               <Edit className="w-4 h-4 mr-2" />
               Edit
             </Button>
           )}
-          <Button variant="outline" onClick={handleDownloadPDF} className="flex-1 sm:flex-none">
-            <Download className="w-4 h-4 mr-2" />
-            Download
+          <Button
+            variant="outline"
+            onClick={() => void handleDownloadPDF()}
+            disabled={downloading}
+            className="flex-1 sm:flex-none"
+          >
+            {downloading ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4 mr-2" />
+            )}
+            Download PDF
           </Button>
           {quotation.status === 'DRAFT' && (
-            <Button onClick={handleSendQuotation} disabled={sending} className="flex-1 sm:flex-none">
-              <Send className="w-4 h-4 mr-2" />
-              {sending ? 'Sending...' : 'Send'}
+            <Button
+              onClick={() => void handleSendQuotation()}
+              disabled={sending}
+              className="flex-1 sm:flex-none"
+            >
+              {sending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4 mr-2" />
+              )}
+              {sending ? 'Sending…' : 'Send'}
             </Button>
           )}
           {quotation.status === 'ACCEPTED' && (
-            <Button onClick={() => void handleConvertToInvoice()} disabled={converting} className="flex-1 sm:flex-none">
-              <Receipt className="w-4 h-4 mr-2" />
+            <Button
+              onClick={() => void handleConvertToInvoice()}
+              disabled={converting}
+              className="flex-1 sm:flex-none"
+            >
+              {converting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Receipt className="w-4 h-4 mr-2" />
+              )}
               {converting ? 'Converting…' : 'Convert to invoice'}
             </Button>
           )}
@@ -213,42 +317,42 @@ export default function QuotationDetailPage() {
           {/* Quotation Details */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Quotation Details</CardTitle>
-                <Badge className={statusColors[quotation.status]}>
-                  {quotation.status}
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base">Quotation details</CardTitle>
+                <Badge className={`${statusColors[quotation.status] ?? ''} text-white`}>
+                  {humanizeEnum(quotation.status)}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0 break-words">
-                  <p className="text-sm text-gray-500">Customer</p>
+                  <p className="text-sm text-muted-foreground">Customer</p>
                   <p className="font-medium">{quotation.customerName}</p>
-                  <p className="text-sm text-gray-500">{quotation.customerEmail}</p>
+                  {quotation.customerEmail && (
+                    <p className="text-sm text-muted-foreground">{quotation.customerEmail}</p>
+                  )}
                   {quotation.customerPhone && (
-                    <p className="text-sm text-gray-500">{quotation.customerPhone}</p>
+                    <p className="text-sm text-muted-foreground">{quotation.customerPhone}</p>
                   )}
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Valid Until</p>
-                  <p className="font-medium">
-                    {new Date(quotation.validUntil).toLocaleDateString()}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Valid until</p>
+                  <p className="font-medium">{formatDate(quotation.validUntil)}</p>
                 </div>
               </div>
 
               {quotation.description && (
                 <div>
-                  <p className="text-sm text-gray-500">Description</p>
-                  <p className="text-sm">{quotation.description}</p>
+                  <p className="text-sm text-muted-foreground">Description</p>
+                  <p className="text-sm whitespace-pre-line break-words">{quotation.description}</p>
                 </div>
               )}
 
               {quotation.customerAddress && (
                 <div>
-                  <p className="text-sm text-gray-500">Address</p>
-                  <p className="text-sm whitespace-pre-line">{quotation.customerAddress}</p>
+                  <p className="text-sm text-muted-foreground">Address</p>
+                  <p className="text-sm whitespace-pre-line break-words">{quotation.customerAddress}</p>
                 </div>
               )}
             </CardContent>
@@ -257,74 +361,80 @@ export default function QuotationDetailPage() {
           {/* Items */}
           <Card>
             <CardHeader>
-              <CardTitle>Items</CardTitle>
+              <CardTitle className="text-base">Items</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[150px]">Item</TableHead>
-                      <TableHead className="text-right min-w-[60px]">Qty</TableHead>
-                      <TableHead className="text-right min-w-[100px]">Unit Price</TableHead>
-                      <TableHead className="text-right min-w-[100px]">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                  {quotation.items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{item.name}</div>
-                          {item.description && (
-                            <div className="text-sm text-gray-500">{item.description}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(item.unitPrice, quotation.currency as any)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatCurrency(item.amount, quotation.currency as any)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
+              {quotation.items.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No line items on this quotation.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Item</TableHead>
+                        <TableHead className="text-right min-w-[60px]">Qty</TableHead>
+                        <TableHead className="text-right min-w-[100px]">Unit price</TableHead>
+                        <TableHead className="text-right min-w-[100px]">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {quotation.items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{item.name}</div>
+                              {item.description && (
+                                <div className="text-sm text-muted-foreground">{item.description}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">{item.quantity}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatCurrency(item.unitPrice, currency)}
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatCurrency(item.amount, currency)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
 
               <Separator className="my-4" />
 
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">
-                    {formatCurrency(quotation.subtotal, quotation.currency as any)}
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-medium tabular-nums">
+                    {formatCurrency(quotation.subtotal, currency)}
                   </span>
                 </div>
-                
+
                 {quotation.taxRate > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Tax ({quotation.taxRate}%)</span>
-                    <span className="font-medium">
-                      {formatCurrency(quotation.taxAmount, quotation.currency as any)}
+                    <span className="text-muted-foreground">Tax ({quotation.taxRate}%)</span>
+                    <span className="font-medium tabular-nums">
+                      {formatCurrency(quotation.taxAmount, currency)}
                     </span>
                   </div>
                 )}
-                
+
                 {quotation.discount > 0 && (
-                  <div className="flex justify-between text-green-600">
+                  <div className="flex justify-between text-green-600 dark:text-green-400">
                     <span>Discount</span>
-                    <span>-{formatCurrency(quotation.discount, quotation.currency as any)}</span>
+                    <span className="tabular-nums">-{formatCurrency(quotation.discount, currency)}</span>
                   </div>
                 )}
-                
+
                 <Separator />
-                
+
                 <div className="flex justify-between text-lg font-bold">
                   <span>Total</span>
-                  <span>{formatCurrency(quotation.total, quotation.currency as any)}</span>
+                  <span className="tabular-nums">{formatCurrency(quotation.total, currency)}</span>
                 </div>
               </div>
             </CardContent>
@@ -334,19 +444,19 @@ export default function QuotationDetailPage() {
           {(quotation.terms || quotation.notes) && (
             <Card>
               <CardHeader>
-                <CardTitle>Additional Information</CardTitle>
+                <CardTitle className="text-base">Additional information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {quotation.terms && (
                   <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Terms & Conditions</p>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{quotation.terms}</p>
+                    <p className="text-sm font-medium mb-1">Terms &amp; conditions</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line break-words">{quotation.terms}</p>
                   </div>
                 )}
                 {quotation.notes && (
                   <div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Notes</p>
-                    <p className="text-sm text-gray-600 whitespace-pre-line">{quotation.notes}</p>
+                    <p className="text-sm font-medium mb-1">Notes</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-line break-words">{quotation.notes}</p>
                   </div>
                 )}
               </CardContent>
@@ -359,40 +469,32 @@ export default function QuotationDetailPage() {
           {/* Timeline */}
           <Card>
             <CardHeader>
-              <CardTitle>Timeline</CardTitle>
+              <CardTitle className="text-base">Timeline</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <p className="text-sm text-gray-500">Created</p>
-                <p className="text-sm font-medium">
-                  {new Date(quotation.createdAt).toLocaleString()}
-                </p>
+                <p className="text-sm text-muted-foreground">Created</p>
+                <p className="text-sm font-medium">{formatDateTime(quotation.createdAt)}</p>
               </div>
-              
+
               {quotation.sentAt && (
                 <div>
-                  <p className="text-sm text-gray-500">Sent</p>
-                  <p className="text-sm font-medium">
-                    {new Date(quotation.sentAt).toLocaleString()}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Sent</p>
+                  <p className="text-sm font-medium">{formatDateTime(quotation.sentAt)}</p>
                 </div>
               )}
-              
+
               {quotation.acceptedAt && (
-                <div className="text-green-600">
+                <div className="text-green-600 dark:text-green-400">
                   <p className="text-sm">Accepted</p>
-                  <p className="text-sm font-medium">
-                    {new Date(quotation.acceptedAt).toLocaleString()}
-                  </p>
+                  <p className="text-sm font-medium">{formatDateTime(quotation.acceptedAt)}</p>
                 </div>
               )}
-              
+
               {quotation.rejectedAt && (
-                <div className="text-red-600">
+                <div className="text-destructive">
                   <p className="text-sm">Rejected</p>
-                  <p className="text-sm font-medium">
-                    {new Date(quotation.rejectedAt).toLocaleString()}
-                  </p>
+                  <p className="text-sm font-medium">{formatDateTime(quotation.rejectedAt)}</p>
                 </div>
               )}
             </CardContent>
@@ -402,18 +504,18 @@ export default function QuotationDetailPage() {
           {(quotation.lead || quotation.deal) && (
             <Card>
               <CardHeader>
-                <CardTitle>Related</CardTitle>
+                <CardTitle className="text-base">Related</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {quotation.lead && (
                   <div>
-                    <p className="text-sm text-gray-500">Lead</p>
+                    <p className="text-sm text-muted-foreground">Lead</p>
                     <p className="text-sm font-medium">{quotation.lead.companyName}</p>
                   </div>
                 )}
                 {quotation.deal && (
                   <div>
-                    <p className="text-sm text-gray-500">Deal</p>
+                    <p className="text-sm text-muted-foreground">Deal</p>
                     <p className="text-sm font-medium">{quotation.deal.title}</p>
                   </div>
                 )}

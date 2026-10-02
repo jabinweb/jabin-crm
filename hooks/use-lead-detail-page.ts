@@ -75,10 +75,17 @@ export function useLeadDetailPage() {
     },
   });
 
-  const { data: lead, isLoading } = useQuery<LeadDetail>({
+  const {
+    data: lead,
+    isLoading,
+    error: leadError,
+    refetch: refetchLead,
+  } = useQuery<LeadDetail | null>({
     queryKey: ['lead', leadId],
     queryFn: async () => {
       const response = await fetch(`/api/leads/${leadId}`);
+      // A missing lead is a "not found" state, not a retryable error.
+      if (response.status === 404) return null;
       if (!response.ok) {
         throw new Error('Failed to fetch lead details');
       }
@@ -350,6 +357,8 @@ export function useLeadDetailPage() {
     leadId,
     lead,
     isLoading,
+    leadError,
+    refetchLead,
     activities,
     activitiesLoading,
     emailSnapshot,

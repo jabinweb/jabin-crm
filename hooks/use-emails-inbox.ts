@@ -7,6 +7,7 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FileText, Mail, Send, Star, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/confirm-action';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import type {
   ComposeReplyTo,
   Email,
@@ -93,7 +94,7 @@ export function useEmailsInbox() {
           if (data.error === 'IMAP not configured') {
             console.warn('[Auto-check] IMAP not configured - stopping auto-check');
             setAutoCheckEnabled(false);
-            toast.error('Please configure IMAP in Email Settings to receive replies', {
+            toast.error('Connect IMAP in Settings → Integrations → Email to receive replies', {
               duration: 10000,
             });
           }
@@ -117,7 +118,12 @@ export function useEmailsInbox() {
     };
   }, [selectedFolder, autoCheckEnabled, queryClient]);
 
-  const { data: sentEmails, isLoading: loadingSent } = useQuery({
+  const {
+    data: sentEmails,
+    isLoading: loadingSent,
+    isError: sentError,
+    refetch: refetchSent,
+  } = useQuery({
     queryKey: ['sent-emails', selectedFolder],
     queryFn: async () => {
       const folder =
@@ -132,7 +138,12 @@ export function useEmailsInbox() {
     enabled: selectedFolder !== 'drafts',
   });
 
-  const { data: draftsData, isLoading: loadingDrafts } = useQuery({
+  const {
+    data: draftsData,
+    isLoading: loadingDrafts,
+    isError: draftsError,
+    refetch: refetchDrafts,
+  } = useQuery({
     queryKey: ['email-drafts'],
     queryFn: async () => {
       const response = await fetch('/api/emails/drafts');
@@ -399,7 +410,9 @@ export function useEmailsInbox() {
         ...prev,
         [replyId]: data.analysis,
       }));
-      toast.success(`Sentiment: ${data.analysis.sentiment} (${data.analysis.confidence}% confidence)`);
+      toast.success(
+        `Sentiment: ${humanizeEnum(data.analysis.sentiment)} (${data.analysis.confidence}% confidence)`
+      );
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to analyze sentiment';
       console.error('Error analyzing sentiment:', error);
@@ -508,6 +521,13 @@ export function useEmailsInbox() {
 
   const repliesCount = getCurrentEmails().filter((email) => email.repliedAt && !email.openedAt).length;
 
+  /** The list for the current folder failed to load (drafts vs. log-backed folders). */
+  const listError = selectedFolder === 'drafts' ? draftsError : sentError;
+  const retryList = () => {
+    if (selectedFolder === 'drafts') void refetchDrafts();
+    else void refetchSent();
+  };
+
   return {
     selectedFolder,
     selectedEmail,
@@ -527,6 +547,8 @@ export function useEmailsInbox() {
     filteredEmails,
     loadingSent,
     loadingDrafts,
+    listError,
+    retryList,
     repliesCount,
     handleCompose,
     handleReply,

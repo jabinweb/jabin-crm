@@ -3,12 +3,9 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { 
-  Mail, 
-  Send,
-  Trash2,
-  Edit,
-} from 'lucide-react';
+import { AlertCircle, Mail, Search, Send, Trash2, Edit, Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { EmptyState } from '@/components/ui/empty-state';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
@@ -23,8 +20,9 @@ export default function EmailDraftsPageWithSidebar() {
   const [currentDrafts, setCurrentDrafts] = useState<any[]>([]);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['email-drafts'],
     queryFn: async () => {
       const response = await fetch('/api/emails/drafts');
@@ -95,7 +93,9 @@ export default function EmailDraftsPageWithSidebar() {
       toast.error('No email address found for this draft');
       return;
     }
+    if (sendingId) return;
 
+    setSendingId(draft.id);
     const toastId = toast.loading('Sending email...');
 
     try {
@@ -122,6 +122,8 @@ export default function EmailDraftsPageWithSidebar() {
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to send email', { id: toastId });
+    } finally {
+      setSendingId(null);
     }
   };
 
@@ -131,23 +133,28 @@ export default function EmailDraftsPageWithSidebar() {
       <div className="w-full shrink-0 border-b bg-background md:w-80 md:border-b-0 md:border-r">
         <div className="flex max-h-[45vh] flex-col md:h-full md:max-h-none">
           <div className="border-b px-4 py-4 sm:px-6 lg:px-8">
-            <h2 className="mb-3 text-lg font-semibold">Email Drafts</h2>
+            <h1 className="mb-3 text-lg font-semibold">Email Drafts</h1>
             <div className="relative">
-              <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
+              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
                 placeholder="Search drafts..."
-                className="w-full rounded-none border bg-background py-2 pl-8 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                aria-label="Search drafts"
+                className="pl-8"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="p-4">
                 <CardListSkeleton rows={6} />
+              </div>
+            ) : isError ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                Couldn&apos;t load drafts.
               </div>
             ) : filteredDrafts.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
@@ -187,6 +194,18 @@ export default function EmailDraftsPageWithSidebar() {
         {isLoading ? (
           <div className="p-4 sm:p-6">
             <DetailSkeleton />
+          </div>
+        ) : isError ? (
+          <div className="flex h-full items-center justify-center p-4 sm:p-6">
+            <Card className="w-full max-w-md">
+              <EmptyState
+                icon={AlertCircle}
+                title="Couldn't load drafts"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => void refetch()}
+              />
+            </Card>
           </div>
         ) : drafts.length === 0 ? (
           <div className="flex h-full items-center justify-center p-4 sm:p-6">
@@ -233,14 +252,20 @@ export default function EmailDraftsPageWithSidebar() {
                     variant="default"
                     size="sm"
                     onClick={() => handleSendDraft(selectedDraft)}
-                    disabled={!selectedDraft.recipientEmail}
+                    disabled={!selectedDraft.recipientEmail || sendingId === selectedDraft.id}
                   >
-                    <Send className="mr-2 h-4 w-4" />
+                    {sendingId === selectedDraft.id ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
                     Send
                   </Button>
                   <Button
                     variant="destructive"
                     size="sm"
+                    aria-label="Delete draft"
+                    disabled={sendingId === selectedDraft.id}
                     onClick={() => handleDeleteDraft(selectedDraft.id)}
                   >
                     <Trash2 className="h-4 w-4" />

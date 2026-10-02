@@ -154,6 +154,7 @@ export function CustomerDepartmentsTab({
                     variant="ghost"
                     className="h-11 w-11"
                     onClick={() => openEdit(d)}
+                    aria-label={`Edit ${d.name}`}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
@@ -162,6 +163,7 @@ export function CustomerDepartmentsTab({
                     variant="ghost"
                     className="h-11 w-11 text-destructive"
                     onClick={() => remove(d.id, d.name)}
+                    aria-label={`Delete ${d.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

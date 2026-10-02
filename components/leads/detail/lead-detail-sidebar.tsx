@@ -1,5 +1,7 @@
 'use client';
 
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -95,7 +97,7 @@ export function LeadDetailSidebar({
             <div className="pt-2 border-t">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Source</p>
               <div className="flex items-center justify-between">
-                <Badge variant="secondary" className="font-normal">{lead.source}</Badge>
+                <Badge variant="secondary" className="font-normal">{humanizeEnum(lead.source)}</Badge>
                 <a
                   href={lead.sourceUrl}
                   target="_blank"
@@ -129,7 +131,7 @@ export function LeadDetailSidebar({
               {emailSnapshot.map((em) => (
                 <div
                   key={em.id}
-                  className="bg-white dark:bg-slate-900 rounded-lg p-3 border hover:shadow-md transition-shadow"
+                  className="bg-card rounded-lg p-3 border hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <h4 className="font-medium text-sm line-clamp-1 flex-1">{em.subject || '(No subject)'}</h4>
@@ -165,7 +167,7 @@ export function LeadDetailSidebar({
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full mt-2 bg-white dark:bg-slate-900"
+                className="w-full mt-2 bg-card"
                 onClick={() => setComposeOpen(true)}
               >
                 <Mail className="h-3 w-3 mr-2" />

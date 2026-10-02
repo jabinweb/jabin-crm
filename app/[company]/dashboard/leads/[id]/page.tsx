@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, RefreshCw, SearchX } from 'lucide-react';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useLeadDetailPage } from '@/hooks/use-lead-detail-page';
 import { LeadDetailHeader } from '@/components/leads/detail/lead-detail-header';
@@ -19,18 +19,45 @@ export default function LeadDetailPage() {
     return <DetailSkeleton />;
   }
 
-  if (!detail.lead) {
+  if (detail.leadError && !detail.lead) {
     return (
-      <div className="space-y-4">
-        <div className="text-center py-8">
-          <p className="text-red-500">Lead not found</p>
-          <Button asChild className="mt-4">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+        <p className="text-base font-semibold">We couldn&apos;t load this lead</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Something went wrong while fetching the lead. Check your connection and try again.
+        </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <Button variant="outline" asChild>
             <DashboardLink href="/dashboard/leads">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Leads
+              Back to leads
             </DashboardLink>
           </Button>
+          <Button onClick={() => detail.refetchLead()}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try again
+          </Button>
         </div>
+      </div>
+    );
+  }
+
+  if (!detail.lead) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+        <div className="rounded-full bg-muted p-3 text-muted-foreground">
+          <SearchX className="h-6 w-6" />
+        </div>
+        <p className="text-base font-semibold">Lead not found</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          It may have been deleted or you may not have access to it.
+        </p>
+        <Button asChild className="mt-2">
+          <DashboardLink href="/dashboard/leads">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to leads
+          </DashboardLink>
+        </Button>
       </div>
     );
   }

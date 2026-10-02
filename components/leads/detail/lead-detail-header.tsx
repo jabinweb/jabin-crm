@@ -20,6 +20,7 @@ import { LeadScoreBadge } from '@/components/crm/lead-score-badge';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { getLeadDisplayScore, type LeadStatus } from '@/types/lead';
 import { type useLeadDetailPage } from '@/hooks/use-lead-detail-page';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 
 type LeadDetailPageState = ReturnType<typeof useLeadDetailPage>;
 
@@ -65,7 +66,7 @@ export function LeadDetailHeader({
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-start gap-2 sm:gap-4">
           <Button variant="ghost" size="icon" asChild className="-ml-2 h-10 w-10 shrink-0 sm:ml-0">
-            <DashboardLink href="/dashboard/leads">
+            <DashboardLink href="/dashboard/leads" aria-label="Back to leads">
               <ArrowLeft className="h-5 w-5" />
             </DashboardLink>
           </Button>
@@ -75,7 +76,7 @@ export function LeadDetailHeader({
                 {lead.companyName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{lead.companyName}</h1>
+                <h1 className="break-words text-2xl font-semibold tracking-tight">{lead.companyName}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   {lead.contactName && (
                     <p className="text-muted-foreground flex items-center gap-1">
@@ -93,7 +94,7 @@ export function LeadDetailHeader({
                 <button
                   type="button"
                   onClick={() => setComposeOpen(true)}
-                  className="flex min-w-0 items-center gap-1.5 break-all text-left text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                  className="flex min-w-0 items-center gap-1.5 break-all text-left text-primary hover:underline font-medium"
                 >
                   <Mail className="h-4 w-4 shrink-0" />
                   {lead.email}
@@ -102,7 +103,7 @@ export function LeadDetailHeader({
               {lead.phone && (
                 <a
                   href={`tel:${lead.phone}`}
-                  className="flex items-center gap-1.5 text-slate-600 hover:text-slate-700 hover:underline"
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline"
                 >
                   <Phone className="h-4 w-4" />
                   {lead.phone}
@@ -113,7 +114,7 @@ export function LeadDetailHeader({
                   href={lead.website}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-slate-600 hover:text-slate-700 hover:underline"
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:underline"
                 >
                   <Globe className="h-4 w-4" />
                   Website
@@ -129,7 +130,7 @@ export function LeadDetailHeader({
             <LeadScoreBadge score={displayScore} showNumber={true} size="lg" />
           )}
           <Badge className="text-sm px-3 py-1" variant={getStatusVariant(lead.status)}>
-            {lead.status}
+            {humanizeEnum(lead.status)}
           </Badge>
           <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <Button size="sm" variant="outline" onClick={() => setComposeOpen(true)} className="gap-2">
@@ -193,7 +194,12 @@ export function LeadDetailHeader({
             )}
             {lead.linkedinUrl && (
               <Button size="sm" variant="outline" asChild>
-                <a href={lead.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={lead.linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open LinkedIn profile"
+                >
                   <Linkedin className="h-4 w-4" />
                 </a>
               </Button>

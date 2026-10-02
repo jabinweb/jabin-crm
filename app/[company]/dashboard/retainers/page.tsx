@@ -33,11 +33,24 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Plus, RefreshCw, Repeat } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, RefreshCw, Repeat } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
 import { cn } from '@/lib/utils';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { formatCurrency } from '@/lib/currency';
+import { useCurrency } from '@/hooks/use-currency';
+
+function formatShortDate(iso: string | null) {
+  return iso
+    ? new Date(iso).toLocaleDateString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      })
+    : '—';
+}
 
 type Retainer = {
   id: string;
@@ -64,7 +77,8 @@ export default function RetainersPage() {
   const [projectId, setProjectId] = useState('');
   const [includedHours, setIncludedHours] = useState('');
 
-  const { data: retainers = [], isLoading } = useQuery({
+  const { currency: defaultCurrency } = useCurrency();
+  const { data: retainers = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['retainers', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/retainers');
@@ -170,25 +184,48 @@ export default function RetainersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const mrr = useMemo(
-    () =>
-      retainers
-        .filter((r) => r.status === 'ACTIVE')
-        .reduce((sum, r) => {
-          if (r.billingCycle === 'YEARLY') return sum + r.amount / 12;
-          if (r.billingCycle === 'QUARTERLY') return sum + r.amount / 3;
-          return sum + r.amount;
-        }, 0),
-    [retainers]
-  );
+  // Monthly recurring revenue per currency — amounts in different
+  // currencies are never summed together.
+  const mrrByCurrency = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const r of retainers) {
+      if (r.status !== 'ACTIVE') continue;
+      const monthly =
+        r.billingCycle === 'YEARLY'
+          ? r.amount / 12
+          : r.billingCycle === 'QUARTERLY'
+            ? r.amount / 3
+            : r.amount;
+      totals.set(r.currency, (totals.get(r.currency) ?? 0) + monthly);
+    }
+    return Array.from(totals.entries());
+  }, [retainers]);
+
+  const mrrLabel =
+    mrrByCurrency.length === 0
+      ? formatCurrency(0, defaultCurrency, { maximumFractionDigits: 0 })
+      : mrrByCurrency
+          .map(([cur, total]) =>
+            formatCurrency(total, cur, { maximumFractionDigits: 0 })
+          )
+          .join(' + ');
 
   const activeCount = retainers.filter((r) => r.status === 'ACTIVE').length;
+
+  const amountValue = Number(amount);
+  const canCreate =
+    !!name.trim() &&
+    !!customerId &&
+    amount.trim() !== '' &&
+    Number.isFinite(amountValue) &&
+    amountValue > 0 &&
+    !createMutation.isPending;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             Client retainers
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -214,17 +251,17 @@ export default function RetainersPage() {
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs text-muted-foreground">Active retainers</p>
-              <p className="truncate text-xl font-semibold tabular-nums">{activeCount}</p>
+              <p className="truncate text-xl font-semibold tabular-nums">
+                {isLoading ? '—' : activeCount}
+              </p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="truncate text-xs text-muted-foreground">Estimated MRR</p>
-            <p className="truncate text-xl font-semibold tabular-nums">
-              {mrr.toLocaleString(undefined, {
-                maximumFractionDigits: 0,
-              })}
+            <p className="truncate text-xl font-semibold tabular-nums" title={mrrLabel}>
+              {isLoading ? '—' : mrrLabel}
             </p>
           </CardContent>
         </Card>
@@ -234,6 +271,14 @@ export default function RetainersPage() {
         <CardContent className="p-4">
           {isLoading ? (
             <FullTableSkeleton columnCount={6} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertCircle}
+              title="Couldn't load retainers"
+              description="Check your connection and try again."
+              actionLabel="Retry"
+              onAction={() => void refetch()}
+            />
           ) : retainers.length === 0 ? (
             <EmptyState
               icon={Repeat}
@@ -270,25 +315,19 @@ export default function RetainersPage() {
                           'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400'
                       )}
                     >
-                      {r.status}
+                      {humanizeEnum(r.status)}
                     </Badge>
                   </div>
                   <div className="flex items-end justify-between gap-2">
                     <div className="min-w-0 text-sm tabular-nums">
-                      {r.currency} {r.amount.toLocaleString()}
+                      {formatCurrency(r.amount, r.currency)}
                       <span className="text-muted-foreground">
                         {' '}
-                        / {r.billingCycle.toLowerCase()}
+                        / {humanizeEnum(r.billingCycle).toLowerCase()}
                       </span>
                       <p className="text-xs text-muted-foreground">
                         Next bill{' '}
-                        {r.nextBillAt
-                          ? new Date(r.nextBillAt).toLocaleDateString(undefined, {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          : '—'}
+                        {formatShortDate(r.nextBillAt)}
                         {r.includedHours != null ? ` · ${r.includedHours}h included` : null}
                       </p>
                     </div>
@@ -299,9 +338,14 @@ export default function RetainersPage() {
                         className="h-10 shrink-0"
                         disabled={billMutation.isPending}
                         onClick={() => billMutation.mutate(r.id)}
+                        aria-label={`Create draft invoice for ${r.name}`}
                       >
-                        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                        Bill
+                        {billMutation.isPending && billMutation.variables === r.id ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Bill now
                       </Button>
                     )}
                   </div>
@@ -338,10 +382,10 @@ export default function RetainersPage() {
                       </TableCell>
                       <TableCell>{r.customer?.organizationName ?? '—'}</TableCell>
                       <TableCell className="tabular-nums text-sm">
-                        {r.currency} {r.amount.toLocaleString()}
+                        {formatCurrency(r.amount, r.currency)}
                         <span className="text-muted-foreground">
                           {' '}
-                          / {r.billingCycle.toLowerCase()}
+                          / {humanizeEnum(r.billingCycle).toLowerCase()}
                         </span>
                         {r.includedHours != null ? (
                           <p className="text-xs text-muted-foreground">
@@ -350,13 +394,7 @@ export default function RetainersPage() {
                         ) : null}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {r.nextBillAt
-                          ? new Date(r.nextBillAt).toLocaleDateString(undefined, {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })
-                          : '—'}
+                        {formatShortDate(r.nextBillAt)}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -367,7 +405,7 @@ export default function RetainersPage() {
                               'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400'
                           )}
                         >
-                          {r.status}
+                          {humanizeEnum(r.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -377,9 +415,15 @@ export default function RetainersPage() {
                             variant="outline"
                             disabled={billMutation.isPending}
                             onClick={() => billMutation.mutate(r.id)}
+                            aria-label={`Create draft invoice for ${r.name}`}
+                            title="Create a draft invoice for this cycle"
                           >
-                            <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                            Bill
+                            {billMutation.isPending && billMutation.variables === r.id ? (
+                              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                            )}
+                            Bill now
                           </Button>
                         )}
                       </TableCell>
@@ -407,10 +451,20 @@ export default function RetainersPage() {
               Recurring billing plan for a client engagement.
             </DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-2">
+          <form
+            id="new-retainer-form"
+            className="grid gap-4 py-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!canCreate) return;
+              createMutation.mutate();
+            }}
+          >
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label htmlFor="retainer-name">Name *</Label>
               <Input
+                id="retainer-name"
+                required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Monthly SEO"
@@ -418,18 +472,23 @@ export default function RetainersPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Amount</Label>
+                <Label htmlFor="retainer-amount">Amount *</Label>
                 <Input
+                  id="retainer-amount"
                   type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  required
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="500"
                 />
               </div>
               <div className="space-y-2">
-                <Label>Billing cycle</Label>
+                <Label htmlFor="retainer-cycle">Billing cycle</Label>
                 <Select value={billingCycle} onValueChange={setBillingCycle}>
-                  <SelectTrigger>
+                  <SelectTrigger id="retainer-cycle">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -441,10 +500,16 @@ export default function RetainersPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Client</Label>
-              <Select value={customerId || undefined} onValueChange={setCustomerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select client" />
+              <Label htmlFor="retainer-client">Client *</Label>
+              <Select
+                value={customerId || undefined}
+                onValueChange={setCustomerId}
+                disabled={customers.length === 0}
+              >
+                <SelectTrigger id="retainer-client">
+                  <SelectValue
+                    placeholder={customers.length === 0 ? 'No clients yet' : 'Select client'}
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {customers.map((c) => (
@@ -454,14 +519,26 @@ export default function RetainersPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {customers.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Retainers belong to a client.{' '}
+                  <Link
+                    href={path('/dashboard/customers/new')}
+                    className="text-primary underline underline-offset-2"
+                  >
+                    Add a client
+                  </Link>{' '}
+                  first.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
-              <Label>Project (optional)</Label>
+              <Label htmlFor="retainer-project">Project (optional)</Label>
               <Select
                 value={projectId || '__none__'}
                 onValueChange={(v) => setProjectId(v === '__none__' ? '' : v)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="retainer-project">
                   <SelectValue placeholder="None" />
                 </SelectTrigger>
                 <SelectContent>
@@ -475,9 +552,11 @@ export default function RetainersPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Included hours / cycle (optional)</Label>
+              <Label htmlFor="retainer-hours">Included hours / cycle (optional)</Label>
               <Input
+                id="retainer-hours"
                 type="number"
+                inputMode="decimal"
                 min={0}
                 step={0.5}
                 value={includedHours}
@@ -485,17 +564,12 @@ export default function RetainersPage() {
                 placeholder="e.g. 10"
               />
             </div>
-          </div>
+          </form>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button
-              disabled={
-                !name.trim() || !customerId || !amount || createMutation.isPending
-              }
-              onClick={() => createMutation.mutate()}
-            >
+            <Button type="submit" form="new-retainer-form" disabled={!canCreate}>
               {createMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}

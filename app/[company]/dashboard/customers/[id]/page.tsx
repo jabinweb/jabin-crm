@@ -35,8 +35,12 @@ import {
   ChevronLeft,
   User,
   Pencil,
+  RefreshCw,
   Upload,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { useCurrency } from '@/hooks/use-currency';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
@@ -50,6 +54,12 @@ import { CustomerPeopleTab } from '@/components/customers/customer-people-tab';
 import { CustomerDepartmentsTab } from '@/components/customers/customer-departments-tab';
 import { CustomerVisitsTab } from '@/components/customers/customer-visits-tab';
 import { EmailComposeDialog } from '@/components/email/email-compose-dialog';
+
+function formatDate(value: string | Date | null | undefined, pattern = 'd MMM yyyy') {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : format(date, pattern);
+}
 
 const CUSTOMER_TABS = [
   { value: 'people', label: 'People' },
@@ -77,6 +87,8 @@ export default function CustomerDetailPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const { data: workspaceData } = useWorkspaceConfig();
   const customerLabel = workspaceData?.config.terminology.customer ?? 'customer';
+  const customersLabel = workspaceData?.config.terminology.customers ?? 'Clients';
+  const { formatCurrency } = useCurrency();
   const vertical = workspaceData?.config.businessVertical;
   const features = workspaceData?.config.features;
   // Technicians work visits and service only; invites follow the invite API's roles
@@ -120,10 +132,18 @@ export default function CustomerDetailPage() {
     );
   };
 
-  const { data: customer, isLoading } = useQuery({
+  const {
+    data: customer,
+    isLoading,
+    isError,
+    refetch,
+    isFetching,
+  } = useQuery({
     queryKey: ['customer', slug, id],
     queryFn: async () => {
       const response = await workspaceFetch(`/api/customers/${id}`);
+      // Missing / inaccessible records render the not-found state rather than an error.
+      if (response.status === 404) return null;
       if (!response.ok) throw new Error('Failed to fetch customer');
       return response.json();
     },
@@ -188,7 +208,9 @@ export default function CustomerDetailPage() {
     setComposeOpen(true);
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (savingEdit) return;
     if (!editForm.organizationName.trim() || !editForm.contactPerson.trim()) {
       toast.error('Organization and contact person are required');
       return;
@@ -280,6 +302,7 @@ export default function CustomerDetailPage() {
       a.download = `client_history_${customer.organizationName.replace(/\s+/g, '_')}.csv`;
       document.body.appendChild(a);
       a.click();
+      a.remove();
       window.URL.revokeObjectURL(url);
       toast.success('History exported', { id: 'export' });
     } catch {
@@ -322,6 +345,7 @@ export default function CustomerDetailPage() {
       .replace(/[^\w.-]/g, '')}.json`;
     document.body.appendChild(a);
     a.click();
+    a.remove();
     window.URL.revokeObjectURL(url);
     toast.success('Client data exported');
   };
@@ -330,12 +354,33 @@ export default function CustomerDetailPage() {
     return <DetailSkeleton />;
   }
 
+  if (isError && !customer) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+        <p className="text-base font-semibold">We couldn&apos;t load this {customerLabel.toLowerCase()}</p>
+        <p className="max-w-sm text-sm text-muted-foreground">Check your connection and try again.</p>
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <Button asChild variant="outline">
+            <Link href={path('/dashboard/customers')}>Back to {customersLabel.toLowerCase()}</Link>
+          </Button>
+          <Button onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCw className={cn('mr-2 h-4 w-4', isFetching && 'animate-spin')} />
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!customer) {
     return (
-      <div className="text-center py-20">
-        <h3 className="text-xl font-semibold">Customer not found</h3>
-        <Button asChild variant="outline" className="mt-4">
-          <Link href={path('/dashboard/customers')}>Back to Directory</Link>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+        <p className="text-base font-semibold">Not found</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          This {customerLabel.toLowerCase()} may have been deleted or you may not have access to it.
+        </p>
+        <Button asChild variant="outline" className="mt-2">
+          <Link href={path('/dashboard/customers')}>Back to {customersLabel.toLowerCase()}</Link>
         </Button>
       </div>
     );
@@ -346,24 +391,28 @@ export default function CustomerDetailPage() {
   return (
     <div className="flex-1 space-y-6">
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back
+        <Button variant="ghost" size="sm" asChild className="-ml-3">
+          <Link href={path('/dashboard/customers')}>
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            {customersLabel}
+          </Link>
         </Button>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">
+            <h1 className="text-2xl font-semibold tracking-tight break-words">
               {customer.organizationName}
-            </h2>
-            <Badge variant="outline">{customer.city || 'No city'}</Badge>
+            </h1>
+            {customer.city ? <Badge variant="outline">{customer.city}</Badge> : null}
           </div>
-          <p className="text-sm text-muted-foreground flex items-start gap-1.5">
-            <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
-            <span>{customer.address || 'No address'}</span>
-          </p>
+          {customer.address ? (
+            <p className="text-sm text-muted-foreground flex items-start gap-1.5">
+              <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+              <span>{customer.address}</span>
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           {canEditAccount && (
@@ -377,10 +426,15 @@ export default function CustomerDetailPage() {
               variant="outline"
               className="h-11"
               onClick={handleInviteToPortal}
-              disabled={isInviting}
+              disabled={isInviting || !customer.email}
+              title={
+                customer.email
+                  ? 'Create a customer portal login for the primary contact'
+                  : 'Add an email address to invite this contact to the portal'
+              }
             >
               <User className="mr-2 h-4 w-4" />
-              {isInviting ? '…' : 'Invite'}
+              {isInviting ? 'Inviting…' : 'Invite to portal'}
             </Button>
           )}
           <Button variant="outline" className="h-11" onClick={handleExportFull}>
@@ -409,7 +463,7 @@ export default function CustomerDetailPage() {
       </div>
 
       {inviteResult?.temporaryPassword ? (
-        <Card className="border-emerald-200 bg-emerald-50/50">
+        <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30">
           <CardHeader>
             <CardTitle className="text-base">Portal credentials</CardTitle>
             <CardDescription>
@@ -426,7 +480,7 @@ export default function CustomerDetailPage() {
             </p>
             <p>
               <span className="font-medium">Temporary password:</span>{' '}
-              <code className="rounded bg-white px-2 py-0.5">{inviteResult.temporaryPassword}</code>
+              <code className="rounded bg-background px-2 py-0.5">{inviteResult.temporaryPassword}</code>
             </p>
           </CardContent>
         </Card>
@@ -443,7 +497,7 @@ export default function CustomerDetailPage() {
         <div className="lg:col-span-3 order-1 lg:order-2 min-w-0">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
             <div className="sticky top-0 z-10 -mx-1 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-0 pt-1">
-              <TabsList className="h-auto w-full justify-start gap-0 rounded-none bg-transparent p-0">
+              <TabsList className="h-auto w-full justify-start gap-0 overflow-x-auto rounded-none bg-transparent p-0">
                 {visibleTabs.map((tab) => (
                   <TabsTrigger
                     key={tab.value}
@@ -521,14 +575,12 @@ export default function CustomerDetailPage() {
                           </p>
                         </div>
                         <Badge variant={eq.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                          {eq.status}
+                          {humanizeEnum(eq.status)}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Installed {new Date(eq.installationDate).toLocaleDateString()}
-                        {eq.warrantyExpiry
-                          ? ` · Warranty ${new Date(eq.warrantyExpiry).toLocaleDateString()}`
-                          : ''}
+                        {eq.installationDate ? `Installed ${formatDate(eq.installationDate)}` : 'Installation date not set'}
+                        {eq.warrantyExpiry ? ` · Warranty until ${formatDate(eq.warrantyExpiry)}` : ''}
                       </p>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -591,11 +643,11 @@ export default function CustomerDetailPage() {
                                   : 'bg-blue-500'
                             )}
                           >
-                            {ticket.status}
+                            {humanizeEnum(ticket.status)}
                           </Badge>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {ticket.priority} · {new Date(ticket.createdAt).toLocaleDateString()}
+                          {humanizeEnum(ticket.priority)} priority · {formatDate(ticket.createdAt)}
                         </p>
                       </button>
                     </li>
@@ -630,7 +682,7 @@ export default function CustomerDetailPage() {
                           <p className="font-semibold truncate">{p.name}</p>
                           <p className="text-xs text-muted-foreground">{p.progress}% complete</p>
                         </div>
-                        <Badge variant="outline">{p.status}</Badge>
+                        <Badge variant="outline">{humanizeEnum(p.status)}</Badge>
                       </Link>
                     </li>
                   ))}
@@ -663,11 +715,11 @@ export default function CustomerDetailPage() {
                         <div>
                           <p className="font-semibold">{r.name}</p>
                           <p className="text-xs text-muted-foreground">
-                            {r.currency} {Number(r.amount).toLocaleString()} /{' '}
-                            {String(r.billingCycle).toLowerCase()}
+                            {formatCurrency(Number(r.amount) || 0, r.currency)} /{' '}
+                            {humanizeEnum(r.billingCycle).toLowerCase()}
                           </p>
                         </div>
-                        <Badge variant="outline">{r.status}</Badge>
+                        <Badge variant="outline">{humanizeEnum(r.status)}</Badge>
                       </Link>
                     </li>
                   ))}
@@ -702,13 +754,11 @@ export default function CustomerDetailPage() {
                             {inv.invoiceNumber || inv.title}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {inv.currency} {Number(inv.total).toLocaleString()}
-                            {inv.dueDate
-                              ? ` · due ${new Date(inv.dueDate).toLocaleDateString()}`
-                              : ''}
+                            {formatCurrency(Number(inv.total) || 0, inv.currency)}
+                            {inv.dueDate ? ` · due ${formatDate(inv.dueDate)}` : ''}
                           </p>
                         </div>
-                        <Badge variant="outline">{inv.status}</Badge>
+                        <Badge variant="outline">{humanizeEnum(inv.status)}</Badge>
                       </Link>
                     </li>
                   ))}
@@ -734,11 +784,11 @@ export default function CustomerDetailPage() {
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium">
-                              {String(activity.eventType).replace(/_/g, ' ')}
+                              {humanizeEnum(activity.eventType)}
                             </p>
                             <p className="text-sm text-muted-foreground">{activity.description}</p>
                             <p className="text-xs text-muted-foreground">
-                              {new Date(activity.createdAt).toLocaleString()}
+                              {formatDate(activity.createdAt, 'd MMM yyyy, h:mm a')}
                             </p>
                           </div>
                         </div>
@@ -846,10 +896,13 @@ export default function CustomerDetailPage() {
             <DialogTitle>Edit client</DialogTitle>
             <DialogDescription>Update organization and primary contact details.</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-3 py-2">
+          <form id="edit-customer-form" onSubmit={handleSaveEdit} className="grid gap-3 py-2">
             <div className="grid gap-1.5">
-              <Label>Organization *</Label>
+              <Label htmlFor="edit-organization">Organization *</Label>
               <Input
+                id="edit-organization"
+                required
+                autoComplete="organization"
                 value={editForm.organizationName}
                 onChange={(e) =>
                   setEditForm({ ...editForm, organizationName: e.target.value })
@@ -857,73 +910,89 @@ export default function CustomerDetailPage() {
               />
             </div>
             <div className="grid gap-1.5">
-              <Label>Contact person *</Label>
+              <Label htmlFor="edit-contact">Contact person *</Label>
               <Input
+                id="edit-contact"
+                required
+                autoComplete="name"
                 value={editForm.contactPerson}
                 onChange={(e) => setEditForm({ ...editForm, contactPerson: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label>Email</Label>
+                <Label htmlFor="edit-email">Email</Label>
                 <Input
+                  id="edit-email"
                   type="email"
+                  autoComplete="email"
                   value={editForm.email}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>Phone</Label>
+                <Label htmlFor="edit-phone">Phone</Label>
                 <Input
+                  id="edit-phone"
+                  type="tel"
+                  autoComplete="tel"
                   value={editForm.phone}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                 />
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label>Address</Label>
+              <Label htmlFor="edit-address">Address</Label>
               <Input
+                id="edit-address"
+                autoComplete="street-address"
                 value={editForm.address}
                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
-                <Label>City</Label>
+                <Label htmlFor="edit-city">City</Label>
                 <Input
+                  id="edit-city"
+                  autoComplete="address-level2"
                   value={editForm.city}
                   onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>State</Label>
+                <Label htmlFor="edit-state">State</Label>
                 <Input
+                  id="edit-state"
+                  autoComplete="address-level1"
                   value={editForm.state}
                   onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
                 />
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label>Industry</Label>
+              <Label htmlFor="edit-industry">Industry</Label>
               <Input
+                id="edit-industry"
                 value={editForm.industry}
                 onChange={(e) => setEditForm({ ...editForm, industry: e.target.value })}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label>Notes</Label>
+              <Label htmlFor="edit-notes">Notes</Label>
               <Textarea
+                id="edit-notes"
                 rows={3}
                 value={editForm.notes}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
               />
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>
+          </form>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>
               Cancel
             </Button>
-            <Button onClick={() => void handleSaveEdit()} disabled={savingEdit}>
+            <Button type="submit" form="edit-customer-form" disabled={savingEdit}>
               {savingEdit ? 'Saving…' : 'Save changes'}
             </Button>
           </DialogFooter>

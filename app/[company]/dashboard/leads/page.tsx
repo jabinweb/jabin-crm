@@ -18,7 +18,7 @@ export default function LeadsPage() {
   const queryClient = useQueryClient();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <LeadsToolbar {...leads} />
         <ToggleGroup
@@ -32,11 +32,11 @@ export default function LeadsPage() {
           className="justify-start self-end sm:self-auto"
         >
           <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
-            <List className="size-3.5" />
+            <List className="h-3.5 w-3.5" />
             List
           </ToggleGroupItem>
           <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
-            <LayoutGrid className="size-3.5" />
+            <LayoutGrid className="h-3.5 w-3.5" />
             Board
           </ToggleGroupItem>
         </ToggleGroup>
@@ -45,7 +45,7 @@ export default function LeadsPage() {
       {view === 'list' ? (
         <Card>
           <CardHeader>
-            <CardTitle>Lead Management</CardTitle>
+            <CardTitle>All leads</CardTitle>
             <CardDescription>
               Search, filter, and manage your collected leads
             </CardDescription>
