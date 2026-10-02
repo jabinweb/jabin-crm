@@ -17,6 +17,7 @@ export const SLACK_WORKSPACE_EVENTS: SlackEventOption[] = [
   { key: 'project.task.assigned', label: 'Task assigned', group: 'Projects' },
   { key: 'project.task.commented', label: 'New task comment', group: 'Projects' },
   { key: 'project.mention', label: 'Someone is @mentioned', group: 'Projects' },
+  { key: 'project.updated', label: 'Project status, dates, lead or milestones changed', group: 'Projects' },
 ];
 
 /**

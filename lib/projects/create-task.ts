@@ -161,6 +161,16 @@ export async function createProjectTask(params: {
         assigneeId: task.assigneeId,
       });
     }
+    // The project team hears about new work (the assignee got the notice above)
+    await notifications.notifyProjectTaskCreated({
+      companyId,
+      projectId,
+      taskId: task.id,
+      taskTitle: task.title,
+      actorId: session.user.id,
+      actorName,
+      assigneeId: task.assigneeId,
+    });
     if (mentionedIds.length > 0) {
       await notifications.notifyProjectMentions({
         companyId,

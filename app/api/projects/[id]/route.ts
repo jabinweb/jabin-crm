@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { hasLegacyRole } from '@/lib/auth/permissions';
@@ -139,6 +139,19 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     where: { id },
     data: data as Prisma.ProjectUpdateInput,
     include: PROJECT_INCLUDE,
+  });
+
+  // Team gets one summary of what changed; a new lead is told directly
+  after(async () => {
+    const { notifyProjectEdited } = await import('@/lib/projects/task-notifications');
+    await notifyProjectEdited({
+      companyId,
+      projectId: id,
+      actorId: session.user.id,
+      actorName: session.user.name || session.user.email || 'Someone',
+      before: existing,
+      after: project,
+    });
   });
 
   return jsonOk(project);

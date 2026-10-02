@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { getDataPrisma } from '@/lib/prisma-tenant';
@@ -89,6 +89,21 @@ export const POST = withTenantRoute(async (request, { session, companyId }) => {
     },
     include: PROJECT_INCLUDE,
   });
+
+  if (pmUserId) {
+    // The lead chosen at creation hears about it
+    after(async () => {
+      const { notifyProjectJoined } = await import('@/lib/projects/task-notifications');
+      await notifyProjectJoined({
+        companyId,
+        projectId: project.id,
+        actorId: session.user.id,
+        actorName: session.user.name || session.user.email || 'Someone',
+        userId: pmUserId,
+        role: 'lead',
+      });
+    });
+  }
 
   return jsonOk(project, { status: 201 });
 });

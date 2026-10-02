@@ -1,8 +1,26 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hasLegacyRole } from '@/lib/auth/permissions';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { syncProjectProgress } from '@/lib/projects/sync-project-progress';
+
+function notifyMilestone(
+  session: { user: { id: string; name?: string | null; email?: string | null } },
+  companyId: string,
+  projectId: string,
+  change: { title: string; action: 'added' | 'removed' | 'status'; status?: string; previousStatus?: string }
+) {
+  after(async () => {
+    const { notifyMilestoneChange } = await import('@/lib/projects/task-notifications');
+    await notifyMilestoneChange({
+      companyId,
+      projectId,
+      actorId: session.user.id,
+      actorName: session.user.name || session.user.email || 'Someone',
+      ...change,
+    });
+  });
+}
 
 async function assertProject(companyId: string, projectId: string) {
   return prisma.project.findFirst({
@@ -58,6 +76,7 @@ export const POST = withTenantRoute(async (request, { session, companyId }, rout
     },
   });
   await refreshProgress(projectId, companyId);
+  notifyMilestone(session, companyId, projectId, { title: milestone.title, action: 'added' });
   return jsonOk(milestone, { status: 201 });
 });
 
@@ -95,6 +114,14 @@ export const PATCH = withTenantRoute(async (request, { session, companyId }, rou
     data,
   });
   const progress = await refreshProgress(projectId, companyId);
+  if (typeof body.status === 'string' && body.status !== existing.status) {
+    notifyMilestone(session, companyId, projectId, {
+      title: milestone.title,
+      action: 'status',
+      status: body.status,
+      previousStatus: existing.status,
+    });
+  }
   return jsonOk({ milestone, progress });
 });
 
@@ -112,10 +139,15 @@ export const DELETE = withTenantRoute(async (request, { session, companyId }, ro
     return NextResponse.json({ error: 'milestoneId required' }, { status: 400 });
   }
 
+  const toDelete = await prisma.projectMilestone.findFirst({
+    where: { id: milestoneId, projectId },
+    select: { title: true },
+  });
   const deleted = await prisma.projectMilestone.deleteMany({
     where: { id: milestoneId, projectId },
   });
   if (!deleted.count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   const progress = await refreshProgress(projectId, companyId);
+  if (toDelete) notifyMilestone(session, companyId, projectId, { title: toDelete.title, action: 'removed' });
   return jsonOk({ ok: true, progress });
 });

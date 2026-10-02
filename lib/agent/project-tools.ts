@@ -6,6 +6,12 @@ import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import { createProjectTask } from '@/lib/projects/create-task';
 import { updateProjectTask } from '@/lib/projects/update-task';
 import { addProjectTaskComment } from '@/lib/projects/add-comment';
+import { deleteProjectTask } from '@/lib/projects/delete-task';
+import {
+  notifyMilestoneChange,
+  notifyProjectEdited,
+  notifyProjectJoined,
+} from '@/lib/projects/task-notifications';
 import { stripHtmlToPreview } from '@/lib/projects/task-activity';
 import { isCompanyStaff } from '@/lib/projects/mentions';
 import {
@@ -34,6 +40,20 @@ function agentSession(ctx: AgentRuntimeContext): Session {
     expires: new Date(Date.now() + 60_000).toISOString(),
   } as unknown as Session;
 }
+
+const actorOf = (ctx: AgentRuntimeContext) => ({
+  actorId: ctx.userId,
+  actorName: ctx.userName || 'Someone',
+});
+
+const PROJECT_SNAPSHOT = {
+  name: true,
+  status: true,
+  startDate: true,
+  endDate: true,
+  pmUserId: true,
+  budgetHours: true,
+} as const;
 
 function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
@@ -439,6 +459,15 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
         },
         select: { id: true, name: true, status: true },
       });
+      if (pmUserId) {
+        await notifyProjectJoined({
+          companyId: ctx.companyId,
+          projectId: project.id,
+          ...actorOf(ctx),
+          userId: pmUserId,
+          role: 'lead',
+        });
+      }
       return { project, link: `/${ctx.companySlug}/dashboard/projects/${project.id}` };
     },
   },
@@ -501,12 +530,31 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
         }
       }
       if (Object.keys(data).length === 0) throw new Error('Nothing to change');
+      const before = await prisma.project.findUniqueOrThrow({
+        where: { id: project.id },
+        select: PROJECT_SNAPSHOT,
+      });
       const updated = await prisma.project.update({
         where: { id: project.id },
         data,
-        select: { id: true, name: true, status: true, pmUserId: true, budgetHours: true },
+        select: { id: true, ...PROJECT_SNAPSHOT },
       });
-      return { project: updated };
+      await notifyProjectEdited({
+        companyId: ctx.companyId,
+        projectId: project.id,
+        ...actorOf(ctx),
+        before,
+        after: updated,
+      });
+      return {
+        project: {
+          id: updated.id,
+          name: updated.name,
+          status: updated.status,
+          pmUserId: updated.pmUserId,
+          budgetHours: updated.budgetHours,
+        },
+      };
     },
   },
   {
@@ -534,6 +582,13 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
         create: { projectId: project.id, userId, role },
         update: { role },
         include: { user: PERSON },
+      });
+      await notifyProjectJoined({
+        companyId: ctx.companyId,
+        projectId: project.id,
+        ...actorOf(ctx),
+        userId,
+        role: 'member',
       });
       return { member: { userId, name: personName(member.user), role: member.role }, project: project.name };
     },
@@ -592,6 +647,13 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
         select: { id: true, title: true, status: true },
       });
       const progress = await syncProjectProgress(project.id, ctx.companyId);
+      await notifyMilestoneChange({
+        companyId: ctx.companyId,
+        projectId: project.id,
+        ...actorOf(ctx),
+        title: milestone.title,
+        action: 'added',
+      });
       return { milestone, progress };
     },
   },
@@ -614,7 +676,7 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
       assertManager(ctx);
       const existing = await prisma.projectMilestone.findFirst({
         where: { id: String(args.milestoneId), project: { companyId: ctx.companyId } },
-        select: { id: true, projectId: true },
+        select: { id: true, projectId: true, status: true },
       });
       if (!existing) throw new Error('Milestone not found in this workspace');
       const data: Record<string, unknown> = {};
@@ -639,6 +701,17 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
         select: { id: true, title: true, status: true, dueDate: true },
       });
       const progress = await syncProjectProgress(existing.projectId, ctx.companyId);
+      if (milestone.status !== existing.status) {
+        await notifyMilestoneChange({
+          companyId: ctx.companyId,
+          projectId: existing.projectId,
+          ...actorOf(ctx),
+          title: milestone.title,
+          action: 'status',
+          status: milestone.status,
+          previousStatus: existing.status,
+        });
+      }
       return { milestone, progress };
     },
   },
@@ -660,6 +733,13 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
       if (!existing) throw new Error('Milestone not found in this workspace');
       await prisma.projectMilestone.delete({ where: { id: existing.id } });
       const progress = await syncProjectProgress(existing.projectId, ctx.companyId);
+      await notifyMilestoneChange({
+        companyId: ctx.companyId,
+        projectId: existing.projectId,
+        ...actorOf(ctx),
+        title: existing.title,
+        action: 'removed',
+      });
       return { deleted: existing.title, progress };
     },
   },
@@ -772,9 +852,15 @@ export const PROJECT_AGENT_TOOLS: AgentToolDef[] = [
     execute: async (args, ctx) => {
       const task = await findTask(ctx, String(args.taskId));
       await assertCanWrite(ctx, task.projectId);
-      await prisma.projectTask.delete({ where: { id: task.id } });
-      const progress = await syncProjectProgress(task.projectId, ctx.companyId);
-      return { deleted: task.title, progress };
+      const result = await deleteProjectTask({
+        session: agentSession(ctx),
+        companyId: ctx.companyId,
+        projectId: task.projectId,
+        taskId: task.id,
+      });
+      if (!result.ok) throw new Error(result.error);
+      await result.effects();
+      return { deleted: result.title, progress: result.progress };
     },
   },
   {

@@ -1,5 +1,6 @@
 import { NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { deleteProjectTask } from '@/lib/projects/delete-task';
 import { withTenantRoute, jsonOk } from '@/lib/api/with-route';
 import { canWriteProjectDelivery } from '@/lib/projects/task-access';
 import { isAllowedProjectTaskStatus } from '@/lib/projects/task-statuses';
@@ -165,10 +166,8 @@ export const DELETE = withTenantRoute(async (request, { session, companyId }, ro
     return NextResponse.json({ error: 'taskId required' }, { status: 400 });
   }
 
-  const deleted = await prisma.projectTask.deleteMany({
-    where: { id: taskId, projectId },
-  });
-  if (!deleted.count) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  const progress = await syncProjectProgress(projectId, companyId);
-  return jsonOk({ ok: true, progress });
+  const result = await deleteProjectTask({ session, companyId, projectId, taskId });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  after(result.effects);
+  return jsonOk({ ok: true, progress: result.progress });
 });
