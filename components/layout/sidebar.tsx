@@ -191,7 +191,7 @@ function SidebarNavLink({
       )}
     >
       <Icon
-        className={cn('size-4 shrink-0', active ? 'text-teal-700' : 'text-muted-foreground')}
+        className={cn('h-4 w-4 shrink-0', active ? 'text-teal-700' : 'text-muted-foreground')}
         strokeWidth={ICON_STROKE}
       />
       <span className="truncate">{label}</span>
@@ -463,7 +463,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                       <span className="flex items-center gap-2.5">
                         <Icon
                           className={cn(
-                            'size-4 shrink-0',
+                            'h-4 w-4 shrink-0',
                             isParentActive(item) ? 'text-teal-700' : undefined
                           )}
                           strokeWidth={ICON_STROKE}
@@ -471,9 +471,9 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                         <span className="font-medium">{labelFor(item)}</span>
                       </span>
                       {expandedMenus.includes(item.name) ? (
-                        <ChevronDown className="size-4 opacity-50" strokeWidth={ICON_STROKE} />
+                        <ChevronDown className="h-4 w-4 opacity-50" strokeWidth={ICON_STROKE} />
                       ) : (
-                        <ChevronRight className="size-4 opacity-50" strokeWidth={ICON_STROKE} />
+                        <ChevronRight className="h-4 w-4 opacity-50" strokeWidth={ICON_STROKE} />
                       )}
                     </button>
                     {expandedMenus.includes(item.name) ? (
@@ -564,19 +564,32 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   ) => (
     <Tooltip key={id}>
       <TooltipTrigger asChild>
+        {/* Icon + label: unlabeled icons hid where Messages, Calendar etc. live */}
         <button
           type="button"
           onClick={onClick}
           aria-label={label}
           aria-current={active ? 'page' : undefined}
-          className={cn(
-            'flex size-11 items-center justify-center rounded-xl transition-all duration-150',
-            active
-              ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
-              : 'text-muted-foreground hover:bg-background hover:text-foreground hover:shadow-sm'
-          )}
+          className="group flex w-full flex-col items-center gap-1 rounded-xl py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <Icon className="size-5" strokeWidth={active ? 2 : ICON_STROKE} />
+          <span
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-150',
+              active
+                ? 'bg-teal-600 text-white shadow-sm shadow-teal-600/25'
+                : 'text-muted-foreground group-hover:bg-background group-hover:text-foreground group-hover:shadow-sm'
+            )}
+          >
+            <Icon className="h-5 w-5" strokeWidth={active ? 2 : ICON_STROKE} />
+          </span>
+          <span
+            className={cn(
+              'w-full truncate px-0.5 text-center text-[10px] leading-tight',
+              active ? 'font-semibold text-foreground' : 'text-muted-foreground group-hover:text-foreground'
+            )}
+          >
+            {label}
+          </span>
         </button>
       </TooltipTrigger>
       <TooltipContent side="right" sideOffset={10}>
@@ -597,7 +610,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <div className="flex h-full w-full border-r bg-background">
       <TooltipProvider delayDuration={200}>
-        <div className="hidden md:flex w-[76px] shrink-0 flex-col border-r border-border/80 bg-muted/40 py-5 px-2.5">
+        <div className="hidden md:flex w-[76px] shrink-0 flex-col border-r border-border/80 bg-muted/40 py-4 px-1.5">
           <div className="flex flex-col items-center">
             {renderRailButton('home', homeDef.label, HomeIcon, activeModuleId === 'home', () => {
               router.push(resolveHref(userRole === 'TECHNICIAN' ? '/dashboard/technician' : '/dashboard'));
@@ -605,7 +618,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             })}
           </div>
           <div className="my-4 h-px w-8 self-center bg-border/80" />
-          <div className="flex flex-1 flex-col items-center gap-2.5 overflow-y-auto overscroll-contain py-1 [scrollbar-width:none]">
+          <div className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto overscroll-contain py-1 [scrollbar-width:none]">
             {railModules.map((m) => {
               const Icon = resolveIcon(m.icon);
               return renderRailButton(m.id, m.label, Icon, activeModuleId === m.id, () =>
@@ -660,12 +673,12 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     <span className="flex items-center gap-2 truncate">
                       {activeModuleId === 'home' ? (
                         <>
-                          <HomeIcon className="size-3.5 shrink-0" strokeWidth={ICON_STROKE} />
+                          <HomeIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={ICON_STROKE} />
                           {homeDef.label}
                         </>
                       ) : (
                         <>
-                          <ActiveIcon className="size-3.5 shrink-0" strokeWidth={ICON_STROKE} />
+                          <ActiveIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={ICON_STROKE} />
                           {activeDef.label}
                         </>
                       )}
@@ -675,7 +688,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                 <SelectContent>
                   <SelectItem value="__home__">
                     <span className="flex items-center gap-2">
-                      <HomeIcon className="size-3.5" strokeWidth={ICON_STROKE} />
+                      <HomeIcon className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
                       {homeDef.label}
                     </span>
                   </SelectItem>
@@ -684,7 +697,7 @@ export function Sidebar({ onNavigate }: SidebarProps) {
                     return (
                       <SelectItem key={m.id} value={m.id}>
                         <span className="flex items-center gap-2">
-                          <Icon className="size-3.5" strokeWidth={ICON_STROKE} />
+                          <Icon className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
                           {m.label}
                         </span>
                       </SelectItem>
