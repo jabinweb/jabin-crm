@@ -16,7 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, FolderKanban, FileText, Receipt, Trash2 } from 'lucide-react';
+import { ArrowLeft, FolderKanban, FileText, Receipt, RefreshCw, Trash2 } from 'lucide-react';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import { toast } from 'sonner';
 import { useCurrency } from '@/hooks/use-currency';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -84,7 +85,9 @@ export default function DealDetailPage() {
   const { formatCurrency } = useCurrency();
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [title, setTitle] = useState('');
   const [value, setValue] = useState('');
   const [probability, setProbability] = useState('50');
@@ -94,9 +97,14 @@ export default function DealDetailPage() {
   const id = String(params.id);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const res = await workspaceFetch(`/api/deals/${id}`);
-      if (!res.ok) throw new Error('not found');
+      if (res.status === 404 || res.status === 403) {
+        setDeal(null);
+        return;
+      }
+      if (!res.ok) throw new Error('Failed to load deal');
       const data = (await res.json()) as DealDetail;
       setDeal(data);
       setTitle(data.title);
@@ -105,8 +113,7 @@ export default function DealDetailPage() {
       setStage(data.stage);
       setNotes(data.notes || '');
     } catch {
-      setDeal(null);
-      toast.error('Deal not found');
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -117,6 +124,20 @@ export default function DealDetailPage() {
   }, [load]);
 
   const save = async () => {
+    const numericValue = Number(value);
+    const numericProbability = Number(probability);
+    if (!title.trim()) {
+      toast.error('Give the deal a title');
+      return;
+    }
+    if (value.trim() === '' || !Number.isFinite(numericValue) || numericValue < 0) {
+      toast.error('Enter a deal value of 0 or more');
+      return;
+    }
+    if (!Number.isFinite(numericProbability) || numericProbability < 0 || numericProbability > 100) {
+      toast.error('Probability must be between 0 and 100');
+      return;
+    }
     setSaving(true);
     try {
       const previousStage = deal?.stage;
@@ -124,9 +145,9 @@ export default function DealDetailPage() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          value: Number(value),
-          probability: Number(probability),
+          title: title.trim(),
+          value: numericValue,
+          probability: numericProbability,
           stage,
           notes,
         }),
@@ -166,25 +187,64 @@ export default function DealDetailPage() {
   const remove = async () => {
     const ok = await confirmAction({
       title: 'Delete this deal?',
+      description: 'This permanently removes the deal. This can\'t be undone.',
       confirmLabel: 'Delete',
       variant: 'destructive',
     });
     if (!ok) return;
-    const res = await workspaceFetch(`/api/deals/${id}`, { method: 'DELETE' });
-    if (!res.ok) {
+    setDeleting(true);
+    try {
+      const res = await workspaceFetch(`/api/deals/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        toast.error('Failed to delete deal');
+        return;
+      }
+      toast.success('Deal deleted');
+      router.push(path('/dashboard/deals'));
+    } catch {
       toast.error('Failed to delete deal');
-      return;
+    } finally {
+      setDeleting(false);
     }
-    toast.success('Deal deleted');
-    router.push(path('/dashboard/deals'));
   };
 
   if (loading) return <DetailSkeleton />;
 
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+        <p className="text-base font-semibold">We couldn&apos;t load this deal</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          Check your connection and try again.
+        </p>
+        <div className="mt-2 flex flex-wrap justify-center gap-2">
+          <Button variant="outline" asChild>
+            <DashboardLink href="/dashboard/deals">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to deals
+            </DashboardLink>
+          </Button>
+          <Button
+            onClick={() => {
+              setLoading(true);
+              void load();
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!deal) {
     return (
-      <div className="text-center py-16 space-y-4">
-        <p className="text-muted-foreground">Deal not found</p>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 py-16 text-center">
+        <p className="text-base font-semibold">Deal not found</p>
+        <p className="max-w-sm text-sm text-muted-foreground">
+          It may have been deleted or you may not have access to it.
+        </p>
         <Button asChild>
           <DashboardLink href="/dashboard/deals">
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -206,19 +266,27 @@ export default function DealDetailPage() {
         backLabel="Back to deals"
       >
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">{deal.stage.replace(/_/g, ' ')}</Badge>
-          <Button variant="outline" size="icon" onClick={() => void remove()}>
+          <Badge variant="secondary">{humanizeEnum(deal.stage)}</Badge>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => void remove()}
+            disabled={deleting}
+            aria-label="Delete deal"
+            title="Delete deal"
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </DetailChrome>
 
       <div>
-            <h1 className="break-words text-2xl font-semibold tracking-tight">{deal.title}</h1>
-            <p className="text-sm text-muted-foreground">
-              {deal.lead?.companyName}
-              {deal.lead?.contactName ? ` · ${deal.lead.contactName}` : ''}
-            </p>
+        <h1 className="break-words text-2xl font-semibold tracking-tight">{deal.title}</h1>
+        <p className="text-sm text-muted-foreground">
+          {formatCurrency(deal.value || 0, deal.currency as never)}
+          {deal.lead?.companyName ? ` · ${deal.lead.companyName}` : ''}
+          {deal.lead?.contactName ? ` · ${deal.lead.contactName}` : ''}
+        </p>
       </div>
 
       <Card>
@@ -227,18 +295,28 @@ export default function DealDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2">
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Label htmlFor="deal-title">Title</Label>
+            <Input id="deal-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
-              <Label>Value ({formatCurrency(Number(value) || 0, deal.currency as never)})</Label>
-              <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} />
+              <Label htmlFor="deal-value">Value ({deal.currency})</Label>
+              <Input
+                id="deal-value"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="any"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
             </div>
             <div className="grid gap-2">
-              <Label>Probability %</Label>
+              <Label htmlFor="deal-probability">Probability (%)</Label>
               <Input
+                id="deal-probability"
                 type="number"
+                inputMode="numeric"
                 min={0}
                 max={100}
                 value={probability}
@@ -247,23 +325,23 @@ export default function DealDetailPage() {
             </div>
           </div>
           <div className="grid gap-2">
-            <Label>Stage</Label>
+            <Label htmlFor="deal-stage">Stage</Label>
             <Select value={stage} onValueChange={setStage}>
-              <SelectTrigger>
+              <SelectTrigger id="deal-stage">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {STAGES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s.replace(/_/g, ' ')}
+                    {humanizeEnum(s)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Notes</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} />
+            <Label htmlFor="deal-notes">Notes</Label>
+            <Textarea id="deal-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} />
           </div>
           {deal.lead && (
             <p className="text-sm text-muted-foreground">
@@ -303,11 +381,9 @@ export default function DealDetailPage() {
                   >
                     {p.name}
                   </DashboardLink>
-                  <p className="text-xs text-muted-foreground">
-                    {p.status.replace(/_/g, ' ')} · {p.progress}%
-                  </p>
+                  <p className="text-xs text-muted-foreground">{p.progress}% complete</p>
                 </div>
-                <Badge variant="outline" className="shrink-0">{p.status.replace(/_/g, ' ')}</Badge>
+                <Badge variant="outline" className="shrink-0">{humanizeEnum(p.status)}</Badge>
               </div>
             ))}
           </CardContent>
@@ -346,7 +422,7 @@ export default function DealDetailPage() {
                 <span className="truncate">
                   {q.quotationNumber} · {q.title}
                 </span>
-                <Badge variant="outline" className="shrink-0">{q.status}</Badge>
+                <Badge variant="outline" className="shrink-0">{humanizeEnum(q.status)}</Badge>
               </DashboardLink>
             ))
           )}
@@ -385,7 +461,7 @@ export default function DealDetailPage() {
                 <span className="truncate">
                   {inv.invoiceNumber} · {inv.title}
                 </span>
-                <Badge variant="outline" className="shrink-0">{inv.status}</Badge>
+                <Badge variant="outline" className="shrink-0">{humanizeEnum(inv.status)}</Badge>
               </DashboardLink>
             ))
           )}
@@ -401,11 +477,11 @@ export default function DealDetailPage() {
             {deal.tasks.map((t) => (
               <DashboardLink
                 key={t.id}
-                href={path(`/dashboard/tasks`)}
+                href="/dashboard/tasks"
                 className="flex items-center justify-between gap-3 text-sm hover:underline"
               >
                 <span className="min-w-0 truncate">{t.title}</span>
-                <Badge variant="outline" className="shrink-0">{t.status}</Badge>
+                <Badge variant="outline" className="shrink-0">{humanizeEnum(t.status)}</Badge>
               </DashboardLink>
             ))}
           </CardContent>

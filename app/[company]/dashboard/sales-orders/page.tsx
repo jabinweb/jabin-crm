@@ -25,9 +25,12 @@ import {
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Loader2, Plus, ShoppingCart, Trash2, LayoutGrid, List } from 'lucide-react';
+import { AlertCircle, Loader2, Plus, ShoppingCart, Trash2, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useCurrency } from '@/hooks/use-currency';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { BoardSkeleton, FullTableSkeleton } from '@/components/loading';
@@ -57,6 +60,13 @@ type SoReport = {
   byStatus: Record<string, number>;
 };
 
+const DEFAULT_SO_STATUSES = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+
+function formatDate(value: string) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'MMM d, yyyy');
+}
+
 function emptyLine(): LineItemDraft {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -78,6 +88,10 @@ export default function SalesOrdersPage() {
   const [view, setView] = useState<'list' | 'board'>('list');
   const [optimistic, setOptimistic] = useState<Record<string, string>>({});
   const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('sales_orders');
+  const { formatCurrency } = useCurrency();
+  const statusLabel = (s: string) =>
+    baseColumns.find((c) => c.id === s)?.label ?? humanizeEnum(s);
+  const statusOptions = baseColumns.length ? baseColumns.map((c) => c.id) : DEFAULT_SO_STATUSES;
 
   const reportEnabled = showReport;
 
@@ -91,7 +105,12 @@ export default function SalesOrdersPage() {
     enabled: !!slug,
   });
 
-  const { data: listData, isLoading } = useQuery({
+  const {
+    data: listData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['sales-orders', slug, reportEnabled],
     queryFn: async () => {
       const res = await workspaceFetch(
@@ -137,7 +156,7 @@ export default function SalesOrdersPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to update SO');
+        throw new Error(err.error || 'Failed to update sales order');
       }
       setOptimistic((prev) => {
         const next = { ...prev };
@@ -241,11 +260,11 @@ export default function SalesOrdersPage() {
             className="justify-start"
           >
             <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
-              <List className="size-3.5" />
+              <List className="h-3.5 w-3.5" />
               List
             </ToggleGroupItem>
             <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
-              <LayoutGrid className="size-3.5" />
+              <LayoutGrid className="h-3.5 w-3.5" />
               Board
             </ToggleGroupItem>
           </ToggleGroup>
@@ -262,7 +281,7 @@ export default function SalesOrdersPage() {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total SOs</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total orders</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
@@ -286,7 +305,7 @@ export default function SalesOrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
-                {isLoading ? '—' : (report?.totalRevenue ?? 0).toLocaleString()}
+                {isLoading ? '—' : formatCurrency(report?.totalRevenue ?? 0)}
               </div>
             </CardContent>
           </Card>
@@ -301,7 +320,7 @@ export default function SalesOrdersPage() {
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                   {Object.entries(report.byStatus).map(([s, n]) => (
                     <span key={s}>
-                      <span className="text-muted-foreground">{s}:</span> {n}
+                      <span className="text-muted-foreground">{statusLabel(s)}:</span> {n}
                     </span>
                   ))}
                 </div>
@@ -317,15 +336,15 @@ export default function SalesOrdersPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2 sm:max-w-xs">
-            <Label>Status</Label>
+            <Label htmlFor="so-new-status">Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
+              <SelectTrigger id="so-new-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'].map((s) => (
+                {DEFAULT_SO_STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
-                    {s}
+                    {statusLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -366,7 +385,7 @@ export default function SalesOrdersPage() {
                             });
                           }}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="Product">
                             <SelectValue placeholder="Select product" />
                           </SelectTrigger>
                           <SelectContent>
@@ -383,6 +402,7 @@ export default function SalesOrdersPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Remove line item"
                         className="mt-5 h-10 w-10 shrink-0"
                         disabled={lineItems.length <= 1}
                         onClick={() =>
@@ -396,6 +416,7 @@ export default function SalesOrdersPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Qty</Label>
                         <Input
+                          aria-label="Quantity"
                           type="number"
                           min={1}
                           step={1}
@@ -406,6 +427,7 @@ export default function SalesOrdersPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Unit price</Label>
                         <Input
+                          aria-label="Unit price"
                           type="number"
                           min={0}
                           step="0.01"
@@ -416,7 +438,7 @@ export default function SalesOrdersPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Line total</span>
-                      <span className="tabular-nums">{lineTotal.toLocaleString()}</span>
+                      <span className="tabular-nums">{formatCurrency(lineTotal)}</span>
                     </div>
                   </div>
                 );
@@ -451,7 +473,7 @@ export default function SalesOrdersPage() {
                               });
                             }}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger aria-label="Product">
                               <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent>
@@ -466,6 +488,7 @@ export default function SalesOrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Input
+                            aria-label="Quantity"
                             type="number"
                             min={1}
                             step={1}
@@ -475,6 +498,7 @@ export default function SalesOrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Input
+                            aria-label="Unit price"
                             type="number"
                             min={0}
                             step="0.01"
@@ -483,13 +507,14 @@ export default function SalesOrdersPage() {
                           />
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {lineTotal.toLocaleString()}
+                          {formatCurrency(lineTotal)}
                         </TableCell>
                         <TableCell>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
+                            aria-label="Remove line item"
                             disabled={lineItems.length <= 1}
                             onClick={() =>
                               setLineItems((prev) => prev.filter((r) => r.key !== row.key))
@@ -506,13 +531,13 @@ export default function SalesOrdersPage() {
             </div>
             <div className="flex justify-end text-sm">
               <span className="text-muted-foreground mr-2">Total</span>
-              <span className="font-medium tabular-nums">{computedTotal.toLocaleString()}</span>
+              <span className="font-medium tabular-nums">{formatCurrency(computedTotal)}</span>
             </div>
           </div>
 
           <Button className="w-full sm:w-auto" disabled={!canCreate} onClick={() => createMutation.mutate()}>
             {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create SO
+            Create sales order
           </Button>
         </CardContent>
       </Card>
@@ -520,17 +545,25 @@ export default function SalesOrdersPage() {
       {view === 'board' ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">SO pipeline</CardTitle>
+            <CardTitle className="text-base">Sales order pipeline</CardTitle>
             <CardDescription>Drag sales orders between stages.</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading || columnsLoading ? (
               <BoardSkeleton />
+            ) : isError ? (
+              <EmptyState
+                icon={AlertCircle}
+                title="Couldn't load sales orders"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => void refetch()}
+              />
             ) : orders.length === 0 ? (
               <EmptyState
                 icon={ShoppingCart}
                 title="No sales orders"
-                description="Create a sales order above."
+                description="Create your first sales order using the form above."
               />
             ) : (
               <PipelineBoard
@@ -540,7 +573,7 @@ export default function SalesOrdersPage() {
                 renderCard={(o) => (
                   <div className="p-3 space-y-1">
                     <p className="text-sm font-semibold">{o.orderNumber}</p>
-                    <p className="text-xs tabular-nums">{o.totalAmount.toLocaleString()}</p>
+                    <p className="text-xs tabular-nums">{formatCurrency(o.totalAmount)}</p>
                     <p className="text-xs text-muted-foreground">
                       {Array.isArray(o.lineItems) ? `${o.lineItems.length} lines` : '—'}
                     </p>
@@ -558,28 +591,33 @@ export default function SalesOrdersPage() {
           <CardContent>
             {isLoading ? (
               <FullTableSkeleton columnCount={6} rowCount={5} />
+            ) : isError ? (
+              <EmptyState
+                icon={AlertCircle}
+                title="Couldn't load sales orders"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => void refetch()}
+              />
             ) : orders.length === 0 ? (
               <EmptyState
                 icon={ShoppingCart}
                 title="No sales orders"
-                description="Create a sales order above."
+                description="Create your first sales order using the form above."
               />
             ) : (
               <>
               <div className="divide-y rounded-md border md:hidden">
                 {orders.map((o) => {
                   const currentStatus = optimistic[o.id] ?? o.status;
-                  const statusOptions = baseColumns.length
-                    ? baseColumns.map((c) => c.id)
-                    : ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
                   return (
                     <div key={o.id} className="flex items-center justify-between gap-3 p-3">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{o.orderNumber}</p>
                         <p className="truncate text-xs text-muted-foreground">
-                          <span className="tabular-nums">{o.totalAmount.toLocaleString()}</span> ·{' '}
+                          <span className="tabular-nums">{formatCurrency(o.totalAmount)}</span> ·{' '}
                           {Array.isArray(o.lineItems) ? `${o.lineItems.length} lines` : '—'} ·{' '}
-                          {new Date(o.createdAt).toLocaleDateString()}
+                          {formatDate(o.createdAt)}
                         </p>
                       </div>
                       <Select
@@ -589,13 +627,16 @@ export default function SalesOrdersPage() {
                           void onBoardMove(o.id, next, currentStatus);
                         }}
                       >
-                        <SelectTrigger className="h-10 w-36 shrink-0">
+                        <SelectTrigger
+                          className="h-10 w-36 shrink-0"
+                          aria-label={`Status for ${o.orderNumber}`}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {statusOptions.map((s) => (
                             <SelectItem key={s} value={s}>
-                              {s}
+                              {statusLabel(s)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -613,24 +654,21 @@ export default function SalesOrdersPage() {
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Lines</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead className="w-[200px]">Actions</TableHead>
+                    <TableHead className="w-[200px]">Change status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orders.map((o) => {
                     const currentStatus = optimistic[o.id] ?? o.status;
-                    const statusOptions = baseColumns.length
-                      ? baseColumns.map((c) => c.id)
-                      : ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
                     return (
                       <TableRow key={o.id}>
                         <TableCell className="font-medium">{o.orderNumber}</TableCell>
-                        <TableCell>{currentStatus}</TableCell>
-                        <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
+                        <TableCell>{statusLabel(currentStatus)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(o.totalAmount)}</TableCell>
                         <TableCell>
                           {Array.isArray(o.lineItems) ? o.lineItems.length : '—'}
                         </TableCell>
-                        <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(o.createdAt)}</TableCell>
                         <TableCell>
                           <Select
                             value={currentStatus}
@@ -639,13 +677,16 @@ export default function SalesOrdersPage() {
                               void onBoardMove(o.id, next, currentStatus);
                             }}
                           >
-                            <SelectTrigger className="h-8 w-[140px]">
+                            <SelectTrigger
+                              className="h-8 w-[140px]"
+                              aria-label={`Status for ${o.orderNumber}`}
+                            >
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                               {statusOptions.map((s) => (
                                 <SelectItem key={s} value={s}>
-                                  {s}
+                                  {statusLabel(s)}
                                 </SelectItem>
                               ))}
                             </SelectContent>

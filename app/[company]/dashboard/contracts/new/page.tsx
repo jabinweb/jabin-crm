@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -80,7 +81,12 @@ export default function NewContractPage() {
     };
   }, [form.customerId, slug]);
 
-  const { data: customersData, isLoading: customersLoading } = useQuery({
+  const {
+    data: customersData,
+    isLoading: customersLoading,
+    isError: customersError,
+    refetch: refetchCustomers,
+  } = useQuery({
     queryKey: ['customers-pick', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/customers?limit=100');
@@ -100,6 +106,10 @@ export default function NewContractPage() {
     e.preventDefault();
     if (!form.customerId || !form.title.trim()) {
       toast.error('Client and title are required');
+      return;
+    }
+    if (form.endDate < form.startDate) {
+      toast.error('End date must be after the start date');
       return;
     }
     setSaving(true);
@@ -144,26 +154,35 @@ export default function NewContractPage() {
         </Link>
       </Button>
 
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">New AMC / CMC contract</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          AMC covers labour and visits; CMC usually includes parts too.
+        </p>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle><h1>New AMC / CMC contract</h1></CardTitle>
-          <CardDescription>
-            AMC covers labour/visits; CMC usually includes parts.
-          </CardDescription>
+          <CardTitle className="text-base">Contract details</CardTitle>
+          <CardDescription>Fields marked * are required.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Client *</Label>
+              <Label htmlFor="customerId">Client *</Label>
               <Select
                 value={form.customerId || undefined}
                 onValueChange={(v) => setForm((f) => ({ ...f, customerId: v }))}
-                disabled={customersLoading}
+                disabled={customersLoading || customers.length === 0}
               >
-                <SelectTrigger>
+                <SelectTrigger id="customerId">
                   <SelectValue
                     placeholder={
-                      customersLoading ? 'Loading…' : 'Select client'
+                      customersLoading
+                        ? 'Loading…'
+                        : customers.length === 0
+                          ? 'No clients yet'
+                          : 'Select client'
                     }
                   />
                 </SelectTrigger>
@@ -175,10 +194,32 @@ export default function NewContractPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {customersError ? (
+                <p className="text-xs text-destructive">
+                  Couldn&apos;t load clients.{' '}
+                  <button
+                    type="button"
+                    className="underline underline-offset-2"
+                    onClick={() => void refetchCustomers()}
+                  >
+                    Retry
+                  </button>
+                </p>
+              ) : !customersLoading && customers.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Add a client first, then come back to create the contract.{' '}
+                  <Link
+                    href={path('/dashboard/customers/new')}
+                    className="text-primary underline underline-offset-2"
+                  >
+                    Add client
+                  </Link>
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
-              <Label>Type *</Label>
+              <Label htmlFor="contractType">Type *</Label>
               <Select
                 value={form.type}
                 onValueChange={(v: 'AMC' | 'CMC') =>
@@ -192,7 +233,7 @@ export default function NewContractPage() {
                   }))
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="contractType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,6 +286,7 @@ export default function NewContractPage() {
                 <Input
                   id="endDate"
                   type="date"
+                  min={form.startDate || undefined}
                   value={form.endDate}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, endDate: e.target.value }))
@@ -260,6 +302,7 @@ export default function NewContractPage() {
                 <Input
                   id="annualValue"
                   type="number"
+                  inputMode="decimal"
                   min={0}
                   step="0.01"
                   value={form.annualValue}
@@ -283,12 +326,34 @@ export default function NewContractPage() {
               <Input
                 id="visitLimit"
                 type="number"
+                inputMode="numeric"
                 min={1}
+                placeholder="Unlimited"
                 value={form.visitLimit}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, visitLimit: e.target.value }))
                 }
               />
+            </div>
+
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="includesParts"
+                className="mt-0.5"
+                checked={form.type === 'CMC' ? true : form.includesParts}
+                disabled={form.type === 'CMC'}
+                onCheckedChange={(v) =>
+                  setForm((f) => ({ ...f, includesParts: v === true }))
+                }
+              />
+              <div className="space-y-0.5">
+                <Label htmlFor="includesParts">Includes spare parts</Label>
+                <p className="text-xs text-muted-foreground">
+                  {form.type === 'CMC'
+                    ? 'CMC contracts always include parts.'
+                    : 'Tick if this AMC also covers replacement parts.'}
+                </p>
+              </div>
             </div>
 
             <div className="space-y-2">

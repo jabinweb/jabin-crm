@@ -30,7 +30,10 @@ import {
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { confirmAction } from '@/lib/confirm-action';
 import {
+  AlertCircle,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -207,7 +210,7 @@ function statusLabel(status?: string) {
   if (status === 'CONNECTING') return 'Scan QR';
   if (status === 'INITIALIZING') return 'Starting…';
   if (status === 'DISCONNECTED') return 'Disconnected';
-  return status;
+  return humanizeEnum(status, 'Unknown');
 }
 
 export default function WhatsAppHubPage() {
@@ -220,6 +223,7 @@ export default function WhatsAppHubPage() {
   const [savingConfig, setSavingConfig] = useState(false);
   const [channelFilter, setChannelFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [chatHasMore, setChatHasMore] = useState(false);
   const [mainTab, setMainTab] = useState('inbox');
@@ -376,6 +380,7 @@ export default function WhatsAppHubPage() {
       const res = await fetch(`/api/whatsapp/messages?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to load messages');
       const data = await res.json();
+      setLoadError(false);
       const list = (Array.isArray(data) ? data : data.messages ?? []) as WaMessage[];
       applyInboxMeta(data);
       setChatHasMore(!!data.hasMore);
@@ -405,7 +410,10 @@ export default function WhatsAppHubPage() {
         );
       }
     } catch {
-      if (!opts?.silent) toast.error('Failed to load WhatsApp history');
+      if (!opts?.silent) {
+        setLoadError(true);
+        toast.error('Failed to load WhatsApp history');
+      }
     } finally {
       if (!opts?.silent) setLoading(false);
     }
@@ -505,6 +513,16 @@ export default function WhatsAppHubPage() {
   };
 
   const disconnectSummora = async () => {
+    if (
+      !(await confirmAction({
+        title: 'Disconnect WhatsApp?',
+        description:
+          'New messages will stop arriving in Opslane until you link a device again with a fresh QR code.',
+        confirmLabel: 'Disconnect',
+        variant: 'destructive',
+      }))
+    )
+      return;
     setSummoraBusy(true);
     try {
       const res = await fetch('/api/whatsapp/summora/session', {
@@ -1229,12 +1247,19 @@ export default function WhatsAppHubPage() {
   if (!featureEnabled) {
     return (
       <div className="space-y-6">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">WhatsApp</h1>
+          <p className="text-sm text-muted-foreground">
+            Inbox for linked chats — filter at the source, reply from Opslane.
+          </p>
+        </div>
         <Card>
           <CardHeader>
-            <CardTitle>Module disabled</CardTitle>
+            <CardTitle className="text-base">WhatsApp isn&apos;t enabled</CardTitle>
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            WhatsApp is disabled by your Super Admin.
+            The WhatsApp module is turned off for this workspace. Ask your platform
+            administrator to enable it.
           </CardContent>
         </Card>
       </div>
@@ -1321,15 +1346,17 @@ export default function WhatsAppHubPage() {
                       value={chatSearch}
                       onChange={(e) => setChatSearch(e.target.value)}
                       placeholder="Search chats…"
-                      className="h-9 pl-8"
+                      aria-label="Search chats"
+                      className="h-10 pl-8 sm:h-9"
                     />
                   </div>
                   <Button
                     type="button"
                     size="icon"
                     variant="outline"
-                    className="h-9 w-9 shrink-0"
+                    className="h-10 w-10 shrink-0 sm:h-9 sm:w-9"
                     title="New chat"
+                    aria-label="New chat"
                     onClick={() => setNewChatOpen(true)}
                   >
                     <MessageSquarePlus className="h-4 w-4" />
@@ -1343,7 +1370,7 @@ export default function WhatsAppHubPage() {
                       void loadMessages(value);
                     }}
                   >
-                    <SelectTrigger className="h-8 text-xs">
+                    <SelectTrigger className="h-10 text-xs sm:h-8" aria-label="Channel">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1363,6 +1390,29 @@ export default function WhatsAppHubPage() {
                   <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Loading…
+                  </div>
+                ) : filteredThreads.length === 0 && loadError ? (
+                  <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+                    <AlertCircle className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">Couldn&apos;t load conversations</p>
+                    <p className="text-xs text-muted-foreground">
+                      Check your connection and try again.
+                    </p>
+                    <Button size="sm" className="mt-2" onClick={() => void loadMessages()}>
+                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                      Try again
+                    </Button>
+                  </div>
+                ) : filteredThreads.length === 0 && chatSearch.trim() ? (
+                  <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+                    <Search className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No chats match “{chatSearch.trim()}”</p>
+                    <p className="text-xs text-muted-foreground">
+                      Try a different name or number, or start a new chat.
+                    </p>
+                    <Button size="sm" variant="outline" className="mt-2" onClick={() => setChatSearch('')}>
+                      Clear search
+                    </Button>
                   </div>
                 ) : filteredThreads.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
@@ -1608,7 +1658,11 @@ export default function WhatsAppHubPage() {
                                 <div className="mt-0.5 flex items-center justify-end gap-1.5 text-[10px] text-muted-foreground">
                                   <span>{formatMsgTime(msg.createdAt)}</span>
                                   {outbound && (
-                                    <span className="uppercase tracking-wide opacity-70">
+                                    <span
+                                      className="uppercase tracking-wide opacity-70"
+                                      title={msg.status === 'QUEUED' ? 'Queued' : 'Sent'}
+                                      aria-label={msg.status === 'QUEUED' ? 'Queued' : 'Sent'}
+                                    >
                                       {msg.status === 'QUEUED' ? '…' : '✓'}
                                     </span>
                                   )}
@@ -1644,6 +1698,7 @@ export default function WhatsAppHubPage() {
                                     size="sm"
                                     variant="ghost"
                                     className="h-8 w-8 px-0 text-xs md:h-6 md:w-6"
+                                    aria-label={`React with ${emoji}`}
                                     onClick={() => void sendReaction(msg, emoji)}
                                   >
                                     {emoji}
@@ -1671,7 +1726,8 @@ export default function WhatsAppHubPage() {
                             type="button"
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0"
+                            className="h-8 w-8 p-0"
+                            aria-label="Cancel reply"
                             onClick={() => setReplyTo(null)}
                           >
                             <X className="h-3.5 w-3.5" />
@@ -1688,7 +1744,8 @@ export default function WhatsAppHubPage() {
                             type="button"
                             size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0"
+                            className="h-8 w-8 p-0"
+                            aria-label="Remove attachment"
                             onClick={() => setPendingFile(null)}
                           >
                             <X className="h-3.5 w-3.5" />
@@ -1710,9 +1767,10 @@ export default function WhatsAppHubPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          className="h-9 w-9 shrink-0 p-0"
+                          className="h-10 w-10 shrink-0 p-0 sm:h-9 sm:w-9"
                           onClick={() => fileInputRef.current?.click()}
                           title="Attach file"
+                          aria-label="Attach file"
                         >
                           <Paperclip className="h-4 w-4" />
                         </Button>
@@ -1720,7 +1778,10 @@ export default function WhatsAppHubPage() {
                           value={form.channel}
                           onValueChange={(value) => setForm({ ...form, channel: value })}
                         >
-                          <SelectTrigger className="h-9 w-[96px] shrink-0 text-xs">
+                          <SelectTrigger
+                            className="h-10 w-[96px] shrink-0 text-xs sm:h-9"
+                            aria-label="Send from channel"
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1739,6 +1800,7 @@ export default function WhatsAppHubPage() {
                                 : 'Type a message…'
                           }
                           rows={1}
+                          aria-label="Message"
                           className="min-h-[40px] max-h-28 flex-1 resize-none py-2.5"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
@@ -1749,6 +1811,7 @@ export default function WhatsAppHubPage() {
                         />
                         <Button
                           className="h-10 w-10 shrink-0 rounded-full p-0"
+                          aria-label="Send message"
                           onClick={() => void sendWhatsApp()}
                           disabled={sending || (!form.message.trim() && !pendingFile)}
                         >
@@ -1767,9 +1830,10 @@ export default function WhatsAppHubPage() {
                           value={form.toPhone}
                           onChange={(e) => setForm({ ...form, toPhone: e.target.value })}
                           placeholder={
-                            activeThread.isGroup ? 'Group JID' : 'Phone +91…'
+                            activeThread.isGroup ? 'Group ID' : 'Phone +91…'
                           }
-                          className="h-7 max-w-xs text-[11px]"
+                          aria-label={activeThread.isGroup ? 'Recipient group ID' : 'Recipient phone'}
+                          className="h-9 max-w-xs text-[11px] sm:h-7"
                         />
                         <Collapsible open={linkIdsOpen} onOpenChange={setLinkIdsOpen}>
                           <CollapsibleTrigger asChild>
@@ -1828,6 +1892,8 @@ export default function WhatsAppHubPage() {
                 <Label htmlFor="wa-new-phone">Phone</Label>
                 <Input
                   id="wa-new-phone"
+                  type="tel"
+                  inputMode="tel"
                   value={newChatPhone}
                   onChange={(e) => setNewChatPhone(e.target.value)}
                   placeholder="+919876543210"
@@ -1982,6 +2048,7 @@ export default function WhatsAppHubPage() {
                           key={opt.id}
                           type="button"
                           disabled={filterBusy}
+                          aria-pressed={filterType === opt.id}
                           onClick={() => {
                             if (opt.id === 'CUSTOM') {
                               setFilterType('CUSTOM');
@@ -2044,6 +2111,7 @@ export default function WhatsAppHubPage() {
                                   <button
                                     key={g.jid}
                                     type="button"
+                                    aria-pressed={selected}
                                     onClick={() => toggleGroupJid(g.jid)}
                                     className={cn(
                                       'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm',
@@ -2093,12 +2161,12 @@ export default function WhatsAppHubPage() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Provider</Label>
+                  <Label htmlFor="wa-cfg-provider">Provider</Label>
                   <Select
                     value={config.provider}
                     onValueChange={(value) => setConfig({ ...config, provider: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="wa-cfg-provider">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -2110,14 +2178,14 @@ export default function WhatsAppHubPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Status</Label>
+                  <Label htmlFor="wa-cfg-status">Status</Label>
                   <Select
                     value={config.isActive ? 'ACTIVE' : 'INACTIVE'}
                     onValueChange={(value) =>
                       setConfig({ ...config, isActive: value === 'ACTIVE' })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="wa-cfg-status">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -2131,8 +2199,8 @@ export default function WhatsAppHubPage() {
               {config.provider === 'TWILIO' && (
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label>Account SID</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-account-sid">Account SID</Label>
+                    <Input id="wa-cfg-account-sid"
                       value={config.twilioAccountSid}
                       onChange={(e) =>
                         setConfig({ ...config, twilioAccountSid: e.target.value })
@@ -2140,8 +2208,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Auth token</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-auth-token">Auth token</Label>
+                    <Input id="wa-cfg-auth-token"
                       type="password"
                       value={config.twilioAuthToken}
                       onChange={(e) =>
@@ -2150,8 +2218,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>From number</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-from-number">From number</Label>
+                    <Input id="wa-cfg-from-number"
                       placeholder="+14155238886"
                       value={config.twilioFromNumber}
                       onChange={(e) =>
@@ -2165,8 +2233,8 @@ export default function WhatsAppHubPage() {
               {config.provider === 'META_CLOUD' && (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Access token</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-access-token">Access token</Label>
+                    <Input id="wa-cfg-access-token"
                       type="password"
                       value={config.metaAccessToken}
                       onChange={(e) =>
@@ -2175,8 +2243,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Phone number ID</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-phone-number-id">Phone number ID</Label>
+                    <Input id="wa-cfg-phone-number-id"
                       value={config.metaPhoneNumberId}
                       onChange={(e) =>
                         setConfig({ ...config, metaPhoneNumberId: e.target.value })
@@ -2184,8 +2252,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Business ID</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-business-id">Business ID</Label>
+                    <Input id="wa-cfg-business-id"
                       value={config.metaBusinessId}
                       onChange={(e) =>
                         setConfig({ ...config, metaBusinessId: e.target.value })
@@ -2193,8 +2261,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>API version</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-api-version">API version</Label>
+                    <Input id="wa-cfg-api-version"
                       value={config.metaApiVersion}
                       onChange={(e) =>
                         setConfig({ ...config, metaApiVersion: e.target.value })
@@ -2202,8 +2270,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Webhook verify token</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-webhook-verify-token">Webhook verify token</Label>
+                    <Input id="wa-cfg-webhook-verify-token"
                       type="password"
                       value={config.webhookVerifyToken}
                       onChange={(e) =>
@@ -2223,8 +2291,8 @@ export default function WhatsAppHubPage() {
               {config.provider === 'SUMMORA' && (
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2 md:col-span-2">
-                    <Label>Summora base URL</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-summora-base-url">Summora base URL</Label>
+                    <Input id="wa-cfg-summora-base-url"
                       placeholder="https://summora.jabin.org"
                       value={config.summoraBaseUrl}
                       onChange={(e) =>
@@ -2233,8 +2301,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Bridge API key</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-bridge-api-key">Bridge API key</Label>
+                    <Input id="wa-cfg-bridge-api-key"
                       type="password"
                       value={config.summoraApiKey}
                       onChange={(e) =>
@@ -2243,8 +2311,8 @@ export default function WhatsAppHubPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Webhook signing secret</Label>
-                    <Input
+                    <Label htmlFor="wa-cfg-webhook-signing-secret">Webhook signing secret</Label>
+                    <Input id="wa-cfg-webhook-signing-secret"
                       type="password"
                       value={config.webhookVerifyToken}
                       onChange={(e) =>

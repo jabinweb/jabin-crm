@@ -27,9 +27,14 @@ import {
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Loader2, ClipboardList, Plus, Trash2, LayoutGrid, List } from 'lucide-react';
+import { AlertCircle, Loader2, ClipboardList, Plus, Trash2, LayoutGrid, List } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
+import { useCurrency } from '@/hooks/use-currency';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { confirmAction } from '@/lib/confirm-action';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { BoardSkeleton, FullTableSkeleton } from '@/components/loading';
@@ -61,6 +66,13 @@ type PoReport = {
   byStatus: Record<string, number>;
 };
 
+const DEFAULT_PO_STATUSES = ['DRAFT', 'SENT', 'RECEIVED', 'CANCELLED'];
+
+function formatDate(value: string) {
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'MMM d, yyyy');
+}
+
 function emptyLine(): LineItemDraft {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -71,7 +83,7 @@ function emptyLine(): LineItemDraft {
 }
 
 export default function PurchaseOrdersPage() {
-  const { slug, workspaceFetch } = useWorkspacePaths();
+  const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const reportFromUrl = searchParams.get('report') === '1';
@@ -84,10 +96,13 @@ export default function PurchaseOrdersPage() {
   const [view, setView] = useState<'list' | 'board'>('list');
   const [optimistic, setOptimistic] = useState<Record<string, string>>({});
   const { columns: baseColumns, loading: columnsLoading } = usePipelineColumns('purchase_orders');
+  const { formatCurrency } = useCurrency();
+  const statusLabel = (s: string) =>
+    baseColumns.find((c) => c.id === s)?.label ?? humanizeEnum(s);
 
   const reportEnabled = showReport;
 
-  const { data: suppliers = [] } = useQuery({
+  const { data: suppliers = [], isSuccess: suppliersLoaded } = useQuery({
     queryKey: ['suppliers', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/suppliers');
@@ -107,7 +122,12 @@ export default function PurchaseOrdersPage() {
     enabled: !!slug,
   });
 
-  const { data: listData, isLoading } = useQuery({
+  const {
+    data: listData,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['purchase-orders', slug, reportEnabled],
     queryFn: async () => {
       const res = await workspaceFetch(
@@ -153,7 +173,7 @@ export default function PurchaseOrdersPage() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to update PO');
+        throw new Error(err.error || 'Failed to update purchase order');
       }
       setOptimistic((prev) => {
         const next = { ...prev };
@@ -298,11 +318,21 @@ export default function PurchaseOrdersPage() {
             size="sm"
             variant="ghost"
             disabled={busy}
-            onClick={() =>
-              actionMutation.mutate({ id: o.id, action: 'cancel' })
-            }
+            onClick={async () => {
+              if (
+                !(await confirmAction({
+                  title: `Cancel ${o.poNumber}?`,
+                  description: 'The purchase order will be marked as cancelled.',
+                  confirmLabel: 'Cancel order',
+                  cancelLabel: 'Keep order',
+                  variant: 'destructive',
+                }))
+              )
+                return;
+              actionMutation.mutate({ id: o.id, action: 'cancel' });
+            }}
           >
-            Cancel
+            Cancel order
           </Button>
         )}
       </div>
@@ -328,11 +358,11 @@ export default function PurchaseOrdersPage() {
             className="justify-start"
           >
             <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
-              <List className="size-3.5" />
+              <List className="h-3.5 w-3.5" />
               List
             </ToggleGroupItem>
             <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
-              <LayoutGrid className="size-3.5" />
+              <LayoutGrid className="h-3.5 w-3.5" />
               Board
             </ToggleGroupItem>
           </ToggleGroup>
@@ -353,7 +383,7 @@ export default function PurchaseOrdersPage() {
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total POs</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total orders</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
@@ -377,7 +407,7 @@ export default function PurchaseOrdersPage() {
             </CardHeader>
             <CardContent>
               <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
-                {isLoading ? '—' : (report?.totalSpend ?? 0).toLocaleString()}
+                {isLoading ? '—' : formatCurrency(report?.totalSpend ?? 0)}
               </div>
             </CardContent>
           </Card>
@@ -392,7 +422,7 @@ export default function PurchaseOrdersPage() {
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                   {Object.entries(report.byStatus).map(([s, n]) => (
                     <span key={s}>
-                      <span className="text-muted-foreground">{s}:</span> {n}
+                      <span className="text-muted-foreground">{statusLabel(s)}:</span> {n}
                     </span>
                   ))}
                 </div>
@@ -409,9 +439,9 @@ export default function PurchaseOrdersPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Supplier</Label>
+              <Label htmlFor="po-supplier">Supplier</Label>
               <Select value={supplierId} onValueChange={setSupplierId}>
-                <SelectTrigger>
+                <SelectTrigger id="po-supplier">
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
                 <SelectContent>
@@ -422,17 +452,26 @@ export default function PurchaseOrdersPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {suppliersLoaded && suppliers.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No suppliers yet.{' '}
+                  <Link href={path('/dashboard/suppliers')} className="font-medium text-primary underline-offset-4 hover:underline">
+                    Add a supplier
+                  </Link>{' '}
+                  first.
+                </p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Status</Label>
+              <Label htmlFor="po-new-status">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
+                <SelectTrigger id="po-new-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {['DRAFT', 'SENT', 'RECEIVED', 'CANCELLED'].map((s) => (
+                  {DEFAULT_PO_STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s}
+                      {statusLabel(s)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -474,7 +513,7 @@ export default function PurchaseOrdersPage() {
                             });
                           }}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger aria-label="Product">
                             <SelectValue placeholder="Select product" />
                           </SelectTrigger>
                           <SelectContent>
@@ -491,6 +530,7 @@ export default function PurchaseOrdersPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
+                        aria-label="Remove line item"
                         className="mt-5 h-10 w-10 shrink-0"
                         disabled={lineItems.length <= 1}
                         onClick={() =>
@@ -504,6 +544,7 @@ export default function PurchaseOrdersPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Qty</Label>
                         <Input
+                          aria-label="Quantity"
                           type="number"
                           min={1}
                           step={1}
@@ -514,6 +555,7 @@ export default function PurchaseOrdersPage() {
                       <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Unit price</Label>
                         <Input
+                          aria-label="Unit price"
                           type="number"
                           min={0}
                           step="0.01"
@@ -524,7 +566,7 @@ export default function PurchaseOrdersPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Line total</span>
-                      <span className="tabular-nums">{lineTotal.toLocaleString()}</span>
+                      <span className="tabular-nums">{formatCurrency(lineTotal)}</span>
                     </div>
                   </div>
                 );
@@ -560,7 +602,7 @@ export default function PurchaseOrdersPage() {
                               });
                             }}
                           >
-                            <SelectTrigger>
+                            <SelectTrigger aria-label="Product">
                               <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent>
@@ -575,6 +617,7 @@ export default function PurchaseOrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Input
+                            aria-label="Quantity"
                             type="number"
                             min={1}
                             step={1}
@@ -584,6 +627,7 @@ export default function PurchaseOrdersPage() {
                         </TableCell>
                         <TableCell>
                           <Input
+                            aria-label="Unit price"
                             type="number"
                             min={0}
                             step="0.01"
@@ -592,13 +636,14 @@ export default function PurchaseOrdersPage() {
                           />
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
-                          {lineTotal.toLocaleString()}
+                          {formatCurrency(lineTotal)}
                         </TableCell>
                         <TableCell>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
+                            aria-label="Remove line item"
                             disabled={lineItems.length <= 1}
                             onClick={() =>
                               setLineItems((prev) => prev.filter((r) => r.key !== row.key))
@@ -615,13 +660,13 @@ export default function PurchaseOrdersPage() {
             </div>
             <div className="flex justify-end text-sm">
               <span className="text-muted-foreground mr-2">Total</span>
-              <span className="font-medium tabular-nums">{computedTotal.toLocaleString()}</span>
+              <span className="font-medium tabular-nums">{formatCurrency(computedTotal)}</span>
             </div>
           </div>
 
           <Button className="w-full sm:w-auto" disabled={!canCreate} onClick={() => createMutation.mutate()}>
             {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Create PO
+            Create purchase order
           </Button>
         </CardContent>
       </Card>
@@ -629,17 +674,25 @@ export default function PurchaseOrdersPage() {
       {view === 'board' ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">PO pipeline</CardTitle>
+            <CardTitle className="text-base">Purchase order pipeline</CardTitle>
             <CardDescription>Drag orders between stages. Receiving still updates stock.</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading || columnsLoading ? (
               <BoardSkeleton />
+            ) : isError ? (
+              <EmptyState
+                icon={AlertCircle}
+                title="Couldn't load purchase orders"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => void refetch()}
+              />
             ) : orders.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}
                 title="No purchase orders"
-                description="Create a PO above."
+                description="Create your first purchase order using the form above."
               />
             ) : (
               <PipelineBoard
@@ -650,7 +703,7 @@ export default function PurchaseOrdersPage() {
                   <div className="p-3 space-y-1">
                     <p className="text-sm font-semibold">{o.poNumber}</p>
                     <p className="text-xs text-muted-foreground">{o.supplier?.name}</p>
-                    <p className="text-xs tabular-nums">{o.totalAmount.toLocaleString()}</p>
+                    <p className="text-xs tabular-nums">{formatCurrency(o.totalAmount)}</p>
                   </div>
                 )}
               />
@@ -665,11 +718,19 @@ export default function PurchaseOrdersPage() {
           <CardContent>
             {isLoading ? (
               <FullTableSkeleton columnCount={6} rowCount={5} />
+            ) : isError ? (
+              <EmptyState
+                icon={AlertCircle}
+                title="Couldn't load purchase orders"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => void refetch()}
+              />
             ) : orders.length === 0 ? (
               <EmptyState
                 icon={ClipboardList}
                 title="No purchase orders"
-                description="Create a PO above."
+                description="Create your first purchase order using the form above."
               />
             ) : (
               <>
@@ -681,11 +742,11 @@ export default function PurchaseOrdersPage() {
                         <p className="truncate font-medium">{o.poNumber}</p>
                         <p className="truncate text-xs text-muted-foreground">{o.supplier?.name}</p>
                       </div>
-                      <Badge variant="outline" className="shrink-0">{o.status}</Badge>
+                      <Badge variant="outline" className="shrink-0">{statusLabel(o.status)}</Badge>
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="tabular-nums font-medium">{o.totalAmount.toLocaleString()}</span>
-                      <span className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleDateString()}</span>
+                      <span className="tabular-nums font-medium">{formatCurrency(o.totalAmount)}</span>
+                      <span className="text-xs text-muted-foreground">{formatDate(o.createdAt)}</span>
                     </div>
                     {renderPoActions(o, '[&_button]:h-10')}
                   </div>
@@ -709,9 +770,9 @@ export default function PurchaseOrdersPage() {
                       <TableRow key={o.id}>
                         <TableCell className="font-medium">{o.poNumber}</TableCell>
                         <TableCell>{o.supplier?.name}</TableCell>
-                        <TableCell>{o.status}</TableCell>
-                        <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
-                        <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
+                        <TableCell>{statusLabel(o.status)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(o.totalAmount)}</TableCell>
+                        <TableCell>{formatDate(o.createdAt)}</TableCell>
                         <TableCell className="text-right">
                           {renderPoActions(o, 'justify-end')}
                         </TableCell>

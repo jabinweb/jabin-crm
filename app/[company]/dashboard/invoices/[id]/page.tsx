@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,12 +25,36 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowLeft, Download, Send, DollarSign, User, Mail, Phone, MapPin, Edit } from 'lucide-react';
+import {
+  ArrowLeft,
+  Download,
+  Send,
+  Banknote,
+  Briefcase,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Edit,
+  Loader2,
+  AlertCircle,
+  FileText,
+} from 'lucide-react';
+import { format } from 'date-fns';
 import { formatCurrency } from '@/lib/currency';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { confirmAction } from '@/lib/confirm-action';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from 'sonner';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { DetailSkeleton } from '@/components/loading';
+
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy');
+}
 
 interface InvoiceItem {
   id: string;
@@ -92,29 +116,38 @@ export default function InvoiceDetailPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER');
   const [paymentNote, setPaymentNote] = useState('');
+  const [loadError, setLoadError] = useState<'not_found' | 'failed' | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    fetchInvoice();
-  }, [params.id]);
-
-  const fetchInvoice = async () => {
+  const fetchInvoice = useCallback(async () => {
     try {
       const response = await fetch(`/api/invoices/${params.id}`);
+      if (response.status === 404) {
+        setLoadError('not_found');
+        return;
+      }
       if (!response.ok) throw new Error('Failed to fetch invoice');
       const data = await response.json();
       setInvoice(data);
+      setLoadError(null);
       if (data.amountDue > 0) {
         setPaymentAmount(String(data.amountDue));
       }
     } catch (error) {
       console.error('Error fetching invoice:', error);
-      toast.error('Failed to load invoice');
+      setLoadError('failed');
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    void fetchInvoice();
+  }, [fetchInvoice]);
 
   const handleDownload = async () => {
+    setDownloading(true);
     try {
       const response = await fetch(`/api/invoices/${params.id}/pdf`);
       if (!response.ok) throw new Error('Failed to download invoice');
@@ -126,28 +159,41 @@ export default function InvoiceDetailPage() {
       a.download = `invoice-${invoice?.invoiceNumber}.pdf`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
 
-      toast.success('Invoice downloaded successfully');
+      toast.success('Invoice downloaded');
     } catch (error) {
       toast.error('Failed to download invoice');
       console.error(error);
+    } finally {
+      setDownloading(false);
     }
   };
 
   const handleSend = async () => {
+    const ok = await confirmAction({
+      title: 'Send this invoice?',
+      description: invoice?.customerEmail
+        ? `It will be emailed to ${invoice.customerEmail}.`
+        : 'It will be emailed to the customer.',
+      confirmLabel: 'Send invoice',
+    });
+    if (!ok) return;
+    setSending(true);
     try {
       const response = await fetch(`/api/invoices/${params.id}/send`, {
         method: 'POST',
       });
       if (!response.ok) throw new Error('Failed to send invoice');
 
-      toast.success('Invoice sent successfully');
-      fetchInvoice();
+      toast.success('Invoice sent');
+      void fetchInvoice();
     } catch (error) {
       toast.error('Failed to send invoice');
       console.error(error);
+    } finally {
+      setSending(false);
     }
   };
 
@@ -197,27 +243,57 @@ export default function InvoiceDetailPage() {
       SENT: { variant: 'default', label: 'Sent' },
       VIEWED: { variant: 'outline', label: 'Viewed' },
       PAID: { variant: 'default', label: 'Paid' },
-      PARTIAL: { variant: 'outline', label: 'Partial' },
+      PARTIAL: { variant: 'outline', label: 'Partially paid' },
       OVERDUE: { variant: 'destructive', label: 'Overdue' },
       CANCELLED: { variant: 'secondary', label: 'Cancelled' },
     };
-    const config = statusConfig[status] || { variant: 'secondary' as const, label: status };
+    const config = statusConfig[status] || { variant: 'secondary' as const, label: humanizeEnum(status) };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const backButton = (
+    <DashboardLink href="/dashboard/invoices">
+      <Button variant="outline" size="sm">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back
+      </Button>
+    </DashboardLink>
+  );
+
   if (loading) {
-    return <DetailSkeleton />;
+    return (
+      <div className="space-y-6">
+        {backButton}
+        <DetailSkeleton />
+      </div>
+    );
   }
 
   if (!invoice) {
+    const notFound = loadError !== 'failed';
     return (
       <div className="space-y-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold">Invoice not found</h2>
-          <DashboardLink href="/dashboard/invoices">
-            <Button className="mt-4">Back to Invoices</Button>
-          </DashboardLink>
-        </div>
+        {backButton}
+        <Card>
+          <EmptyState
+            icon={notFound ? FileText : AlertCircle}
+            title={notFound ? 'Invoice not found' : "Couldn't load this invoice"}
+            description={
+              notFound
+                ? 'It may have been deleted, or you may not have access to it.'
+                : 'Check your connection and try again.'
+            }
+            actionLabel={notFound ? 'Back to invoices' : 'Retry'}
+            onAction={
+              notFound
+                ? () => router.push(path('/dashboard/invoices'))
+                : () => {
+                    setLoading(true);
+                    void fetchInvoice();
+                  }
+            }
+          />
+        </Card>
       </div>
     );
   }
@@ -229,15 +305,14 @@ export default function InvoiceDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
-          <DashboardLink href="/dashboard/invoices">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-          </DashboardLink>
+          {backButton}
           <div className="min-w-0">
-            <h1 className="break-words text-2xl font-bold sm:text-3xl">Invoice {invoice.invoiceNumber}</h1>
-            <p className="text-muted-foreground">{invoice.title}</p>
+            <h1 className="break-words text-2xl font-semibold tracking-tight">
+              Invoice {invoice.invoiceNumber}
+            </h1>
+            {invoice.title ? (
+              <p className="break-words text-sm text-muted-foreground">{invoice.title}</p>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -248,8 +323,12 @@ export default function InvoiceDetailPage() {
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <Button variant="outline" onClick={handleDownload}>
-            <Download className="mr-2 h-4 w-4" />
+          <Button variant="outline" onClick={() => void handleDownload()} disabled={downloading}>
+            {downloading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
             Download PDF
           </Button>
           {canRecordPayment && (
@@ -260,14 +339,18 @@ export default function InvoiceDetailPage() {
                 setPayOpen(true);
               }}
             >
-              <DollarSign className="mr-2 h-4 w-4" />
+              <Banknote className="mr-2 h-4 w-4" />
               Record payment
             </Button>
           )}
           {invoice.status === 'DRAFT' && (
-            <Button onClick={handleSend}>
-              <Send className="mr-2 h-4 w-4" />
-              Send Invoice
+            <Button onClick={() => void handleSend()} disabled={sending}>
+              {sending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              {sending ? 'Sending…' : 'Send invoice'}
             </Button>
           )}
         </div>
@@ -277,43 +360,35 @@ export default function InvoiceDetailPage() {
         <div className="min-w-0 lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Invoice Details</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base">Invoice details</CardTitle>
                 {getStatusBadge(invoice.status)}
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Invoice Number</p>
+                  <p className="text-sm text-muted-foreground mb-1">Invoice number</p>
                   <p className="font-mono font-semibold">{invoice.invoiceNumber}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Issue Date</p>
-                  <p className="font-semibold">
-                    {new Date(invoice.createdAt).toLocaleDateString()}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-1">Issue date</p>
+                  <p className="font-semibold">{formatDate(invoice.createdAt)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">Due Date</p>
-                  <p className="font-semibold">
-                    {new Date(invoice.dueDate).toLocaleDateString()}
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-1">Due date</p>
+                  <p className="font-semibold">{formatDate(invoice.dueDate)}</p>
                 </div>
                 {invoice.sentAt && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Sent On</p>
-                    <p className="font-semibold">
-                      {new Date(invoice.sentAt).toLocaleDateString()}
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-1">Sent on</p>
+                    <p className="font-semibold">{formatDate(invoice.sentAt)}</p>
                   </div>
                 )}
                 {invoice.paidAt && (
                   <div>
-                    <p className="text-sm text-muted-foreground mb-1">Paid On</p>
-                    <p className="font-semibold">
-                      {new Date(invoice.paidAt).toLocaleDateString()}
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-1">Paid on</p>
+                    <p className="font-semibold">{formatDate(invoice.paidAt)}</p>
                   </div>
                 )}
               </div>
@@ -323,7 +398,7 @@ export default function InvoiceDetailPage() {
                   <Separator />
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Description</p>
-                    <p>{invoice.description}</p>
+                    <p className="whitespace-pre-wrap break-words">{invoice.description}</p>
                   </div>
                 </>
               )}
@@ -332,7 +407,7 @@ export default function InvoiceDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Customer Information</CardTitle>
+              <CardTitle className="text-base">Customer information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start gap-3">
@@ -352,7 +427,7 @@ export default function InvoiceDetailPage() {
               </div>
               {invoice.deal?.id ? (
                 <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                  <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Deal</p>
                     <DashboardLink
@@ -381,8 +456,8 @@ export default function InvoiceDetailPage() {
               {invoice.customerAddress && (
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
-                  <div>
-                    <p className="text-sm">{invoice.customerAddress}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm whitespace-pre-line break-words">{invoice.customerAddress}</p>
                   </div>
                 </div>
               )}
@@ -391,16 +466,22 @@ export default function InvoiceDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Line Items</CardTitle>
+              <CardTitle className="text-base">Line items</CardTitle>
             </CardHeader>
             <CardContent>
+              {invoice.items.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No line items on this invoice.
+                </p>
+              ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Item</TableHead>
+                    <TableHead className="min-w-[150px]">Item</TableHead>
                     <TableHead className="text-center">Qty</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Unit price</TableHead>
+                    <TableHead className="text-right min-w-[100px]">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -414,30 +495,32 @@ export default function InvoiceDetailPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-center">{item.quantity}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-center tabular-nums">{item.quantity}</TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {formatCurrency(item.unitPrice, invoice.currency as never)}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium tabular-nums">
                         {formatCurrency(item.amount, invoice.currency as never)}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              </div>
+              )}
             </CardContent>
           </Card>
 
           {(invoice.terms || invoice.notes) && (
             <Card>
               <CardHeader>
-                <CardTitle>Additional Information</CardTitle>
+                <CardTitle className="text-base">Additional information</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {invoice.terms && (
                   <div>
-                    <p className="text-sm font-semibold mb-2">Payment Terms</p>
-                    <p className="text-sm text-muted-foreground">{invoice.terms}</p>
+                    <p className="text-sm font-semibold mb-2">Payment terms</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{invoice.terms}</p>
                   </div>
                 )}
                 {invoice.notes && (
@@ -454,11 +537,11 @@ export default function InvoiceDetailPage() {
         <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Company Information</CardTitle>
+              <CardTitle className="text-base">Your company</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="font-semibold">
-                {invoice.user.profile?.companyName || invoice.user.name || 'Your Company'}
+                {invoice.user.profile?.companyName || invoice.user.name || 'Company details not set'}
               </p>
               {invoice.user.profile?.companyEmail && (
                 <p className="text-sm text-muted-foreground">{invoice.user.profile.companyEmail}</p>
@@ -474,7 +557,7 @@ export default function InvoiceDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Payment Summary</CardTitle>
+              <CardTitle className="text-base">Payment summary</CardTitle>
               <CardDescription>
                 {canRecordPayment
                   ? 'Record bank or cash payments when they clear.'
@@ -496,7 +579,7 @@ export default function InvoiceDetailPage() {
                 {invoice.discount > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Discount</span>
-                    <span className="text-red-600">
+                    <span className="text-green-600 dark:text-green-400">
                       -{formatCurrency(invoice.discount, invoice.currency as never)}
                     </span>
                   </div>
@@ -509,21 +592,21 @@ export default function InvoiceDetailPage() {
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Amount Paid</span>
-                  <span className="text-green-600">
+                  <span className="text-muted-foreground">Amount paid</span>
+                  <span className="text-green-600 dark:text-green-400">
                     {formatCurrency(invoice.amountPaid, invoice.currency as never)}
                   </span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg">
-                  <span>Amount Due</span>
-                  <span className={invoice.amountDue > 0 ? 'text-red-600' : ''}>
+                  <span>Amount due</span>
+                  <span className={invoice.amountDue > 0 ? 'text-destructive' : ''}>
                     {formatCurrency(invoice.amountDue, invoice.currency as never)}
                   </span>
                 </div>
               </div>
               {canRecordPayment && (
                 <Button className="w-full" onClick={() => setPayOpen(true)}>
-                  <DollarSign className="mr-2 h-4 w-4" />
+                  <Banknote className="mr-2 h-4 w-4" />
                   Record payment
                 </Button>
               )}
@@ -547,6 +630,7 @@ export default function InvoiceDetailPage() {
               <Input
                 id="payment-amount"
                 type="number"
+                inputMode="decimal"
                 min="0.01"
                 step="0.01"
                 value={paymentAmount}
@@ -554,9 +638,9 @@ export default function InvoiceDetailPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Method</Label>
+              <Label htmlFor="payment-method">Method</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger>
+                <SelectTrigger id="payment-method">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -584,7 +668,8 @@ export default function InvoiceDetailPage() {
             <Button variant="outline" onClick={() => setPayOpen(false)} disabled={recording}>
               Cancel
             </Button>
-            <Button onClick={handleRecordPayment} disabled={recording}>
+            <Button onClick={() => void handleRecordPayment()} disabled={recording}>
+              {recording ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {recording ? 'Saving…' : 'Save payment'}
             </Button>
           </DialogFooter>

@@ -27,13 +27,11 @@ import { Label } from '@/components/ui/label';
 import {
     Building,
     MapPin,
-    Phone,
     User,
     Plus,
+    RefreshCw,
     Search,
     ChevronRight,
-    MoreVertical,
-    Activity,
     Users,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -42,6 +40,17 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FullTableSkeleton } from '@/components/loading';
 import { CurrencySelect } from '@/components/ui/currency-select';
+import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
+
+const EMPTY_CUSTOMER = {
+    organizationName: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    billingCurrency: '',
+};
 
 export default function CustomersPage() {
     const queryClient = useQueryClient();
@@ -51,17 +60,12 @@ export default function CustomersPage() {
     const [showAddDialog, setShowAddDialog] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
 
-    const [newCustomer, setNewCustomer] = useState({
-        organizationName: '',
-        contactPerson: '',
-        email: '',
-        phone: '',
-        address: '',
-        city: '',
-        billingCurrency: '',
-    });
+    const [newCustomer, setNewCustomer] = useState(EMPTY_CUSTOMER);
+    const terminology = useWorkspaceTerminology();
+    const pluralLabel = terminology?.customers ?? 'Clients';
+    const singularLabel = (terminology?.customer ?? 'Client').toLowerCase();
 
-    const { data, isLoading } = useQuery({
+    const { data, isLoading, isError, refetch, isFetching } = useQuery({
         queryKey: ['customers', slug, { search, page }],
         queryFn: async () => {
             const params = new URLSearchParams({
@@ -75,8 +79,10 @@ export default function CustomersPage() {
         },
     });
 
-    const handleAddCustomer = async () => {
-        if (!newCustomer.organizationName || !newCustomer.contactPerson) {
+    const handleAddCustomer = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (isAdding) return;
+        if (!newCustomer.organizationName.trim() || !newCustomer.contactPerson.trim()) {
             toast.error('Organization name and primary contact are required');
             return;
         }
@@ -89,22 +95,17 @@ export default function CustomersPage() {
                 body: JSON.stringify(newCustomer),
             });
 
-            if (!response.ok) throw new Error('Failed to add customer');
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `Failed to add ${singularLabel}`);
+            }
 
-            toast.success('Customer added successfully');
+            toast.success(`${newCustomer.organizationName.trim()} added`);
             queryClient.invalidateQueries({ queryKey: ['customers'] });
             setShowAddDialog(false);
-            setNewCustomer({
-                organizationName: '',
-                contactPerson: '',
-                email: '',
-                phone: '',
-                address: '',
-                city: '',
-                billingCurrency: '',
-            });
+            setNewCustomer(EMPTY_CUSTOMER);
         } catch (error) {
-            toast.error('Failed to add customer');
+            toast.error(error instanceof Error ? error.message : `Failed to add ${singularLabel}`);
         } finally {
             setIsAdding(false);
         }
@@ -113,35 +114,44 @@ export default function CustomersPage() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <h2 className="min-w-0 text-2xl md:text-3xl font-bold tracking-tight">Clients & organizations</h2>
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-semibold tracking-tight">{pluralLabel}</h1>
+                    <p className="text-sm text-muted-foreground">
+                        The organizations and accounts you sell to and support.
+                    </p>
+                </div>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
                         <Button className="self-start sm:self-auto">
                             <Plus className="mr-2 h-4 w-4" />
-                            Add client
+                            Add {singularLabel}
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
+                    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[425px]">
                         <DialogHeader>
-                            <DialogTitle>Add new client</DialogTitle>
+                            <DialogTitle>Add {singularLabel}</DialogTitle>
                             <DialogDescription>
-                                Enter the organization or account you work with.
+                                Enter the organization or account you work with. Fields marked * are required.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
+                        <form onSubmit={handleAddCustomer} className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="organizationName">Organization name</Label>
+                                <Label htmlFor="organizationName">Organization name *</Label>
                                 <Input
                                     id="organizationName"
+                                    required
+                                    autoComplete="organization"
                                     value={newCustomer.organizationName}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, organizationName: e.target.value })}
                                     placeholder="e.g. Acme Corporation"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="contactPerson">Primary Contact Person</Label>
+                                <Label htmlFor="contactPerson">Primary contact *</Label>
                                 <Input
                                     id="contactPerson"
+                                    required
+                                    autoComplete="name"
                                     value={newCustomer.contactPerson}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, contactPerson: e.target.value })}
                                     placeholder="e.g. Jane Smith"
@@ -153,6 +163,7 @@ export default function CustomersPage() {
                                     <Input
                                         id="email"
                                         type="email"
+                                        autoComplete="email"
                                         value={newCustomer.email}
                                         onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })}
                                     />
@@ -161,6 +172,8 @@ export default function CustomersPage() {
                                     <Label htmlFor="phone">Phone</Label>
                                     <Input
                                         id="phone"
+                                        type="tel"
+                                        autoComplete="tel"
                                         value={newCustomer.phone}
                                         onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })}
                                     />
@@ -170,6 +183,7 @@ export default function CustomersPage() {
                                 <Label htmlFor="city">City</Label>
                                 <Input
                                     id="city"
+                                    autoComplete="address-level2"
                                     value={newCustomer.city}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, city: e.target.value })}
                                 />
@@ -178,6 +192,7 @@ export default function CustomersPage() {
                                 <Label htmlFor="address">Address</Label>
                                 <Input
                                     id="address"
+                                    autoComplete="street-address"
                                     value={newCustomer.address}
                                     onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })}
                                 />
@@ -193,12 +208,20 @@ export default function CustomersPage() {
                                 }
                                 description="Quotes and invoices for this client will default to this currency."
                             />
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={handleAddCustomer} disabled={isAdding}>
-                                {isAdding ? 'Adding...' : 'Add Customer'}
-                            </Button>
-                        </DialogFooter>
+                            <DialogFooter className="gap-2 sm:gap-0">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setShowAddDialog(false)}
+                                    disabled={isAdding}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={isAdding}>
+                                    {isAdding ? 'Adding…' : `Add ${singularLabel}`}
+                                </Button>
+                            </DialogFooter>
+                        </form>
                     </DialogContent>
                 </Dialog>
             </div>
@@ -207,17 +230,25 @@ export default function CustomersPage() {
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="min-w-0">
-                            <CardTitle>Customer Directory</CardTitle>
+                            <CardTitle>Directory</CardTitle>
                             <CardDescription>
-                                Manage your client and account relationships.
+                                Search and open a profile to see contacts, tickets and billing.
                             </CardDescription>
                         </div>
                         <div className="relative w-full md:w-64">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Search
+                                className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"
+                                aria-hidden="true"
+                            />
                             <Input
-                                placeholder="Search clients..."
+                                type="search"
+                                aria-label={`Search ${pluralLabel.toLowerCase()}`}
+                                placeholder="Search by name, contact or city..."
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    setPage(1);
+                                }}
                                 className="pl-8"
                             />
                         </div>
@@ -226,17 +257,26 @@ export default function CustomersPage() {
                 <CardContent>
                     {isLoading ? (
                         <FullTableSkeleton columnCount={4} rowCount={5} />
+                    ) : isError ? (
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-10 text-center">
+                            <p className="text-sm font-medium">We couldn&apos;t load this list.</p>
+                            <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
+                            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                                <RefreshCw className={`mr-2 h-4 w-4${isFetching ? ' animate-spin' : ''}`} />
+                                Try again
+                            </Button>
+                        </div>
                     ) : !data?.customers?.length ? (
                         <EmptyState
                             icon={Users}
-                            title={search ? 'No matching clients' : 'No clients yet'}
+                            title={search ? 'No matches' : `No ${pluralLabel.toLowerCase()} yet`}
                             description={
                                 search
                                     ? 'Try a different search term.'
-                                    : 'Add your first client to start logging tickets and equipment.'
+                                    : `Add your first ${singularLabel} to start sending quotes, invoices and logging tickets.`
                             }
-                            actionLabel={search ? undefined : 'Add client'}
-                            actionHref={search ? undefined : path('/dashboard/customers/new')}
+                            actionLabel={search ? undefined : `Add ${singularLabel}`}
+                            onAction={search ? undefined : () => setShowAddDialog(true)}
                         />
                     ) : (
                         <>
@@ -250,7 +290,7 @@ export default function CustomersPage() {
                                     <div className="min-w-0 flex-1 space-y-0.5">
                                         <p className="truncate font-medium">{customer.organizationName}</p>
                                         <p className="truncate text-xs text-muted-foreground">
-                                            {[customer.contactPerson, customer.city || 'N/A'].filter(Boolean).join(' · ')}
+                                            {[customer.contactPerson, customer.city].filter(Boolean).join(' · ') || 'No contact details'}
                                         </p>
                                     </div>
                                     <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -285,13 +325,13 @@ export default function CustomersPage() {
                                                 <TableCell>
                                                     <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                                                         <MapPin className="h-4 w-4" />
-                                                        <span>{customer.city || 'N/A'}</span>
+                                                        <span>{customer.city || '—'}</span>
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button asChild variant="ghost" size="sm">
                                                         <Link href={path(`/dashboard/customers/${customer.id}`)}>
-                                                            View Profile
+                                                            View profile
                                                             <ChevronRight className="ml-2 h-4 w-4" />
                                                         </Link>
                                                     </Button>
@@ -304,7 +344,7 @@ export default function CustomersPage() {
                         </>
                     )}
 
-                    {data?.pagination && data.pagination.pages > 1 && (
+                    {!isError && data?.pagination && data.pagination.pages > 1 && (
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm text-muted-foreground">
                                 Page {data.pagination.page} of {data.pagination.pages}

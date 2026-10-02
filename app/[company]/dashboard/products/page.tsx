@@ -36,9 +36,10 @@ import {
 import {
     Package,
     Plus,
+    RefreshCw,
     Search,
-    FileText,
 } from 'lucide-react';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { toast } from 'sonner';
 import { FullTableSkeleton } from '@/components/loading';
@@ -74,7 +75,7 @@ export default function ProductsPage() {
         modelNumber: '',
     });
 
-    const { data: products, isLoading } = useQuery({
+    const { data: products, isLoading, isError, refetch, isFetching } = useQuery({
         queryKey: ['products', { category }],
         queryFn: async () => {
             const params = new URLSearchParams();
@@ -86,9 +87,11 @@ export default function ProductsPage() {
         },
     });
 
-    const handleAddProduct = async () => {
-        if (!newProduct.name || !newProduct.category) {
-            toast.error('Product Name and Category are required');
+    const handleAddProduct = async (e?: React.FormEvent) => {
+        e?.preventDefault();
+        if (isAdding) return;
+        if (!newProduct.name.trim() || !newProduct.category) {
+            toast.error('Product name and category are required');
             return;
         }
 
@@ -101,11 +104,11 @@ export default function ProductsPage() {
             });
 
             if (!response.ok) {
-                const err = await response.json();
+                const err = await response.json().catch(() => ({}));
                 throw new Error(err.error || 'Failed to add product');
             }
 
-            toast.success('Product added successfully');
+            toast.success(`${newProduct.name.trim()} added to the catalog`);
             queryClient.invalidateQueries({ queryKey: ['products'] });
             setShowAddDialog(false);
             setNewProduct({
@@ -159,26 +162,32 @@ export default function ProductsPage() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <h2 className="min-w-0 text-2xl md:text-3xl font-bold tracking-tight">Product Catalog</h2>
+                <div className="min-w-0">
+                    <h1 className="text-2xl font-semibold tracking-tight">Products</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Your catalog of products and services used in quotes, invoices and inventory.
+                    </p>
+                </div>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
-                        <Button className={isAdmin ? undefined : 'hidden'}>
+                        <Button className={isAdmin ? 'self-start sm:self-auto' : 'hidden'}>
                             <Plus className="mr-2 h-4 w-4" />
-                            Add Product
+                            Add product
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
                         <DialogHeader>
                             <DialogTitle>Add new product</DialogTitle>
                             <DialogDescription>
-                                Define a new catalog item for inventory and tracking.
+                                Define a new catalog item for inventory and tracking. Fields marked * are required.
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="grid gap-4 py-4">
+                        <form id="add-product-form" onSubmit={handleAddProduct} className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="name">Product Name</Label>
+                                <Label htmlFor="name">Product name *</Label>
                                 <Input
                                     id="name"
+                                    required
                                     value={newProduct.name}
                                     onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                                     placeholder="e.g. Pro workstation bundle"
@@ -186,17 +195,17 @@ export default function ProductsPage() {
                             </div>
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="category">Category</Label>
+                                    <Label htmlFor="category">Category *</Label>
                                     <Select
                                         value={newProduct.category}
                                         onValueChange={(val) => setNewProduct({ ...newProduct, category: val })}
                                     >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select Category" />
+                                        <SelectTrigger id="category">
+                                            <SelectValue placeholder="Select category" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {categories.map((c) => (
-                                                <SelectItem key={c} value={c}>{c}</SelectItem>
+                                                <SelectItem key={c} value={c}>{humanizeEnum(c)}</SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
@@ -212,7 +221,7 @@ export default function ProductsPage() {
                                 </div>
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="modelNumber">Model / Part Number</Label>
+                                <Label htmlFor="modelNumber">Model / part number</Label>
                                 <Input
                                     id="modelNumber"
                                     value={newProduct.modelNumber}
@@ -221,17 +230,25 @@ export default function ProductsPage() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="description">Description (Optional)</Label>
+                                <Label htmlFor="description">Description (optional)</Label>
                                 <Input
                                     id="description"
                                     value={newProduct.description}
                                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                                 />
                             </div>
-                        </div>
-                        <DialogFooter>
-                            <Button onClick={handleAddProduct} disabled={isAdding}>
-                                {isAdding ? 'Adding...' : 'Register Product'}
+                        </form>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setShowAddDialog(false)}
+                                disabled={isAdding}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" form="add-product-form" disabled={isAdding}>
+                                {isAdding ? 'Adding…' : 'Add product'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>
@@ -242,15 +259,20 @@ export default function ProductsPage() {
                 <CardHeader>
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
-                            <CardTitle>Inventory List</CardTitle>
+                            <CardTitle>Catalog</CardTitle>
                             <CardDescription>
-                                Browse and filter products and stock.
+                                Search by name, manufacturer or model number.
                             </CardDescription>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                             <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Search
+                                    className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
                                 <Input
+                                    type="search"
+                                    aria-label="Search products"
                                     placeholder="Search catalog..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
@@ -258,13 +280,13 @@ export default function ProductsPage() {
                                 />
                             </div>
                             <Select value={category} onValueChange={setCategory}>
-                                <SelectTrigger className="w-full sm:w-44">
-                                    <SelectValue placeholder="All Categories" />
+                                <SelectTrigger className="w-full sm:w-44" aria-label="Filter by category">
+                                    <SelectValue placeholder="All categories" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Categories</SelectItem>
+                                    <SelectItem value="all">All categories</SelectItem>
                                     {categories.map((c) => (
-                                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                                        <SelectItem key={c} value={c}>{humanizeEnum(c)}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -274,7 +296,16 @@ export default function ProductsPage() {
                 <CardContent>
                     {isLoading ? (
                         <FullTableSkeleton columnCount={5} rowCount={5} />
-                    ) : filteredProducts?.length === 0 ? (
+                    ) : isError ? (
+                        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-10 text-center">
+                            <p className="text-sm font-medium">We couldn&apos;t load the catalog.</p>
+                            <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
+                            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+                                <RefreshCw className={`mr-2 h-4 w-4${isFetching ? ' animate-spin' : ''}`} />
+                                Try again
+                            </Button>
+                        </div>
+                    ) : !filteredProducts?.length ? (
                         <EmptyState
                             icon={Package}
                             title={
@@ -285,13 +316,15 @@ export default function ProductsPage() {
                             description={
                                 search || category !== 'all'
                                     ? 'Try a different search or category filter.'
-                                    : 'Add your first product to the catalog.'
+                                    : isAdmin
+                                      ? 'Add your first product so it can be used on quotes and invoices.'
+                                      : 'An admin needs to add products to the catalog.'
                             }
                             actionLabel={
-                                search || category !== 'all' ? undefined : 'Add Product'
+                                search || category !== 'all' || !isAdmin ? undefined : 'Add product'
                             }
                             onAction={
-                                search || category !== 'all'
+                                search || category !== 'all' || !isAdmin
                                     ? undefined
                                     : () => setShowAddDialog(true)
                             }
@@ -306,16 +339,16 @@ export default function ProductsPage() {
                                         className="min-w-0 flex-1"
                                     >
                                         <div className="flex items-center gap-2">
-                                            <Package className="h-4 w-4 shrink-0 text-blue-500" />
+                                            <Package className="h-4 w-4 shrink-0 text-muted-foreground" />
                                             <span className="truncate font-medium">{p.name}</span>
                                         </div>
                                         <p className="mt-1 truncate text-xs text-muted-foreground">
-                                            {p.manufacturer || 'N/A'} ·{' '}
-                                            <span className="font-mono">{p.modelNumber || 'N/A'}</span>
+                                            {[p.manufacturer, p.modelNumber].filter(Boolean).join(' · ') ||
+                                                'No manufacturer or model'}
                                         </p>
                                         {p.category ? (
                                             <Badge variant="outline" className="mt-2 text-xs">
-                                                {p.category}
+                                                {humanizeEnum(p.category)}
                                             </Badge>
                                         ) : null}
                                     </DashboardLink>
@@ -328,7 +361,7 @@ export default function ProductsPage() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-10"
+                                            className="h-10 text-destructive hover:text-destructive"
                                             disabled={deletingId === p.id}
                                             onClick={() => handleDeleteProduct(p.id, p.name)}
                                         >
@@ -342,37 +375,40 @@ export default function ProductsPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Product Name</TableHead>
+                                        <TableHead>Product</TableHead>
                                         <TableHead>Category</TableHead>
                                         <TableHead>Manufacturer</TableHead>
                                         <TableHead>Model No.</TableHead>
-                                        <TableHead className="text-right">Action</TableHead>
+                                        <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredProducts?.map((p: any) => (
                                         <TableRow key={p.id}>
                                             <TableCell className="font-medium">
-                                                <div className="flex items-center space-x-2">
-                                                    <Package className="h-4 w-4 text-blue-500" />
+                                                <DashboardLink
+                                                    href={`/dashboard/products/${p.id}`}
+                                                    className="flex items-center space-x-2 hover:underline"
+                                                >
+                                                    <Package className="h-4 w-4 text-muted-foreground" />
                                                     <span>{p.name}</span>
-                                                </div>
+                                                </DashboardLink>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className="text-xs">
-                                                    {p.category}
+                                                    {humanizeEnum(p.category)}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-sm">
-                                                {p.manufacturer || 'N/A'}
+                                                {p.manufacturer || '—'}
                                             </TableCell>
                                             <TableCell className="text-sm font-mono text-muted-foreground">
-                                                {p.modelNumber || 'N/A'}
+                                                {p.modelNumber || '—'}
                                             </TableCell>
                                             <TableCell className="text-right space-x-1">
                                                 <Button variant="ghost" size="sm" asChild>
                                                     <DashboardLink href={`/dashboard/products/${p.id}`}>
-                                                        <FileText className="h-4 w-4" />
+                                                        View
                                                     </DashboardLink>
                                                 </Button>
                                                 {isAdmin && (
@@ -385,6 +421,7 @@ export default function ProductsPage() {
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
+                                                            className="text-destructive hover:text-destructive"
                                                             disabled={deletingId === p.id}
                                                             onClick={() => handleDeleteProduct(p.id, p.name)}
                                                         >

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,29 +15,29 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
 import {
+  AlertCircle,
+  Loader2,
   Mail,
   Send,
-  Clock,
-  CheckCircle,
-  XCircle,
   Plus,
   Eye,
   MousePointerClick,
-  UserCheck,
 } from 'lucide-react';
 import { FullTableSkeleton } from '@/components/loading';
 import { EmptyState } from '@/components/ui/empty-state';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { confirmAction } from '@/lib/confirm-action';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 
 export default function CampaignsPage() {
   const { path } = useWorkspacePaths();
   const [page, setPage] = useState(1);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const limit = 10;
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['campaigns', { page, limit }],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -64,30 +63,35 @@ export default function CampaignsPage() {
       CANCELLED: 'destructive',
     };
 
-    return <Badge variant={variants[status] || 'default'}>{status}</Badge>;
+    return <Badge variant={variants[status] || 'default'}>{humanizeEnum(status)}</Badge>;
   };
 
   const handleSendCampaign = async (campaignId: string) => {
     const ok = await confirmAction({
       title: 'Send this campaign?',
+      description: 'Emails go out to every recipient right away. This cannot be undone.',
       confirmLabel: 'Send',
     });
     if (!ok) return;
 
+    setPendingId(campaignId);
     try {
       const response = await fetch(`/api/campaigns/${campaignId}/send`, {
         method: 'POST',
       });
 
       if (response.ok) {
-        alert('Campaign sent successfully!');
+        toast.success('Campaign sent');
         refetch();
       } else {
-        alert('Failed to send campaign');
+        const err = await response.json().catch(() => ({}));
+        toast.error(err.error || 'Failed to send campaign');
       }
     } catch (error) {
       console.error('Error sending campaign:', error);
-      alert('Error sending campaign');
+      toast.error('Failed to send campaign');
+    } finally {
+      setPendingId(null);
     }
   };
 
@@ -98,26 +102,42 @@ export default function CampaignsPage() {
       variant: 'destructive',
     });
     if (!ok) return;
-    const res = await fetch(`/api/campaigns/${campaignId}`, {
-      method: 'DELETE',
-    });
-    if (!res.ok) {
-      alert('Failed to delete campaign');
-      return;
+    setPendingId(campaignId);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err.error || 'Failed to delete campaign');
+        return;
+      }
+      toast.success('Draft deleted');
+      refetch();
+    } catch {
+      toast.error('Failed to delete campaign');
+    } finally {
+      setPendingId(null);
     }
-    refetch();
   };
+
+  const multiPage = (data?.pagination?.pages ?? 1) > 1;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Email Campaigns</h2>
-        <DashboardLink href="/dashboard/campaigns/new">
-          <Button className="w-full sm:w-auto">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight">Email Campaigns</h1>
+          <p className="text-muted-foreground">
+            Send one-off emails to a group of leads and track opens and clicks.
+          </p>
+        </div>
+        <Button asChild className="w-full sm:w-auto">
+          <DashboardLink href="/dashboard/campaigns/new">
             <Plus className="mr-2 h-4 w-4" />
             New Campaign
-          </Button>
-        </DashboardLink>
+          </DashboardLink>
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -133,7 +153,7 @@ export default function CampaignsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="truncate text-sm font-medium">Emails Sent</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Emails Sent{multiPage ? ' (this page)' : ''}</CardTitle>
             <Send className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -144,7 +164,7 @@ export default function CampaignsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="truncate text-sm font-medium">Total Opens</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Opens{multiPage ? ' (this page)' : ''}</CardTitle>
             <Eye className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -155,7 +175,7 @@ export default function CampaignsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="truncate text-sm font-medium">Total Clicks</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Clicks{multiPage ? ' (this page)' : ''}</CardTitle>
             <MousePointerClick className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -177,11 +197,19 @@ export default function CampaignsPage() {
         <CardContent>
           {isLoading ? (
             <FullTableSkeleton columnCount={8} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertCircle}
+              title="Couldn't load campaigns"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => void refetch()}
+            />
           ) : !data?.campaigns || data.campaigns.length === 0 ? (
             <EmptyState
               icon={Mail}
               title="No campaigns yet"
-              description="Create your first campaign to get started."
+              description="Pick some leads, write the email, then send it or save it as a draft."
               actionLabel="New Campaign"
               actionHref={path('/dashboard/campaigns/new')}
             />
@@ -210,15 +238,21 @@ export default function CampaignsPage() {
                         <Button
                           size="sm"
                           className="h-10 flex-1"
+                          disabled={pendingId === campaign.id}
                           onClick={() => handleSendCampaign(campaign.id)}
                         >
-                          <Send className="mr-1 h-3 w-3" />
+                          {pendingId === campaign.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Send className="mr-1 h-3 w-3" />
+                          )}
                           Send
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-10 flex-1"
+                          disabled={pendingId === campaign.id}
                           onClick={() => void handleDeleteDraft(campaign.id)}
                         >
                           Delete
@@ -239,7 +273,7 @@ export default function CampaignsPage() {
                     <TableHead>Opens</TableHead>
                     <TableHead>Clicks</TableHead>
                     <TableHead>Created</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead><span className="sr-only">Actions</span></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -285,13 +319,18 @@ export default function CampaignsPage() {
                           {format(new Date(campaign.createdAt), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell>
-                          <div className="flex space-x-2">
+                          <div className="flex justify-end gap-2">
                             {campaign.status === 'DRAFT' && (
                               <Button
                                 size="sm"
+                                disabled={pendingId === campaign.id}
                                 onClick={() => handleSendCampaign(campaign.id)}
                               >
-                                <Send className="mr-1 h-3 w-3" />
+                                {pendingId === campaign.id ? (
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Send className="mr-1 h-3 w-3" />
+                                )}
                                 Send
                               </Button>
                             )}
@@ -299,16 +338,17 @@ export default function CampaignsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                disabled={pendingId === campaign.id}
                                 onClick={() => void handleDeleteDraft(campaign.id)}
                               >
                                 Delete
                               </Button>
                             )}
-                            <DashboardLink href={`/dashboard/campaigns/${campaign.id}`}>
-                              <Button size="sm" variant="outline">
+                            <Button asChild size="sm" variant="outline">
+                              <DashboardLink href={`/dashboard/campaigns/${campaign.id}`}>
                                 View
-                              </Button>
-                            </DashboardLink>
+                              </DashboardLink>
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>

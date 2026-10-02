@@ -72,7 +72,7 @@ export function LeadDetailActivity({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <div className="h-8 w-8 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
             Activity Timeline
           </CardTitle>
@@ -97,7 +97,7 @@ export function LeadDetailActivity({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               rows={3}
-              className="bg-white dark:bg-slate-950"
+              className="bg-background"
             />
             <Button onClick={handleAddNote} disabled={addNoteMutation.isPending} size="sm">
               {addNoteMutation.isPending ? 'Saving...' : 'Save Note'}

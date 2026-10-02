@@ -1,5 +1,7 @@
 'use client';
 
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -52,7 +54,7 @@ export function LeadDetailActions({
           </CardHeader>
           <CardContent className="space-y-3">
             {aiSuggestions.suggestions.map((suggestion, index) => (
-              <div key={index} className="bg-white dark:bg-slate-900 rounded-lg p-4 space-y-2 border">
+              <div key={index} className="bg-card rounded-lg p-4 space-y-2 border">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -64,10 +66,10 @@ export function LeadDetailActions({
                         }
                         className="text-xs"
                       >
-                        {suggestion.priority}
+                        {humanizeEnum(suggestion.priority)}
                       </Badge>
                       <Badge variant="outline" className="text-xs">
-                        {suggestion.type}
+                        {humanizeEnum(suggestion.type)}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
                         Due in {suggestion.dueInDays} {suggestion.dueInDays === 1 ? 'day' : 'days'}
@@ -76,7 +78,7 @@ export function LeadDetailActions({
                     <h4 className="font-semibold text-sm">{suggestion.title}</h4>
                     <p className="text-xs text-muted-foreground mt-1">{suggestion.reasoning}</p>
                     {suggestion.description && (
-                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-2 italic">
+                      <p className="text-xs text-muted-foreground mt-2 italic">
                         {suggestion.description}
                       </p>
                     )}
@@ -136,7 +138,7 @@ export function LeadDetailActions({
               variant="outline"
               onClick={handleAIScoring}
               disabled={aiScoring}
-              className="bg-white dark:bg-slate-900"
+              className="bg-card"
             >
               {aiScoring ? (
                 <>
@@ -168,7 +170,7 @@ export function LeadDetailActions({
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border">
+                <div className="bg-card rounded-lg p-4 border">
                   <p className="text-xs font-medium text-muted-foreground mb-1">Lead Quality</p>
                   <div className="flex items-center gap-2">
                     <Badge
@@ -187,18 +189,18 @@ export function LeadDetailActions({
                     </span>
                   </div>
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border">
+                <div className="bg-card rounded-lg p-4 border">
                   <p className="text-xs font-medium text-muted-foreground mb-1">Conversion Probability</p>
                   <p className="text-3xl font-bold text-green-600">{aiScore.conversionProbability}%</p>
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border">
+              <div className="bg-card rounded-lg p-4 border">
                 <p className="text-xs font-medium text-muted-foreground mb-2">Analysis</p>
                 <p className="text-sm leading-relaxed">{aiScore.reasoning}</p>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border">
+              <div className="bg-card rounded-lg p-4 border">
                 <p className="text-xs font-medium text-muted-foreground mb-3">Recommended Next Steps</p>
                 <ul className="space-y-2">
                   {aiScore.nextSteps.map((step, idx) => (

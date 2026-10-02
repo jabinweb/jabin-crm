@@ -21,6 +21,7 @@ import { EasyBottomSheet, EasyFab } from '@/components/customers/easy-bottom-she
 import { cn } from '@/lib/utils';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 
 type Tag = { id: string; name: string; color?: string | null };
 type Contact = { id: string; name: string };
@@ -343,7 +344,7 @@ export function CustomerVisitsTab({
                   variant={v.status === 'SCHEDULED' ? 'outline' : 'secondary'}
                   className="text-[10px]"
                 >
-                  {v.status === 'SCHEDULED' ? 'Upcoming' : v.status}
+                  {v.status === 'SCHEDULED' ? 'Upcoming' : humanizeEnum(v.status)}
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-1">

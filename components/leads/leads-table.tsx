@@ -26,7 +26,12 @@ import {
   Phone,
   MapPin,
   MoreVertical,
+  RefreshCw,
+  Star,
+  Users,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import { LeadScoreBadge } from '@/components/crm/lead-score-badge';
 import { FullTableSkeleton } from '@/components/loading';
 import { useDelayedLoading } from '@/hooks/use-delayed-loading';
@@ -39,6 +44,12 @@ interface LeadsTableProps extends Pick<
   | 'data'
   | 'isLoading'
   | 'error'
+  | 'refetch'
+  | 'search'
+  | 'industry'
+  | 'source'
+  | 'status'
+  | 'setShowAddLeadDialog'
   | 'selectedLeads'
   | 'page'
   | 'isGeneratingEmail'
@@ -56,6 +67,12 @@ export function LeadsTable({
   data,
   isLoading,
   error,
+  refetch,
+  search,
+  industry,
+  source,
+  status,
+  setShowAddLeadDialog,
   selectedLeads,
   page,
   isGeneratingEmail,
@@ -76,9 +93,42 @@ export function LeadsTable({
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-500">
-        Error loading leads
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed py-10 text-center">
+        <p className="text-sm font-medium">We couldn&apos;t load your leads.</p>
+        <p className="text-sm text-muted-foreground">Check your connection and try again.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Try again
+        </Button>
       </div>
+    );
+  }
+
+  const leads: any[] = data?.leads ?? [];
+  const isFiltered = Boolean(
+    search ||
+      (industry && industry !== 'all') ||
+      (source && source !== 'all') ||
+      (status && status !== 'all')
+  );
+
+  if (!isLoading && leads.length === 0) {
+    return isFiltered ? (
+      <EmptyState
+        icon={Users}
+        title="No leads match your filters"
+        description="Try a different search term or clear the filters to see all leads."
+        className="rounded-lg border border-dashed"
+      />
+    ) : (
+      <EmptyState
+        icon={Users}
+        title="No leads yet"
+        description="Add your first lead or import a CSV to start building your pipeline."
+        actionLabel="Add lead"
+        onAction={() => setShowAddLeadDialog(true)}
+        className="rounded-lg border border-dashed"
+      />
     );
   }
 
@@ -94,6 +144,7 @@ export function LeadsTable({
             <div className="flex items-start gap-3">
               <Checkbox
                 className="mt-1"
+                aria-label={`Select ${lead.companyName}`}
                 checked={selectedLeads.includes(lead.id)}
                 onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
               />
@@ -117,7 +168,7 @@ export function LeadsTable({
                     }
                     className="text-[10px]"
                   >
-                    {lead.status}
+                    {humanizeEnum(lead.status)}
                   </Badge>
                   <LeadScoreBadge
                     score={lead.leadScore?.score || 0}
@@ -157,7 +208,12 @@ export function LeadsTable({
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 w-10 shrink-0 px-0">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 shrink-0 px-0"
+                    aria-label={`Actions for ${lead.companyName}`}
+                  >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -200,9 +256,6 @@ export function LeadsTable({
             </div>
           </div>
         ))}
-        {!data?.leads?.length ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">No leads found</p>
-        ) : null}
       </div>
 
       <div className="hidden md:block rounded-none border overflow-x-auto">
@@ -211,6 +264,7 @@ export function LeadsTable({
             <TableRow>
               <TableHead className="w-[50px]">
                 <Checkbox
+                  aria-label="Select all leads on this page"
                   checked={selectedLeads.length === data?.leads?.length && data?.leads?.length > 0}
                   onCheckedChange={handleSelectAll}
                 />
@@ -230,6 +284,7 @@ export function LeadsTable({
               <TableRow key={lead.id}>
                 <TableCell>
                   <Checkbox
+                    aria-label={`Select ${lead.companyName}`}
                     checked={selectedLeads.includes(lead.id)}
                     onCheckedChange={(checked) => handleSelectLead(lead.id, checked as boolean)}
                   />
@@ -239,8 +294,9 @@ export function LeadsTable({
                     <div className="flex items-center gap-2">
                       <p className="font-semibold">{lead.companyName}</p>
                       {lead.rating && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                          ⭐ {lead.rating}
+                        <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-current" aria-hidden="true" />
+                          {lead.rating}
                           {lead.reviewCount && (
                             <span className="text-muted-foreground">({lead.reviewCount})</span>
                           )}
@@ -257,7 +313,8 @@ export function LeadsTable({
                       <Link
                         href={lead.website}
                         target="_blank"
-                        className="text-xs text-blue-600 hover:underline flex items-center"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center"
                       >
                         <ExternalLink className="h-3 w-3 mr-1" />
                         Website
@@ -282,7 +339,7 @@ export function LeadsTable({
                         onClick={() =>
                           router.push(path(`/dashboard/leads/${lead.id}?compose=1`))
                         }
-                        className="flex items-center text-xs text-blue-600 hover:underline"
+                        className="flex items-center text-xs text-primary hover:underline"
                       >
                         <Mail className="h-3 w-3 mr-1 flex-shrink-0" />
                         <span className="truncate">{lead.email}</span>
@@ -291,7 +348,7 @@ export function LeadsTable({
                     {lead.phone && (
                       <a
                         href={`tel:${lead.phone}`}
-                        className="flex items-center text-xs text-blue-600 hover:underline"
+                        className="flex items-center text-xs text-primary hover:underline"
                       >
                         <Phone className="h-3 w-3 mr-1 flex-shrink-0" />
                         <span>{lead.phone}</span>
@@ -308,7 +365,7 @@ export function LeadsTable({
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary" className="text-xs">
-                    {lead.source}
+                    {humanizeEnum(lead.source)}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -324,7 +381,7 @@ export function LeadsTable({
                     }
                     className="text-xs"
                   >
-                    {lead.status}
+                    {humanizeEnum(lead.status)}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -348,7 +405,7 @@ export function LeadsTable({
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" aria-label={`Actions for ${lead.companyName}`}>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -358,33 +415,33 @@ export function LeadsTable({
                         onClick={() => handleContactLead(lead.id)}
                         disabled={isGeneratingEmail}
                       >
-                        📧 {isGeneratingEmail ? 'Generating...' : 'Contact Lead'}
+                        {isGeneratingEmail ? 'Generating...' : 'Contact Lead'}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => router.push(path(`/dashboard/leads/${lead.id}`))}>
-                        👁️ View Details
+                        View Details
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuLabel>Change Status</DropdownMenuLabel>
                       <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'NEW')}>
-                        🆕 New
+                        New
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'CONTACTED')}>
-                        📞 Contacted
+                        Contacted
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'RESPONDED')}>
-                        💬 Responded
+                        Responded
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'QUALIFIED')}>
-                        ✅ Qualified
+                        Qualified
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleConvertLead(lead.id)}>
-                        🎉 Convert to Customer
+                        Convert to Customer
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'LOST')}>
-                        ❌ Lost
+                        Lost
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => handleStatusChange(lead.id, 'UNSUBSCRIBED')}>
-                        🚫 Unsubscribed
+                        Unsubscribed
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -395,7 +452,7 @@ export function LeadsTable({
         </Table>
       </div>
 
-      {data?.pagination && (
+      {data?.pagination && data.pagination.total > 0 && (
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs sm:text-sm text-muted-foreground">
             Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}

@@ -8,6 +8,11 @@ import {
   Pencil,
   RefreshCw,
   Search,
+  Send,
+  FileText,
+  Star,
+  Trash2,
+  type LucideIcon,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -17,25 +22,80 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { EmailComposeDialog } from '@/components/email/email-compose-dialog';
 import { EmailDetailPanel } from '@/components/email/email-detail-panel';
 import { CardListSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
 import type { Email } from '@/types/emails-inbox';
 import type { UseEmailsInboxReturn } from '@/hooks/use-emails-inbox';
 
 function getStatusIcon(status: string) {
+  const label = <span className="sr-only">{humanizeEnum(status)}</span>;
   switch (status) {
     case 'SENT':
     case 'DELIVERED':
-      return <MailOpen className="h-4 w-4 text-green-500" />;
+      return (
+        <>
+          <MailOpen aria-hidden className="h-4 w-4 text-green-600 dark:text-green-400" />
+          {label}
+        </>
+      );
     case 'OPENED':
-      return <Mail className="h-4 w-4 text-blue-500" />;
+      return (
+        <>
+          <Mail aria-hidden className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          {label}
+        </>
+      );
     case 'PENDING':
-      return <Clock className="h-4 w-4 text-yellow-500" />;
+      return (
+        <>
+          <Clock aria-hidden className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+          {label}
+        </>
+      );
     case 'FAILED':
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
+      return (
+        <>
+          <AlertCircle aria-hidden className="h-4 w-4 text-destructive" />
+          {label}
+        </>
+      );
     default:
       return null;
   }
 }
+
+/** Static map so the header icon isn't a component "created" during render. */
+const FOLDER_ICONS: Record<string, LucideIcon> = {
+  inbox: Mail,
+  sent: Send,
+  drafts: FileText,
+  starred: Star,
+  trash: Trash2,
+};
+
+const EMPTY_FOLDER_COPY: Record<string, { title: string; description: string }> = {
+  inbox: {
+    title: 'No replies yet',
+    description: 'When someone replies to an email you sent, it shows up here.',
+  },
+  sent: {
+    title: 'Nothing sent yet',
+    description: 'Emails you send appear here. Use Compose to write one.',
+  },
+  drafts: {
+    title: 'No drafts',
+    description: 'Drafts you save while writing an email are kept here.',
+  },
+  starred: {
+    title: 'No starred emails',
+    description: 'Star an email to keep it handy here.',
+  },
+  trash: {
+    title: 'Trash is empty',
+    description: 'Deleted emails stay here until you remove them for good.',
+  },
+};
 
 type EmailsInboxViewProps = UseEmailsInboxReturn;
 
@@ -58,6 +118,8 @@ export function EmailsInboxView({
   filteredEmails,
   loadingSent,
   loadingDrafts,
+  listError,
+  retryList,
   repliesCount,
   handleCompose,
   handleReply,
@@ -70,10 +132,9 @@ export function EmailsInboxView({
   handleAnalyzeSentiment,
   handleEmailClick,
   clearSelectedEmail,
-  getCurrentFolderIcon,
   getCurrentFolderName,
 }: EmailsInboxViewProps) {
-  const FolderIcon = getCurrentFolderIcon();
+  const FolderIcon = FOLDER_ICONS[selectedFolder] ?? Mail;
   const currentFolder = folders.find((f) => f.id === selectedFolder);
 
   return (
@@ -95,7 +156,7 @@ export function EmailsInboxView({
                 </Badge>
               )}
               {repliesCount > 0 && (
-                <Badge className="bg-emerald-500 hover:bg-emerald-600 text-xs">
+                <Badge className="bg-emerald-600 text-xs text-white hover:bg-emerald-600">
                   {repliesCount} New {repliesCount === 1 ? 'Reply' : 'Replies'}
                 </Badge>
               )}
@@ -110,7 +171,9 @@ export function EmailsInboxView({
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
+                type="search"
                 placeholder="Search..."
+                aria-label={`Search ${getCurrentFolderName().toLowerCase()}`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-8 pl-8 text-sm"
@@ -122,13 +185,15 @@ export function EmailsInboxView({
                   variant="ghost"
                   size="sm"
                   className="h-8 text-xs"
+                  aria-pressed={autoCheckEnabled}
+                  title="Automatically check for new replies"
                   onClick={() => setAutoCheckEnabled(!autoCheckEnabled)}
                 >
                   <Badge
                     variant={autoCheckEnabled ? 'default' : 'secondary'}
                     className="text-xs cursor-pointer"
                   >
-                    {autoCheckEnabled ? '🔄 Auto ON' : '⏸️ Auto OFF'}
+                    {autoCheckEnabled ? 'Auto-check on' : 'Auto-check off'}
                   </Badge>
                 </Button>
               )}
@@ -138,9 +203,10 @@ export function EmailsInboxView({
                 className="h-8 w-8"
                 onClick={handleRefresh}
                 disabled={refreshing}
+                aria-label={selectedFolder === 'sent' ? 'Check for replies now' : 'Refresh'}
                 title={
                   selectedFolder === 'sent'
-                    ? 'Check for replies now (auto-checks every 20 sec)'
+                    ? 'Check for replies now (also checks automatically)'
                     : 'Refresh'
                 }
               >
@@ -157,26 +223,49 @@ export function EmailsInboxView({
             <div className="p-4">
               <CardListSkeleton rows={8} />
             </div>
+          ) : listError ? (
+            <EmptyState
+              icon={AlertCircle}
+              title="Couldn't load emails"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={retryList}
+            />
           ) : filteredEmails.length === 0 ? (
-            <div className="p-8 text-center">
-              <Mail className="mx-auto h-12 w-12 text-muted-foreground" />
-              <p className="mt-2 text-sm text-muted-foreground">
-                No emails in {selectedFolder}
-              </p>
-            </div>
+            searchQuery.trim() ? (
+              <EmptyState
+                icon={Search}
+                title="No matching emails"
+                description="Try a different search term."
+                actionLabel="Clear search"
+                onAction={() => setSearchQuery('')}
+              />
+            ) : (
+              <EmptyState
+                icon={FolderIcon}
+                title={EMPTY_FOLDER_COPY[selectedFolder]?.title ?? 'No emails here'}
+                description={EMPTY_FOLDER_COPY[selectedFolder]?.description}
+                actionLabel={selectedFolder === 'trash' ? undefined : 'Compose'}
+                onAction={selectedFolder === 'trash' ? undefined : handleCompose}
+              />
+            )
           ) : (
             <div>
               {filteredEmails.map((email: Email) => (
-                <div
+                <button
+                  type="button"
                   key={email.id}
+                  aria-current={selectedEmail?.id === email.id ? 'true' : undefined}
                   className={cn(
-                    'cursor-pointer border-b transition-all hover:shadow-none pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8',
+                    'block w-full text-left cursor-pointer border-b transition-colors pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8 py-2.5 border-l-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
                     selectedEmail?.id === email.id
-                      ? 'bg-blue-50 border-l-4 border-l-blue-500 py-2.5'
+                      ? 'bg-primary/10 border-l-primary'
                       : email.repliedAt && !email.openedAt
-                        ? 'hover:bg-emerald-50/50 border-l-4 border-l-emerald-400 py-2.5 bg-emerald-50/30'
-                        : 'hover:bg-muted/50 border-l-4 border-l-transparent py-2.5',
-                    !email.isRead && 'bg-muted/20'
+                        ? 'bg-emerald-500/10 hover:bg-emerald-500/15 border-l-emerald-500'
+                        : cn(
+                            'hover:bg-muted/50 border-l-transparent',
+                            !email.isRead && 'bg-muted/20'
+                          )
                   )}
                   onClick={() => handleEmailClick(email)}
                 >
@@ -188,7 +277,7 @@ export function EmailsInboxView({
                           className={cn(
                             'text-xs break-words line-clamp-1',
                             !email.isRead && 'font-semibold',
-                            email.repliedAt && !email.openedAt && 'font-semibold text-emerald-700'
+                            email.repliedAt && !email.openedAt && 'font-semibold text-emerald-700 dark:text-emerald-400'
                           )}
                         >
                           {email.to}
@@ -206,7 +295,7 @@ export function EmailsInboxView({
                       <p className="text-xs text-muted-foreground leading-snug break-words line-clamp-2">
                         {email.latestReply ? (
                           <>
-                            <span className="font-medium text-emerald-600">
+                            <span className="font-medium text-emerald-600 dark:text-emerald-400">
                               {email.latestReply.from}:{' '}
                             </span>
                             {email.latestReply.body.substring(0, 100)}
@@ -244,7 +333,7 @@ export function EmailsInboxView({
                       ) : null}
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}

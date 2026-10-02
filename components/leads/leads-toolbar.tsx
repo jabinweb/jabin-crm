@@ -61,7 +61,12 @@ export function LeadsToolbar({
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{leadsLabel}</h2>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{leadsLabel}</h1>
+          <p className="text-sm text-muted-foreground">
+            Find, qualify and follow up with prospective customers.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {selectedLeads.length > 0 && (
             <>

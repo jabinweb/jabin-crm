@@ -21,11 +21,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { TableSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { daysUntil, renewalUrgency } from '@/lib/crm/service-contract-utils';
+import { humanizeEnum } from '@/lib/crm/humanize-enum';
+import { formatCurrency } from '@/lib/currency';
+
+function formatValue(amount: number | null, currency: string) {
+  return amount != null ? formatCurrency(amount, currency) : '—';
+}
 
 type ContractRow = {
   id: string;
@@ -78,7 +84,7 @@ export default function ContractsPage() {
   const [status, setStatus] = useState<string>('all');
   const [type, setType] = useState<string>('all');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['contracts', slug, status, type],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -145,15 +151,38 @@ export default function ContractsPage() {
         <CardContent>
           {isLoading ? (
             <TableSkeleton columnCount={5} rowCount={5} />
-          ) : !contracts.length ? (
+          ) : isError ? (
             <EmptyState
-              icon={FileText}
-              title="No contracts yet"
-              description="Add an AMC or CMC when you sell annual maintenance coverage."
-              actionLabel="New contract"
-              actionHref={path('/dashboard/contracts/new')}
+              icon={AlertCircle}
+              title="Couldn't load contracts"
+              description="Check your connection and try again."
+              actionLabel="Retry"
+              onAction={() => void refetch()}
               className="py-10"
             />
+          ) : !contracts.length ? (
+            status !== 'all' || type !== 'all' ? (
+              <EmptyState
+                icon={FileText}
+                title="No contracts match these filters"
+                description="Try a different status or type."
+                actionLabel="Clear filters"
+                onAction={() => {
+                  setStatus('all');
+                  setType('all');
+                }}
+                className="py-10"
+              />
+            ) : (
+              <EmptyState
+                icon={FileText}
+                title="No contracts yet"
+                description="Add an AMC or CMC when you sell annual maintenance coverage."
+                actionLabel="New contract"
+                actionHref={path('/dashboard/contracts/new')}
+                className="py-10"
+              />
+            )
           ) : (
             <>
             <div className="divide-y rounded-md border md:hidden">
@@ -176,7 +205,7 @@ export default function ContractsPage() {
                       </div>
                       <div className="flex shrink-0 gap-1">
                         <Badge variant="outline">{c.type}</Badge>
-                        <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+                        <Badge variant={statusVariant(c.status)}>{humanizeEnum(c.status)}</Badge>
                       </div>
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs">
@@ -188,7 +217,7 @@ export default function ContractsPage() {
                               urgency === 'overdue' || urgency === 'critical'
                                 ? ' text-destructive'
                                 : urgency === 'soon'
-                                  ? ' text-amber-700'
+                                  ? ' text-amber-700 dark:text-amber-400'
                                   : ''
                             }
                           >
@@ -208,9 +237,7 @@ export default function ContractsPage() {
                         ) : null}
                       </span>
                       <span className="shrink-0 tabular-nums font-medium">
-                        {c.annualValue != null
-                          ? `${c.currency} ${c.annualValue.toLocaleString()}`
-                          : '—'}
+                        {formatValue(c.annualValue, c.currency)}
                       </span>
                     </div>
                   </Link>
@@ -273,7 +300,7 @@ export default function ContractsPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusVariant(c.status)}>
-                          {c.status}
+                          {humanizeEnum(c.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -313,7 +340,7 @@ export default function ContractsPage() {
                               urgency === 'overdue' || urgency === 'critical'
                                 ? 'text-xs text-destructive'
                                 : urgency === 'soon'
-                                  ? 'text-xs text-amber-700'
+                                  ? 'text-xs text-amber-700 dark:text-amber-400'
                                   : 'text-xs text-muted-foreground'
                             }
                           >
@@ -326,9 +353,7 @@ export default function ContractsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {c.annualValue != null
-                          ? `${c.currency} ${c.annualValue.toLocaleString()}`
-                          : '—'}
+                        {formatValue(c.annualValue, c.currency)}
                       </TableCell>
                     </TableRow>
                   );
