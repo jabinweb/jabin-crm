@@ -146,7 +146,8 @@ export default function StartPage() {
           setSlugError(data.error || 'Unavailable');
         }
       } catch {
-        setSlugStatus('idle');
+        setSlugStatus('bad');
+        setSlugError('Couldn’t check availability. Check your connection and edit the URL to retry.');
       }
     }, 400);
     return () => clearTimeout(t);
@@ -292,6 +293,7 @@ export default function StartPage() {
                     }));
                   }}
                   placeholder="Acme Service Co"
+                  autoComplete="organization"
                   autoFocus
                 />
               </div>
@@ -334,6 +336,9 @@ export default function StartPage() {
                 {slugStatus === 'bad' && (
                   <p className="text-xs text-destructive">{slugError}</p>
                 )}
+                {slugStatus === 'idle' && workspace.slug.length === 1 && (
+                  <p className="text-xs text-muted-foreground">Use at least 2 characters.</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -346,6 +351,7 @@ export default function StartPage() {
                     <button
                       key={opt.id}
                       type="button"
+                      aria-pressed={workspace.businessVertical === opt.id}
                       onClick={() =>
                         setWorkspace((w) => ({ ...w, businessVertical: opt.id }))
                       }
@@ -372,7 +378,7 @@ export default function StartPage() {
                 </div>
                 <button
                   type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                  className="py-2 text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
                   onClick={() => setShowMoreIndustries((v) => !v)}
                 >
                   {showMoreIndustries ? 'Show primary industries' : 'More industries (SaaS, agency, …)'}
@@ -381,12 +387,12 @@ export default function StartPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Country</Label>
+                  <Label htmlFor="country">Country</Label>
                   <Select
                     value={workspace.country}
                     onValueChange={(v) => setWorkspace((w) => ({ ...w, country: v }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="country">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -399,12 +405,12 @@ export default function StartPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Team size</Label>
+                  <Label htmlFor="teamSize">Team size</Label>
                   <Select
                     value={workspace.teamSize}
                     onValueChange={(v) => setWorkspace((w) => ({ ...w, teamSize: v }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="teamSize">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -428,7 +434,13 @@ export default function StartPage() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <form
+              className="space-y-6"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!busy) void finish();
+              }}
+            >
               <div>
                 <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                   Create your admin account
@@ -446,6 +458,7 @@ export default function StartPage() {
                   value={account.name}
                   onChange={(e) => setAccount((a) => ({ ...a, name: e.target.value }))}
                   placeholder="Priya Sharma"
+                  autoComplete="name"
                   autoFocus
                 />
               </div>
@@ -457,6 +470,7 @@ export default function StartPage() {
                   value={account.email}
                   onChange={(e) => setAccount((a) => ({ ...a, email: e.target.value }))}
                   placeholder="you@company.com"
+                  autoComplete="email"
                 />
               </div>
               <div className="space-y-2">
@@ -467,7 +481,12 @@ export default function StartPage() {
                   value={account.password}
                   onChange={(e) => setAccount((a) => ({ ...a, password: e.target.value }))}
                   placeholder="8+ chars, upper, lower, number"
+                  autoComplete="new-password"
+                  aria-describedby="password-hint"
                 />
+                <p id="password-hint" className="text-xs text-muted-foreground">
+                  At least 8 characters, with an uppercase letter, a lowercase letter and a number.
+                </p>
               </div>
 
               <div className="flex gap-2">
@@ -481,12 +500,15 @@ export default function StartPage() {
                   Back
                 </Button>
                 <Button
+                  type="submit"
                   className="flex-1 h-11 bg-teal-700 hover:bg-teal-800"
                   disabled={busy}
-                  onClick={finish}
                 >
                   {busy ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating workspace…
+                    </>
                   ) : (
                     <>
                       Launch workspace
@@ -495,7 +517,18 @@ export default function StartPage() {
                   )}
                 </Button>
               </div>
-            </div>
+              <p className="text-center text-xs leading-relaxed text-muted-foreground">
+                By creating a workspace you agree to the{' '}
+                <Link href="/terms" className="underline underline-offset-2 hover:text-foreground">
+                  Terms
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                  Privacy policy
+                </Link>
+                .
+              </p>
+            </form>
           )}
 
           <p className="mt-8 text-center text-xs text-muted-foreground">

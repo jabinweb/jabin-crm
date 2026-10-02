@@ -3,8 +3,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Label } from '@/components/ui/label';
+import { confirmAction } from '@/lib/confirm-action';
+import { humanizeStatus } from '@/lib/portal/status-label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -16,7 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronLeft, Download, Check, X } from 'lucide-react';
+import { ChevronLeft, Download, Check, X, FileWarning, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { SectionSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
@@ -49,12 +54,11 @@ type QuotationDetail = {
 
 function QuotationDetailView() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const [rejectReason, setRejectReason] = useState('');
   const [showReject, setShowReject] = useState(false);
 
-  const { data: quotation, isLoading, error } = useQuery({
+  const { data: quotation, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['portal-quotation', id],
     queryFn: async () => {
       const res = await fetch(`/api/portal/quotations/${id}`);
@@ -104,40 +108,62 @@ function QuotationDetailView() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const backLink = (
+    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none">
+      <Link href="/portal/quotations" aria-label="Back to quotations">
+        <ChevronLeft className="h-4 w-4" />
+      </Link>
+    </Button>
+  );
+
   if (isLoading) {
-    return <SectionSkeleton lines={8} className="py-4" />;
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <SectionSkeleton lines={8} className="py-4" />
+      </div>
+    );
   }
 
   if (error || !quotation) {
     return (
-      <div className="py-16 text-center space-y-4">
-        <p className="text-muted-foreground">Quotation not found.</p>
-        <Button variant="outline" asChild>
-          <Link href="/portal/quotations">Back to quotations</Link>
-        </Button>
+      <div className="space-y-4">
+        {backLink}
+        <EmptyState
+          icon={FileWarning}
+          title="We couldn't open this quotation"
+          description="It may have been withdrawn, or the connection dropped. Try again, or go back to your quotations."
+          actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+          onAction={() => void refetch()}
+        />
       </div>
     );
   }
 
   const canDecide = quotation.status === 'SENT' || quotation.status === 'VIEWED';
   const expired = new Date(quotation.validUntil) < new Date();
+  const deciding = acceptMutation.isPending || rejectMutation.isPending;
+
+  const handleApprove = async () => {
+    const ok = await confirmAction({
+      title: `Approve ${quotation.quotationNumber}?`,
+      description: `You're accepting this quote for ${formatCurrency(quotation.total, quotation.currency as never)}. Your provider will be notified and may follow up with an invoice.`,
+      confirmLabel: 'Approve quote',
+    });
+    if (ok) acceptMutation.mutate();
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 flex-col items-start gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/portal/quotations')}
-            className="-ml-3 rounded-none"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+          {backLink}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 className="text-2xl font-bold tracking-tight break-words min-w-0">{quotation.quotationNumber}</h1>
-              <Badge variant="outline">{quotation.status}</Badge>
+              <Badge variant="outline">
+                {canDecide && expired ? 'Expired' : humanizeStatus(quotation.status)}
+              </Badge>
             </div>
             <p className="text-sm text-muted-foreground">{quotation.title}</p>
           </div>
@@ -163,26 +189,29 @@ function QuotationDetailView() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Item</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit</TableHead>
-                  <TableHead className="text-right pr-6">Amount</TableHead>
+                  <TableHead className="pl-4 sm:pl-6">Item</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Qty</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Unit</TableHead>
+                  <TableHead className="text-right pr-4 sm:pr-6">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {quotation.items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="pl-6">
-                      <div className="font-medium">{item.name}</div>
+                    <TableCell className="pl-4 sm:pl-6">
+                      <div className="font-medium break-words">{item.name}</div>
                       {item.description ? (
                         <div className="text-xs text-muted-foreground">{item.description}</div>
                       ) : null}
+                      <div className="mt-0.5 text-xs text-muted-foreground sm:hidden">
+                        {item.quantity} × {formatCurrency(item.unitPrice, quotation.currency as never)}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right sm:table-cell">{item.quantity}</TableCell>
+                    <TableCell className="hidden text-right sm:table-cell">
                       {formatCurrency(item.unitPrice, quotation.currency as never)}
                     </TableCell>
-                    <TableCell className="text-right pr-6">
+                    <TableCell className="text-right whitespace-nowrap pr-4 sm:pr-6">
                       {formatCurrency(item.amount, quotation.currency as never)}
                     </TableCell>
                   </TableRow>
@@ -219,10 +248,16 @@ function QuotationDetailView() {
             <CardHeader>
               <CardTitle className="text-base">Valid until</CardTitle>
               <CardDescription>
-                {new Date(quotation.validUntil).toLocaleDateString()}
+                {format(new Date(quotation.validUntil), 'd MMM yyyy')}
                 {expired ? ' · Expired' : ''}
               </CardDescription>
             </CardHeader>
+            {canDecide && expired ? (
+              <CardContent className="text-sm text-muted-foreground">
+                This quote can no longer be approved online. Contact your provider for an updated
+                quote.
+              </CardContent>
+            ) : null}
           </Card>
 
           {canDecide && !expired ? (
@@ -236,18 +271,22 @@ function QuotationDetailView() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={acceptMutation.isPending || rejectMutation.isPending}
-                  onClick={() => acceptMutation.mutate()}
+                  className="w-full"
+                  disabled={deciding}
+                  onClick={() => void handleApprove()}
                 >
-                  <Check className="mr-2 h-4 w-4" />
-                  Approve quote
+                  {acceptMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  {acceptMutation.isPending ? 'Approving…' : 'Approve quote'}
                 </Button>
                 {!showReject ? (
                   <Button
                     variant="outline"
                     className="w-full"
-                    disabled={acceptMutation.isPending || rejectMutation.isPending}
+                    disabled={deciding}
                     onClick={() => setShowReject(true)}
                   >
                     <X className="mr-2 h-4 w-4" />
@@ -255,8 +294,10 @@ function QuotationDetailView() {
                   </Button>
                 ) : (
                   <div className="space-y-2">
+                    <Label htmlFor="decline-reason">Reason for declining (optional)</Label>
                     <Textarea
-                      placeholder="Optional reason..."
+                      id="decline-reason"
+                      placeholder="e.g. Over budget, timing doesn't work…"
                       value={rejectReason}
                       onChange={(e) => setRejectReason(e.target.value)}
                       rows={3}
@@ -265,12 +306,16 @@ function QuotationDetailView() {
                       <Button
                         variant="destructive"
                         className="flex-1"
-                        disabled={rejectMutation.isPending}
+                        disabled={deciding}
                         onClick={() => rejectMutation.mutate()}
                       >
-                        Confirm decline
+                        {rejectMutation.isPending ? 'Declining…' : 'Confirm decline'}
                       </Button>
-                      <Button variant="ghost" onClick={() => setShowReject(false)}>
+                      <Button
+                        variant="ghost"
+                        disabled={rejectMutation.isPending}
+                        onClick={() => setShowReject(false)}
+                      >
                         Cancel
                       </Button>
                     </div>

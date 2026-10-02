@@ -115,8 +115,8 @@ export function ServiceRequestForm({ token }: { token: string }) {
           equipmentId: data.lockedEquipmentId || equipmentId || undefined,
         }),
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Submission failed');
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || 'We couldn’t submit your request. Please try again.');
       setDone(true);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Something went wrong');
@@ -151,6 +151,7 @@ export function ServiceRequestForm({ token }: { token: string }) {
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
               placeholder="Optional"
+              autoComplete="name"
             />
           </div>
           <div className="space-y-2">
@@ -160,14 +161,16 @@ export function ServiceRequestForm({ token }: { token: string }) {
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
               placeholder="Optional"
+              type="tel"
+              autoComplete="tel"
             />
           </div>
         </div>
 
         <div className="space-y-2">
-          <Label>Issue type</Label>
+          <Label htmlFor="ticketType">Issue type</Label>
           <Select value={ticketType} onValueChange={setTicketType} required>
-            <SelectTrigger>
+            <SelectTrigger id="ticketType">
               <SelectValue placeholder="What kind of issue is this?" />
             </SelectTrigger>
             <SelectContent>
@@ -182,9 +185,9 @@ export function ServiceRequestForm({ token }: { token: string }) {
 
         {!data.lockedEquipmentId && selectedType?.showEquipment !== false && data.equipmentOptions.length > 0 && (
           <div className="space-y-2">
-            <Label>{data.terminology.equipment}</Label>
+            <Label htmlFor="equipmentId">{data.terminology.equipment}</Label>
             <Select value={equipmentId} onValueChange={setEquipmentId}>
-              <SelectTrigger>
+              <SelectTrigger id="equipmentId">
                 <SelectValue placeholder={`Select ${data.terminology.equipment.toLowerCase()} (optional)`} />
               </SelectTrigger>
               <SelectContent>
@@ -222,8 +225,12 @@ export function ServiceRequestForm({ token }: { token: string }) {
         </div>
 
         {submitError && (
-          <p className="text-sm text-destructive">{submitError}</p>
+          <p role="alert" className="text-sm text-destructive">{submitError}</p>
         )}
+
+        {!ticketType ? (
+          <p className="text-xs text-muted-foreground">Choose an issue type to submit.</p>
+        ) : null}
 
         <Button type="submit" className="w-full sm:w-auto" disabled={submitting || !ticketType}>
           {submitting ? (

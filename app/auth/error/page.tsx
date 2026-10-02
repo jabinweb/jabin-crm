@@ -5,24 +5,26 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
 const errorMessages: Record<string, string> = {
-  Configuration: 'There is a problem with the server configuration.',
-  AccessDenied: 'You do not have permission to sign in.',
-  Verification: 'The verification token has expired or has already been used.',
-  OAuthSignin: 'Error in constructing an authorization URL.',
-  OAuthCallback: 'Error in handling the response from the OAuth provider.',
-  OAuthCreateAccount: 'Could not create OAuth provider user in the database.',
-  EmailCreateAccount: 'Could not create email provider user in the database.',
-  Callback: 'Error in the OAuth callback handler route.',
+  Configuration:
+    'Sign-in is temporarily unavailable on our side. Please try again in a few minutes.',
+  AccessDenied:
+    'This account isn’t allowed to sign in. Use the email you were invited with, or ask your workspace admin for access.',
+  Verification:
+    'This sign-in link has expired or has already been used. Request a new one from the sign-in page.',
+  OAuthSignin: 'We couldn’t start Google sign-in. Please try again.',
+  OAuthCallback: 'Google sign-in didn’t complete. Please try again.',
+  OAuthCreateAccount: 'We couldn’t create your account with Google. Try email and password instead.',
+  EmailCreateAccount: 'We couldn’t create your account with that email. Please try again.',
+  Callback: 'Sign-in didn’t complete. Please try again.',
   OAuthAccountNotLinked:
     'This Google account could not be linked to your email. Sign in with password or magic link, then try Google again.',
-  EmailSignin: 'Check your email address.',
+  EmailSignin: 'We couldn’t send the sign-in email. Check the address and try again.',
   CredentialsSignin: 'Sign in failed. Check the details you provided are correct.',
   SessionRequired: 'Please sign in to access this page.',
-  Default: 'An error occurred during authentication.',
+  Default: 'Something went wrong while signing you in. Please try again.',
 };
 
 function ErrorContent() {
@@ -34,7 +36,7 @@ function ErrorContent() {
       <div className="space-y-6">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-destructive">
-            <AlertCircle className="size-5" />
+            <AlertCircle className="h-5 w-5 shrink-0" aria-hidden />
             <h2 className="font-[family-name:var(--font-landing-display)] text-2xl font-semibold tracking-tight text-[var(--lp-ink)]">
               Sign-in problem
             </h2>
@@ -44,11 +46,10 @@ function ErrorContent() {
           </p>
         </div>
 
-        <Alert variant="destructive" className="rounded-lg">
-          <AlertDescription>
-            Error code: <span className="font-mono">{error}</span>
-          </AlertDescription>
-        </Alert>
+        <p className="text-xs text-[var(--lp-muted)]">
+          If this keeps happening, contact support and mention code{' '}
+          <span className="font-mono">{error}</span>.
+        </p>
 
         <div className="flex flex-col gap-2">
           <Button asChild className="h-11 bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)] text-white">
@@ -75,7 +76,7 @@ export default function AuthErrorPage() {
       fallback={
         <AuthShell>
           <div className="flex min-h-[200px] items-center justify-center">
-            <div className="size-6 animate-spin rounded-full border-2 border-[var(--lp-accent)] border-t-transparent" />
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--lp-accent)] border-t-transparent" />
           </div>
         </AuthShell>
       }

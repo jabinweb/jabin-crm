@@ -17,6 +17,8 @@ import {
 import Link from 'next/link';
 import { CardListSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeStatus } from '@/lib/portal/status-label';
 
 const statusColors: Record<string, string> = {
     RESOLVED: 'bg-emerald-50 text-emerald-700 border-emerald-100',
@@ -57,7 +59,7 @@ function ServiceEventCard({ report }: { report: any }) {
                         </div>
                         <span className={`inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-none border ${statusColors[report.ticket?.status] ?? statusColors['CLOSED']}`}>
                             <StatusIcon className="h-3 w-3 mr-1" />
-                            {report.ticket?.status ?? 'CLOSED'}
+                            {humanizeStatus(report.ticket?.status ?? 'CLOSED')}
                         </span>
                     </div>
                 </CardHeader>
@@ -95,7 +97,7 @@ function ServiceEventCard({ report }: { report: any }) {
                             </a>
                         </Button>
                         {report.signedAt ? (
-                            <Badge variant="secondary">Signed {new Date(report.signedAt).toLocaleDateString()}</Badge>
+                            <Badge variant="secondary">Signed {new Date(report.signedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</Badge>
                         ) : (
                             <Badge variant="outline">Awaiting sign-off</Badge>
                         )}
@@ -119,7 +121,7 @@ export default function ServiceHistoryPage() {
 }
 
 function ServiceHistoryContent() {
-    const { data: reports = [], isLoading } = useQuery({
+    const { data: reports = [], isLoading, isError, refetch, isRefetching } = useQuery({
         queryKey: ['portal-service-history'],
         queryFn: async () => {
             const res = await fetch('/api/portal/service-history');
@@ -133,12 +135,12 @@ function ServiceHistoryContent() {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex min-w-0 flex-col items-start gap-2">
-                    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
-                        <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
+                    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none">
+                        <Link href="/portal" aria-label="Back to portal home"><ChevronLeft className="h-4 w-4" /></Link>
                     </Button>
                     <div className="min-w-0">
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Service History</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">A chronological log of all maintenance performed on your equipment.</p>
+                        <h1 className="text-2xl font-bold tracking-tight">Service history</h1>
+                        <p className="text-sm text-muted-foreground mt-0.5">A chronological log of all maintenance performed on your equipment.</p>
                     </div>
                 </div>
             </div>
@@ -146,14 +148,27 @@ function ServiceHistoryContent() {
             {/* Content */}
             {isLoading ? (
                 <CardListSkeleton rows={5} />
+            ) : isError ? (
+                <Card className="shadow-none">
+                    <EmptyState
+                        icon={AlertTriangle}
+                        title="We couldn't load your service history"
+                        description="Check your connection and try again."
+                        actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+                        onAction={() => void refetch()}
+                    />
+                </Card>
             ) : reports.length === 0 ? (
                 <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
                     <CardContent className="flex flex-col items-center justify-center py-24 text-center gap-3">
                         <div className="h-14 w-14 rounded-none bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                             <FileText className="h-6 w-6 text-slate-400" />
                         </div>
-                        <p className="text-slate-600 dark:text-slate-400 font-medium">No service records yet</p>
-                        <p className="text-sm text-slate-400">Service reports will appear here once our team completes work on your account.</p>
+                        <p className="font-medium">No service records yet</p>
+                        <p className="max-w-sm text-sm text-muted-foreground">Service reports will appear here once our team completes work on your account. Need something looked at?</p>
+                        <Button asChild size="sm" className="mt-2">
+                            <Link href="/portal/tickets/new">Request service</Link>
+                        </Button>
                     </CardContent>
                 </Card>
             ) : (

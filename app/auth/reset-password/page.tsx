@@ -36,11 +36,15 @@ function ResetPasswordForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, token, password }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Reset failed');
       router.push('/auth/signin?reset=1');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(
+        err instanceof Error && err.message !== 'Reset failed'
+          ? err.message
+          : 'We couldn’t update your password. The link may have expired — request a new one.'
+      );
     } finally {
       setLoading(false);
     }
@@ -49,11 +53,24 @@ function ResetPasswordForm() {
   if (!token || !email) {
     return (
       <AuthShell>
-        <div className="space-y-4 text-center">
-          <p className="text-sm text-[var(--lp-muted)]">This reset link is invalid.</p>
-          <Button asChild>
-            <Link href="/auth/forgot-password">Request a new link</Link>
-          </Button>
+        <div className="space-y-6 text-center">
+          <div className="space-y-2">
+            <h2 className="font-[family-name:var(--font-landing-display)] text-2xl font-semibold tracking-tight text-[var(--lp-ink)]">
+              Link not valid
+            </h2>
+            <p className="text-sm text-[var(--lp-muted)]">
+              This password reset link is incomplete or has expired. Request a new one and use the
+              latest email we send.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button asChild className="h-11 bg-[var(--lp-accent)] text-white hover:bg-[var(--lp-accent-deep)]">
+              <Link href="/auth/forgot-password">Request a new link</Link>
+            </Button>
+            <Button asChild variant="outline" className="h-11 border-slate-200 bg-white">
+              <Link href="/auth/signin">Back to sign in</Link>
+            </Button>
+          </div>
         </div>
       </AuthShell>
     );
@@ -73,6 +90,10 @@ function ResetPasswordForm() {
           <h2 className="font-[family-name:var(--font-landing-display)] text-2xl font-semibold tracking-tight text-[var(--lp-ink)]">
             Choose a new password
           </h2>
+          <p className="text-sm text-[var(--lp-muted)]">
+            For <span className="break-all font-medium text-[var(--lp-ink)]">{email}</span>. Use at
+            least 8 characters.
+          </p>
         </div>
 
         {error && (
@@ -93,6 +114,7 @@ function ResetPasswordForm() {
                 minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
                 className="pl-10 pr-10 h-11"
               />
               <button
@@ -114,10 +136,19 @@ function ResetPasswordForm() {
               minLength={8}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              aria-invalid={confirm.length > 0 && confirm !== password}
               className="h-11"
             />
           </div>
-          <Button type="submit" className="w-full h-11 bg-[var(--lp-accent)]" disabled={loading}>
+          {confirm.length >= password.length && confirm.length > 0 && confirm !== password ? (
+            <p className="-mt-2 text-xs text-destructive">Passwords don&apos;t match yet.</p>
+          ) : null}
+          <Button
+            type="submit"
+            className="w-full h-11 bg-[var(--lp-accent)] text-white hover:bg-[var(--lp-accent-deep)]"
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

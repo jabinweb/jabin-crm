@@ -13,7 +13,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ArrowLeft, FolderKanban, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/currency';
+import { humanizeStatus } from '@/lib/portal/status-label';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
+
+const fmtDate = (value: string) => format(new Date(value), 'd MMM yyyy');
 
 type PortalProject = {
   id: string;
@@ -122,11 +127,12 @@ function TaskCommentForm({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Add a note for the team…"
-        className="h-8 min-w-0 text-xs"
+        aria-label="Note for the team"
+        className="h-10 min-w-0 text-sm sm:h-9"
         disabled={mutation.isPending}
       />
-      <Button type="submit" size="sm" className="h-8 shrink-0" disabled={mutation.isPending || !body.trim()}>
-        Send
+      <Button type="submit" size="sm" className="h-10 shrink-0 sm:h-9" disabled={mutation.isPending || !body.trim()}>
+        {mutation.isPending ? 'Sending…' : 'Send'}
       </Button>
     </form>
   );
@@ -136,7 +142,7 @@ export default function PortalProjectDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
 
-  const { data: project, isLoading, isError } = useQuery({
+  const { data: project, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['portal-project', id],
     queryFn: async () => {
       const res = await fetch(`/api/portal/projects/${id}`);
@@ -146,9 +152,19 @@ export default function PortalProjectDetailPage() {
     enabled: !!id,
   });
 
+  const backLink = (
+    <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3 text-muted-foreground">
+      <Link href="/portal/projects">
+        <ArrowLeft className="mr-1.5 h-4 w-4" />
+        All projects
+      </Link>
+    </Button>
+  );
+
   if (isLoading) {
     return (
       <div className="flex flex-col gap-4">
+        <div>{backLink}</div>
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -157,13 +173,16 @@ export default function PortalProjectDetailPage() {
 
   if (isError || !project) {
     return (
-      <EmptyState
-        icon={FolderKanban}
-        title="Project not found"
-        description="This engagement may no longer be available."
-        actionLabel="Back to projects"
-        actionHref="/portal/projects"
-      />
+      <div className="flex flex-col gap-4">
+        <div>{backLink}</div>
+        <EmptyState
+          icon={FolderKanban}
+          title="We couldn't open this project"
+          description="It may no longer be shared with you, or the connection dropped. Try again, or go back to your projects."
+          actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+          onAction={() => void refetch()}
+        />
+      </div>
     );
   }
 
@@ -172,24 +191,19 @@ export default function PortalProjectDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3 text-muted-foreground">
-          <Link href="/portal/projects">
-            <ArrowLeft className="mr-1.5 size-4" />
-            All projects
-          </Link>
-        </Button>
+        {backLink}
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight">{project.name}</h1>
-          <Badge variant="secondary">{project.status}</Badge>
-          <Badge variant="outline" className="capitalize">
-            {project.projectType.replace('_', ' ')}
-          </Badge>
+          <Badge variant="secondary">{humanizeStatus(project.status)}</Badge>
+          {project.projectType && project.projectType !== 'other' ? (
+            <Badge variant="outline">{humanizeStatus(project.projectType)}</Badge>
+          ) : null}
         </div>
         {project.description ? (
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground whitespace-pre-wrap">{project.description}</p>
         ) : null}
         <p className="mt-2 text-xs text-muted-foreground">
-          {new Date(project.startDate).toLocaleDateString()} → {new Date(project.endDate).toLocaleDateString()}
+          {fmtDate(project.startDate)} – {fmtDate(project.endDate)}
         </p>
       </div>
 
@@ -220,11 +234,11 @@ export default function PortalProjectDetailPage() {
                 <div key={r.id} className="rounded-lg border p-3 text-sm">
                   <p className="font-medium">{r.name}</p>
                   <p className="text-muted-foreground mt-1">
-                    {r.currency} {r.amount.toLocaleString()} / {r.billingCycle.toLowerCase()}
+                    {formatCurrency(r.amount, r.currency)} / {humanizeStatus(r.billingCycle).toLowerCase()}
                   </p>
                   {r.nextBillAt ? (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Next bill: {new Date(r.nextBillAt).toLocaleDateString()}
+                      Next bill: {fmtDate(r.nextBillAt)}
                     </p>
                   ) : null}
                 </div>
@@ -261,11 +275,11 @@ export default function PortalProjectDetailPage() {
                       </span>
                       {m.dueDate ? (
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Due {new Date(m.dueDate).toLocaleDateString()}
+                          Due {fmtDate(m.dueDate)}
                         </p>
                       ) : null}
                     </div>
-                    <Badge variant="outline">{m.status}</Badge>
+                    <Badge variant="outline" className="shrink-0">{humanizeStatus(m.status)}</Badge>
                   </li>
                 ))}
               </ul>
@@ -289,7 +303,7 @@ export default function PortalProjectDetailPage() {
                   <li key={t.id} className="rounded-lg border px-3 py-2.5 text-sm space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <span className="min-w-0 break-words font-medium">{t.title}</span>
-                      <Badge variant="secondary" className="shrink-0">{TASK_STATUS_LABEL[t.status] ?? t.status}</Badge>
+                      <Badge variant="secondary" className="shrink-0">{TASK_STATUS_LABEL[t.status] ?? humanizeStatus(t.status)}</Badge>
                     </div>
                     {(t.comments?.length ?? 0) > 0 ? (
                       <div className="space-y-1.5 border-t pt-2">
@@ -356,7 +370,7 @@ export default function PortalProjectDetailPage() {
                     className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm hover:bg-muted/40 transition-colors"
                   >
                     <span className="min-w-0 truncate font-medium">{t.subject}</span>
-                    <Badge variant="outline" className="shrink-0">{t.status}</Badge>
+                    <Badge variant="outline" className="shrink-0">{humanizeStatus(t.status)}</Badge>
                   </Link>
                 </li>
               ))}

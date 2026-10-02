@@ -26,11 +26,15 @@ export default function ForgotPasswordPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
-      const body = await res.json();
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || 'Request failed');
       setMessage(body.message ?? 'Check your email for a reset link.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(
+        err instanceof Error && err.message !== 'Request failed'
+          ? err.message
+          : 'We couldn’t send the reset link. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -72,12 +76,17 @@ export default function ForgotPasswordPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 className="pl-10 h-11"
                 placeholder="you@company.com"
               />
             </div>
           </div>
-          <Button type="submit" className="w-full h-11 bg-[var(--lp-accent)]" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full h-11 bg-[var(--lp-accent)] text-white hover:bg-[var(--lp-accent-deep)]"
+            disabled={loading}
+          >
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
