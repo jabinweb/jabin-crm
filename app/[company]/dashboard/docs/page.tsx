@@ -1,26 +1,19 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Search,
-  BookOpen,
-  ChevronRight,
-  Menu,
-  X,
-} from 'lucide-react';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { ArrowLeft, ArrowRight, BookOpen, ChevronDown, ChevronRight, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  documentationTopics,
   getTopicBySlug,
   getAllCategories,
   getTopicsByCategory,
   searchDocumentation,
-  getTableOfContents,
+  type DocContent,
   type DocTopic,
 } from '@/lib/docs/comprehensive-docs';
 import {
@@ -33,253 +26,322 @@ import {
   DocSteps,
   DocGrid,
   DocDivider,
+  docAnchorId,
 } from '@/components/docs/doc-content';
+
+type TocItem = { id: string; title: string; depth: 2 | 3 };
+
+/** Sections plus the level-3 headings inside them, in reading order. */
+function tableOfContents(topic: DocTopic): TocItem[] {
+  return topic.sections.flatMap((section) => [
+    { id: section.id, title: section.title, depth: 2 as const },
+    ...section.content
+      .filter((c) => c.type === 'heading' && c.data?.level === 3 && typeof c.data.text === 'string')
+      .map((c) => ({ id: docAnchorId(c.data.text), title: c.data.text as string, depth: 3 as const })),
+  ]);
+}
+
+function renderContent(content: DocContent) {
+  switch (content.type) {
+    case 'heading':
+      return <DocHeading level={content.data.level}>{content.data.text}</DocHeading>;
+    case 'paragraph':
+      return <DocParagraph>{content.data}</DocParagraph>;
+    case 'list':
+      return <DocList items={content.data.items} ordered={content.data.ordered} />;
+    case 'code':
+      return <DocCodeBlock code={content.data.code} language={content.data.language} title={content.data.title} />;
+    case 'alert':
+      return <DocAlert type={content.data.type} title={content.data.title} message={content.data.message} />;
+    case 'table':
+      return <DocTable headers={content.data.headers} rows={content.data.rows} />;
+    case 'steps':
+      return <DocSteps steps={content.data} />;
+    case 'grid':
+      return <DocGrid items={content.data} />;
+    case 'divider':
+      return <DocDivider />;
+    default:
+      return null;
+  }
+}
+
+/** Topic list grouped by category (search filters it in place). */
+function DocsNav({
+  currentSlug,
+  query,
+  onQuery,
+  onOpen,
+  searchRef,
+}: {
+  currentSlug: string;
+  query: string;
+  onQuery: (q: string) => void;
+  onOpen: (slug: string) => void;
+  searchRef?: React.RefObject<HTMLInputElement | null>;
+}) {
+  const results = query.trim() ? searchDocumentation(query.trim()) : null;
+  const groups = results
+    ? getAllCategories()
+        .map((category) => ({ category, topics: results.filter((t) => t.category === category) }))
+        .filter((g) => g.topics.length > 0)
+    : getAllCategories().map((category) => ({ category, topics: getTopicsByCategory(category) }));
+
+  return (
+    <nav aria-label="Documentation" className="flex flex-col gap-5">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          ref={searchRef}
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && results?.[0]) onOpen(results[0].slug);
+            if (e.key === 'Escape') onQuery('');
+          }}
+          placeholder="Search docs"
+          aria-label="Search documentation"
+          className="h-9 pl-8 pr-8"
+        />
+        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border bg-muted px-1.5 text-[10px] font-medium text-muted-foreground sm:block">
+          /
+        </kbd>
+      </div>
+
+      {results && groups.length === 0 ? (
+        <p className="px-1 text-sm text-muted-foreground">No results for “{query.trim()}”.</p>
+      ) : null}
+
+      {groups.map(({ category, topics }) => (
+        <div key={category}>
+          <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {category}
+          </p>
+          <ul className="border-l">
+            {topics.map((topic) => {
+              const active = topic.slug === currentSlug;
+              return (
+                <li key={topic.slug}>
+                  <button
+                    type="button"
+                    onClick={() => onOpen(topic.slug)}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      '-ml-px block w-full border-l-2 py-1.5 pl-3 pr-2 text-left text-sm transition-colors',
+                      active
+                        ? 'border-foreground font-medium text-foreground'
+                        : 'border-transparent text-muted-foreground hover:border-border hover:text-foreground'
+                    )}
+                  >
+                    {topic.title}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
 
 export default function DocumentationPage() {
   const router = useRouter();
   const { path } = useWorkspacePaths();
   const searchParams = useSearchParams();
   const currentSlug = searchParams.get('topic') || 'introduction';
-  const [searchQuery, setSearchQuery] = useState('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const articleRef = useRef<HTMLElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  const currentTopic = getTopicBySlug(currentSlug);
-  const categories = getAllCategories();
+  const topic = getTopicBySlug(currentSlug);
+  const toc = useMemo(() => (topic ? tableOfContents(topic) : []), [topic]);
 
-  // Search results
-  const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    return searchDocumentation(searchQuery);
-  }, [searchQuery]);
+  // Reading order across categories → previous / next topic
+  const ordered = useMemo(
+    () => getAllCategories().flatMap((category) => getTopicsByCategory(category)),
+    []
+  );
+  const index = ordered.findIndex((t) => t.slug === currentSlug);
+  const prev = index > 0 ? ordered[index - 1] : null;
+  const next = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
 
-  // Table of contents for current topic
-  const toc = currentTopic ? getTableOfContents(currentTopic) : [];
-
-  const navigateToTopic = (slug: string) => {
-    router.push(path(`/dashboard/docs?topic=${slug}`));
-    setMobileMenuOpen(false);
-    setSearchQuery('');
+  const openTopic = (slug: string) => {
+    router.push(path(`/dashboard/docs?topic=${slug}`), { scroll: false });
+    setMenuOpen(false);
+    setQuery('');
   };
 
-  const renderContent = (content: any) => {
-    switch (content.type) {
-      case 'heading':
-        return <DocHeading key={content.data.text} level={content.data.level}>{content.data.text}</DocHeading>;
-      case 'paragraph':
-        return <DocParagraph key={content.data}>{content.data}</DocParagraph>;
-      case 'list':
-        return <DocList key={JSON.stringify(content.data)} items={content.data.items} ordered={content.data.ordered} />;
-      case 'code':
-        return (
-          <DocCodeBlock
-            key={content.data.code}
-            code={content.data.code}
-            language={content.data.language}
-            title={content.data.title}
-          />
-        );
-      case 'alert':
-        return (
-          <DocAlert
-            key={content.data.message}
-            type={content.data.type}
-            title={content.data.title}
-            message={content.data.message}
-          />
-        );
-      case 'table':
-        return (
-          <DocTable
-            key={JSON.stringify(content.data)}
-            headers={content.data.headers}
-            rows={content.data.rows}
-          />
-        );
-      case 'steps':
-        return <DocSteps key={JSON.stringify(content.data)} steps={content.data} />;
-      case 'grid':
-        return <DocGrid key={JSON.stringify(content.data)} items={content.data} />;
-      case 'divider':
-        return <DocDivider key={Math.random()} />;
-      default:
-        return null;
-    }
+  // New topic starts at the top (the dashboard scrolls its own <main>)
+  useEffect(() => {
+    articleRef.current?.closest('main')?.scrollTo({ top: 0 });
+    setActiveId(null);
+  }, [currentSlug]);
+
+  // "/" jumps to search
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (e.key !== '/' || target?.closest('input, textarea, [contenteditable="true"]')) return;
+      e.preventDefault();
+      if (window.matchMedia('(min-width: 1024px)').matches) searchRef.current?.focus();
+      else setMenuOpen(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Highlight the heading being read in "On this page"
+  useEffect(() => {
+    if (toc.length < 2) return;
+    const elements = toc
+      .map((item) => document.getElementById(item.id))
+      .filter((el): el is HTMLElement => !!el);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActiveId(visible[0].target.id);
+      },
+      { rootMargin: '-80px 0px -65% 0px' }
+    );
+    elements.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [toc]);
+
+  const jumpTo = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveId(id);
   };
+
+  const nav = (
+    <DocsNav currentSlug={currentSlug} query={query} onQuery={setQuery} onOpen={openTopic} searchRef={searchRef} />
+  );
 
   return (
-    <div className="min-w-0">
-      {/* Mobile menu button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="mb-4 h-10 gap-2 lg:hidden"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
-        {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        <BookOpen className="h-4 w-4" />
-      </Button>
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[220px_minmax(0,1fr)_200px] xl:gap-10">
+      {/* Topic menu: sticky column on desktop, slide-out panel below */}
+      <aside className="hidden lg:block">
+        <div className="sticky top-0 max-h-[calc(100dvh-7rem)] overflow-y-auto pb-6 pr-2">{nav}</div>
+      </aside>
 
-      <div className="flex min-w-0 gap-8">
+      <article ref={articleRef} className="min-w-0">
+        <Button
+          variant="outline"
+          className="mb-5 h-10 w-full justify-between lg:hidden"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open documentation menu"
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <BookOpen className="h-4 w-4 shrink-0" />
+            <span className="truncate">{topic ? `${topic.category} · ${topic.title}` : 'Documentation'}</span>
+          </span>
+          <ChevronDown className="h-4 w-4 shrink-0 opacity-60" />
+        </Button>
 
-      {/* Left Sidebar - Navigation */}
-      <aside
-        className={cn(
-          'fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] border-r bg-background transition-transform lg:sticky lg:top-0 lg:z-auto lg:w-60 lg:max-w-none lg:shrink-0 lg:self-start lg:translate-x-0 lg:border lg:rounded-lg',
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
-      >
-        <div className="flex h-16 items-center border-b px-6 lg:h-12 lg:px-4">
-          <BookOpen className="mr-2 h-5 w-5" />
-          <span className="font-semibold">Documentation</span>
-        </div>
+        {topic ? (
+          <div className="max-w-3xl">
+            <nav aria-label="Breadcrumb" className="mb-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span>Docs</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span>{topic.category}</span>
+            </nav>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{topic.title}</h1>
+            {topic.description ? (
+              <p className="mt-3 text-lg leading-8 text-muted-foreground">{topic.description}</p>
+            ) : null}
 
-        <ScrollArea className="h-[calc(100dvh-4rem)] lg:h-[calc(100dvh-10rem)]">
-          <div className="p-4 space-y-6">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search docs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
+            <div className="mt-8 border-t">
+              {topic.sections.map((section) => (
+                <section key={section.id} id={section.id} className="scroll-mt-24">
+                  <h2 className="mb-3 mt-10 text-xl font-semibold tracking-tight">{section.title}</h2>
+                  <div className="space-y-4">
+                    {section.content.map((content, i) => (
+                      <div key={i}>{renderContent(content)}</div>
+                    ))}
+                  </div>
+                </section>
+              ))}
             </div>
 
-            {/* Search Results */}
-            {searchResults && searchResults.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-muted-foreground uppercase px-2">
-                  Search Results ({searchResults.length})
-                </div>
-                {searchResults.map((topic) => (
+            {prev || next ? (
+              <div className="mt-14 grid gap-3 border-t pt-8 sm:grid-cols-2">
+                {prev ? (
                   <button
-                    key={topic.slug}
-                    onClick={() => navigateToTopic(topic.slug)}
-                    className="w-full text-left px-3 py-2 text-sm rounded-none hover:bg-muted transition-colors"
+                    type="button"
+                    onClick={() => openTopic(prev.slug)}
+                    className="group rounded-lg border p-4 text-left transition-colors hover:border-foreground/30"
                   >
-                    <div className="font-medium">{topic.title}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{topic.category}</div>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <ArrowLeft className="h-3.5 w-3.5 transition-transform group-hover:-translate-x-0.5" />
+                      Previous
+                    </span>
+                    <span className="mt-1 block font-medium">{prev.title}</span>
                   </button>
-                ))}
+                ) : (
+                  <span className="hidden sm:block" />
+                )}
+                {next ? (
+                  <button
+                    type="button"
+                    onClick={() => openTopic(next.slug)}
+                    className="group rounded-lg border p-4 text-right transition-colors hover:border-foreground/30"
+                  >
+                    <span className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
+                      Next
+                      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </span>
+                    <span className="mt-1 block font-medium">{next.title}</span>
+                  </button>
+                ) : null}
               </div>
-            )}
-
-            {/* Navigation by Category */}
-            {!searchResults && categories.map((category) => {
-              const topics = getTopicsByCategory(category);
-              return (
-                <div key={category} className="space-y-1">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase px-2 mb-2">
-                    {category}
-                  </div>
-                  {topics.map((topic) => (
-                    <button
-                      key={topic.slug}
-                      onClick={() => navigateToTopic(topic.slug)}
-                      className={cn(
-                        'w-full text-left px-3 py-2 text-sm rounded-none transition-colors flex items-center justify-between',
-                        currentSlug === topic.slug
-                          ? 'bg-primary text-primary-foreground font-medium'
-                          : 'hover:bg-muted'
-                      )}
-                    >
-                      <span>{topic.title}</span>
-                      {currentSlug === topic.slug && <ChevronRight className="h-4 w-4" />}
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
+            ) : null}
           </div>
-        </ScrollArea>
+        ) : (
+          <div className="max-w-3xl py-20 text-center">
+            <h1 className="mb-2 text-2xl font-semibold">Topic not found</h1>
+            <p className="mb-6 text-muted-foreground">That documentation page doesn’t exist.</p>
+            <Button onClick={() => openTopic('introduction')}>Go to Introduction</Button>
+          </div>
+        )}
+      </article>
+
+      {/* On this page */}
+      <aside className="hidden xl:block">
+        {toc.length >= 2 ? (
+          <div className="sticky top-0 max-h-[calc(100dvh-7rem)] overflow-y-auto">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">On this page</p>
+            <ul className="space-y-1 border-l">
+              {toc.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => jumpTo(item.id)}
+                    className={cn(
+                      '-ml-px block w-full border-l-2 py-1 text-left text-[13px] leading-5 transition-colors',
+                      item.depth === 3 ? 'pl-6' : 'pl-3',
+                      activeId === item.id
+                        ? 'border-foreground font-medium text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {item.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </aside>
 
-      {/* Main Content */}
-      <main className="min-w-0 flex-1">
-        <div className="max-w-4xl">
-          {currentTopic ? (
-            <>
-              {/* Breadcrumbs */}
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-4 sm:mb-6">
-                <span>{currentTopic.category}</span>
-                <ChevronRight className="h-4 w-4" />
-                <span className="text-foreground font-medium">{currentTopic.title}</span>
-              </div>
-
-              {/* Title */}
-              <h1 className="break-words text-3xl font-bold tracking-tight mb-4 sm:text-4xl">{currentTopic.title}</h1>
-              {currentTopic.description && (
-                <p className="text-lg text-muted-foreground mb-8 sm:text-xl">{currentTopic.description}</p>
-              )}
-
-              {/* Content */}
-              <div className="prose prose-slate dark:prose-invert max-w-none">
-                {currentTopic.sections.map((section) => (
-                  <div key={section.id} id={section.id} className="scroll-mt-16">
-                    <h2 className="text-2xl font-semibold tracking-tight mt-10 mb-6 border-b pb-2 sm:text-3xl">
-                      {section.title}
-                    </h2>
-                    <div className="space-y-4">
-                      {section.content.map((content, i) => (
-                        <div key={i}>{renderContent(content)}</div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Navigation Footer */}
-              <div className="mt-16 pt-8 border-t flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm text-muted-foreground">
-                  Last updated: January 2026
-                </div>
-                <div className="flex gap-2">
-                  {/* Previous/Next topic buttons can go here */}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="py-20 text-center">
-              <h1 className="text-2xl font-semibold mb-2">Topic not found</h1>
-              <p className="text-muted-foreground mb-6">The documentation topic you're looking for doesn't exist.</p>
-              <Button onClick={() => navigateToTopic('introduction')}>
-                Go to Introduction
-              </Button>
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Right Sidebar - Table of Contents */}
-      <aside className="hidden xl:block w-56 shrink-0 self-start sticky top-0">
-        <div className="border-l pl-6">
-          <div className="text-xs font-semibold text-muted-foreground uppercase mb-4">
-            On This Page
-          </div>
-          <div className="space-y-2">
-            {toc.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                className="block text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-              >
-                {item.title}
-              </a>
-            ))}
-          </div>
-        </div>
-      </aside>
-      </div>
-
-      {/* Mobile overlay */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
+      <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <SheetContent side="left" className="w-[min(100vw,20rem)] overflow-y-auto p-5" srOnlyTitle="Documentation menu">
+          <div className="mt-6">{nav}</div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
-
