@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react"
 import { Card } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
-import { PageHeaderSkeleton, DetailSkeleton } from "@/components/loading"
+import { DetailSkeleton } from "@/components/loading"
 import { EssPageHeader } from "@/components/employee/mobile/page-header"
 
 interface EmployeeData {
@@ -52,7 +52,7 @@ export default function EmployeeDashboard() {
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
-        <PageHeaderSkeleton />
+        <EssPageHeader title="Employee Dashboard" />
         <DetailSkeleton />
       </div>
     )

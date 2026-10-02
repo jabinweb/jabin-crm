@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Users, TrendingUp, Target, CheckCircle, DollarSign } from 'lucide-react';
 import { useCurrency } from '@/hooks/use-currency';
-import { PageHeaderSkeleton, StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, CardListSkeleton } from '@/components/loading';
 
 interface TeamMember {
   id: string;
@@ -58,10 +58,20 @@ export default function TeamPerformancePage() {
     { leads: 0, deals: 0, tasks: 0, revenue: 0 }
   );
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="min-w-0">
+      <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Team Performance</h1>
+      <p className="text-gray-500">
+        Track sales pipeline and CRM follow-up tasks (not project delivery work)
+      </p>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={4} />
         <CardListSkeleton rows={5} />
       </div>
@@ -70,12 +80,7 @@ export default function TeamPerformancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="min-w-0">
-        <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Team Performance</h1>
-        <p className="text-gray-500">
-          Track sales pipeline and CRM follow-up tasks (not project delivery work)
-        </p>
-      </div>
+      {pageHeader}
 
       {/* Team Summary Cards */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">

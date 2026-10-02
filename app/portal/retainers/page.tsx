@@ -33,18 +33,28 @@ function RetainersList() {
     },
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Retainers</h1>
+      <p className="text-sm text-muted-foreground mt-1">
+        Recurring plans linked to your account.
+      </p>
+    </div>
+  );
+
   if (isLoading) {
-    return <SectionSkeleton lines={6} />;
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <SectionSkeleton lines={6} />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Retainers</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Recurring plans linked to your account.
-        </p>
-      </div>
+      {pageHeader}
 
       {retainers.length === 0 ? (
         <Card>

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Skeleton } from '@/components/ui/skeleton'
 import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -13,7 +14,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { BookOpen, Map, LifeBuoy } from 'lucide-react'
-import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading'
+import { CardListSkeleton } from '@/components/loading'
 import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 
@@ -83,10 +84,23 @@ export default function CompanyHelpHubPage() {
     onError: () => toast.error('Could not vote'),
   })
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+        <LifeBuoy className="h-6 w-6" />
+        {data ? data.company.name : <Skeleton className="inline-block h-6 w-28 align-middle" />} help
+      </h1>
+      <p className="text-sm text-muted-foreground mt-1">
+        Knowledge base and product roadmap
+      </p>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:p-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <CardListSkeleton rows={4} />
       </div>
     )
@@ -102,15 +116,7 @@ export default function CompanyHelpHubPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          <LifeBuoy className="h-6 w-6" />
-          {data.company.name} help
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Knowledge base and product roadmap
-        </p>
-      </div>
+      {pageHeader}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold flex items-center gap-2">

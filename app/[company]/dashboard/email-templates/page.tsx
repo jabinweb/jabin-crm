@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
+import { CardListSkeleton } from '@/components/loading';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -253,10 +253,26 @@ export default function EmailTemplatesPage() {
     return colors[category] || 'bg-gray-500';
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold sm:text-3xl">Email Templates</h1>
+        <p className="text-muted-foreground mt-2">
+          Create and manage reusable email templates with dynamic variables
+        </p>
+      </div>
+      <Button onClick={() => setCreateDialogOpen(true)} className="self-start sm:self-auto">
+        <Plus className="h-4 w-4 mr-2" />
+        New Template
+      </Button>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <CardListSkeleton rows={5} />
       </div>
     );
@@ -264,18 +280,7 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold sm:text-3xl">Email Templates</h1>
-          <p className="text-muted-foreground mt-2">
-            Create and manage reusable email templates with dynamic variables
-          </p>
-        </div>
-        <Button onClick={() => setCreateDialogOpen(true)} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          New Template
-        </Button>
-      </div>
+      {pageHeader}
 
       {/* Category Filter */}
       <div>

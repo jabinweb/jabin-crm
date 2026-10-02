@@ -9,7 +9,7 @@ import { Check, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { PricingCountrySelector } from '@/components/pricing/pricing-country-selector';
 import { startPlanCheckout } from '@/lib/payments/start-plan-checkout';
-import { PageHeaderSkeleton, CardListSkeleton } from '@/components/loading';
+import { CardListSkeleton } from '@/components/loading';
 
 export default function PricingPage() {
   const { data: session, status } = useSession();
@@ -69,10 +69,37 @@ export default function PricingPage() {
         ? 'Free'
         : '—');
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="text-center mb-10 md:mb-16">
+      <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-3">
+        Lowest pricing. Most features. Real support.
+      </h1>
+      <p className="text-base text-muted-foreground max-w-xl mx-auto mb-4 leading-relaxed">
+        Competitive plans with the full service-ops pack — sales, field tools, AMC, and HRMS —
+        plus dedicated support. Team-wide seats, no per-user fee. Start free and upgrade when
+        you need more.
+      </p>
+      {location?.countryCode && (
+        <div className="flex flex-col items-center gap-3">
+          <PricingCountrySelector
+            countryCode={location.countryCode}
+            pppLabel={pppLabel}
+          />
+          {displayCurrency !== 'INR' && (
+            <p className="text-xs text-muted-foreground max-w-md">
+              Shown in {displayCurrency}. Checkout settles in INR via Razorpay.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-10 sm:px-6 sm:py-16">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <CardListSkeleton rows={3} />
       </div>
     );
@@ -119,29 +146,7 @@ export default function PricingPage() {
       )}
 
       <div className="mx-auto max-w-6xl px-4 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-16 md:py-24">
-        <div className="text-center mb-10 md:mb-16">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-3">
-            Lowest pricing. Most features. Real support.
-          </h1>
-          <p className="text-base text-muted-foreground max-w-xl mx-auto mb-4 leading-relaxed">
-            Competitive plans with the full service-ops pack — sales, field tools, AMC, and HRMS —
-            plus dedicated support. Team-wide seats, no per-user fee. Start free and upgrade when
-            you need more.
-          </p>
-          {location?.countryCode && (
-            <div className="flex flex-col items-center gap-3">
-              <PricingCountrySelector
-                countryCode={location.countryCode}
-                pppLabel={pppLabel}
-              />
-              {displayCurrency !== 'INR' && (
-                <p className="text-xs text-muted-foreground max-w-md">
-                  Shown in {displayCurrency}. Checkout settles in INR via Razorpay.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+        {pageHeader}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 lg:gap-8 2xl:grid-cols-4 2xl:max-w-[1280px] 2xl:mx-auto">
           {plans.length === 0 ? (

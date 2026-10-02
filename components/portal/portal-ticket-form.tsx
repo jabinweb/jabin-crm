@@ -25,6 +25,7 @@ import { ChevronLeft, Loader2, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { KbDeflection } from '@/components/portal/kb-deflection';
 import { FormSkeleton } from '@/components/loading';
+import { Skeleton } from '@/components/ui/skeleton';
 import type {
   PortalTicketField,
   PortalTicketTypeDefinition,
@@ -236,7 +237,16 @@ export function PortalTicketForm() {
   };
 
   if (isLoading) {
-    return <FormSkeleton fields={5} withHeader className="py-8" />;
+    // The title uses workspace wording (still loading) — only it gets a skeleton
+    return (
+      <div className="space-y-6 py-8">
+        <div className="min-w-0 space-y-1">
+          <Skeleton className="h-8 w-56 max-w-full" />
+          <p className="text-sm text-slate-500">Choose a category and tell us how we can help.</p>
+        </div>
+        <FormSkeleton fields={5} />
+      </div>
+    );
   }
 
   if (issueResolved) {

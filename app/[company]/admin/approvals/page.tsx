@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 
 type PendingEmployee = {
   id: string;
@@ -81,10 +81,20 @@ export default function WorkspaceApprovalsPage() {
     }
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Pending approvals</h1>
+      <p className="text-sm text-muted-foreground">
+        Review employee registration requests for this workspace.
+      </p>
+    </div>
+  );
+
   if (loading) {
     return (
       <DashboardPage>
-        <PageHeaderSkeleton />
+        {pageHeader}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Registrations</CardTitle>
@@ -110,12 +120,7 @@ export default function WorkspaceApprovalsPage() {
 
   return (
     <DashboardPage>
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pending approvals</h1>
-        <p className="text-sm text-muted-foreground">
-          Review employee registration requests for this workspace.
-        </p>
-      </div>
+      {pageHeader}
 
       <Card>
         <CardHeader className="pb-3">

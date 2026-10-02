@@ -62,9 +62,23 @@ export default function BusinessHoursPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col items-start">
+      <SupportBackLink />
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold">Business hours</h1>
+        <p className="text-sm text-muted-foreground">
+          SLA clocks pause outside these hours when enabled
+        </p>
+      </div>
+    </div>
+  );
+
   if (isLoading || !config) {
     return (
       <div className="space-y-6 max-w-3xl">
+        {pageHeader}
         <SupportBackLink />
         <DetailSkeleton />
       </div>
@@ -73,15 +87,7 @@ export default function BusinessHoursPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex flex-col items-start">
-        <SupportBackLink />
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Business hours</h1>
-          <p className="text-sm text-muted-foreground">
-            SLA clocks pause outside these hours when enabled
-          </p>
-        </div>
-      </div>
+      {pageHeader}
 
       <Card>
         <CardHeader>

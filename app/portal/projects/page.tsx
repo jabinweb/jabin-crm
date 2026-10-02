@@ -35,9 +35,20 @@ export default function PortalProjectsPage() {
     },
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+      <p className="text-sm text-muted-foreground mt-1">
+        Track progress and milestones on your active engagements.
+      </p>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-4">
+        {pageHeader}
         <SectionSkeleton lines={6} />
       </div>
     );
@@ -45,12 +56,7 @@ export default function PortalProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Track progress and milestones on your active engagements.
-        </p>
-      </div>
+      {pageHeader}
 
       {projects.length === 0 ? (
         <Card>

@@ -39,7 +39,7 @@ function CompanySettingsContent() {
   const [pendingChanges, setPendingChanges] = useState<SettingsUpdatePayload>({})
 
   if (isLoading) {
-    return <FormSkeleton fields={6} withHeader />
+    return <FormSkeleton fields={6} />
   }
 
   if (fetchError) {

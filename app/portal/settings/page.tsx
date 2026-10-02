@@ -185,21 +185,31 @@ export default function PortalSettingsPage() {
         { key: 'newsUpdates', label: 'News & updates', desc: 'Occasional product and service announcements.' },
     ] as const;
 
+    // Static page header: shown as-is while data loads (no skeleton for known text)
+    const pageHeader = (
+        <div className="flex flex-col items-start gap-2">
+            <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
+                <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
+            </Button>
+            <div className="min-w-0">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Settings</h1>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Manage your account and portal preferences.</p>
+            </div>
+        </div>
+    );
+
     if (isLoading) {
-        return <FormSkeleton fields={5} withHeader />;
+        return (
+            <div className="w-full space-y-6 sm:space-y-8">
+                {pageHeader}
+                <FormSkeleton fields={5} />
+            </div>
+        );
     }
 
     return (
         <div className="w-full space-y-6 sm:space-y-8">
-            <div className="flex flex-col items-start gap-2">
-                <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
-                    <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
-                </Button>
-                <div className="min-w-0">
-                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Settings</h1>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Manage your account and portal preferences.</p>
-                </div>
-            </div>
+            {pageHeader}
 
             <div className="grid gap-6 lg:grid-cols-2">
             <Card className="border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none">

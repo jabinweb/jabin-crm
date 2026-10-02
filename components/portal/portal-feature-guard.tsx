@@ -26,7 +26,7 @@ export function PortalFeatureGuard({
 
   if (isLoading || !data?.config) {
     if (quietLoading) return null;
-    return <FormSkeleton fields={4} withHeader />;
+    return <FormSkeleton fields={4} />;
   }
 
   if (data.config.features[feature] !== true) {

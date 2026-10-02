@@ -11,18 +11,28 @@ export default function ActiveLeadsPage() {
     status: [LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.PROPOSAL, LeadStatus.NEGOTIATION]
   })
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h2 className="text-2xl font-bold">Active Leads</h2>
+      <p className="text-sm text-muted-foreground">
+        Manage your active leads that need attention
+      </p>
+    </div>
+  );
+
   if (isLoading) {
-    return <TableSkeleton />
+    return (
+      <div className="space-y-4">
+        {pageHeader}
+        <TableSkeleton />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-bold">Active Leads</h2>
-        <p className="text-sm text-muted-foreground">
-          Manage your active leads that need attention
-        </p>
-      </div>
+      {pageHeader}
 
       <DataTable 
         columns={columns}

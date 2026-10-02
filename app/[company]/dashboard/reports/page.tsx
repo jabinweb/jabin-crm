@@ -37,7 +37,7 @@ import {
   MousePointer,
 } from 'lucide-react';
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
-import { PageHeaderSkeleton, StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import Link from 'next/link';
 
@@ -162,10 +162,49 @@ export default function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
+          Reports & Analytics
+        </h1>
+        <p className="text-sm md:text-base text-muted-foreground">
+          Track your lead generation performance and campaign metrics
+        </p>
+      </div>
+    
+      <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+        <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
+          <SelectTrigger className="w-full sm:w-[180px]">
+            <Calendar className="mr-2 h-4 w-4" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7d">Last 7 Days</SelectItem>
+            <SelectItem value="30d">Last 30 Days</SelectItem>
+            <SelectItem value="week">This Week</SelectItem>
+            <SelectItem value="month">This Month</SelectItem>
+            <SelectItem value="all">All Time</SelectItem>
+          </SelectContent>
+        </Select>
+    
+        <Button
+          variant="outline"
+          onClick={() => handleExportReport('csv')}
+          className="w-full sm:w-auto"
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Export CSV
+        </Button>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={4} />
         <SectionSkeleton lines={8} />
       </div>
@@ -184,41 +223,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            Reports & Analytics
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Track your lead generation performance and campaign metrics
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <Select value={dateRange} onValueChange={(value) => setDateRange(value as DateRange)}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <Calendar className="mr-2 h-4 w-4" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 Days</SelectItem>
-              <SelectItem value="30d">Last 30 Days</SelectItem>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="all">All Time</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Button
-            variant="outline"
-            onClick={() => handleExportReport('csv')}
-            className="w-full sm:w-auto"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
+      {pageHeader}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

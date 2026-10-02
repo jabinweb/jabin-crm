@@ -31,7 +31,7 @@ import {
 import { DashboardPage } from '@/components/layout/dashboard-page';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { FullTableSkeleton, PageHeaderSkeleton } from '@/components/loading';
+import { FullTableSkeleton } from '@/components/loading';
 import { Plus } from 'lucide-react';
 
 type WorkspaceUser = {
@@ -146,10 +146,28 @@ export default function WorkspaceUsersPage() {
     }
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Workspace users</h1>
+        <p className="text-sm text-muted-foreground">
+          People with access to this company workspace.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => setInviteOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Invite teammate
+        </Button>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <DashboardPage>
-        <PageHeaderSkeleton />
+        {pageHeader}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Members</CardTitle>
@@ -175,20 +193,7 @@ export default function WorkspaceUsersPage() {
 
   return (
     <DashboardPage>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">Workspace users</h1>
-          <p className="text-sm text-muted-foreground">
-            People with access to this company workspace.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setInviteOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Invite teammate
-          </Button>
-        </div>
-      </div>
+      {pageHeader}
 
       <Card>
         <CardHeader className="pb-3">

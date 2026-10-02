@@ -96,22 +96,32 @@ export default function QuotationsPage() {
     );
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl md:text-3xl font-bold">Quotations</h1>
+        <p className="text-sm md:text-base text-gray-500">Manage your quotations and proposals</p>
+      </div>
+      <Button onClick={() => router.push(path("/dashboard/quotations/new"))} className="w-full sm:w-auto">
+        <Plus className="w-4 h-4 mr-2" />
+        Create Quotation
+      </Button>
+    </div>
+  );
+
   if (loading) {
-    return <FullTableSkeleton columnCount={6} rowCount={6} withHeader />;
+    return (
+      <div className="space-y-6">
+        {pageHeader}
+        <FullTableSkeleton columnCount={6} rowCount={6} />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold">Quotations</h1>
-          <p className="text-sm md:text-base text-gray-500">Manage your quotations and proposals</p>
-        </div>
-        <Button onClick={() => router.push(path("/dashboard/quotations/new"))} className="w-full sm:w-auto">
-          <Plus className="w-4 h-4 mr-2" />
-          Create Quotation
-        </Button>
-      </div>
+      {pageHeader}
 
       <Card>
         <CardHeader>

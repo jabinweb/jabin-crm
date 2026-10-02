@@ -33,10 +33,6 @@ export default function CustomerPortalPage() {
         }
     });
 
-    if (isLoading) {
-        return <DashboardSkeleton />;
-    }
-
     const resolvedCount = stats?.resolvedTickets ?? 0;
     const totalTickets = (stats?.openTickets ?? 0) + resolvedCount;
     const resolutionRate = totalTickets > 0 ? Math.round((resolvedCount / totalTickets) * 100) : 100;
@@ -64,20 +60,34 @@ export default function CustomerPortalPage() {
         { href: '/portal/settings', label: 'Account settings' },
     ].filter(Boolean) as Array<{ href: string; label: string }>;
 
+    // Static header shows right away; only the stats below wait for data
+    const pageHeader = (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+                <h1 className="text-2xl font-bold tracking-tight">Customer portal</h1>
+                <p className="text-muted-foreground mt-1">{subtitle}</p>
+            </div>
+            <Button asChild>
+                <Link href="/portal/tickets/new">
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    {newRequestLabel}
+                </Link>
+            </Button>
+        </div>
+    );
+
+    if (isLoading) {
+        return (
+            <div className="space-y-6 sm:space-y-8">
+                {pageHeader}
+                <DashboardSkeleton />
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 sm:space-y-8">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                    <h1 className="text-2xl font-bold tracking-tight">Customer portal</h1>
-                    <p className="text-muted-foreground mt-1">{subtitle}</p>
-                </div>
-                <Button asChild>
-                    <Link href="/portal/tickets/new">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        {newRequestLabel}
-                    </Link>
-                </Button>
-            </div>
+            {pageHeader}
 
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {showEquipment ? (

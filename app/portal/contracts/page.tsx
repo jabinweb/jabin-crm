@@ -30,9 +30,20 @@ function ContractsList() {
     },
   });
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Contracts</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Active service agreements and coverage details.
+      </p>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-4">
+        {pageHeader}
         <SectionSkeleton lines={6} />
       </div>
     );
@@ -40,12 +51,7 @@ function ContractsList() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Contracts</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Active service agreements and coverage details.
-        </p>
-      </div>
+      {pageHeader}
 
       {contracts.length === 0 ? (
         <Card>

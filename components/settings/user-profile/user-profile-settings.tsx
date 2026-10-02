@@ -20,7 +20,19 @@ export default function UserProfileSettings() {
   const settings = useUserProfileSettings();
 
   if (settings.isLoading) {
-    return <FormSkeleton fields={6} withHeader />;
+    // Static title shows right away; only the form waits for data
+    return (
+      <div className="min-w-0 flex-1 space-y-6 pb-8">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Personal CRM settings</h1>
+          <p className="text-sm text-muted-foreground">
+            Invoicing templates, payment details, AI keys, and profile defaults for your account
+            {session?.user?.email ? ` · ${session.user.email}` : ''}.
+          </p>
+        </div>
+        <FormSkeleton fields={6} />
+      </div>
+    );
   }
 
   return (

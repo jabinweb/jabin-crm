@@ -28,7 +28,7 @@ import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { toast } from 'sonner';
 import { DashboardPage } from '@/components/layout/dashboard-page';
-import { BoardSkeleton, PageHeaderSkeleton, StatCardsSkeleton } from '@/components/loading';
+import { BoardSkeleton, StatCardsSkeleton } from '@/components/loading';
 import { useRealtime } from '@/hooks/use-realtime';
 import { REALTIME_EVENTS } from '@/lib/realtime/events';
 import { useWorkspaceTerminology } from '@/hooks/use-workspace-config';
@@ -203,10 +203,28 @@ export default function DealsPage() {
     }
   };
 
+  // Static page header: shown as-is while data loads (no skeleton for known text)
+  const pageHeader = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {terminology?.deals ?? 'Deal'} pipeline
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Track {terminology?.deals?.toLowerCase() ?? 'deals'} through your sales process
+        </p>
+      </div>
+      <Button onClick={() => void openCreate()}>
+        <Plus className="mr-2 h-4 w-4" />
+        New {terminology?.deal?.toLowerCase() ?? 'deal'}
+      </Button>
+    </div>
+  );
+
   if (loading || columnsLoading) {
     return (
       <DashboardPage>
-        <PageHeaderSkeleton />
+        {pageHeader}
         <StatCardsSkeleton count={3} />
         <BoardSkeleton />
       </DashboardPage>
@@ -215,20 +233,7 @@ export default function DealsPage() {
 
   return (
     <DashboardPage>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {terminology?.deals ?? 'Deal'} pipeline
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Track {terminology?.deals?.toLowerCase() ?? 'deals'} through your sales process
-          </p>
-        </div>
-        <Button onClick={() => void openCreate()}>
-          <Plus className="mr-2 h-4 w-4" />
-          New {terminology?.deal?.toLowerCase() ?? 'deal'}
-        </Button>
-      </div>
+      {pageHeader}
 
       {stats && (
         <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
