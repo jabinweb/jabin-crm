@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 
@@ -26,6 +26,9 @@ export default function PaymentSuccessPage() {
     : '/workspace';
 
   const isOk = status === 'ok';
+  // Server passes the thrown error message; machine codes like "verification_failed" aren't user copy
+  const readableReason =
+    reason && !/^[a-z0-9_]+$/i.test(reason) ? reason.replace(/\.?$/, '.') : null;
 
   useEffect(() => {
     if (!isOk) return;
@@ -64,17 +67,25 @@ export default function PaymentSuccessPage() {
 
         {status === 'error' && (
           <>
-            <XCircle className="h-14 w-14 text-destructive mx-auto" />
+            <XCircle className="h-14 w-14 text-destructive mx-auto" aria-hidden />
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Payment verification failed</h1>
-              <p className="text-muted-foreground mt-2 text-sm">{reason || 'Please contact support.'}</p>
+              <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                {readableReason ??
+                  'We couldn’t verify this payment.'}{' '}
+                If you were charged, don&apos;t pay again — contact{' '}
+                <a className="underline underline-offset-2" href="mailto:hello@opslane.app">
+                  hello@opslane.app
+                </a>{' '}
+                and we&apos;ll sort it out.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
-              <Button asChild variant="outline">
+              <Button asChild>
                 <Link href="/pricing">Back to pricing</Link>
               </Button>
-              <Button asChild>
-                <Link href={dashboardHref}>Dashboard</Link>
+              <Button asChild variant="outline">
+                <Link href={dashboardHref}>Go to dashboard</Link>
               </Button>
             </div>
           </>
@@ -82,14 +93,29 @@ export default function PaymentSuccessPage() {
 
         {(status === 'missing' || !status) && (
           <>
-            <Loader2 className="h-10 w-10 animate-spin text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">Processing payment status…</p>
-            <Button asChild variant="outline">
-              <Link href={dashboardHref}>Dashboard</Link>
-            </Button>
+            <XCircle className="h-14 w-14 text-muted-foreground mx-auto" aria-hidden />
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">We couldn&apos;t confirm your payment</h1>
+              <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+                The payment provider didn&apos;t send back the details we need. If you completed
+                the payment, it can take a few minutes to show up under Billing. If you were
+                charged and your plan doesn&apos;t update, contact{' '}
+                <a className="underline underline-offset-2" href="mailto:hello@opslane.app">
+                  hello@opslane.app
+                </a>
+                .
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button asChild>
+                <Link href={dashboardHref}>Go to dashboard</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/pricing">Back to pricing</Link>
+              </Button>
+            </div>
           </>
-        )}
-      </div>
+        )}      </div>
     </div>
   );
 }

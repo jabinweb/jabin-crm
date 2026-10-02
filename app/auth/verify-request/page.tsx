@@ -7,8 +7,8 @@ export default function VerifyRequest() {
   return (
     <AuthShell>
       <div className="space-y-6 text-center">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-teal-50 ring-1 ring-teal-100">
-          <Mail className="size-7 text-[var(--lp-accent)]" />
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-teal-50 ring-1 ring-teal-100">
+          <Mail className="h-7 w-7 text-[var(--lp-accent)]" aria-hidden />
         </div>
         <div className="space-y-2">
           <h2 className="font-[family-name:var(--font-landing-display)] text-2xl font-semibold tracking-tight text-[var(--lp-ink)]">
@@ -19,8 +19,9 @@ export default function VerifyRequest() {
             hours.
           </p>
         </div>
-        <p className="text-xs text-[var(--lp-muted)]">
-          Didn&apos;t request this? You can safely ignore the email.
+        <p className="text-xs leading-relaxed text-[var(--lp-muted)]">
+          Can&apos;t find it? Check your spam or promotions folder, or go back and request a new
+          link.
         </p>
         <Button asChild variant="outline" className="h-11 w-full border-slate-200 bg-white">
           <Link href="/auth/signin">Back to sign in</Link>

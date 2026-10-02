@@ -24,9 +24,49 @@ import {
   Mail,
   Phone,
   MessageCircle,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
+import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
 import { DetailSkeleton, CardListSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
+
+const fmtDate = (value: string) => format(new Date(value), 'd MMM yyyy');
+
+function HelpfulButton({ articleId }: { articleId: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'done'>('idle');
+
+  if (state === 'done') {
+    return <p className="flex h-10 items-center text-sm text-muted-foreground">Thanks for the feedback!</p>;
+  }
+
+  return (
+    <Button
+      variant="outline"
+      disabled={state === 'sending'}
+      onClick={async () => {
+        setState('sending');
+        try {
+          const res = await fetch(`/api/support/knowledge/${articleId}/helpful`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ helpful: true }),
+          });
+          if (!res.ok) throw new Error();
+          setState('done');
+        } catch {
+          setState('idle');
+          toast.error('Could not record your feedback. Please try again.');
+        }
+      }}
+    >
+      <ThumbsUp className="mr-2 h-4 w-4" />
+      Yes, it helped
+    </Button>
+  );
+}
 
 function PortalSupportContent() {
   const searchParams = useSearchParams();
@@ -50,7 +90,7 @@ function PortalSupportContent() {
     enabled: !!slug,
   });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ['portal-knowledge', search, categoryFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -68,9 +108,26 @@ function PortalSupportContent() {
     setSearch(query.trim());
   };
 
+  const clearFilters = () => {
+    setCategoryFilter('');
+    setSearch('');
+    setQuery('');
+  };
+  const filtering = !!(search || categoryFilter);
+
   if (slug) {
     if (articleLoading) {
-      return <DetailSkeleton />;
+      return (
+        <div className="w-full space-y-6">
+          <Button asChild variant="ghost" size="sm" className="-ml-2">
+            <Link href="/portal/support">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Help Center
+            </Link>
+          </Button>
+          <DetailSkeleton />
+        </div>
+      );
     }
 
     if (!article) {
@@ -105,7 +162,7 @@ function PortalSupportContent() {
           )}
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">{article.title}</h1>
           <p className="text-sm text-muted-foreground mt-2">
-            Updated {new Date(article.updatedAt).toLocaleDateString()}
+            Updated {fmtDate(article.updatedAt)}
           </p>
         </div>
 
@@ -124,19 +181,7 @@ function PortalSupportContent() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  await fetch(`/api/support/knowledge/${article.id}/helpful`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ helpful: true }),
-                  });
-                }}
-              >
-                <ThumbsUp className="mr-2 h-4 w-4" />
-                Yes
-              </Button>
+              <HelpfulButton key={article.id} articleId={article.id} />
               <Button asChild>
                 <Link href="/portal/tickets/new">Contact support</Link>
               </Button>
@@ -243,18 +288,43 @@ function PortalSupportContent() {
         <CardContent>
           <form onSubmit={handleSearch} className="flex w-full gap-2">
             <Input
+              type="search"
+              aria-label="Search help articles"
               placeholder="How do I reset my password?"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="flex-1"
+              className="min-w-0 flex-1"
             />
             <Button type="submit">Search</Button>
           </form>
+          {filtering ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                Showing
+                {search ? <> results for <span className="font-medium text-foreground">“{search}”</span></> : null}
+                {categoryFilter ? <> in <span className="font-medium text-foreground">{categoryFilter}</span></> : null}
+              </span>
+              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={clearFilters}>
+                <X className="mr-1 h-3.5 w-3.5" />
+                Clear
+              </Button>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
       {isLoading ? (
         <CardListSkeleton rows={4} />
+      ) : isError ? (
+        <Card>
+          <EmptyState
+            icon={AlertTriangle}
+            title="We couldn't load help articles"
+            description="Check your connection and try again — or contact support directly."
+            actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+            onAction={() => void refetch()}
+          />
+        </Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2 min-w-0">
@@ -265,13 +335,24 @@ function PortalSupportContent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {data?.articles?.length === 0 ? (
+              {!data?.articles?.length ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <LifeBuoy className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                  <p>No articles yet. Your support team can publish guides here.</p>
-                  <Button asChild variant="link" className="mt-2">
-                    <Link href="/portal/tickets/new">Submit a question instead</Link>
-                  </Button>
+                  <p>
+                    {filtering
+                      ? 'No articles match. Try different words, or ask our team directly.'
+                      : 'No help articles have been published yet.'}
+                  </p>
+                  <div className="mt-2 flex flex-wrap justify-center gap-2">
+                    {filtering ? (
+                      <Button variant="outline" size="sm" onClick={clearFilters}>
+                        Clear search
+                      </Button>
+                    ) : null}
+                    <Button asChild variant="link" size="sm">
+                      <Link href="/portal/tickets/new">Submit a question instead</Link>
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 data?.articles?.map((item: { id: string; slug: string; title: string; category?: string; updatedAt: string }) => (
@@ -290,7 +371,7 @@ function PortalSupportContent() {
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {new Date(item.updatedAt).toLocaleDateString()}
+                        {fmtDate(item.updatedAt)}
                       </span>
                     </div>
                   </Link>
@@ -307,7 +388,8 @@ function PortalSupportContent() {
               {(data?.categories ?? []).map((cat: { category: string | null; _count: number }) => (
                 <Button
                   key={cat.category}
-                  variant="ghost"
+                  variant={categoryFilter === (cat.category ?? '') && categoryFilter ? 'secondary' : 'ghost'}
+                  aria-pressed={categoryFilter === (cat.category ?? '') && !!categoryFilter}
                   className="w-full justify-between"
                   onClick={() => {
                     setCategoryFilter(cat.category ?? '');
@@ -341,7 +423,7 @@ function PortalSupportContent() {
             </p>
           </div>
           <Button asChild variant="default">
-            <Link href="/portal/tickets/new">Open a ticket</Link>
+            <Link href="/portal/tickets/new">Open a {ticketLabel.toLowerCase()}</Link>
           </Button>
         </CardContent>
       </Card>

@@ -16,8 +16,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
+import { AuthShell } from '@/components/auth/auth-shell';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -59,7 +62,7 @@ export default function RegisterPage() {
   const params = useParams();
   const companySlug = typeof params?.company === 'string' ? params.company : '';
   const { data: session, status } = useSession();
-  const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (status !== 'authenticated' || !session?.user) return;
@@ -86,9 +89,9 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
+    setSubmitError('');
     try {
-      const response = await fetch('/api/auth/register', { // Fix: Updated API endpoint path
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -97,7 +100,7 @@ export default function RegisterPage() {
       // Handle non-JSON responses
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        throw new Error('Server returned non-JSON response');
+        throw new Error('Something went wrong on our side. Please try again in a moment.');
       }
 
       const result = await response.json();
@@ -106,9 +109,8 @@ export default function RegisterPage() {
         throw new Error(result.error || 'Registration failed');
       }
 
-      toast({
-        title: "Registration successful",
-        description: "Please wait for admin approval",
+      toast.success('Account created', {
+        description: 'Sign in to continue. Your company will be reviewed before the workspace goes live.',
       });
 
       const registeredSlug = result.data?.companySlug as string | undefined;
@@ -121,105 +123,84 @@ export default function RegisterPage() {
       );
     } catch (error) {
       console.error('Registration error:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : 'Registration failed'
-      });
-    } finally {
-      setIsLoading(false);
+      const message = error instanceof Error ? error.message : 'Registration failed';
+      setSubmitError(message);
+      toast.error(message);
     }
   };
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
-  }
 
   const redirectingAway =
     status === 'authenticated' &&
     session?.user &&
     (session.user.role === 'SUPER_ADMIN' || !!session.user.companySlug?.trim());
 
-  if (redirectingAway) {
+  if (status === 'loading' || redirectingAway) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
-        <p className="text-sm text-muted-foreground">Redirecting…</p>
-      </div>
+      <AuthShell>
+        <div className="flex min-h-[320px] items-center justify-center" aria-busy="true">
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--lp-muted)]" />
+          <span className="sr-only">{redirectingAway ? 'Redirecting…' : 'Loading…'}</span>
+        </div>
+      </AuthShell>
     );
   }
 
+  const fields = [
+    { name: 'name', label: 'Your name', type: 'text', placeholder: 'Priya Sharma', autocomplete: 'name' },
+    { name: 'email', label: 'Work email', type: 'email', placeholder: 'you@company.com', autocomplete: 'email' },
+    {
+      name: 'password',
+      label: 'Password',
+      type: 'password',
+      placeholder: '8+ characters, upper, lower and a number',
+      autocomplete: 'new-password',
+    },
+    { name: 'companyName', label: 'Company name', type: 'text', placeholder: 'Acme Service Co', autocomplete: 'organization' },
+    { name: 'website', label: 'Company website', type: 'url', placeholder: 'https://acme.com', autocomplete: 'url' },
+  ] as const;
+
+  const isSubmitting = form.formState.isSubmitting;
+
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-8">
-      <div className="max-w-md w-full space-y-8 p-6 sm:space-y-10 sm:p-12 border-2 border-foreground/5 bg-background shadow-none">
-        <div className="text-center border-b border-foreground/5 pb-10">
-          <h2 className="text-xl font-black uppercase tracking-[0.25em] text-foreground">Account Genesis</h2>
-          <p className="mt-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">
-            Authorized Personnel Only • Node Signup Protocol
+    <AuthShell>
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <h2 className="font-[family-name:var(--font-landing-display)] text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--lp-ink)]">
+            Register your company
+          </h2>
+          <p className="text-sm text-[var(--lp-muted)]">
+            Create your admin account. We review new companies before the workspace goes live.
           </p>
         </div>
 
+        {submitError ? (
+          <Alert variant="destructive" className="rounded-lg">
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        ) : null}
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="mt-8 space-y-3">
-            {[
-              { 
-                name: 'name', 
-                label: 'Full Name', 
-                type: 'text', 
-                placeholder: 'John Doe',
-                autocomplete: 'name'
-              },
-              { 
-                name: 'email', 
-                label: 'Email Address', 
-                type: 'email', 
-                placeholder: 'john@company.com',
-                autocomplete: 'email'
-              },
-              { 
-                name: 'password', 
-                label: 'Password', 
-                type: 'password', 
-                placeholder: '••••••••',
-                autocomplete: 'new-password'
-              },
-              { 
-                name: 'companyName', 
-                label: 'Company Name', 
-                type: 'text', 
-                placeholder: 'Your Company Name',
-                autocomplete: 'organization'
-              },
-              { 
-                name: 'website', 
-                label: 'Company Website', 
-                type: 'url', 
-                placeholder: 'https://your-company.com',
-                autocomplete: 'url'
-              }
-            ].map((field) => (
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            {fields.map((field) => (
               <FormField
                 key={field.name}
                 control={form.control}
-                name={field.name as keyof z.infer<typeof formSchema>}
+                name={field.name}
                 render={({ field: formField }) => (
-                  <FormItem className="space-y-1">
-                    <FormLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{field.label}</FormLabel>
+                  <FormItem className="space-y-2">
+                    <FormLabel className="text-sm font-medium text-[var(--lp-ink)]">{field.label}</FormLabel>
                     <FormControl>
                       <Input
                         {...formField}
                         type={field.type}
                         placeholder={field.placeholder}
                         autoComplete={field.autocomplete}
-                        className="bg-muted/5 border-foreground/10 h-10 px-4 font-mono text-xs"
+                        className="h-11 border-slate-200 bg-white shadow-sm focus-visible:ring-[var(--lp-accent)]"
                       />
                     </FormControl>
-                    <FormMessage className="text-[9px] uppercase tracking-tighter" />
+                    <FormMessage />
                   </FormItem>
-                )} 
+                )}
               />
             ))}
 
@@ -227,13 +208,11 @@ export default function RegisterPage() {
               control={form.control}
               name="businessVertical"
               render={({ field }) => (
-                <FormItem className="space-y-1">
-                  <FormLabel className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
-                    Business type
-                  </FormLabel>
+                <FormItem className="space-y-2">
+                  <FormLabel className="text-sm font-medium text-[var(--lp-ink)]">Industry</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger className="bg-muted/5 border-foreground/10 h-10 font-mono text-xs">
+                      <SelectTrigger className="h-11 border-slate-200 bg-white shadow-sm">
                         <SelectValue placeholder="Select your industry" />
                       </SelectTrigger>
                     </FormControl>
@@ -245,35 +224,54 @@ export default function RegisterPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage className="text-[9px] uppercase tracking-tighter" />
+                  <FormMessage />
                 </FormItem>
               )}
             />
 
             <Button
               type="submit"
-              className="w-full h-11 uppercase font-black tracking-[0.2em] border-2 border-foreground hover:bg-foreground hover:text-background transition-all"
-              disabled={form.formState.isSubmitting}
+              className="h-11 w-full bg-[var(--lp-accent)] text-white shadow-sm hover:bg-[var(--lp-accent-deep)]"
+              disabled={isSubmitting}
             >
-              {form.formState.isSubmitting ? "Authenticating..." : "Execute Login"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                'Create account'
+              )}
             </Button>
 
-            <p className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40 mt-12 pt-8 border-t border-foreground/5">
-              Legacy access available?{' '}
-              <Link
-                href={
-                  companySlug
-                    ? `/auth/signin?callbackUrl=${encodeURIComponent(`/${companySlug}/dashboard`)}`
-                    : '/auth/signin'
-                }
-                className="text-foreground underline decoration-1 underline-offset-4 hover:opacity-70 transition-opacity"
-              >
-                Execute Login
+            <p className="text-center text-xs leading-relaxed text-[var(--lp-muted)]">
+              By creating an account you agree to the{' '}
+              <Link href="/terms" className="underline underline-offset-2 hover:text-[var(--lp-ink)]">
+                Terms
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" className="underline underline-offset-2 hover:text-[var(--lp-ink)]">
+                Privacy policy
               </Link>
+              .
             </p>
           </form>
         </Form>
+
+        <p className="text-center text-sm text-[var(--lp-muted)]">
+          Already have an account?{' '}
+          <Link
+            href={
+              companySlug
+                ? `/auth/signin?callbackUrl=${encodeURIComponent(`/${companySlug}/dashboard`)}`
+                : '/auth/signin'
+            }
+            className="font-medium text-[var(--lp-accent-deep)] hover:text-[var(--lp-accent)] hover:underline underline-offset-4"
+          >
+            Sign in
+          </Link>
+        </p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

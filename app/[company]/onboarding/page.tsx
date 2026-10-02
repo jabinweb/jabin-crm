@@ -29,6 +29,7 @@ import { Loader2, CheckCircle2, Rocket, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { FormSkeleton } from '@/components/loading';
+import { confirmAction } from '@/lib/confirm-action';
 
 export default function OnboardingPage() {
   const params = useParams<{ company: string }>();
@@ -39,7 +40,7 @@ export default function OnboardingPage() {
   const role = session?.user?.role;
   const isManager = canManageCompanyOnboarding(role);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['onboarding', slug],
     queryFn: async () => {
       const res = await fetch('/api/onboarding', { headers: workspaceSlugHeaders(slug) });
@@ -96,6 +97,33 @@ export default function OnboardingPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['onboarding', slug] }),
   });
 
+  const alreadyCompleted = !!data?.onboarding?.completed;
+  useEffect(() => {
+    if (alreadyCompleted) router.replace(`/${slug}/dashboard`);
+  }, [alreadyCompleted, router, slug]);
+
+  if (sessionStatus === 'unauthenticated') {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8">
+        <Card className="max-w-md w-full shadow-none">
+          <CardHeader>
+            <CardTitle>Sign in to continue setup</CardTitle>
+            <CardDescription>
+              Workspace setup is only available to signed-in workspace admins.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <Link href={`/auth/signin?callbackUrl=${encodeURIComponent(`/${slug}/onboarding`)}`}>
+                Sign in
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // A failed load used to leave the skeleton up forever (data stays undefined)
   if (isError) {
     return (
@@ -104,12 +132,14 @@ export default function OnboardingPage() {
           <CardHeader>
             <CardTitle>Could not load workspace setup</CardTitle>
             <CardDescription>
-              {error instanceof Error ? error.message : 'Something went wrong.'}
+              {error instanceof Error && error.message !== 'Failed to load onboarding'
+                ? error.message
+                : 'Check your connection and try again.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => void refetch()}>
-              Retry
+            <Button className="w-full" disabled={isRefetching} onClick={() => void refetch()}>
+              {isRefetching ? 'Retrying…' : 'Try again'}
             </Button>
           </CardContent>
         </Card>
@@ -125,9 +155,13 @@ export default function OnboardingPage() {
     );
   }
 
-  if (data.onboarding?.completed) {
-    router.replace(`/${slug}/dashboard`);
-    return null;
+  if (alreadyCompleted) {
+    // Redirect happens in the effect above; keep a calm placeholder meanwhile
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center px-4">
+        <p className="text-sm text-muted-foreground">Setup is complete — taking you to your dashboard…</p>
+      </div>
+    );
   }
 
   if (!isManager) {
@@ -190,7 +224,7 @@ export default function OnboardingPage() {
             {data.company?.name ?? 'Your business'}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Two–three quick steps — you can change everything later in Settings.
+            A few quick steps — you can change everything later in Settings.
           </p>
         </div>
 
@@ -208,8 +242,10 @@ export default function OnboardingPage() {
             {step === 'welcome' && (
               <>
                 <div className="space-y-2">
-                  <Label>Company name</Label>
+                  <Label htmlFor="onb-company">Company name</Label>
                   <Input
+                    id="onb-company"
+                    autoComplete="organization"
                     value={welcome.companyName}
                     onChange={(e) =>
                       setWelcome((w) => ({ ...w, companyName: e.target.value }))
@@ -217,14 +253,14 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Business type</Label>
+                  <Label htmlFor="onb-vertical">Business type</Label>
                   <Select
                     value={welcome.businessVertical}
                     onValueChange={(v) =>
                       setWelcome((w) => ({ ...w, businessVertical: v }))
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="onb-vertical">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -243,8 +279,9 @@ export default function OnboardingPage() {
             {step === 'support' && (
               <>
                 <div className="space-y-2">
-                  <Label>Support email</Label>
+                  <Label htmlFor="onb-support-email">Support email</Label>
                   <Input
+                    id="onb-support-email"
                     type="email"
                     placeholder="support@yourcompany.com"
                     value={channels.email}
@@ -254,8 +291,10 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Support phone</Label>
+                  <Label htmlFor="onb-support-phone">Support phone</Label>
                   <Input
+                    id="onb-support-phone"
+                    type="tel"
                     placeholder="+91 98765 43210"
                     value={channels.phone}
                     onChange={(e) =>
@@ -264,15 +303,17 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3 rounded-md border p-3">
-                  <Label>Live chat</Label>
+                  <Label htmlFor="onb-chat">Live chat</Label>
                   <Switch
+                    id="onb-chat"
                     checked={channels.chat}
                     onCheckedChange={(v) => setChannels((c) => ({ ...c, chat: v }))}
                   />
                 </div>
                 <div className="flex items-center justify-between gap-3 rounded-md border p-3">
-                  <Label>WhatsApp</Label>
+                  <Label htmlFor="onb-whatsapp">WhatsApp</Label>
                   <Switch
+                    id="onb-whatsapp"
                     checked={channels.whatsApp}
                     onCheckedChange={(v) =>
                       setChannels((c) => ({ ...c, whatsApp: v }))
@@ -285,14 +326,15 @@ export default function OnboardingPage() {
             {step === 'business' && (
               <>
                 <div className="space-y-2">
-                  <Label>GSTIN / Tax ID (optional)</Label>
+                  <Label htmlFor="onb-gstin">GSTIN / Tax ID (optional)</Label>
                   <Input
+                    id="onb-gstin"
                     placeholder="22AAAAA0000A1Z5"
                     value={business.gstin}
                     onChange={(e) => setBusiness({ gstin: e.target.value })}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Used on invoices. You can update this later under Personal CRM → Invoicing.
+                    Printed on your invoices. You can change it later in Settings.
                   </p>
                 </div>
               </>
@@ -350,6 +392,13 @@ export default function OnboardingPage() {
                 variant="ghost"
                 disabled={mutation.isPending}
                 onClick={async () => {
+                  const ok = await confirmAction({
+                    title: 'Skip the rest of setup?',
+                    description:
+                      'Your workspace will open with default settings. You can change everything later in Settings.',
+                    confirmLabel: 'Skip setup',
+                  });
+                  if (!ok) return;
                   try {
                     await finishAndGo();
                   } catch {

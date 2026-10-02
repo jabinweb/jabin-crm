@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { CardListSkeleton, StatCardsSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
+import { EmptyState } from '@/components/ui/empty-state';
 
 function getWarrantyStatus(expiryDate: string | null) {
     if (!expiryDate) return { label: 'No Warranty', color: 'text-slate-500', bgColor: 'bg-slate-50 dark:bg-slate-800/50', borderColor: 'border-slate-200 dark:border-slate-700', Icon: ShieldX };
@@ -37,11 +38,15 @@ function WarrantyCard({ installation }: { installation: any }) {
                         <div className="h-10 w-10 rounded-none bg-blue-600/10 flex items-center justify-center flex-shrink-0">
                             <Wrench className="h-5 w-5 text-blue-600" />
                         </div>
-                        <div>
-                            <CardTitle className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">
-                                {installation.product?.name ?? 'Unknown Equipment'}
+                        <div className="min-w-0">
+                            <CardTitle className="text-sm font-semibold leading-tight break-words">
+                                {installation.product?.name ?? 'Equipment'}
                             </CardTitle>
-                            <p className="text-xs text-slate-400 mt-0.5">{installation.product?.manufacturer ?? ''} · {installation.product?.modelNumber ?? ''}</p>
+                            {installation.product?.manufacturer || installation.product?.modelNumber ? (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {[installation.product?.manufacturer, installation.product?.modelNumber].filter(Boolean).join(' · ')}
+                                </p>
+                            ) : null}
                         </div>
                     </div>
                     <span className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-none ${ws.bgColor} ${ws.color} border ${ws.borderColor} flex-shrink-0`}>
@@ -85,7 +90,7 @@ export default function WarrantiesPage() {
 }
 
 function WarrantiesContent() {
-    const { data: equipment = [], isLoading } = useQuery({
+    const { data: equipment = [], isLoading, isError, refetch, isRefetching } = useQuery({
         queryKey: ['portal-warranties'],
         queryFn: async () => {
             const res = await fetch('/api/portal/equipment');
@@ -112,18 +117,18 @@ function WarrantiesContent() {
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex min-w-0 flex-col items-start gap-2">
-                    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
-                        <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
+                    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none">
+                        <Link href="/portal" aria-label="Back to portal home"><ChevronLeft className="h-4 w-4" /></Link>
                     </Button>
                     <div className="min-w-0">
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Warranty Overview</h1>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Track warranty status and expiry dates for all installed equipment.</p>
+                        <h1 className="text-2xl font-bold tracking-tight">Warranties</h1>
+                        <p className="text-sm text-muted-foreground mt-0.5">Track warranty status and expiry dates for all installed equipment.</p>
                     </div>
                 </div>
             </div>
 
             {/* Summary Cards */}
-            {!isLoading && equipment.length > 0 && (
+            {!isLoading && !isError && equipment.length > 0 && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {[
                         { label: 'Active', count: active.length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', Icon: ShieldCheck },
@@ -149,17 +154,30 @@ function WarrantiesContent() {
             {/* Equipment Grid */}
             {isLoading ? (
                 <div className="space-y-6">
-                    <StatCardsSkeleton count={3} />
+                    <StatCardsSkeleton count={4} />
                     <CardListSkeleton rows={4} />
                 </div>
+            ) : isError ? (
+                <Card className="shadow-none">
+                    <EmptyState
+                        icon={AlertTriangle}
+                        title="We couldn't load your warranties"
+                        description="Check your connection and try again."
+                        actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+                        onAction={() => void refetch()}
+                    />
+                </Card>
             ) : equipment.length === 0 ? (
                 <Card className="border-dashed border-2 border-slate-200 dark:border-slate-800 bg-transparent shadow-none">
                     <CardContent className="flex flex-col items-center justify-center py-24 text-center gap-3">
                         <div className="h-14 w-14 rounded-none bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                             <PackageSearch className="h-6 w-6 text-slate-400" />
                         </div>
-                        <p className="text-slate-600 dark:text-slate-400 font-medium">No equipment registered</p>
-                        <p className="text-sm text-slate-400">Warranty information will appear here once assets are registered to your account.</p>
+                        <p className="font-medium">No equipment registered</p>
+                        <p className="max-w-sm text-sm text-muted-foreground">Warranty information will appear here once your provider registers equipment to your account. Missing something?</p>
+                        <Button asChild size="sm" variant="outline" className="mt-2">
+                            <Link href="/portal/tickets/new">Contact support</Link>
+                        </Button>
                     </CardContent>
                 </Card>
             ) : (

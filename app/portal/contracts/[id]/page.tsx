@@ -2,12 +2,15 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ChevronLeft, FileWarning } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
+import { humanizeStatus } from '@/lib/portal/status-label';
 import { SectionSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
 
@@ -33,9 +36,7 @@ type PortalContract = {
 
 function ContractDetail() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-
-  const { data: contract, isLoading, error } = useQuery({
+  const { data: contract, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['portal-contract', id],
     queryFn: async () => {
       const res = await fetch(`/api/portal/contracts/${id}`);
@@ -44,17 +45,34 @@ function ContractDetail() {
     },
   });
 
+  const backLink = (
+    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none">
+      <Link href="/portal/documents" aria-label="Back to documents">
+        <ChevronLeft className="h-4 w-4" />
+      </Link>
+    </Button>
+  );
+
   if (isLoading) {
-      return <SectionSkeleton lines={8} className="py-4" />;
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <SectionSkeleton lines={8} className="py-4" />
+      </div>
+    );
   }
 
   if (error || !contract) {
     return (
-      <div className="py-16 text-center space-y-4">
-        <p className="text-muted-foreground">Contract not found.</p>
-        <Button variant="outline" asChild>
-          <Link href="/portal/documents">Back to documents</Link>
-        </Button>
+      <div className="space-y-4">
+        {backLink}
+        <EmptyState
+          icon={FileWarning}
+          title="We couldn't open this contract"
+          description="It may have been removed, or the connection dropped. Try again, or go back to your documents."
+          actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+          onAction={() => void refetch()}
+        />
       </div>
     );
   }
@@ -62,21 +80,14 @@ function ContractDetail() {
   return (
     <div className="space-y-6">
       <div className="flex min-w-0 flex-col items-start gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push('/portal/documents')}
-          className="-ml-3 rounded-none"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
+        {backLink}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h1 className="text-2xl font-bold tracking-tight break-words min-w-0">{contract.title}</h1>
-            <Badge variant="outline">{contract.status}</Badge>
+            <Badge variant="outline">{humanizeStatus(contract.status)}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            {contract.type}
+            {humanizeStatus(contract.type)}
             {contract.contractNumber ? ` · ${contract.contractNumber}` : ''}
           </p>
         </div>
@@ -87,8 +98,8 @@ function ContractDetail() {
           <CardHeader>
             <CardTitle className="text-base">Coverage</CardTitle>
             <CardDescription>
-              {new Date(contract.startDate).toLocaleDateString()} –{' '}
-              {new Date(contract.endDate).toLocaleDateString()}
+              {format(new Date(contract.startDate), 'd MMM yyyy')} –{' '}
+              {format(new Date(contract.endDate), 'd MMM yyyy')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
@@ -98,7 +109,7 @@ function ContractDetail() {
             </div>
             {contract.visitLimit != null ? (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Visit limit</span>
+                <span className="text-muted-foreground">Visits included</span>
                 <span>{contract.visitLimit}</span>
               </div>
             ) : null}

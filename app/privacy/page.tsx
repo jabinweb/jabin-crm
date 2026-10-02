@@ -23,7 +23,8 @@ export default function PrivacyPage() {
           <a className="underline" href="mailto:hello@opslane.app">
             hello@opslane.app
           </a>
-          . This page is a concise summary and will be expanded as the product grows.
+          . This page is a summary; contact us if you need more detail about how your data is
+          handled.
         </p>
       </div>
     </div>

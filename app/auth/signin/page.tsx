@@ -21,7 +21,7 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   AccessDenied:
     'Sign-in was denied. Use a registered email or ask an admin to invite you.',
   CredentialsSignin: 'Invalid email or password.',
-  Configuration: 'Authentication is misconfigured. Check server environment variables.',
+  Configuration: 'Sign-in is temporarily unavailable. Please try again in a few minutes.',
   OAuthCallback: 'Google sign-in failed. Clear cookies and try again.',
 };
 
@@ -44,6 +44,8 @@ function SignInForm() {
   const authErrorMessage = authError
     ? (AUTH_ERROR_MESSAGES[authError] ?? 'Sign-in failed. Please try again.')
     : '';
+  // Set by /auth/reset-password after a successful reset
+  const passwordWasReset = searchParams.get('reset') === '1';
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,6 +152,13 @@ function SignInForm() {
             Continue with Google, or use your email and password.
           </p>
         </div>
+
+        {passwordWasReset && !authErrorMessage && !error ? (
+          <Alert className="rounded-lg border-teal-200 bg-teal-50 text-teal-900">
+            <CheckCircle2 className="h-4 w-4 !text-teal-700" />
+            <AlertDescription>Your password was updated. Sign in with your new password.</AlertDescription>
+          </Alert>
+        ) : null}
 
         {(authErrorMessage || error) && (
           <Alert variant="destructive" className="rounded-lg">

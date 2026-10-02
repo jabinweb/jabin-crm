@@ -3,8 +3,11 @@
 import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeStatus } from '@/lib/portal/status-label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import {
@@ -15,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ChevronLeft, Download, CreditCard, Building2 } from 'lucide-react';
+import { ChevronLeft, Download, CreditCard, Building2, FileWarning } from 'lucide-react';
 import { formatCurrency } from '@/lib/currency';
 import { SectionSkeleton } from '@/components/loading';
 import { PortalFeatureGuard } from '@/components/portal/portal-feature-guard';
@@ -57,10 +60,9 @@ type InvoiceDetail = {
 
 function InvoiceDetailView() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const paySectionRef = useRef<HTMLDivElement>(null);
 
-  const { data: invoice, isLoading, error } = useQuery({
+  const { data: invoice, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['portal-invoice', id],
     queryFn: async () => {
       const res = await fetch(`/api/portal/invoices/${id}`);
@@ -69,17 +71,34 @@ function InvoiceDetailView() {
     },
   });
 
+  const backLink = (
+    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none">
+      <Link href="/portal/invoices" aria-label="Back to invoices">
+        <ChevronLeft className="h-4 w-4" />
+      </Link>
+    </Button>
+  );
+
   if (isLoading) {
-    return <SectionSkeleton lines={8} className="py-4" />;
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <SectionSkeleton lines={8} className="py-4" />
+      </div>
+    );
   }
 
   if (error || !invoice) {
     return (
-      <div className="py-16 text-center space-y-4">
-        <p className="text-muted-foreground">Invoice not found.</p>
-        <Button variant="outline" asChild>
-          <Link href="/portal/invoices">Back to invoices</Link>
-        </Button>
+      <div className="space-y-4">
+        {backLink}
+        <EmptyState
+          icon={FileWarning}
+          title="We couldn't open this invoice"
+          description="It may have been withdrawn, or the connection dropped. Try again, or go back to your invoices."
+          actionLabel={isRefetching ? 'Retrying…' : 'Try again'}
+          onAction={() => void refetch()}
+        />
       </div>
     );
   }
@@ -98,18 +117,13 @@ function InvoiceDetailView() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex min-w-0 flex-col items-start gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/portal/invoices')}
-            className="-ml-3 rounded-none"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+          {backLink}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <h1 className="text-2xl font-bold tracking-tight break-words min-w-0">{invoice.invoiceNumber}</h1>
-              <Badge variant="outline">{invoice.status}</Badge>
+              <Badge variant={invoice.status === 'OVERDUE' ? 'destructive' : 'outline'}>
+                {humanizeStatus(invoice.status, 'invoice')}
+              </Badge>
             </div>
             <p className="text-sm text-muted-foreground">{invoice.title}</p>
           </div>
@@ -139,26 +153,29 @@ function InvoiceDetailView() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="pl-6">Item</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit</TableHead>
-                  <TableHead className="text-right pr-6">Amount</TableHead>
+                  <TableHead className="pl-4 sm:pl-6">Item</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Qty</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Unit</TableHead>
+                  <TableHead className="text-right pr-4 sm:pr-6">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoice.items.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="pl-6">
-                      <div className="font-medium">{item.name}</div>
+                    <TableCell className="pl-4 sm:pl-6">
+                      <div className="font-medium break-words">{item.name}</div>
                       {item.description ? (
                         <div className="text-xs text-muted-foreground">{item.description}</div>
                       ) : null}
+                      <div className="mt-0.5 text-xs text-muted-foreground sm:hidden">
+                        {item.quantity} × {formatCurrency(item.unitPrice, invoice.currency as never)}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="hidden text-right sm:table-cell">{item.quantity}</TableCell>
+                    <TableCell className="hidden text-right sm:table-cell">
                       {formatCurrency(item.unitPrice, invoice.currency as never)}
                     </TableCell>
-                    <TableCell className="text-right pr-6">
+                    <TableCell className="text-right whitespace-nowrap pr-4 sm:pr-6">
                       {formatCurrency(item.amount, invoice.currency as never)}
                     </TableCell>
                   </TableRow>
@@ -202,7 +219,10 @@ function InvoiceDetailView() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Due date</CardTitle>
-              <CardDescription>{new Date(invoice.dueDate).toLocaleDateString()}</CardDescription>
+              <CardDescription>
+                {format(new Date(invoice.dueDate), 'd MMM yyyy')}
+                {invoice.status === 'OVERDUE' ? ' · Overdue' : ''}
+              </CardDescription>
             </CardHeader>
           </Card>
 
@@ -217,7 +237,7 @@ function InvoiceDetailView() {
                   <CardDescription>
                     {hasBankDetails
                       ? 'Transfer the amount due using the bank details below. Your provider will mark the invoice paid once funds clear.'
-                      : 'Online card payment is not available on this invoice.'}
+                      : 'Your provider hasn’t added payment details to this invoice yet.'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
@@ -308,8 +328,8 @@ function InvoiceDetailView() {
                 {invoice.payments.map((p) => (
                   <div key={p.id} className="flex justify-between border-b pb-2 last:border-0">
                     <span className="text-muted-foreground">
-                      {new Date(p.createdAt).toLocaleDateString()}
-                      {p.status ? ` · ${p.status}` : ''}
+                      {format(new Date(p.createdAt), 'd MMM yyyy')}
+                      {p.status ? ` · ${humanizeStatus(p.status)}` : ''}
                     </span>
                     <span className="font-medium">
                       {formatCurrency(p.amount, invoice.currency as never)}
