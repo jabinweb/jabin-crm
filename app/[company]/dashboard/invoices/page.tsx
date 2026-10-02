@@ -145,14 +145,52 @@ export default function InvoicesPage() {
     return <FullTableSkeleton columnCount={6} rowCount={6} withHeader />;
   }
 
+  const renderInvoiceMenu = (invoice: Invoice, triggerClassName?: string) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className={triggerClassName}>
+            <MoreVertical className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => router.push(path(`/dashboard/invoices/${invoice.id}`))}
+          >
+            <Eye className="w-4 h-4 mr-2" />
+            View Details
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => router.push(path(`/dashboard/invoices/${invoice.id}/edit`))}
+          >
+            <Edit className="w-4 h-4 mr-2" />
+            Edit Invoice
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
+          </DropdownMenuItem>
+          {invoice.status === "DRAFT" && (
+            <DropdownMenuItem
+              onClick={() => handleSend(invoice.id)}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Send Invoice
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Invoices</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold sm:text-3xl">Invoices</h1>
           <p className="text-gray-500">Manage your invoices and payments</p>
         </div>
-        <Button onClick={() => router.push(path("/dashboard/invoices/new"))}>
+        <Button className="self-start" onClick={() => router.push(path("/dashboard/invoices/new"))}>
           <Plus className="w-4 h-4 mr-2" />
           Create Invoice
         </Button>
@@ -160,49 +198,49 @@ export default function InvoicesPage() {
 
       {/* Stats Cards */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
-              <CardDescription>Total Revenue</CardDescription>
+              <CardDescription className="truncate">Total Revenue</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="truncate text-lg font-bold tabular-nums sm:text-2xl">
                 {formatCurrency(stats.totalRevenue, stats.currency || 'USD')}
               </div>
               <p className="text-xs text-gray-500">{stats.total} invoices</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
-              <CardDescription>Paid</CardDescription>
+              <CardDescription className="truncate">Paid</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="truncate text-lg font-bold tabular-nums sm:text-2xl text-green-600">
                 {formatCurrency(stats.paidRevenue, stats.currency || 'USD')}
               </div>
               <p className="text-xs text-gray-500">{stats.paid} invoices</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
-              <CardDescription>Overdue</CardDescription>
+              <CardDescription className="truncate">Overdue</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">
+              <div className="truncate text-lg font-bold tabular-nums sm:text-2xl text-red-600">
                 {formatCurrency(stats.overdueAmount, stats.currency || 'USD')}
               </div>
               <p className="text-xs text-gray-500">{stats.overdue} invoices</p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
-              <CardDescription>Pending</CardDescription>
+              <CardDescription className="truncate">Pending</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="truncate text-lg font-bold tabular-nums sm:text-2xl text-blue-600">
                 {stats.pending}
               </div>
               <p className="text-xs text-gray-500">Awaiting payment</p>
@@ -228,7 +266,46 @@ export default function InvoicesPage() {
               actionHref={path("/dashboard/invoices/new")}
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {invoices.map((invoice) => (
+                <div key={invoice.id} className="flex items-start gap-2 p-3">
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 space-y-1 text-left"
+                    onClick={() => router.push(path(`/dashboard/invoices/${invoice.id}`))}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{invoice.title}</p>
+                        <p className="truncate text-xs text-gray-500">
+                          <span className="font-mono">{invoice.invoiceNumber}</span> · {invoice.customerName}
+                        </p>
+                      </div>
+                      <span className="shrink-0">{getStatusBadge(invoice.status)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span className="tabular-nums font-medium">
+                        {formatCurrency(invoice.total, invoice.currency as any)}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs text-gray-500">
+                        {new Date(invoice.dueDate).toLocaleDateString()}
+                        {invoice.status === "OVERDUE" && (
+                          <AlertCircle className="w-4 h-4 text-red-500" />
+                        )}
+                      </span>
+                    </div>
+                    {invoice.amountDue > 0 ? (
+                      <p className="text-xs text-red-600 tabular-nums">
+                        Due {formatCurrency(invoice.amountDue, invoice.currency as any)}
+                      </p>
+                    ) : null}
+                  </button>
+                  {renderInvoiceMenu(invoice, "h-10 w-10 shrink-0 p-0")}
+                </div>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -286,47 +363,14 @@ export default function InvoicesPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => router.push(path(`/dashboard/invoices/${invoice.id}`))}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => router.push(path(`/dashboard/invoices/${invoice.id}/edit`))}
-                          >
-                            <Edit className="w-4 h-4 mr-2" />
-                            Edit Invoice
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDownload(invoice.id, invoice.invoiceNumber)}
-                          >
-                            <Download className="w-4 h-4 mr-2" />
-                            Download PDF
-                          </DropdownMenuItem>
-                          {invoice.status === "DRAFT" && (
-                            <DropdownMenuItem
-                              onClick={() => handleSend(invoice.id)}
-                            >
-                              <Send className="w-4 h-4 mr-2" />
-                              Send Invoice
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {renderInvoiceMenu(invoice)}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

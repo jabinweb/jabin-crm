@@ -18,6 +18,7 @@ export default function DashboardError({
     <ErrorPageClient
       error={error}
       reset={reset}
+      inline
       title="Dashboard error"
       description="This page hit an error. Your workspace is still available — try again or go back to the dashboard home."
       primaryHref={dashboardHref}

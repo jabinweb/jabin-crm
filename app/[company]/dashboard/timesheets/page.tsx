@@ -60,8 +60,8 @@ export default function TimesheetsAdminPage() {
                 key={s.id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
               >
-                <div>
-                  <p className="font-medium">
+                <div className="min-w-0">
+                  <p className="break-words font-medium">
                     {s.employee?.name || 'Unknown'}{' '}
                     <span className="text-xs text-muted-foreground">
                       ({s.employee?.employeeId})
@@ -71,7 +71,7 @@ export default function TimesheetsAdminPage() {
                     Week of {new Date(s.weekStart).toLocaleDateString()} · {total} hrs
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge>{s.status}</Badge>
                   {s.status === 'SUBMITTED' && (
                     <>

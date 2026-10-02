@@ -238,7 +238,7 @@ export function MessagingApp() {
     <TooltipProvider delayDuration={300}>
       <div className="flex h-full min-h-0 overflow-hidden bg-background">
         {showList ? (
-          <div className={cn('flex min-h-0 flex-col border-r', isDesktop ? 'w-80 shrink-0' : 'w-full')}>
+          <div className={cn('flex min-h-0 min-w-0 flex-col', isDesktop ? 'w-80 shrink-0 border-r' : 'w-full')}>
             <ConversationList
               conversations={conversations}
               loading={listLoading}
@@ -265,7 +265,7 @@ export function MessagingApp() {
               <>
                 <header className="flex h-14 shrink-0 items-center gap-3 border-b px-3 sm:px-5">
                   {!isDesktop ? (
-                    <Button variant="ghost" size="icon" className="-ml-1 h-8 w-8" aria-label="Back to conversations" onClick={() => select(null)}>
+                    <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 shrink-0" aria-label="Back to conversations" onClick={() => select(null)}>
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
                   ) : null}
@@ -290,7 +290,7 @@ export function MessagingApp() {
                   <Button
                     variant={detailsOpen ? 'secondary' : 'ghost'}
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-10 w-10 shrink-0 lg:h-8 lg:w-8"
                     aria-label="Conversation details"
                     aria-pressed={detailsOpen}
                     onClick={() => setDetailsOpen((v) => !v)}
@@ -300,13 +300,13 @@ export function MessagingApp() {
                 </header>
 
                 {conversation?.description && conversation.type !== 'DIRECT' ? (
-                  <p className="shrink-0 truncate border-b bg-muted/30 px-5 py-1.5 text-xs text-muted-foreground">
+                  <p className="shrink-0 truncate border-b bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground sm:px-5">
                     {conversation.description}
                   </p>
                 ) : null}
 
                 {messagesQuery.isLoading ? (
-                  <div className="flex-1 space-y-5 p-5">
+                  <div className="flex-1 space-y-5 p-3 sm:p-5">
                     {Array.from({ length: 5 }).map((_, i) => (
                       <div key={i} className="flex gap-3">
                         <Skeleton className="h-8 w-8 rounded-full" />

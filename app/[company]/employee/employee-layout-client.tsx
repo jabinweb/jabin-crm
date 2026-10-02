@@ -86,7 +86,7 @@ export function EmployeeLayoutClient({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
       {allowed && (
         <aside className="hidden lg:flex shrink-0 h-full overflow-y-auto border-r">
           <DashboardSidebar navItems={employeeNav} variant="employee" />

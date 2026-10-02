@@ -188,12 +188,12 @@ export default function PortalSettingsPage() {
     }
 
     return (
-        <div className="w-full space-y-8">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" asChild className="rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
+        <div className="w-full space-y-6 sm:space-y-8">
+            <div className="flex flex-col items-start gap-2">
+                <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                     <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
                 </Button>
-                <div>
+                <div className="min-w-0">
                     <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Settings</h1>
                     <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Manage your account and portal preferences.</p>
                 </div>
@@ -274,7 +274,7 @@ export default function PortalSettingsPage() {
                 <CardContent className="pt-6 space-y-5">
                     {notificationItems.map(({ key, label, desc }) => (
                         <div key={key} className="flex items-center justify-between">
-                            <div className="flex-1 pr-4">
+                            <div className="flex-1 min-w-0 pr-4">
                                 <p className="text-sm font-medium text-slate-900 dark:text-white">{label}</p>
                                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{desc}</p>
                             </div>
@@ -359,8 +359,8 @@ export default function PortalSettingsPage() {
                             Update password
                         </Button>
                     </div>
-                    <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-4">
-                        <div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+                        <div className="min-w-0">
                             <p className="text-sm font-medium text-slate-900 dark:text-white">Sign Out</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">End your current portal session.</p>
                         </div>

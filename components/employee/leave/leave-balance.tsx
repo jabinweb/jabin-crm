@@ -54,16 +54,16 @@ export function LeaveBalance() {
             return (
               <div
                 key={balance.id}
-                className="flex justify-between items-center"
+                className="flex justify-between items-center gap-3"
               >
-                <div>
-                  <p className="font-medium">{balance.policy.name}</p>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{balance.policy.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {balance.used} used · {balance.pending} pending of{' '}
                     {balance.entitled}
                   </p>
                 </div>
-                <div className="text-2xl font-bold tabular-nums">{remaining}</div>
+                <div className="shrink-0 text-2xl font-bold tabular-nums">{remaining}</div>
               </div>
             )
           })}
@@ -76,7 +76,7 @@ export function LeaveBalance() {
               Request Leave
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="md:max-w-2xl">
             <DialogHeader>
               <DialogTitle>Request Leave</DialogTitle>
             </DialogHeader>

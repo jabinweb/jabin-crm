@@ -78,6 +78,64 @@
   .minimal-card {
     @apply bg-card border border-border shadow-none transition-colors hover:border-foreground/20;
   }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Phones: app-like density and behaviour.
+ * Card padding shrinks only where a card part still uses its default p-6, so pages
+ * that set their own padding (e.g. p-0 for flush tables) are untouched.
+ */
+@media (max-width: 639px) {
+  [data-slot='card-header'].p-6 {
+    padding: 1rem;
+  }
+  [data-slot='card-content'].p-6,
+  [data-slot='card-footer'].p-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  /* react-big-calendar toolbar: wrap and give buttons a touch-sized height */
+  .rbc-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .rbc-toolbar .rbc-toolbar-label {
+    order: -1;
+    flex-basis: 100%;
+    text-align: left;
+    font-weight: 600;
+  }
+  .rbc-toolbar .rbc-btn-group {
+    display: flex;
+    width: 100%;
+  }
+  .rbc-toolbar .rbc-btn-group button {
+    flex: 1 1 0;
+    min-height: 40px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  /* 16px text stops iOS Safari zooming the page when a field is focused */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea,
+  [contenteditable='true'] {
+    font-size: 16px;
+  }
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
 }
 
 @keyframes progress {

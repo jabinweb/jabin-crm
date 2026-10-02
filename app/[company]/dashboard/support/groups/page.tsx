@@ -99,9 +99,9 @@ export default function SupportGroupsPage() {
   return (
     <FeatureModuleGuard module="SUPPORT_GROUPS">
       <div className="space-y-6 max-w-3xl">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start">
           <SupportBackLink />
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold">Agent groups</h1>
             <p className="text-sm text-muted-foreground">
               Queues for billing, technical, and regional teams
@@ -164,10 +164,10 @@ export default function SupportGroupsPage() {
                   key={g.id}
                   className="flex flex-wrap items-center justify-between gap-2 border rounded-lg p-3"
                 >
-                  <div>
-                    <p className="font-medium">{g.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium break-words">{g.name}</p>
                     {g.email && (
-                      <p className="text-xs text-muted-foreground">{g.email}</p>
+                      <p className="text-xs text-muted-foreground break-all">{g.email}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

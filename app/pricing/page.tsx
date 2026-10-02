@@ -71,7 +71,7 @@ export default function PricingPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-8 px-6 py-16">
+      <div className="mx-auto max-w-5xl space-y-8 px-4 py-10 sm:px-6 sm:py-16">
         <PageHeaderSkeleton />
         <CardListSkeleton rows={3} />
       </div>
@@ -80,7 +80,7 @@ export default function PricingPage() {
 
   if (isError) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 px-6 text-center">
         <p className="text-sm text-muted-foreground">
           {error instanceof Error ? error.message : 'Could not load plans'}
         </p>
@@ -92,7 +92,7 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-[100dvh] bg-background">
       {/* Payment Verification Overlay */}
       {isVerifyingPayment && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -118,8 +118,8 @@ export default function PricingPage() {
         </div>
       )}
 
-      <div className="mx-auto max-w-6xl px-6 py-16 md:py-24">
-        <div className="text-center mb-12 md:mb-16">
+      <div className="mx-auto max-w-6xl px-4 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-16 md:py-24">
+        <div className="text-center mb-10 md:mb-16">
           <h1 className="text-3xl md:text-4xl font-semibold tracking-tight mb-3">
             Lowest pricing. Most features. Real support.
           </h1>
@@ -143,7 +143,7 @@ export default function PricingPage() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 lg:gap-8 2xl:grid-cols-4 2xl:max-w-[1280px] 2xl:mx-auto">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6 lg:gap-8 2xl:grid-cols-4 2xl:max-w-[1280px] 2xl:mx-auto">
           {plans.length === 0 ? (
             <div className="col-span-full flex flex-col items-center gap-3 py-12 text-center">
               <p className="text-sm text-muted-foreground">
@@ -176,7 +176,7 @@ export default function PricingPage() {
                   </div>
                 )}
 
-                <CardHeader className="p-6 md:p-8 pb-0 space-y-0">
+                <CardHeader className="p-5 sm:p-6 md:p-8 pb-0 sm:pb-0 md:pb-0 space-y-0">
                   <CardTitle className="text-lg font-medium">{plan.displayName}</CardTitle>
                   <CardDescription className="text-sm leading-relaxed mt-2 min-h-[2.5rem]">
                     {plan.description}
@@ -204,7 +204,7 @@ export default function PricingPage() {
                   </div>
                 </CardHeader>
 
-                <CardContent className="flex-1 p-6 md:p-8 pt-6">
+                <CardContent className="flex-1 p-5 sm:p-6 md:p-8 pt-6 sm:pt-6 md:pt-6">
                   <ul className="space-y-3.5">
                     {featureList.map((feature: string, index: number) => (
                       <li key={index} className="flex items-start gap-3">
@@ -215,7 +215,7 @@ export default function PricingPage() {
                   </ul>
                 </CardContent>
 
-                <CardFooter className="p-6 md:p-8 pt-0">
+                <CardFooter className="p-5 sm:p-6 md:p-8 pt-0 sm:pt-0 md:pt-0">
                   <Button
                     className="w-full h-10"
                     variant={isFeatured ? 'default' : 'outline'}
@@ -253,7 +253,7 @@ export default function PricingPage() {
           </div>
         )}
 
-        <div className="mt-20 pt-10 border-t text-center">
+        <div className="mt-14 sm:mt-20 pt-10 border-t text-center">
           <p className="text-sm text-muted-foreground mb-6">
             Shown in your local currency where possible. Checkout settles securely in INR via
             Razorpay. All paid plans include a 14-day money-back guarantee and dedicated support.

@@ -9,7 +9,7 @@ export default function EmployeeDocumentsPage() {
   const employeeId = session?.user?.employeeId
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="My documents" subtitle="Your digital file" />
       {employeeId ? (
         <EmployeeDigitalFile employeeId={employeeId} />

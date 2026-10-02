@@ -42,6 +42,7 @@ import {
   UserCircle,
   FolderKanban,
   Repeat,
+  Menu,
 } from 'lucide-react';
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -96,7 +97,7 @@ const SEARCH_GROUP_ICONS: Record<GlobalSearchEntityType, typeof Building2> = {
   retainer: Repeat,
 };
 
-export function Navbar() {
+export function Navbar({ onMenu, title }: { onMenu?: () => void; title?: string } = {}) {
   const { data: session } = useSession();
   const router = useRouter();
   const brand = getClientBrandConfig();
@@ -206,15 +207,34 @@ export function Navbar() {
   })).filter((g) => g.items.length > 0);
 
   return (
-    <header className="z-50 w-full border-b bg-background shrink-0">
-      <div className="flex h-14 items-center px-3 sm:px-4 lg:px-8">
-        <div className="mr-2 sm:mr-4 flex md:hidden">
-          <Link className="flex items-center space-x-2" href={homeHref}>
-            <Building2 className="h-5 w-5 text-foreground" />
-          </Link>
+    <header
+      className="z-50 w-full border-b bg-background shrink-0"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
+      <div className="flex h-14 items-center px-2 sm:px-4 lg:px-8">
+        {/* Phones and tablets: app bar — menu, current section, then actions */}
+        <div className="flex min-w-0 flex-1 items-center gap-1 lg:hidden">
+          {onMenu ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={onMenu}
+              aria-label="Open menu"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          ) : (
+            <Link className="flex h-10 w-10 shrink-0 items-center justify-center" href={homeHref}>
+              <Building2 className="h-5 w-5 text-foreground" />
+            </Link>
+          )}
+          <span className="min-w-0 truncate text-base font-semibold tracking-tight">
+            {title || brand.appName}
+          </span>
         </div>
 
-        <div className="mr-4 hidden md:flex">
+        <div className="mr-4 hidden lg:flex">
           <Link className="mr-6 flex items-center space-x-2" href={homeHref}>
             <Building2 className="h-5 w-5 text-foreground" />
             <span className="hidden font-semibold lg:inline-block tracking-tight">
@@ -223,24 +243,33 @@ export function Navbar() {
           </Link>
         </div>
 
-        <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          <div className="w-full flex-1 md:w-auto md:flex-none">
+        <div className="flex shrink-0 items-center justify-end gap-1 lg:flex-1 lg:justify-end lg:gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 lg:hidden"
+            onClick={() => setOpen(true)}
+            aria-label="Search"
+          >
+            <Search className="h-5 w-5" />
+          </Button>
+          <div className="hidden lg:block">
             <Button
               variant="outline"
-              className="relative h-9 w-full justify-start px-3 text-sm font-normal text-muted-foreground sm:w-64 md:w-auto lg:w-72"
+              className="relative h-9 w-72 justify-start px-3 text-sm font-normal text-muted-foreground"
               onClick={() => setOpen(true)}
             >
-              <Search className="h-4 w-4 sm:mr-2 shrink-0" />
-              <span className="hidden sm:inline-flex flex-1 text-left truncate">
+              <Search className="mr-2 h-4 w-4 shrink-0" />
+              <span className="inline-flex flex-1 text-left truncate">
                 Search employees, leads, customers…
               </span>
-              <kbd className="pointer-events-none hidden lg:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-auto">
+              <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground ml-auto">
                 ⌘K
               </kbd>
             </Button>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             <PunchButton />
             {session?.user?.role && (
               <NotificationsPanel userRole={session.user.role} />

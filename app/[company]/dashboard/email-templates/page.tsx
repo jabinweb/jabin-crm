@@ -264,23 +264,23 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Email Templates</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold sm:text-3xl">Email Templates</h1>
           <p className="text-muted-foreground mt-2">
             Create and manage reusable email templates with dynamic variables
           </p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
+        <Button onClick={() => setCreateDialogOpen(true)} className="self-start sm:self-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Template
         </Button>
       </div>
 
       {/* Category Filter */}
-      <div className="mb-6">
+      <div>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="w-64">
+          <SelectTrigger className="w-full sm:w-64">
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
@@ -295,13 +295,13 @@ export default function EmailTemplatesPage() {
       </div>
 
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
         {templates.map((template) => (
           <Card key={template.id} className="hover:shadow-none transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg mb-2">{template.name}</CardTitle>
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-lg mb-2 break-words">{template.name}</CardTitle>
                   <Badge className={getCategoryColor(template.category)}>
                     {getCategoryLabel(template.category)}
                   </Badge>
@@ -317,11 +317,11 @@ export default function EmailTemplatesPage() {
               <div className="space-y-3">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Subject:</p>
-                  <p className="text-sm mt-1 line-clamp-2">{template.subject}</p>
+                  <p className="text-sm mt-1 line-clamp-2 break-words">{template.subject}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Preview:</p>
-                  <p className="text-sm mt-1 line-clamp-3 text-muted-foreground">
+                  <p className="text-sm mt-1 line-clamp-3 break-words text-muted-foreground">
                     {template.body}
                   </p>
                 </div>
@@ -342,7 +342,7 @@ export default function EmailTemplatesPage() {
                     </div>
                   </div>
                 )}
-                <div className="flex gap-2 mt-4">
+                <div className="flex flex-wrap gap-2 mt-4">
                   {!template.isDefault && (
                     <>
                       <Button

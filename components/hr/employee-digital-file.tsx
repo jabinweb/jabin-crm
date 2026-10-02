@@ -219,13 +219,13 @@ export function EmployeeDigitalFile({ employeeId, companySlug, readOnly }: Props
                   key={d.id}
                   className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{d.title}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{d.title}</p>
                     <p className="text-xs text-muted-foreground">
                       {d.category} · {format(new Date(d.createdAt), 'd MMM yyyy')}
                     </p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex shrink-0 gap-1">
                     <Button variant="ghost" size="icon" asChild>
                       <a href={d.fileUrl} target="_blank" rel="noreferrer">
                         <ExternalLink className="h-4 w-4" />
@@ -333,10 +333,10 @@ export function EmployeeDigitalFile({ employeeId, companySlug, readOnly }: Props
               {dependents.map((d: { id: string; name: string; relation: string }) => (
                 <div
                   key={d.id}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
                 >
-                  <div>
-                    <p className="text-sm font-medium">{d.name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{d.name}</p>
                     <p className="text-xs text-muted-foreground">{d.relation}</p>
                   </div>
                   {!readOnly && (
@@ -368,13 +368,13 @@ export function EmployeeDigitalFile({ employeeId, companySlug, readOnly }: Props
             {assets.map((a: { id: string; name: string; type: string; value: number }) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
               >
-                <div>
-                  <p className="text-sm font-medium">{a.name}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{a.name}</p>
                   <p className="text-xs text-muted-foreground">{a.type}</p>
                 </div>
-                <p className="text-sm">₹{Number(a.value).toLocaleString('en-IN')}</p>
+                <p className="shrink-0 text-sm tabular-nums">₹{Number(a.value).toLocaleString('en-IN')}</p>
               </div>
             ))}
             {assets.length === 0 && (
@@ -407,7 +407,7 @@ export function EmployeeDigitalFile({ employeeId, companySlug, readOnly }: Props
                 actor?: { name: string } | null
               }) => (
                 <div key={a.id} className="border-l-2 pl-3 py-1">
-                  <p className="text-sm">{a.message}</p>
+                  <p className="break-words text-sm">{a.message}</p>
                   <p className="text-xs text-muted-foreground">
                     {format(new Date(a.createdAt), 'd MMM yyyy HH:mm')}
                     {a.actor?.name ? ` · ${a.actor.name}` : ''}

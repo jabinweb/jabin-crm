@@ -346,8 +346,8 @@ function DemoEquipmentPageInner() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground mb-1">
             <Link href={path('/dashboard/inventory')} className="hover:underline">
               Equipment stock
             </Link>
@@ -373,7 +373,7 @@ function DemoEquipmentPageInner() {
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative w-full sm:max-w-md sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={q}
@@ -449,7 +449,7 @@ function DemoEquipmentPageInner() {
                     }}
                   >
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium truncate">{u.name}</p>
+                      <p className="font-medium truncate max-w-full">{u.name}</p>
                       <Badge variant="outline" className="text-[10px]">
                         {KINDS.find((k) => k.value === u.kind)?.label || u.kind}
                       </Badge>

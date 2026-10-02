@@ -141,8 +141,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="max-w-4xl space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between">
+        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
           <Button
             variant="ghost"
             onClick={() => router.push(path(`/dashboard/products/${productId}`))}
@@ -157,7 +157,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <FormField
                 control={form.control}
                 name="name"
@@ -200,7 +200,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="price"
@@ -240,7 +240,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
 
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <FormField
                 control={form.control}
                 name="imageUrl"
@@ -279,7 +279,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
 
-          <div className="flex justify-end gap-4">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-4">
             <Button
               type="button"
               variant="outline"

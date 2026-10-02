@@ -91,7 +91,7 @@ export default function CompanyLeaveRequestsPage() {
   }
 
   if (!canManage) {
-    return <p className="p-6 text-muted-foreground">Admin access required.</p>
+    return <p className="text-muted-foreground">Admin access required.</p>
   }
 
   return (
@@ -127,15 +127,16 @@ export default function CompanyLeaveRequestsPage() {
           ) : (
             <div className="space-y-4">
               {requests.map((req) => (
-                <div key={req.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{req.employee.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                <div key={req.id} className="space-y-2 rounded-lg border p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{req.employee.name}</p>
+                      <p className="truncate text-sm text-muted-foreground">
                         {req.employee.department || req.employee.email}
                       </p>
                     </div>
                     <Badge
+                      className="shrink-0"
                       variant={
                         req.status === 'APPROVED'
                           ? 'default'
@@ -153,11 +154,12 @@ export default function CompanyLeaveRequestsPage() {
                     {format(new Date(req.startDate), 'MMM d, yyyy')} –{' '}
                     {format(new Date(req.endDate), 'MMM d, yyyy')}
                   </p>
-                  <p className="text-sm text-muted-foreground">{req.reason}</p>
+                  <p className="break-words text-sm text-muted-foreground">{req.reason}</p>
                   {req.status === 'PENDING' && (
                     <div className="flex gap-2 pt-2">
                       <Button
                         size="sm"
+                        className="flex-1 sm:flex-none"
                         disabled={actionId === req.id}
                         onClick={() => handleAction(req.id, 'approve')}
                       >
@@ -166,6 +168,7 @@ export default function CompanyLeaveRequestsPage() {
                       <Button
                         size="sm"
                         variant="outline"
+                        className="flex-1 sm:flex-none"
                         disabled={actionId === req.id}
                         onClick={() => handleAction(req.id, 'reject')}
                       >

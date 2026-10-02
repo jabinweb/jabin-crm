@@ -51,8 +51,8 @@ export default function NewCustomerPage() {
   };
 
   return (
-    <div className="container max-w-lg py-8 space-y-6">
-      <Button variant="ghost" size="sm" asChild>
+    <div className="max-w-lg space-y-6">
+      <Button variant="ghost" size="sm" asChild className="-ml-3">
         <Link href={path('/dashboard/customers')}>
           <ChevronLeft className="h-4 w-4 mr-2" />
           Back to customers

@@ -429,7 +429,7 @@ export default function WorkflowsPage() {
         <div key={idx} className="rounded-lg border p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <select
-              className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
+              className="flex h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm sm:flex-none"
               value={action.type}
               onChange={(e) => {
                 const next = [...value];
@@ -452,7 +452,7 @@ export default function WorkflowsPage() {
               type="button"
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-destructive"
+              className="h-10 w-10 shrink-0 text-destructive sm:h-8 sm:w-8"
               disabled={value.length <= 1}
               onClick={() => onChange(value.filter((_, i) => i !== idx))}
             >
@@ -621,8 +621,8 @@ export default function WorkflowsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Workflows</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Event workflows (leads, deals, tickets) — separate from{' '}
@@ -635,7 +635,7 @@ export default function WorkflowsPage() {
             under Support.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} className="self-start sm:self-auto">
           <Plus className="mr-2 h-4 w-4" />
           New workflow
         </Button>
@@ -654,7 +654,55 @@ export default function WorkflowsPage() {
               onAction={() => setCreateOpen(true)}
             />
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {workflows.map((w) => (
+                <div key={w.id} className="space-y-2 p-3">
+                  <button
+                    type="button"
+                    className="block w-full min-w-0 text-left"
+                    onClick={() => {
+                      setEditId(w.id);
+                      setEditOpen(true);
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="min-w-0 truncate font-medium">{w.name}</p>
+                      <Badge variant={w.isActive ? 'default' : 'secondary'} className="shrink-0">
+                        {w.isActive ? 'Active' : 'Paused'}
+                      </Badge>
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      <span className="font-mono">{w.trigger}</span> · {w._count?.executions ?? 0} runs
+                    </p>
+                  </button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-10 flex-1"
+                      onClick={() => {
+                        setEditId(w.id);
+                        setEditOpen(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-10 flex-1"
+                      onClick={() =>
+                        toggleMutation.mutate({ id: w.id, isActive: !w.isActive })
+                      }
+                    >
+                      {w.isActive ? 'Pause' : 'Activate'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -702,6 +750,7 @@ export default function WorkflowsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -887,7 +936,7 @@ export default function WorkflowsPage() {
             >
               Delete
             </Button>
-            <div className="flex gap-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
                 Close
               </Button>

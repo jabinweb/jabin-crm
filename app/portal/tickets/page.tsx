@@ -74,17 +74,17 @@ function CustomerTicketQueue() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-none hover:bg-slate-100">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div className="flex min-w-0 flex-col items-start gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none hover:bg-slate-100">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-2xl font-bold ">{ticketsLabel}</h1>
                         <p className="text-sm text-muted-foreground">Your {ticketLabel.toLowerCase()} queue</p>
                     </div>
                 </div>
-                <Button asChild className="bg-blue-600 hover:bg-blue-700 shadow-none shadow-blue-500/20">
+                <Button asChild className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 shadow-none shadow-blue-500/20">
                     <Link href="/portal/tickets/new">
                         <Ticket className="mr-2 h-4 w-4" />
                         {newRequestLabel}
@@ -92,8 +92,8 @@ function CustomerTicketQueue() {
                 </Button>
             </div>
 
-            <div className="flex items-center space-x-3">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex items-center gap-3">
+                <div className="relative min-w-0 flex-1 sm:max-w-sm">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <Input
                         placeholder="Search by ID or Subject..."
@@ -102,7 +102,7 @@ function CustomerTicketQueue() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <Button variant="outline" size="icon" className="h-10 w-10 border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800">
+                <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800">
                     <Filter className="h-4 w-4 text-slate-500" />
                 </Button>
             </div>
@@ -124,7 +124,7 @@ function CustomerTicketQueue() {
                                     onClick={() => router.push(`/portal/tickets/${ticket.id}`)}
                                 >
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className="font-semibold text-sm leading-snug">{ticket.subject}</p>
+                                        <p className="min-w-0 break-words font-semibold text-sm leading-snug">{ticket.subject}</p>
                                         <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${ticket.status === 'RESOLVED' ? 'bg-green-50 text-green-700 border-green-100' :
                                             ticket.status === 'OPEN' ? 'bg-red-50 text-red-700 border-red-100' :
                                                 'bg-blue-50 text-blue-700 border-blue-100'

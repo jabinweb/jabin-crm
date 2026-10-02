@@ -231,14 +231,14 @@ export default function PlansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Plans</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Subscription plans and module entitlements
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={async () => {
@@ -285,7 +285,7 @@ export default function PlansPage() {
         <FullTableSkeleton columnCount={5} rowCount={5} />
       ) : (
         <div className="bg-white rounded-none shadow">
-          <div className="p-6">
+          <div className="p-3 sm:p-6">
             <PlansTable
               plans={plans}
               onEdit={handleEdit}
@@ -296,7 +296,7 @@ export default function PlansPage() {
       )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingPlan ? "Edit Plan" : "Create New Plan"}
@@ -304,7 +304,7 @@ export default function PlansPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="name">Plan Name (Slug)</Label>
                   <Input
@@ -343,7 +343,7 @@ export default function PlansPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="price">Price (₹)</Label>
                   <Input
@@ -393,7 +393,7 @@ export default function PlansPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <Label htmlFor="maxLeads">Max Leads</Label>
                   <Input

@@ -122,7 +122,7 @@ function TaskCommentForm({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Add a note for the team…"
-        className="h-8 text-xs"
+        className="h-8 min-w-0 text-xs"
         disabled={mutation.isPending}
       />
       <Button type="submit" size="sm" className="h-8 shrink-0" disabled={mutation.isPending || !body.trim()}>
@@ -179,7 +179,7 @@ export default function PortalProjectDetailPage() {
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{project.name}</h1>
+          <h1 className="min-w-0 break-words text-2xl font-semibold tracking-tight">{project.name}</h1>
           <Badge variant="secondary">{project.status}</Badge>
           <Badge variant="outline" className="capitalize">
             {project.projectType.replace('_', ' ')}
@@ -194,7 +194,7 @@ export default function PortalProjectDetailPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 min-w-0">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Progress</CardTitle>
             <CardDescription>{project.progress}% complete</CardDescription>
@@ -250,7 +250,7 @@ export default function PortalProjectDetailPage() {
                     key={m.id}
                     className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm"
                   >
-                    <div>
+                    <div className="min-w-0">
                       <span
                         className={cn(
                           'font-medium',
@@ -288,8 +288,8 @@ export default function PortalProjectDetailPage() {
                 {project.tasks.map((t) => (
                   <li key={t.id} className="rounded-lg border px-3 py-2.5 text-sm space-y-2">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-medium">{t.title}</span>
-                      <Badge variant="secondary">{TASK_STATUS_LABEL[t.status] ?? t.status}</Badge>
+                      <span className="min-w-0 break-words font-medium">{t.title}</span>
+                      <Badge variant="secondary" className="shrink-0">{TASK_STATUS_LABEL[t.status] ?? t.status}</Badge>
                     </div>
                     {(t.comments?.length ?? 0) > 0 ? (
                       <div className="space-y-1.5 border-t pt-2">
@@ -355,8 +355,8 @@ export default function PortalProjectDetailPage() {
                     href={`/portal/tickets/${t.id}`}
                     className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm hover:bg-muted/40 transition-colors"
                   >
-                    <span className="font-medium">{t.subject}</span>
-                    <Badge variant="outline">{t.status}</Badge>
+                    <span className="min-w-0 truncate font-medium">{t.subject}</span>
+                    <Badge variant="outline" className="shrink-0">{t.status}</Badge>
                   </Link>
                 </li>
               ))}

@@ -108,7 +108,7 @@ export function LeadForm({ initialData, onSubmit, isLoading }: LeadFormProps) {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="contactName"
@@ -138,7 +138,7 @@ export function LeadForm({ initialData, onSubmit, isLoading }: LeadFormProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="phone"
@@ -176,7 +176,7 @@ export function LeadForm({ initialData, onSubmit, isLoading }: LeadFormProps) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="status"
@@ -282,15 +282,16 @@ export function LeadForm({ initialData, onSubmit, isLoading }: LeadFormProps) {
             />
 
 
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-4">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 onClick={() => router.back()}
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
                 {isLoading ? (
                   <span>Saving...</span>
                 ) : initialData ? (

@@ -125,10 +125,23 @@ export default function SuppliersPage() {
     setRating(s.rating != null ? String(s.rating) : '');
   };
 
+  const confirmDeleteSupplier = async (id: string) => {
+    if (
+      !(await confirmAction({
+        title: 'Delete this supplier?',
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
+    deleteMutation.mutate(id);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Suppliers</h1>
           <p className="text-sm text-muted-foreground">Manage procurement vendors.</p>
         </div>
@@ -220,6 +233,34 @@ export default function SuppliersPage() {
               description="Add your first supplier above, or import a CSV."
             />
           ) : (
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {suppliers.map((s) => (
+                <div key={s.id} className="flex items-start justify-between gap-2 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{s.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{s.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {s.phone} · Rating {s.rating ?? '—'}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="sm" className="h-10" onClick={() => startEdit(s)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10"
+                      onClick={() => confirmDeleteSupplier(s.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -244,18 +285,7 @@ export default function SuppliersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={async () => {
-                          if (
-                            !(await confirmAction({
-                              title: 'Delete this supplier?',
-                              description: 'This cannot be undone.',
-                              confirmLabel: 'Delete',
-                              variant: 'destructive',
-                            }))
-                          )
-                            return;
-                          deleteMutation.mutate(s.id);
-                        }}
+                        onClick={() => confirmDeleteSupplier(s.id)}
                       >
                         Delete
                       </Button>
@@ -264,6 +294,8 @@ export default function SuppliersPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

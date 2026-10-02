@@ -146,10 +146,23 @@ export default function LocationsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const confirmDeleteLocation = async (id: string) => {
+    if (
+      !(await confirmAction({
+        title: 'Delete this location?',
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
+    deleteMutation.mutate(id);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Locations</h1>
           <p className="text-sm text-muted-foreground">
             {showEquipment
@@ -194,7 +207,37 @@ export default function LocationsPage() {
               onAction={openCreate}
             />
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {locations.map((loc) => (
+                <div key={loc.id} className="flex items-start justify-between gap-2 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{loc.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {loc.type}
+                      {loc.code ? <> · <span className="font-mono">{loc.code}</span></> : null}
+                    </p>
+                    {loc.address ? (
+                      <p className="truncate text-xs text-muted-foreground">{loc.address}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="sm" className="h-10 sm:h-8" onClick={() => openEdit(loc)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 sm:h-8"
+                      onClick={() => confirmDeleteLocation(loc.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -219,18 +262,7 @@ export default function LocationsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={async () => {
-                            if (
-                              !(await confirmAction({
-                                title: 'Delete this location?',
-                                description: 'This cannot be undone.',
-                                confirmLabel: 'Delete',
-                                variant: 'destructive',
-                              }))
-                            )
-                              return;
-                            deleteMutation.mutate(loc.id);
-                          }}
+                          onClick={() => confirmDeleteLocation(loc.id)}
                         >
                           Delete
                         </Button>
@@ -240,6 +272,7 @@ export default function LocationsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

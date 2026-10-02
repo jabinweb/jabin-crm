@@ -136,7 +136,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
           )}
         />
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
           <FormField
             control={form.control}
             name="startDate"
@@ -204,7 +204,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
           )}
         />
 
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
           {isSubmitting ? 'Submitting...' : 'Submit Request'}
         </Button>
       </form>

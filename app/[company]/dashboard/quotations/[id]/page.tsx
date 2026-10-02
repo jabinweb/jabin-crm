@@ -171,13 +171,13 @@ export default function QuotationDetailPage() {
   return (
     <div className="max-w-5xl space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.push(path('/dashboard/quotations'))}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0" onClick={() => router.push(path('/dashboard/quotations'))}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">{quotation.quotationNumber}</h1>
+          <div className="min-w-0">
+            <h1 className="break-words text-xl sm:text-2xl md:text-3xl font-bold">{quotation.quotationNumber}</h1>
             <p className="text-sm md:text-base text-gray-500">{quotation.title}</p>
           </div>
         </div>
@@ -209,7 +209,7 @@ export default function QuotationDetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Main Content */}
-        <div className="md:col-span-2 space-y-6">
+        <div className="min-w-0 md:col-span-2 space-y-6">
           {/* Quotation Details */}
           <Card>
             <CardHeader>
@@ -221,8 +221,8 @@ export default function QuotationDetailPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="min-w-0 break-words">
                   <p className="text-sm text-gray-500">Customer</p>
                   <p className="font-medium">{quotation.customerName}</p>
                   <p className="text-sm text-gray-500">{quotation.customerEmail}</p>
@@ -355,7 +355,7 @@ export default function QuotationDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Timeline */}
           <Card>
             <CardHeader>

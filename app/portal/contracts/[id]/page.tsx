@@ -61,18 +61,18 @@ function ContractDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
+      <div className="flex min-w-0 flex-col items-start gap-2">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push('/portal/documents')}
-          className="rounded-none"
+          className="-ml-3 rounded-none"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{contract.title}</h1>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h1 className="text-2xl font-bold tracking-tight break-words min-w-0">{contract.title}</h1>
             <Badge variant="outline">{contract.status}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">

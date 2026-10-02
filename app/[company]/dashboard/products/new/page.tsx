@@ -82,10 +82,10 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Create New Product</h1>
-        <div className="bg-white p-6 rounded-lg shadow">
+    <div className="max-w-2xl space-y-6">
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold sm:text-3xl">Create New Product</h1>
+        <div className="bg-white p-4 rounded-lg shadow sm:p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -173,7 +173,7 @@ export default function NewProductPage() {
               )}
             />
 
-<Button type="submit" disabled={isLoading}>
+              <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
                 {isLoading ? "Creating..." : "Create Product"}
               </Button>
             </form>

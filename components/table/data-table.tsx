@@ -111,7 +111,7 @@ export function DataTable<TData>({
         searchableColumn={searchableColumn}
         onSearch={onSearch}
       />
-      <ScrollArea className="h-[calc(100vh-17rem)]">
+      <ScrollArea className="h-[calc(100dvh-17rem)] min-h-[320px]">
         <div className="rounded-none border">
           <Table>
             <TableHeader>

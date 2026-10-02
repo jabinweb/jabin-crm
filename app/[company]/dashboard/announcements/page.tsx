@@ -109,14 +109,14 @@ export default function AnnouncementsAdminPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Announcements</h1>
           <p className="text-sm text-muted-foreground">
             Post company-wide updates visible in the employee portal.
           </p>
         </div>
-        <Button onClick={openCreate}>
+        <Button onClick={openCreate} className="self-start">
           <Plus className="mr-2 h-4 w-4" />
           New announcement
         </Button>
@@ -138,8 +138,8 @@ export default function AnnouncementsAdminPage() {
             <ul className="space-y-4">
               {announcements.map((a) => (
                 <li key={a.id} className="border-b border-border pb-4 last:border-0 last:pb-0">
-                  <p className="font-medium">{a.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{a.content}</p>
+                  <p className="break-words font-medium">{a.title}</p>
+                  <p className="mt-1 break-words text-sm text-muted-foreground whitespace-pre-wrap">{a.content}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {new Date(a.createdAt).toLocaleString()}
                     {(a.targetDepartmentId || a.targetBranchId) && ' · Targeted'}
@@ -189,7 +189,7 @@ export default function AnnouncementsAdminPage() {
               <div className="space-y-2">
                 <Label>Target department (optional)</Label>
                 <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                   value={targetDepartmentId}
                   onChange={(e) => setTargetDepartmentId(e.target.value)}
                 >
@@ -204,7 +204,7 @@ export default function AnnouncementsAdminPage() {
               <div className="space-y-2">
                 <Label>Target branch (optional)</Label>
                 <select
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                   value={targetBranchId}
                   onChange={(e) => setTargetBranchId(e.target.value)}
                 >

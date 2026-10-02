@@ -99,7 +99,7 @@ export default function OnboardingPage() {
   // A failed load used to leave the skeleton up forever (data stays undefined)
   if (isError) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8">
         <Card className="max-w-md w-full shadow-none">
           <CardHeader>
             <CardTitle>Could not load workspace setup</CardTitle>
@@ -119,7 +119,7 @@ export default function OnboardingPage() {
 
   if (sessionStatus === 'loading' || isLoading || !data) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center px-4 py-12">
+      <div className="mx-auto flex min-h-[100dvh] max-w-2xl flex-col justify-center px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:py-12">
         <FormSkeleton fields={5} />
       </div>
     );
@@ -132,7 +132,7 @@ export default function OnboardingPage() {
 
   if (!isManager) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="min-h-[100dvh] flex items-center justify-center px-4 py-8">
         <Card className="max-w-md w-full shadow-none">
           <CardHeader>
             <CardTitle>Workspace setup in progress</CardTitle>
@@ -180,7 +180,7 @@ export default function OnboardingPage() {
     welcome.businessVertical;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-100 via-stone-50 to-white dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-stone-100 via-stone-50 to-white dark:from-stone-950 dark:via-stone-900 dark:to-stone-950 px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:py-12">
       <div className="mx-auto max-w-xl space-y-8">
         <div className="text-center space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -263,14 +263,14 @@ export default function OnboardingPage() {
                     }
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3">
                   <Label>Live chat</Label>
                   <Switch
                     checked={channels.chat}
                     onCheckedChange={(v) => setChannels((c) => ({ ...c, chat: v }))}
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3">
                   <Label>WhatsApp</Label>
                   <Switch
                     checked={channels.whatsApp}
@@ -359,7 +359,7 @@ export default function OnboardingPage() {
               >
                 Skip setup
               </Button>
-              <div className="flex gap-2 justify-end">
+              <div className="flex flex-wrap gap-2 justify-end">
                 {step !== 'welcome' && step !== 'complete' && (
                   <Button
                     variant="outline"

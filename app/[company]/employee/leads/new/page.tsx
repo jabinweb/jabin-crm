@@ -57,7 +57,7 @@ export default function NewEmployeeLeadPage() {
   }
 
   return (
-    <div className="max-w-4xl py-8 px-4 sm:px-6">
+    <div className="max-w-3xl space-y-6">
       <LeadForm onSubmit={handleSubmit} isLoading={isLoading} />
     </div>
   )

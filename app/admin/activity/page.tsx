@@ -84,7 +84,26 @@ export default async function ActivityPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-none border">
+          <div className="divide-y rounded-md border md:hidden">
+            {activities.map((activity: ActivityLogRow) => (
+              <div key={activity.id} className="space-y-1 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <Badge className={getActivityColor(activity.activityType)}>
+                    {activity.activityType.replace(/_/g, " ")}
+                  </Badge>
+                  <span className="shrink-0 text-[11px] text-gray-600 tabular-nums">
+                    {new Date(activity.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <p className="line-clamp-2 text-sm break-words">{activity.description}</p>
+                <p className="truncate text-xs text-gray-600">
+                  {activity.user?.name || "System"}
+                  {activity.lead ? ` · ${activity.lead.companyName}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden rounded-none border md:block">
             <Table>
               <TableHeader>
                 <TableRow>

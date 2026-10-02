@@ -482,9 +482,9 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
   };
 
   return (
-    <div className="container mx-auto py-4 md:py-6 px-4 md:px-6 space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold">
             {mode === 'edit' ? 'Edit Invoice' : 'Create Invoice'}
           </h1>
@@ -501,7 +501,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Invoice Details</CardTitle>
@@ -529,8 +529,8 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                 </>
               )}
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="title">Title *</Label>
                   <Input
                     id="title"
@@ -541,7 +541,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
@@ -621,7 +621,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
 
               {mode === 'create' && <Separator />}
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="customerName">Customer Name *</Label>
                   <Input
@@ -671,8 +671,8 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <CardTitle>Line Items</CardTitle>
                   <CardDescription>Add products or services</CardDescription>
                 </div>
@@ -684,18 +684,18 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
-                <div key={index} className="p-4 border rounded-none space-y-3">
+                <div key={index} className="p-3 sm:p-4 border rounded-none space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Item #{index + 1}</span>
                     {items.length > 1 && (
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                      <Button type="button" variant="ghost" size="sm" className="h-10 w-10 p-0 sm:h-9 sm:w-auto sm:px-3" onClick={() => removeItem(index)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2 md:col-span-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2 col-span-2">
                       <Label>Item Name *</Label>
                       <Input
                         value={item.name}
@@ -705,7 +705,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 col-span-2">
                       <Label>Description</Label>
                       <Textarea
                         value={item.description}
@@ -715,7 +715,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 col-span-2">
                       <Label>HSN / SAC</Label>
                       <Input
                         value={item.hsnSac || ''}
@@ -747,9 +747,9 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 col-span-2">
                       <Label>Amount</Label>
-                      <div className="text-2xl font-bold text-primary">{formatCurrency(item.amount)}</div>
+                      <div className="break-words text-xl font-bold text-primary tabular-nums sm:text-2xl">{formatCurrency(item.amount)}</div>
                     </div>
                   </div>
                 </div>
@@ -788,8 +788,8 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <CardTitle>Payment Details</CardTitle>
                   <CardDescription>Add payment information for customers</CardDescription>
                 </div>
@@ -805,7 +805,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
             </CardHeader>
             {showPaymentDetails && (
               <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="bankName">Bank Name</Label>
                     <Input
@@ -866,7 +866,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
                     />
                   </div>
 
-                  <div className="space-y-2 md:col-span-2">
+                  <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="paymentInstructions">Payment Instructions</Label>
                     <Textarea
                       id="paymentInstructions"
@@ -882,7 +882,7 @@ export function InvoiceForm({ mode, invoiceId, initialData, initialItems }: Invo
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Summary</CardTitle>

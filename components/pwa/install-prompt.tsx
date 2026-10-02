@@ -93,7 +93,7 @@ export function PWAInstallPrompt() {
 
   return (
     <div
-      className="fixed bottom-6 left-4 z-40 w-[min(20rem,calc(100vw-5.5rem))] rounded-lg border bg-background p-3 shadow-md sm:left-6"
+      className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] left-4 z-40 lg:bottom-6 w-[min(20rem,calc(100vw-5.5rem))] rounded-lg border bg-background p-3 shadow-md sm:left-6"
       role="dialog"
       aria-label={`Install ${brand.appName}`}
     >
@@ -110,7 +110,7 @@ export function PWAInstallPrompt() {
           type="button"
           variant="ghost"
           size="icon"
-          className="h-7 w-7 shrink-0"
+          className="-m-1.5 h-10 w-10 shrink-0 sm:m-0 sm:h-7 sm:w-7"
           onClick={handleDismiss}
           aria-label="Dismiss"
         >

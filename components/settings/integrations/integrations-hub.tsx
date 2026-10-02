@@ -158,7 +158,7 @@ function IntegrationsHubContent() {
               {INTEGRATION_CATEGORY_LABELS[category as keyof typeof INTEGRATION_CATEGORY_LABELS] ??
                 category}
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {rows.map((row) => {
                 const Icon = ICONS[row.id] ?? Plug;
                 const isActive = activePanel === row.id;
@@ -166,13 +166,13 @@ function IntegrationsHubContent() {
                   <Card
                     key={row.id}
                     className={cn(
-                      'flex flex-col transition-shadow',
+                      'flex min-w-0 flex-col transition-shadow',
                       isActive && 'ring-2 ring-primary'
                     )}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                           <div className="rounded-md border bg-muted/50 p-2">
                             <Icon className="h-4 w-4" />
                           </div>

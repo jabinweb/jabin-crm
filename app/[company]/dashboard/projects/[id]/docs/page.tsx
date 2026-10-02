@@ -26,7 +26,7 @@ export default function ProjectDocsPage() {
   const projectHref = path(`/dashboard/projects/${projectId}`);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <DetailChrome
         crumbs={[
           { label: 'Projects', href: path('/dashboard/projects') },

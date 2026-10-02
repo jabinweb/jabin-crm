@@ -64,10 +64,10 @@ export function AnnouncementsCard({ companyId }: AnnouncementsCardProps) {
           ) : (
             <div className="space-y-4">
               {announcements.map((announcement) => (
-                <div key={announcement.id} className="border rounded-none p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium">{announcement.title}</h3>
-                    <Badge variant={getPriorityBadge(announcement.priority)}>
+                <div key={announcement.id} className="border rounded-none p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="min-w-0 break-words font-medium">{announcement.title}</h3>
+                    <Badge className="shrink-0" variant={getPriorityBadge(announcement.priority)}>
                       {announcement.priority === 2
                         ? 'High'
                         : announcement.priority === 1
@@ -75,7 +75,7 @@ export function AnnouncementsCard({ companyId }: AnnouncementsCardProps) {
                           : 'Low'}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="break-words text-sm text-muted-foreground mb-2">
                     {announcement.content}
                   </p>
                   <p className="text-xs text-muted-foreground">

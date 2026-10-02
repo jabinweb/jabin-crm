@@ -79,6 +79,7 @@ import {
 } from '@/components/pipelines/pipeline-board';
 import { PROJECT_HUB_COLUMNS } from '@/lib/projects/task-board';
 import { UNMAPPED_STAGE_ID } from '@/lib/pipelines';
+import { useFeatureModule } from '@/components/feature-module-guard';
 
 type Project = {
   id: string;
@@ -188,10 +189,13 @@ export default function ProjectsPage() {
     enabled: !!slug,
   });
 
+  // DEALS is plan-gated: /api/deals returns 403 when the module is off.
+  const dealsEnabled = useFeatureModule('DEALS') === true;
   const { data: deals = [] } = useQuery({
     queryKey: ['project-deals', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/deals?limit=100');
+      // 403 (module off) and other failures read as "no deals".
       if (!res.ok) return [];
       const json = await res.json();
       return (Array.isArray(json) ? json : json.deals || []) as Array<{
@@ -199,7 +203,7 @@ export default function ProjectsPage() {
         title: string;
       }>;
     },
-    enabled: !!slug,
+    enabled: !!slug && dealsEnabled,
   });
 
   const resetForm = () => {
@@ -346,8 +350,8 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Plan and track delivery — board and list views for every engagement.
@@ -383,57 +387,57 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
+          <CardContent className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
             <div className="rounded-md bg-emerald-500/10 p-2 text-emerald-700 dark:text-emerald-400">
               <CircleDot className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Active</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">Active</p>
               <p className="text-xl font-semibold tabular-nums">{stats.active}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
+          <CardContent className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
             <div className="rounded-md bg-amber-500/10 p-2 text-amber-700 dark:text-amber-400">
               <PauseCircle className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">On hold</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">On hold</p>
               <p className="text-xl font-semibold tabular-nums">{stats.onHold}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
+          <CardContent className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
             <div className="rounded-md bg-blue-500/10 p-2 text-blue-700 dark:text-blue-400">
               <CheckCircle2 className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Completed</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">Completed</p>
               <p className="text-xl font-semibold tabular-nums">{stats.completed}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="flex items-center gap-3 p-4">
+          <CardContent className="flex min-w-0 items-center gap-3 p-3 sm:p-4">
             <div className="rounded-md bg-muted p-2 text-muted-foreground">
               <FolderKanban className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Avg. progress</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">Avg. progress</p>
               <p className="text-xl font-semibold tabular-nums">{stats.avgProgress}%</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
+      <Card className="min-w-0">
+        <CardContent className="min-w-0 p-4 space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative w-full sm:max-w-sm sm:flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
@@ -474,6 +478,7 @@ export default function ProjectsPage() {
             />
           ) : hubView === 'board' ? (
             <PipelineBoard
+              className="-mx-4 px-4 sm:mx-0 sm:px-0"
               columns={hubColumns.filter((c) => c.id !== UNMAPPED_STAGE_ID)}
               itemsByStage={hubByStage}
               onMove={(id, toStage) => {
@@ -496,7 +501,7 @@ export default function ProjectsPage() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          className="h-9 w-9 shrink-0 focus:opacity-100 sm:h-7 sm:w-7 sm:opacity-0 sm:group-hover:opacity-100"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <MoreHorizontal className="size-3.5" />
@@ -512,7 +517,7 @@ export default function ProjectsPage() {
                             </Link>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => openEdit(p)}>
-                            <Pencil className="mr-2 size-4" />
+                            <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                         </DropdownMenuGroup>
@@ -521,7 +526,7 @@ export default function ProjectsPage() {
                           className="text-destructive focus:text-destructive"
                           onClick={() => setDeleteTarget(p)}
                         >
-                          <Trash2 className="mr-2 size-4" />
+                          <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -548,7 +553,57 @@ export default function ProjectsPage() {
               )}
             />
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <ul className="divide-y rounded-md border md:hidden">
+              {filtered.map((p) => (
+                <li key={p.id} className="flex items-start gap-2 p-3">
+                  <Link
+                    href={path(`/dashboard/projects/${p.id}`)}
+                    className="min-w-0 flex-1 space-y-1.5 active:opacity-80"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="truncate text-sm font-medium">{p.name}</p>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {p.customer?.organizationName ?? '—'}
+                      {p._count?.tasks ? ` · ${p._count.tasks} tasks` : ''}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Progress value={p.progress ?? 0} className="h-1.5 flex-1" />
+                      <span className="text-xs tabular-nums text-muted-foreground">
+                        {p.progress ?? 0}%
+                      </span>
+                    </div>
+                  </Link>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Actions</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem onClick={() => openEdit(p)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteTarget(p)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -631,7 +686,7 @@ export default function ProjectsPage() {
                                 </Link>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEdit(p)}>
-                                <Pencil className="mr-2 size-4" />
+                                <Pencil className="mr-2 h-4 w-4" />
                                 Edit
                               </DropdownMenuItem>
                             </DropdownMenuGroup>
@@ -640,7 +695,7 @@ export default function ProjectsPage() {
                               className="text-destructive focus:text-destructive"
                               onClick={() => setDeleteTarget(p)}
                             >
-                              <Trash2 className="mr-2 size-4" />
+                              <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -651,6 +706,7 @@ export default function ProjectsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
 
           {!isLoading && filtered.length > 0 ? (

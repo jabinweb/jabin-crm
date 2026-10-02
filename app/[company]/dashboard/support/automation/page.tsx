@@ -61,10 +61,10 @@ export default function SupportAutomationPage() {
   return (
     <FeatureModuleGuard module="TICKETS">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             <SupportBackLink />
-            <h1 className="text-3xl font-bold tracking-tight">Automation rules</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Automation rules</h1>
             <p className="text-muted-foreground mt-1">
               Auto-tag, notify, and route tickets when events occur — no code required.
               For custom event rules, use{' '}
@@ -98,7 +98,7 @@ export default function SupportAutomationPage() {
               <Card key={rule.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                       <CardTitle className="text-base flex items-center gap-2">
                         <Zap className="h-4 w-4 text-amber-500" />
                         {rule.name}

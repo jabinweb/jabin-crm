@@ -194,9 +194,9 @@ export default function EditQuotationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Edit Quotation</h1>
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold sm:text-3xl">Edit Quotation</h1>
           <p className="text-muted-foreground">Update quotation details</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => router.push(path(`/dashboard/quotations/${params.id}`))}>
@@ -206,14 +206,14 @@ export default function EditQuotationPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Quotation Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="title">Title *</Label>
                   <Input
                     id="title"
@@ -223,7 +223,7 @@ export default function EditQuotationPage() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
@@ -270,7 +270,7 @@ export default function EditQuotationPage() {
               <CardTitle>Customer Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="customerName">Name *</Label>
                   <Input
@@ -301,7 +301,7 @@ export default function EditQuotationPage() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="customerAddress">Address</Label>
                   <Textarea
                     id="customerAddress"
@@ -326,13 +326,14 @@ export default function EditQuotationPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
-                <div key={index} className="p-4 border rounded-lg space-y-4">
+                <div key={index} className="p-3 sm:p-4 border rounded-lg space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium">Item {index + 1}</h4>
                     {items.length > 1 && (
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-10 w-10 p-0 sm:h-9 sm:w-auto sm:px-3"
                         onClick={() => removeItem(index)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -340,8 +341,8 @@ export default function EditQuotationPage() {
                     )}
                   </div>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-2 col-span-2 md:col-span-1">
                       <Label>Name *</Label>
                       <Input
                         value={item.name}
@@ -350,7 +351,7 @@ export default function EditQuotationPage() {
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 col-span-2">
                       <Label>Description</Label>
                       <Input
                         value={item.description}
@@ -381,7 +382,7 @@ export default function EditQuotationPage() {
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2 col-span-2 md:col-span-1">
                       <Label>Amount</Label>
                       <div className="text-lg font-semibold">{formatCurrency(item.amount)}</div>
                     </div>
@@ -419,7 +420,7 @@ export default function EditQuotationPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Pricing</CardTitle>

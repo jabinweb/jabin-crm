@@ -81,7 +81,7 @@ export function ConversationDetails({
     <aside className="flex h-full min-h-0 flex-col" aria-label="Conversation details">
       <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
         <h2 className="text-sm font-semibold">{isDirect ? 'Profile' : 'Details'}</h2>
-        <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Close details" onClick={onClose}>
+        <Button variant="ghost" size="icon" className="h-10 w-10 lg:h-8 lg:w-8" aria-label="Close details" onClick={onClose}>
           <X className="h-4 w-4" />
         </Button>
       </div>

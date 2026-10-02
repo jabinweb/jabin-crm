@@ -65,9 +65,9 @@ export default function CustomerPortalPage() {
     ].filter(Boolean) as Array<{ href: string; label: string }>;
 
     return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
+        <div className="space-y-6 sm:space-y-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                     <h1 className="text-2xl font-bold tracking-tight">Customer portal</h1>
                     <p className="text-muted-foreground mt-1">{subtitle}</p>
                 </div>
@@ -79,55 +79,55 @@ export default function CustomerPortalPage() {
                 </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {showEquipment ? (
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground truncate">
                                 Installed {equipmentLabel.toLowerCase()}
                             </CardTitle>
-                            <Wrench className="h-4 w-4 text-muted-foreground" />
+                            <Wrench className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{stats?.totalEquipment || 0}</div>
+                            <div className="text-2xl sm:text-3xl font-bold tabular-nums">{stats?.totalEquipment || 0}</div>
                         </CardContent>
                     </Card>
                 ) : null}
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground truncate">
                             Open {ticketLabel.toLowerCase()}s
                         </CardTitle>
-                        <LifeBuoy className="h-4 w-4 text-muted-foreground" />
+                        <LifeBuoy className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{stats?.openTickets || 0}</div>
+                        <div className="text-2xl sm:text-3xl font-bold tabular-nums">{stats?.openTickets || 0}</div>
                     </CardContent>
                 </Card>
                 {showWarranties ? (
                     <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Warranty alerts</CardTitle>
-                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground truncate">Warranty alerts</CardTitle>
+                            <ShieldCheck className="h-4 w-4 shrink-0 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold">{stats?.pendingWarranties || 0}</div>
+                            <div className="text-2xl sm:text-3xl font-bold tabular-nums">{stats?.pendingWarranties || 0}</div>
                         </CardContent>
                     </Card>
                 ) : null}
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">Resolution rate</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground truncate">Resolution rate</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{resolutionRate}%</div>
+                        <div className="text-2xl sm:text-3xl font-bold tabular-nums">{resolutionRate}%</div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="lg:col-span-4">
-                    <CardHeader className="flex flex-row items-center justify-between">
+                <Card className="lg:col-span-4 min-w-0">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2">
                         <CardTitle className="text-base">Recent {ticketLabel.toLowerCase()}s</CardTitle>
                         <Button variant="ghost" size="sm" asChild>
                             <Link href="/portal/tickets">
@@ -146,15 +146,15 @@ export default function CustomerPortalPage() {
                                     <Link
                                         key={ticket.id}
                                         href={`/portal/tickets/${ticket.id}`}
-                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                                        className="flex items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                                     >
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium">{ticket.subject}</p>
+                                        <div className="space-y-1 min-w-0">
+                                            <p className="text-sm font-medium truncate">{ticket.subject}</p>
                                             <p className="text-xs text-muted-foreground">
                                                 {new Date(ticket.createdAt).toLocaleDateString()} · {ticket.priority}
                                             </p>
                                         </div>
-                                        <span className="text-xs font-medium uppercase">{ticket.status}</span>
+                                        <span className="text-xs font-medium uppercase shrink-0">{ticket.status}</span>
                                     </Link>
                                 ))
                             )}
@@ -162,7 +162,7 @@ export default function CustomerPortalPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-3">
+                <Card className="lg:col-span-3 min-w-0">
                     <CardHeader>
                         <CardTitle className="text-base">Quick links</CardTitle>
                     </CardHeader>

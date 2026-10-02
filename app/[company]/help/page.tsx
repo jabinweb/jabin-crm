@@ -85,7 +85,7 @@ export default function CompanyHelpHubPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:p-6">
         <PageHeaderSkeleton />
         <CardListSkeleton rows={4} />
       </div>
@@ -94,14 +94,14 @@ export default function CompanyHelpHubPage() {
 
   if (error || !data) {
     return (
-      <div className="mx-auto max-w-3xl p-6 text-sm text-muted-foreground">
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:p-6 text-sm text-muted-foreground">
         Help center unavailable for this workspace.
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 p-6">
+    <div className="mx-auto max-w-3xl space-y-8 px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
           <LifeBuoy className="h-6 w-6" />

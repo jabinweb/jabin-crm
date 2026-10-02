@@ -104,7 +104,7 @@ export function HrOrgCrudPage({
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="min-w-0">
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
@@ -149,6 +149,7 @@ export function HrOrgCrudPage({
             )}
           </div>
           <Button
+            className="w-full sm:w-auto"
             disabled={!name.trim() || createMutation.isPending}
             onClick={() => createMutation.mutate()}
           >
@@ -180,9 +181,9 @@ export function HrOrgCrudPage({
                   key={row.id}
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <div>
-                    <p className="font-medium">{row.name}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{row.name}</p>
+                    <p className="truncate text-sm text-muted-foreground">
                       {[row.code, row.city, row.level != null ? `L${row.level}` : null]
                         .filter(Boolean)
                         .join(' · ') || '—'}
@@ -191,6 +192,7 @@ export function HrOrgCrudPage({
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="shrink-0"
                     disabled={deleteMutation.isPending}
                     onClick={() => deleteMutation.mutate(row.id)}
                   >

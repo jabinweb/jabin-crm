@@ -206,23 +206,21 @@ export default function CampaignDetailPage() {
   const sourceBreakdown = getPerformanceByCategory('source');
 
   return (
-    <div className="flex-1 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <DashboardLink href="/dashboard/campaigns">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </DashboardLink>
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight">{campaign.name}</h2>
-              <p className="text-muted-foreground">{campaign.subject}</p>
-            </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <DashboardLink href="/dashboard/campaigns" className="inline-flex">
+            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </DashboardLink>
+          <div className="min-w-0">
+            <h2 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{campaign.name}</h2>
+            <p className="break-words text-muted-foreground">{campaign.subject}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {getStatusBadge(campaign.status)}
           {campaign.status === 'DRAFT' && (
             <>
@@ -247,14 +245,14 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Recipients</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Recipients</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaign.totalRecipients}</div>
+            <div className="text-2xl font-bold tabular-nums">{campaign.totalRecipients}</div>
             <p className="text-xs text-muted-foreground">
               {campaign.sentCount} sent
             </p>
@@ -269,11 +267,11 @@ export default function CampaignDetailPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Open Rate</CardTitle>
             <Eye className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{openRate}%</div>
+            <div className="text-2xl font-bold tabular-nums">{openRate}%</div>
             <p className="text-xs text-muted-foreground">
               {campaign.openCount} opened
             </p>
@@ -283,11 +281,11 @@ export default function CampaignDetailPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Click Rate</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Click Rate</CardTitle>
             <MousePointerClick className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{clickRate}%</div>
+            <div className="text-2xl font-bold tabular-nums">{clickRate}%</div>
             <p className="text-xs text-muted-foreground">
               {campaign.clickCount} clicks
             </p>
@@ -297,11 +295,11 @@ export default function CampaignDetailPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reply Rate</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Reply Rate</CardTitle>
             <UserCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{replyRate}%</div>
+            <div className="text-2xl font-bold tabular-nums">{replyRate}%</div>
             <p className="text-xs text-muted-foreground">
               {campaign.replyCount} replies
             </p>
@@ -312,7 +310,7 @@ export default function CampaignDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Campaign Details */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           {/* Email Content */}
           <Card>
             <CardHeader>
@@ -322,12 +320,12 @@ export default function CampaignDetailPage() {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Subject Line</p>
-                <p className="text-lg font-semibold mt-1">{campaign.subject}</p>
+                <p className="break-words text-lg font-semibold mt-1">{campaign.subject}</p>
               </div>
               <Separator />
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-2">Email Body</p>
-                <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap text-sm">
+                <div className="bg-muted/50 rounded-lg p-4 whitespace-pre-wrap break-words text-sm">
                   {campaign.emailTemplate}
                 </div>
               </div>
@@ -350,9 +348,9 @@ export default function CampaignDetailPage() {
                     </h4>
                     <div className="space-y-2">
                       {statusBreakdown.map((stat: any) => (
-                        <div key={stat.name} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="min-w-[100px]">
+                        <div key={stat.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="sm:min-w-[100px]">
                               {stat.name}
                             </Badge>
                             <span className="text-muted-foreground">
@@ -380,9 +378,9 @@ export default function CampaignDetailPage() {
                     </h4>
                     <div className="space-y-2">
                       {industryBreakdown.slice(0, 5).map((stat: any) => (
-                        <div key={stat.name} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="min-w-[120px]">
+                        <div key={stat.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="sm:min-w-[120px]">
                               {stat.name}
                             </Badge>
                             <span className="text-muted-foreground">
@@ -409,9 +407,9 @@ export default function CampaignDetailPage() {
                     </h4>
                     <div className="space-y-2">
                       {sourceBreakdown.map((stat: any) => (
-                        <div key={stat.name} className="flex items-center justify-between text-sm">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="min-w-[120px]">
+                        <div key={stat.name} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="sm:min-w-[120px]">
                               {stat.name}
                             </Badge>
                             <span className="text-muted-foreground">
@@ -491,7 +489,7 @@ export default function CampaignDetailPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Campaign Info */}
           <Card>
             <CardHeader>
@@ -500,7 +498,7 @@ export default function CampaignDetailPage() {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">From</p>
-                <p className="mt-1">
+                <p className="mt-1 break-words">
                   {campaign.fromName} &lt;{campaign.fromEmail}&gt;
                 </p>
               </div>
@@ -509,7 +507,7 @@ export default function CampaignDetailPage() {
                   <Separator />
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Reply-To</p>
-                    <p className="mt-1">{campaign.replyTo}</p>
+                    <p className="mt-1 break-all">{campaign.replyTo}</p>
                   </div>
                 </>
               )}

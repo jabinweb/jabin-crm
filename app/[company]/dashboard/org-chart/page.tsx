@@ -18,10 +18,10 @@ type Node = {
 
 function OrgNode({ node, depth = 0 }: { node: Node; depth?: number }) {
   return (
-    <div className={depth === 0 ? '' : 'ml-4 border-l pl-4 mt-2'}>
-      <div className="rounded-lg border px-3 py-2 bg-card">
-        <p className="font-medium text-sm">{node.name}</p>
-        <p className="text-xs text-muted-foreground">
+    <div className={depth === 0 ? 'min-w-0' : 'ml-2 mt-2 min-w-0 border-l pl-3 sm:ml-4 sm:pl-4'}>
+      <div className="min-w-0 rounded-lg border px-3 py-2 bg-card">
+        <p className="break-words font-medium text-sm">{node.name}</p>
+        <p className="break-words text-xs text-muted-foreground">
           {node.designation?.name || node.jobTitle}
           {(node.hrDepartment?.name || node.department)
             ? ` · ${node.hrDepartment?.name || node.department}`

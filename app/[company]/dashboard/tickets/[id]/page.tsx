@@ -678,13 +678,13 @@ export default function TicketDetailPage() {
     if (!ticket) return <div className="text-center py-20"><h3 className="text-xl font-semibold">Ticket not found</h3></div>;
 
     return (
-        <div className="flex-1 space-y-6">
-            <div className="flex items-center justify-between">
-                <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <div className="flex-1 min-w-0 space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Button variant="ghost" size="sm" className="self-start -ml-3 sm:ml-0" onClick={() => router.back()}>
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back to Queue
                 </Button>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                     {ticketAdvancedEnabled && (
                         <>
                     <Button variant="outline" size="sm" onClick={() => setShowMergeDialog(true)}>
@@ -716,14 +716,14 @@ export default function TicketDetailPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column: Ticket Info */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-6 min-w-0">
                     <Card>
                         <CardHeader>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                                 <Badge variant={ticket.priority === 'CRITICAL' ? 'destructive' : 'default'}>{ticket.priority}</Badge>
-                                <p className="text-xs text-muted-foreground">ID: {ticket.id}</p>
+                                <p className="text-xs text-muted-foreground truncate">ID: {ticket.id}</p>
                             </div>
-                            <CardTitle className="text-2xl mt-2">{ticket.subject}</CardTitle>
+                            <CardTitle className="text-xl sm:text-2xl mt-2 break-words">{ticket.subject}</CardTitle>
                             <CardDescription className="flex items-center gap-2 mt-1">
                                 <Building className="h-4 w-4" />
                                 {ticket.customer?.id ? (
@@ -740,7 +740,7 @@ export default function TicketDetailPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="bg-muted/30 p-4 rounded-lg border">
-                                <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
+                                <p className="text-sm whitespace-pre-wrap break-words">{ticket.description}</p>
                             </div>
                         </CardContent>
                     </Card>
@@ -795,8 +795,8 @@ export default function TicketDetailPage() {
                                                 "p-3 rounded-lg border",
                                                 comment.isInternal ? "bg-amber-50/50 border-amber-200" : "bg-muted/30"
                                             )}>
-                                                <div className="flex items-center justify-between mb-1 gap-2">
-                                                    <div className="flex items-center gap-2">
+                                                <div className="flex flex-wrap items-center justify-between mb-1 gap-x-2 gap-y-1">
+                                                    <div className="flex items-center gap-2 min-w-0">
                                                         <p className="text-xs font-bold">{comment.performedBy?.name || 'System User'}</p>
                                                         {comment.isInternal && (
                                                             <Badge variant="outline" className="text-[9px] h-4">Internal</Badge>
@@ -804,7 +804,7 @@ export default function TicketDetailPage() {
                                                     </div>
                                                     <p className="text-[10px] text-muted-foreground">{new Date(comment.createdAt).toLocaleString()}</p>
                                                 </div>
-                                                <p className="text-sm">{comment.description}</p>
+                                                <p className="text-sm break-words">{comment.description}</p>
                                             </div>
                                         ))}
                                         {optimisticComments.map((comment) => (
@@ -849,7 +849,7 @@ export default function TicketDetailPage() {
                                             value={newComment}
                                             onChange={(e) => setNewComment(e.target.value)}
                                         />
-                                        <div className="flex items-center justify-between gap-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div className="flex items-center gap-2">
                                                 <Switch
                                                     id="internal-note"
@@ -870,7 +870,7 @@ export default function TicketDetailPage() {
                 </div>
 
                 {/* Right Column: Status & Assignment */}
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-0">
                     <Card>
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium">Ticket Lifecycle</CardTitle>
@@ -891,10 +891,10 @@ export default function TicketDetailPage() {
                             <div className="space-y-2">
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Technician Assigned</p>
                                 <div className="flex items-center space-x-3 p-3 border rounded-lg">
-                                    <div className="bg-primary/10 p-2 rounded-full">
+                                    <div className="bg-primary/10 p-2 rounded-full shrink-0">
                                         <User className="h-4 w-4 text-primary" />
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-sm font-medium">{ticket.assignedTechnician?.name || 'Round Robin Queue'}</p>
                                         <p className="text-xs text-muted-foreground">Main Service Dept</p>
                                     </div>
@@ -927,7 +927,7 @@ export default function TicketDetailPage() {
                                 <p className="text-[10px] font-bold text-muted-foreground uppercase">Equipment Context</p>
                                 <div className="p-3 border rounded-lg bg-orange-50/20 dark:bg-orange-950/10 border-orange-100">
                                     <p className="text-sm font-medium">{ticket.equipment?.product?.name || 'General Support'}</p>
-                                    <p className="text-xs text-muted-foreground">SN: {ticket.equipment?.serialNumber || 'N/A'}</p>
+                                    <p className="text-xs text-muted-foreground break-all">SN: {ticket.equipment?.serialNumber || 'N/A'}</p>
                                 </div>
                             </div>
 
@@ -1194,7 +1194,7 @@ export default function TicketDetailPage() {
                                 {partLines.map((line, idx) => (
                                     <div key={idx} className="flex gap-2 items-center">
                                         <select
-                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                            className="flex h-10 w-full min-w-0 rounded-md border border-input bg-background px-3 py-2 text-sm"
                                             value={line.productId}
                                             onChange={(e) => {
                                                 const next = [...partLines];
@@ -1213,7 +1213,7 @@ export default function TicketDetailPage() {
                                         <Input
                                             type="number"
                                             min={1}
-                                            className="w-20"
+                                            className="w-20 shrink-0"
                                             value={line.quantity}
                                             onChange={(e) => {
                                                 const next = [...partLines];

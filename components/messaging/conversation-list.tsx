@@ -68,7 +68,7 @@ export function ConversationList({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 space-y-3 border-b px-3 pb-3 pt-4">
+      <div className="shrink-0 space-y-3 border-b px-4 pb-3 pt-4 lg:px-3">
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-lg font-semibold tracking-tight">
             Messages
@@ -80,7 +80,7 @@ export function ConversationList({
           </h1>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="h-8 gap-1.5">
+              <Button size="sm" className="h-9 gap-1.5 lg:h-8">
                 <MessageSquarePlus className="h-4 w-4" />
                 New
               </Button>
@@ -122,7 +122,7 @@ export function ConversationList({
           />
         </div>
 
-        <div className="-mx-1 flex gap-1 overflow-x-auto px-1" role="tablist" aria-label="Filter conversations">
+        <div className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1" role="tablist" aria-label="Filter conversations">
           {FILTERS.map((f) => (
             <button
               key={f.id}
@@ -131,7 +131,7 @@ export function ConversationList({
               aria-selected={filter === f.id}
               onClick={() => setFilter(f.id)}
               className={cn(
-                'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                'shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors lg:px-2.5 lg:py-1',
                 filter === f.id
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground'
@@ -174,7 +174,7 @@ export function ConversationList({
                     onClick={() => onSelect(c.id)}
                     aria-current={active ? 'true' : undefined}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors',
+                      'flex w-full items-center gap-3 rounded-md px-2 py-2.5 text-left transition-colors lg:py-2',
                       active ? 'bg-accent' : 'hover:bg-muted/60'
                     )}
                   >

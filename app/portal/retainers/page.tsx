@@ -62,8 +62,8 @@ function RetainersList() {
             <Card key={r.id}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base">{r.name}</CardTitle>
-                  <Badge variant="secondary">{r.status}</Badge>
+                  <CardTitle className="text-base min-w-0 break-words">{r.name}</CardTitle>
+                  <Badge variant="secondary" className="shrink-0">{r.status}</Badge>
                 </div>
                 {r.description ? (
                   <p className="text-sm text-muted-foreground line-clamp-2">{r.description}</p>

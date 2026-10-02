@@ -419,7 +419,7 @@ export function ProjectDocEditor({
   ) : null;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* Header: icon, title, presence, save status */}
       <div className="shrink-0 space-y-2 px-4 pt-5 sm:px-8">
         <div className="flex items-start gap-3">

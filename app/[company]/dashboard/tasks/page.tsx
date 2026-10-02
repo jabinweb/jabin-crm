@@ -295,10 +295,10 @@ export default function TasksPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -307,7 +307,7 @@ export default function TasksPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">In Progress</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -316,7 +316,7 @@ export default function TasksPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Completed</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -325,7 +325,7 @@ export default function TasksPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Overdue</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
@@ -372,7 +372,7 @@ export default function TasksPage() {
               {tasks.map((task) => (
                 <Card key={task.id} className="hover:shadow-none transition-shadow">
                   <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <Checkbox
                         checked={task.status === 'COMPLETED'}
                         onCheckedChange={(checked) =>
@@ -381,33 +381,40 @@ export default function TasksPage() {
                         className="mt-1"
                       />
 
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex min-w-0 items-center gap-2">
                           {getTaskIcon(task.type)}
-                          <h3 className={`font-semibold ${task.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
+                          <h3 className={`min-w-0 break-words font-semibold ${task.status === 'COMPLETED' ? 'line-through text-muted-foreground' : ''}`}>
                             {task.title}
                           </h3>
                         </div>
 
                         {task.description && (
-                          <p className="text-sm text-muted-foreground">{task.description}</p>
+                          <p className="break-words text-sm text-muted-foreground">{task.description}</p>
                         )}
 
-                        <div className="flex items-center gap-2 text-sm">
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
                           {task.lead && (
-                            <Badge variant="outline">{task.lead.companyName}</Badge>
+                            <Badge variant="outline" className="max-w-full truncate">{task.lead.companyName}</Badge>
                           )}
                           {task.deal && (
-                            <Badge variant="outline">{task.deal.title}</Badge>
+                            <Badge variant="outline" className="max-w-full truncate">{task.deal.title}</Badge>
                           )}
                           <Badge className={getPriorityColor(task.priority)}>
                             {task.priority}
                           </Badge>
                         </div>
+
+                        {task.dueDate && (
+                          <div className={`text-sm sm:hidden ${isOverdue(task.dueDate) ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
+                            {isOverdue(task.dueDate) && <AlertCircle className="h-4 w-4 inline mr-1" />}
+                            {format(new Date(task.dueDate), 'MMM dd, yyyy')}
+                          </div>
+                        )}
                       </div>
 
                       {task.dueDate && (
-                        <div className={`text-sm ${isOverdue(task.dueDate) ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
+                        <div className={`hidden shrink-0 text-sm sm:block ${isOverdue(task.dueDate) ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
                           {isOverdue(task.dueDate) && <AlertCircle className="h-4 w-4 inline mr-1" />}
                           {format(new Date(task.dueDate), 'MMM dd, yyyy')}
                         </div>
@@ -471,7 +478,7 @@ export default function TasksPage() {
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Type</Label>
                 <Select value={form.type} onValueChange={(type) => setForm((f) => ({ ...f, type }))}>
@@ -557,7 +564,7 @@ export default function TasksPage() {
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Type</Label>
                 <Select value={form.type} onValueChange={(type) => setForm((f) => ({ ...f, type }))}>

@@ -133,7 +133,7 @@ export default function RegisterPage() {
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
         <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
@@ -146,15 +146,15 @@ export default function RegisterPage() {
 
   if (redirectingAway) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
         <p className="text-sm text-muted-foreground">Redirecting…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <div className="max-w-md w-full space-y-10 p-12 border-2 border-foreground/5 bg-background shadow-none">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-8">
+      <div className="max-w-md w-full space-y-8 p-6 sm:space-y-10 sm:p-12 border-2 border-foreground/5 bg-background shadow-none">
         <div className="text-center border-b border-foreground/5 pb-10">
           <h2 className="text-xl font-black uppercase tracking-[0.25em] text-foreground">Account Genesis</h2>
           <p className="mt-4 text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">

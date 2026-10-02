@@ -49,11 +49,11 @@ function QuotationsList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-none">
+      <div className="flex flex-col items-start gap-2">
+        <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Quotations</h1>
           <p className="text-sm text-muted-foreground">Review and approve quotes from your provider.</p>
         </div>
@@ -61,6 +61,34 @@ function QuotationsList() {
 
       <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
         <CardContent className="p-0">
+          <div className="divide-y md:hidden">
+            {quotations.length === 0 ? (
+              <p className="py-12 text-center text-sm italic text-muted-foreground">No quotations yet.</p>
+            ) : (
+              quotations.map((q) => (
+                <Link
+                  key={q.id}
+                  href={`/portal/quotations/${q.id}`}
+                  className="block space-y-1 p-4 hover:bg-muted/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{q.quotationNumber}</p>
+                      <p className="truncate text-xs text-muted-foreground">{q.title}</p>
+                    </div>
+                    <Badge variant="outline" className="shrink-0">{q.status}</Badge>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span>Valid until {new Date(q.validUntil).toLocaleDateString()}</span>
+                    <span className="text-sm font-medium tabular-nums text-foreground">
+                      {formatCurrency(q.total, q.currency as never)}
+                    </span>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
               <TableRow className="hover:bg-transparent border-none">
@@ -100,6 +128,7 @@ function QuotationsList() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

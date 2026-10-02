@@ -10,7 +10,11 @@ import { cn } from '@/lib/utils';
 
 const STORAGE_KEY_PREFIX = 'live_chat_visitor_token';
 
-export function LiveChatWidget({ companyId }: { companyId?: string }) {
+/** `aboveTabBar`: lift the bubble over a mobile bottom tab bar (client portal). */
+export function LiveChatWidget({ companyId, aboveTabBar = false }: { companyId?: string; aboveTabBar?: boolean }) {
+  const lift = aboveTabBar
+    ? 'bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 lg:bottom-6 lg:right-6'
+    : 'bottom-6 right-6';
   const brand = getClientBrandConfig();
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
@@ -140,7 +144,7 @@ export function LiveChatWidget({ companyId }: { companyId?: string }) {
     <>
       {!open && (
         <Button
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+          className={`fixed ${lift} h-14 w-14 rounded-full shadow-lg z-50`}
           style={{ backgroundColor: brand.primaryColor }}
           onClick={() => setOpen(true)}
           aria-label="Open live chat"
@@ -150,7 +154,7 @@ export function LiveChatWidget({ companyId }: { companyId?: string }) {
       )}
 
       {open && (
-        <div className="fixed bottom-6 right-6 w-[360px] max-w-[calc(100vw-2rem)] h-[480px] bg-background border rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+        <div className={`fixed ${lift} w-[360px] max-w-[calc(100vw-2rem)] h-[min(480px,calc(100dvh-8rem))] bg-background border rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
           <div
             className="flex items-center justify-between px-4 py-3 text-white"
             style={{ backgroundColor: brand.primaryColor }}

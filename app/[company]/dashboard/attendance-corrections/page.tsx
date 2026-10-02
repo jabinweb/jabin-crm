@@ -57,10 +57,10 @@ export default function AttendanceCorrectionsAdminPage() {
               requestedCheckOut?: string | null
             }) => (
               <div key={r.id} className="rounded-lg border p-3 space-y-2">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-medium">{r.employee.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{r.employee.name}</p>
+                    <p className="break-words text-xs text-muted-foreground">
                       {format(new Date(r.date), 'd MMM yyyy')} · {r.reason}
                     </p>
                     <p className="text-xs mt-1">
@@ -74,7 +74,7 @@ export default function AttendanceCorrectionsAdminPage() {
                         : '—'}
                     </p>
                   </div>
-                  <Badge>{r.status}</Badge>
+                  <Badge className="shrink-0 self-start">{r.status}</Badge>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={() => act.mutate({ id: r.id, action: 'approve' })}>

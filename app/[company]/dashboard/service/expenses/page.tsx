@@ -158,22 +158,22 @@ export default function ServiceExpensesPage() {
         <p className="text-sm text-muted-foreground">Capture site travel costs and reimbursements.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2"><CardDescription>Total Claims</CardDescription></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{stats?.totalCount || 0}</p></CardContent>
+          <CardContent><p className="text-xl sm:text-2xl font-bold tabular-nums break-words">{stats?.totalCount || 0}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardDescription>Total Amount</CardDescription></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{formatCurrency(stats?.totalAmount || 0, 'USD')}</p></CardContent>
+          <CardContent><p className="text-xl sm:text-2xl font-bold tabular-nums break-words">{formatCurrency(stats?.totalAmount || 0, 'USD')}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardDescription>Pending</CardDescription></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-yellow-600">{stats?.pendingCount || 0}</p></CardContent>
+          <CardContent><p className="text-xl sm:text-2xl font-bold tabular-nums text-yellow-600">{stats?.pendingCount || 0}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardDescription>Approved/Reimbursed</CardDescription></CardHeader>
-          <CardContent><p className="text-2xl font-bold text-green-600">{formatCurrency(stats?.approvedAmount || 0, 'USD')}</p></CardContent>
+          <CardContent><p className="text-xl sm:text-2xl font-bold tabular-nums break-words text-green-600">{formatCurrency(stats?.approvedAmount || 0, 'USD')}</p></CardContent>
         </Card>
       </div>
 
@@ -182,7 +182,7 @@ export default function ServiceExpensesPage() {
           <CardTitle>Submit Expense</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
               <Label>Technician</Label>
               <Select value={form.technicianId} onValueChange={(value) => setForm({ ...form, technicianId: value })}>
@@ -217,7 +217,7 @@ export default function ServiceExpensesPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label>From</Label>
               <Input value={form.fromLocation} onChange={(e) => setForm({ ...form, fromLocation: e.target.value })} placeholder="Start point" />
@@ -245,14 +245,48 @@ export default function ServiceExpensesPage() {
             <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
 
-          <Button onClick={createExpense} disabled={saving}>{saving ? 'Saving...' : 'Submit Expense'}</Button>
+          <Button className="w-full sm:w-auto" onClick={createExpense} disabled={saving}>{saving ? 'Saving...' : 'Submit Expense'}</Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader><CardTitle>Expense Register</CardTitle></CardHeader>
         <CardContent>
-          <div className="rounded-none border overflow-x-auto">
+          <div className="divide-y rounded-none border md:hidden">
+            {expenses.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">No expenses found.</p>
+            ) : (
+              expenses.map((expense: any) => (
+                <div key={expense.id} className="space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{expense.technician?.name || expense.technician?.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(expense.expenseDate).toLocaleDateString()} · {expense.category}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tabular-nums">{formatCurrency(expense.amount, expense.currency)}</p>
+                  </div>
+                  {expense.description ? (
+                    <p className="line-clamp-2 break-words text-xs text-muted-foreground">{expense.description}</p>
+                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${statusColors[expense.status] || 'bg-muted'}`}>{expense.status}</span>
+                    {expense.status === 'PENDING' && (
+                      <>
+                        <Button size="sm" variant="outline" className="ml-auto" onClick={() => updateStatus(expense.id, 'APPROVED')}>Approve</Button>
+                        <Button size="sm" variant="destructive" onClick={() => updateStatus(expense.id, 'REJECTED')}>Reject</Button>
+                      </>
+                    )}
+                    {expense.status === 'APPROVED' && (
+                      <Button size="sm" className="ml-auto" onClick={() => updateStatus(expense.id, 'REIMBURSED')}>Mark Reimbursed</Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="hidden rounded-none border overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>

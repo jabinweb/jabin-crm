@@ -100,16 +100,16 @@ export default function OmnichannelInboxPage() {
   return (
     <FeatureModuleGuard module="SUPPORT_INBOX">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
             <SupportBackLink />
-            <h1 className="text-3xl font-bold tracking-tight">Omnichannel inbox</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Omnichannel inbox</h1>
             <p className="text-muted-foreground mt-1">
               One queue for tickets, live chat, and WhatsApp — tickets open inline; unticketed
               chats go to Live chat or WhatsApp.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
             </Button>
@@ -139,7 +139,7 @@ export default function OmnichannelInboxPage() {
               placeholder="Search conversations…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="max-w-md"
+              className="w-full sm:max-w-md"
             />
 
             <Card>
@@ -188,8 +188,8 @@ export default function OmnichannelInboxPage() {
                         </div>
                         <p className="font-medium truncate">{item.subject}</p>
                         <p className="text-sm text-muted-foreground truncate">{item.preview}</p>
-                        <div className="flex gap-3 text-xs text-muted-foreground">
-                          <span>{item.customerName}</span>
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                          <span className="truncate">{item.customerName}</span>
                           <span>{item.status}</span>
                           {item.agentName ? <span>→ {item.agentName}</span> : null}
                         </div>

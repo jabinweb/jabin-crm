@@ -83,26 +83,28 @@ export default function ApproveEmployeesPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold mb-2">Approve employees</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Review registration requests for your workspace.
-      </p>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold">Approve employees</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Review registration requests for your workspace.
+        </p>
+      </div>
       {employees.length === 0 ? (
         <p>No pending employees.</p>
       ) : (
         <ul className="space-y-3">
           {employees.map(emp => (
             <li key={emp.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 border rounded-lg p-4">
-              <div>
-                <p className="font-medium">{emp.name}</p>
-                <p className="text-sm text-muted-foreground">{emp.email}</p>
+              <div className="min-w-0">
+                <p className="truncate font-medium">{emp.name}</p>
+                <p className="break-all text-sm text-muted-foreground">{emp.email}</p>
                 <p className="text-xs text-muted-foreground">Company: {emp.company.name}</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => updateEmployee(emp.id, 'reject')}>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => updateEmployee(emp.id, 'reject')}>
                   Reject
                 </Button>
-                <Button onClick={() => updateEmployee(emp.id, 'approve')}>
+                <Button className="flex-1 sm:flex-none" onClick={() => updateEmployee(emp.id, 'approve')}>
                   Approve
                 </Button>
               </div>

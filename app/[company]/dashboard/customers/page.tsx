@@ -112,11 +112,11 @@ export default function CustomersPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Clients & organizations</h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <h2 className="min-w-0 text-2xl md:text-3xl font-bold tracking-tight">Clients & organizations</h2>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
-                        <Button>
+                        <Button className="self-start sm:self-auto">
                             <Plus className="mr-2 h-4 w-4" />
                             Add client
                         </Button>
@@ -147,7 +147,7 @@ export default function CustomersPage() {
                                     placeholder="e.g. Jane Smith"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="email">Email</Label>
                                     <Input
@@ -206,7 +206,7 @@ export default function CustomersPage() {
             <Card>
                 <CardHeader>
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
+                        <div className="min-w-0">
                             <CardTitle>Customer Directory</CardTitle>
                             <CardDescription>
                                 Manage your client and account relationships.
@@ -239,7 +239,25 @@ export default function CustomersPage() {
                             actionHref={search ? undefined : path('/dashboard/customers/new')}
                         />
                     ) : (
-                        <div className="rounded-md border">
+                        <>
+                        <div className="divide-y rounded-md border md:hidden">
+                            {data.customers.map((customer: any) => (
+                                <Link
+                                    key={customer.id}
+                                    href={path(`/dashboard/customers/${customer.id}`)}
+                                    className="flex items-center gap-3 px-3 py-3 active:bg-muted/40"
+                                >
+                                    <div className="min-w-0 flex-1 space-y-0.5">
+                                        <p className="truncate font-medium">{customer.organizationName}</p>
+                                        <p className="truncate text-xs text-muted-foreground">
+                                            {[customer.contactPerson, customer.city || 'N/A'].filter(Boolean).join(' · ')}
+                                        </p>
+                                    </div>
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                </Link>
+                            ))}
+                        </div>
+                        <div className="hidden rounded-md border md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -283,10 +301,11 @@ export default function CustomersPage() {
                                 </TableBody>
                             </Table>
                         </div>
+                        </>
                     )}
 
                     {data?.pagination && data.pagination.pages > 1 && (
-                        <div className="flex items-center justify-between mt-4">
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                             <p className="text-sm text-muted-foreground">
                                 Page {data.pagination.page} of {data.pagination.pages}
                             </p>

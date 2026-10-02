@@ -39,18 +39,18 @@ export default function ExitAdminPage() {
               employee: { name: string }
             }) => (
               <div key={r.id} className="rounded-lg border p-3 space-y-2">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-medium">{r.employee.name}</p>
-                    <p className="text-xs text-muted-foreground">
+                <div className="flex justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{r.employee.name}</p>
+                    <p className="break-words text-xs text-muted-foreground">
                       LWD {format(new Date(r.lastWorkingDay), 'd MMM yyyy')} · {r.reason}
                     </p>
                   </div>
-                  <Badge>{r.status}</Badge>
+                  <Badge className="shrink-0 self-start">{r.status}</Badge>
                 </div>
                 <div className="space-y-1">
                   {(r.clearance || []).map((c, index) => (
-                    <label key={index} className="flex items-center gap-2 text-sm">
+                    <label key={index} className="flex min-h-[2rem] items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={c.done}

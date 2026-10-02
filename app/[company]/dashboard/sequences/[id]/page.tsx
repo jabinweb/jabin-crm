@@ -132,16 +132,16 @@ export default function SequenceDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <DashboardLink href="/dashboard/sequences">
-            <Button variant="ghost" size="icon">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <DashboardLink href="/dashboard/sequences" className="inline-flex">
+            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </DashboardLink>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">{stats.name}</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="break-words text-2xl font-bold sm:text-3xl">{stats.name}</h1>
               <Badge variant={stats.isActive ? 'default' : 'secondary'}>
                 {stats.isActive ? 'Active' : 'Paused'}
               </Badge>
@@ -149,7 +149,7 @@ export default function SequenceDetailsPage() {
             <p className="text-muted-foreground">{stats.description || 'No description'}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setShowEnrollDialog(true)}>
             <Users className="mr-2 h-4 w-4" />
             Enroll Leads
@@ -198,41 +198,41 @@ export default function SequenceDetailsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Enrolled</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Enrolled</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.enrollments.total}</div>
+            <div className="text-2xl font-bold tabular-nums">{stats.enrollments.total}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Active</CardTitle>
             <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.enrollments.active}</div>
+            <div className="text-2xl font-bold tabular-nums">{stats.enrollments.active}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Completed</CardTitle>
             <Mail className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.enrollments.completed}</div>
+            <div className="text-2xl font-bold tabular-nums">{stats.enrollments.completed}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stopped</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Stopped</CardTitle>
             <Badge variant="secondary">{stats.enrollments.stopped}</Badge>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.enrollments.stopped}</div>
+            <div className="text-2xl font-bold tabular-nums">{stats.enrollments.stopped}</div>
           </CardContent>
         </Card>
       </div>
@@ -245,13 +245,13 @@ export default function SequenceDetailsPage() {
         <CardContent>
           <div className="space-y-4">
             {stats.steps.map((step, index) => (
-              <div key={step.id} className="flex items-start gap-4 p-4 border rounded-lg">
+              <div key={step.id} className="flex items-start gap-3 p-3 border rounded-lg sm:gap-4 sm:p-4">
                 <div className="flex-shrink-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
                   {step.stepNumber}
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold">{step.name}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">{step.subject}</p>
+                <div className="min-w-0 flex-1">
+                  <h4 className="break-words font-semibold">{step.name}</h4>
+                  <p className="break-words text-sm text-muted-foreground mt-1">{step.subject}</p>
                 </div>
               </div>
             ))}
@@ -261,7 +261,7 @@ export default function SequenceDetailsPage() {
 
       {/* Enroll Dialog */}
       <Dialog open={showEnrollDialog} onOpenChange={setShowEnrollDialog}>
-        <DialogContent className="max-w-2xl max-h-[600px] overflow-y-auto">
+        <DialogContent className="max-w-2xl sm:max-h-[600px] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Enroll Leads in Sequence</DialogTitle>
             <DialogDescription>
@@ -294,9 +294,9 @@ export default function SequenceDetailsPage() {
                       }
                     }}
                   />
-                  <div className="flex-1">
-                    <p className="font-medium">{lead.companyName}</p>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{lead.companyName}</p>
+                    <p className="break-words text-sm text-muted-foreground">
                       {lead.email} {lead.contactName && `• ${lead.contactName}`}
                     </p>
                   </div>

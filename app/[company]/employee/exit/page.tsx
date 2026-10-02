@@ -43,7 +43,7 @@ export default function EmployeeExitPage() {
   })
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="Exit request" subtitle="Resignation & clearance" />
       <Card>
         <CardHeader>
@@ -84,7 +84,7 @@ export default function EmployeeExitPage() {
               clearance: { item: string; done: boolean }[]
             }) => (
               <div key={r.id} className="rounded-lg border p-3 space-y-2">
-                <div className="flex justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <p className="text-sm">
                     LWD {format(new Date(r.lastWorkingDay), 'd MMM yyyy')}
                   </p>

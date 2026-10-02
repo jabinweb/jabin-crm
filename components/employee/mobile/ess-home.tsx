@@ -66,19 +66,19 @@ export function EssHome() {
   const latestAnnouncement = Array.isArray(announcements) ? announcements[0] : null
 
   return (
-    <div className="space-y-5 max-w-lg mx-auto">
+    <div className="mx-auto w-full max-w-lg space-y-5 lg:mx-0 lg:max-w-3xl">
       <div className="rounded-2xl bg-gradient-to-br from-slate-900 to-slate-700 text-white p-5 shadow-sm">
         <p className="text-sm text-white/70 flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5" />
           {greeting}
         </p>
-        <h1 className="text-2xl font-semibold mt-1">{name}</h1>
+        <h1 className="break-words text-2xl font-semibold mt-1">{name}</h1>
         <p className="text-sm text-white/70 mt-1">
           {format(new Date(), 'EEEE, d MMM')}
         </p>
 
         <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-white/10 p-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-white/70">Today</p>
             <p className="font-medium">
               {punchedIn
@@ -133,7 +133,7 @@ export function EssHome() {
             View all <ChevronRight className="h-3.5 w-3.5" />
           </Link>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="no-scrollbar -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
           {(balances as Array<{
             id: string
             entitled: number
@@ -156,7 +156,7 @@ export function EssHome() {
             }>).map((b) => {
               const remaining = Math.max(0, b.entitled - b.used - b.pending)
               return (
-                <Card key={b.id} className="shadow-none min-w-[140px]">
+                <Card key={b.id} className="shadow-none min-w-[140px] shrink-0 snap-start">
                   <CardContent className="p-3">
                     <p className="text-xs text-muted-foreground">{b.policy.name}</p>
                     <p className="text-2xl font-semibold mt-1">{remaining}</p>
@@ -174,14 +174,14 @@ export function EssHome() {
       {nextHoliday ? (
         <Card className="shadow-none">
           <CardContent className="p-4 flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Upcoming holiday</p>
-              <p className="font-medium">{nextHoliday.name}</p>
+              <p className="truncate font-medium">{nextHoliday.name}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {format(new Date(nextHoliday.date), 'EEE, d MMM yyyy')}
               </p>
             </div>
-            <Badge variant="secondary">{nextHoliday.type || 'PUBLIC'}</Badge>
+            <Badge variant="secondary" className="shrink-0">{nextHoliday.type || 'PUBLIC'}</Badge>
           </CardContent>
         </Card>
       ) : null}
@@ -221,14 +221,14 @@ function QuickTile({
   hint: string
 }) {
   return (
-    <Link href={href}>
+    <Link href={href} className="block min-w-0">
       <Card className="shadow-none h-full hover:bg-muted/40 transition-colors">
         <CardContent className="p-4">
           <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-2">
             <Icon className="h-4 w-4" />
           </div>
-          <p className="font-medium text-sm">{label}</p>
-          <p className="text-[11px] text-muted-foreground">{hint}</p>
+          <p className="truncate font-medium text-sm">{label}</p>
+          <p className="truncate text-xs text-muted-foreground">{hint}</p>
         </CardContent>
       </Card>
     </Link>

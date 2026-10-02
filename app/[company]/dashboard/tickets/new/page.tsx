@@ -228,13 +228,13 @@ export default function NewTicketPage() {
 
     return (
         <div className="max-w-4xl space-y-6">
-            <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" onClick={() => router.back()}>
+            <div className="flex flex-col items-start gap-2">
+                <Button variant="ghost" size="sm" className="-ml-3" onClick={() => router.back()}>
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back
                 </Button>
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Create Support Ticket</h2>
+                <div className="min-w-0">
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Create Support Ticket</h2>
                     <p className="text-sm text-muted-foreground">Log a support request with the right category and routing.</p>
                 </div>
             </div>
@@ -242,7 +242,7 @@ export default function NewTicketPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {/* Left side: Main details */}
-                    <div className="md:col-span-2 space-y-6">
+                    <div className="md:col-span-2 space-y-6 min-w-0">
                         <Card className="border-t-4 border-t-primary shadow-none overflow-hidden">
                             <CardHeader className="bg-muted/30">
                                 <CardTitle className="text-lg flex items-center">
@@ -279,7 +279,7 @@ export default function NewTicketPage() {
                     </div>
 
                     {/* Right side: Selection & Context */}
-                    <div className="space-y-6">
+                    <div className="space-y-6 min-w-0">
                         <Card className="shadow-none">
                             <CardHeader className="pb-3 bg-muted/20">
                                 <CardTitle className="text-sm font-semibold flex items-center">

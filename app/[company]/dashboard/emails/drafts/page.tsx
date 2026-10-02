@@ -126,11 +126,11 @@ export default function EmailDraftsPageWithSidebar() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] gap-0">
+    <div className="flex h-full min-h-0 flex-col gap-0 overflow-y-auto md:flex-row md:overflow-hidden">
       {/* Left Sidebar - Draft List */}
-      <div className="w-80 border-r bg-background flex-shrink-0">
-        <div className="flex h-full flex-col">
-          <div className="border-b p-4">
+      <div className="w-full shrink-0 border-b bg-background md:w-80 md:border-b-0 md:border-r">
+        <div className="flex max-h-[45vh] flex-col md:h-full md:max-h-none">
+          <div className="border-b px-4 py-4 sm:px-6 lg:px-8">
             <h2 className="mb-3 text-lg font-semibold">Email Drafts</h2>
             <div className="relative">
               <Mail className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -158,13 +158,13 @@ export default function EmailDraftsPageWithSidebar() {
                 <button
                   key={draft.id}
                   onClick={() => setSelectedDraftId(draft.id)}
-                  className={`w-full border-b p-4 text-left transition-colors hover:bg-accent ${
+                  className={`w-full border-b px-4 py-3 text-left sm:px-6 md:py-4 lg:px-8 transition-colors hover:bg-accent ${
                     selectedDraft?.id === draft.id ? 'bg-accent' : ''
                   }`}
                 >
                   <div className="mb-1 flex items-start justify-between">
                     <span className="font-medium text-sm truncate flex-1">{draft.companyName}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
+                    <span className="ml-2 shrink-0 text-xs text-muted-foreground">
                       {format(new Date(draft.createdAt), 'MMM d')}
                     </span>
                   </div>
@@ -183,14 +183,14 @@ export default function EmailDraftsPageWithSidebar() {
       </div>
 
       {/* Main Content - Draft Preview */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-w-0 flex-1 md:overflow-y-auto">
         {isLoading ? (
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <DetailSkeleton />
           </div>
         ) : drafts.length === 0 ? (
-          <div className="flex h-full items-center justify-center">
-            <Card className="max-w-md">
+          <div className="flex h-full items-center justify-center p-4 sm:p-6">
+            <Card className="w-full max-w-md">
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Mail className="mb-4 h-12 w-12 text-muted-foreground" />
                 <h3 className="mb-2 text-lg font-semibold">No drafts yet</h3>
@@ -204,11 +204,11 @@ export default function EmailDraftsPageWithSidebar() {
             </Card>
           </div>
         ) : selectedDraft ? (
-          <Card className="flex flex-col h-full">
+          <Card className="flex min-h-full flex-col">
             <CardHeader>
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-2xl mb-2">{selectedDraft.subject}</CardTitle>
+                  <CardTitle className="mb-2 break-words text-xl sm:text-2xl">{selectedDraft.subject}</CardTitle>
                   <div className="mt-2 space-y-1">
                     <CardDescription className="flex items-center gap-2 flex-wrap">
                       <span>To: {selectedDraft.recipientEmail || 'No recipient'}</span>
@@ -220,7 +220,7 @@ export default function EmailDraftsPageWithSidebar() {
                     </CardDescription>
                   </div>
                 </div>
-                <div className="flex gap-2 flex-shrink-0">
+                <div className="flex flex-wrap gap-2 sm:flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
@@ -249,8 +249,8 @@ export default function EmailDraftsPageWithSidebar() {
               </div>
             </CardHeader>
             <CardContent className="flex-1">
-              <div className="rounded-none border bg-muted/30 p-6">
-                <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+              <div className="rounded-none border bg-muted/30 p-4 sm:p-6">
+                <div className="prose prose-sm max-w-none whitespace-pre-wrap break-words">
                   {selectedDraft.body}
                 </div>
               </div>

@@ -80,7 +80,7 @@ export default function WorkspacePage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6">
         <PageHeaderSkeleton />
         <StatCardsSkeleton count={4} />
         <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-7">
@@ -105,17 +105,17 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className="flex-1 space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6">
       <NoCompanyWorkspaceDialog open={noCompanyDialogOpen} onOpenChange={setNoCompanyDialogOpen} />
 
-      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between border-b pb-6">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between border-b pb-6">
+        <div className="min-w-0">
           <h2 className="text-2xl font-bold tracking-tight text-foreground">Workspace</h2>
           <p className="text-muted-foreground text-xs mt-1">
             Set up your company to unlock the full dashboard.
           </p>
         </div>
-        <div className="flex items-center gap-2 mt-4 sm:mt-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href="/workspace/settings">Profile settings</Link>
           </Button>
@@ -127,12 +127,14 @@ export default function WorkspacePage() {
       {statsResult?.kind === 'stats' ? <StatsCards stats={statsResult as any} /> : null}
 
       <div className="grid gap-4 md:gap-6 grid-cols-1 lg:grid-cols-7">
-        <LeadsChart />
+        <div className="min-w-0 lg:col-span-4">
+          <LeadsChart />
+        </div>
 
-        <Card className="lg:col-span-3">
+        <Card className="min-w-0 lg:col-span-3">
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
                 <CardTitle>Recent Support Tickets</CardTitle>
                 <CardDescription>Latest customer issues and service requests</CardDescription>
               </div>
@@ -152,11 +154,11 @@ export default function WorkspacePage() {
             ) : (
               <div className="space-y-4">
                 {recentTickets?.map((ticket: any) => (
-                  <div key={ticket.id} className="flex items-center justify-between space-x-4">
-                    <div className="flex items-center space-x-4 min-w-0">
+                  <div key={ticket.id} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
                         className={cn(
-                          'w-2 h-2 rounded-none',
+                          'w-2 h-2 shrink-0 rounded-none',
                           ticket.status === 'OPEN'
                             ? 'bg-red-500'
                             : ticket.status === 'IN_PROGRESS'
@@ -171,7 +173,7 @@ export default function WorkspacePage() {
                         </p>
                       </div>
                     </div>
-                    <Badge variant={getPriorityVariant(ticket.priority)}>{ticket.priority}</Badge>
+                    <Badge variant={getPriorityVariant(ticket.priority)} className="shrink-0">{ticket.priority}</Badge>
                   </div>
                 ))}
               </div>

@@ -116,8 +116,8 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
           <Button
             variant="ghost"
             onClick={() => router.push(path('/dashboard/products'))}
@@ -129,7 +129,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
             {product.category}
           </Badge>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={() => router.push(path(`/dashboard/products/${product.id}/edit`))}
@@ -148,9 +148,9 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <div className="relative aspect-square rounded-lg overflow-hidden border">
                 {product.imageUrl ? (
                   <Image
@@ -182,10 +182,10 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
-            <CardContent className="p-6">
-              <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+            <CardContent className="p-4 sm:p-6">
+              <h1 className="break-words text-2xl font-bold mb-2 sm:text-3xl">{product.name}</h1>
               <div className="flex items-center gap-2 mb-4">
                 {/* <DollarSign className="h-5 w-5 text-muted-foreground" /> */}
                 <span className="text-2xl font-semibold">
@@ -199,7 +199,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
                     <Barcode className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">SKU</span>
                   </div>
-                  <span className="font-medium">{product.sku}</span>
+                  <span className="min-w-0 truncate font-medium">{product.sku}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

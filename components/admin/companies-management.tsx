@@ -175,7 +175,7 @@ export default function CompaniesPage() {
 
   if (session?.user?.role !== 'SUPER_ADMIN') {
     return (
-      <div className="p-8">
+      <div className="py-12">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
           <p className="text-gray-600 mt-2">You don&apos;t have permission to access this page.</p>
@@ -186,7 +186,7 @@ export default function CompaniesPage() {
 
   if (isInitialLoad) {
     return (
-      <div className="p-8 space-y-6">
+      <div className="space-y-6">
         <PageHeaderSkeleton />
         <FullTableSkeleton columnCount={5} rowCount={6} />
       </div>
@@ -195,7 +195,7 @@ export default function CompaniesPage() {
 
   if (error) {
     return (
-      <div className="p-8">
+      <div className="py-12">
         <div className="text-center text-red-500">
           <p>Error: {error}</p>
         </div>
@@ -205,19 +205,84 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Companies</h1>
           <p className="text-sm text-muted-foreground mt-1">
             All workspaces on the platform
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => fetchCompanies()}>
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={() => fetchCompanies()}>
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <Card>
+      {/* Phones: one card per company */}
+      <div className="space-y-3 md:hidden">
+        {companies.length === 0 ? (
+          <Card className="p-6 text-center text-sm text-muted-foreground">
+            {error ? 'Failed to load companies' : 'No companies found'}
+          </Card>
+        ) : (
+          companies.map((company) => (
+            <Card key={company.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{company.name}</p>
+                  {company.website ? (
+                    <p className="truncate text-xs text-muted-foreground">{company.website}</p>
+                  ) : null}
+                </div>
+                <Badge
+                  variant={company.status === 'ACTIVE' ? 'default' : 'secondary'}
+                  className="shrink-0"
+                >
+                  {company.status}
+                </Badge>
+              </div>
+              <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                <p className="truncate">
+                  {company.admin
+                    ? `${company.admin.name} · ${company.admin.email}`
+                    : 'No admin assigned'}
+                </p>
+                <p>
+                  {company.employees?.length || 0} employees ·{' '}
+                  {formatDistanceToNow(new Date(company.createdAt), { addSuffix: true })}
+                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button variant="outline" size="sm" className="h-10" onClick={() => handleEdit(company.id)}>
+                  View
+                </Button>
+                <Button variant="outline" size="sm" className="h-10" onClick={() => setDbCompany(company)}>
+                  Database
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10"
+                  onClick={() =>
+                    handleStatusChange(
+                      company.id,
+                      company.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+                    )
+                  }
+                >
+                  {company.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                </Button>
+                <Button variant="destructive" size="sm" className="h-10" onClick={() => handleDelete(company)}>
+                  Delete
+                </Button>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <Card className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -308,7 +373,7 @@ export default function CompaniesPage() {
       </Card>
 
       <Dialog open={!!dbCompany} onOpenChange={(open) => !open && setDbCompany(null)}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Database — {dbCompany?.name ?? 'Company'}

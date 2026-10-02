@@ -9,7 +9,7 @@ export function LandingHero() {
   const brand = getClientBrandConfig();
 
   return (
-    <section className="relative overflow-hidden pt-16 min-h-[100svh] flex flex-col">
+    <section className="relative overflow-hidden pt-[calc(4rem+env(safe-area-inset-top))] min-h-[100svh] flex flex-col">
       {/* Atmosphere — full-bleed plane */}
       <div
         className="pointer-events-none absolute inset-0"
@@ -30,14 +30,14 @@ export function LandingHero() {
         }}
       />
 
-      <div className="relative mx-auto w-full max-w-6xl px-6 flex-1 flex flex-col justify-center py-16 md:py-20">
-        <div className="grid lg:grid-cols-[1fr_1.05fr] gap-12 lg:gap-10 items-center">
+      <div className="relative mx-auto w-full max-w-6xl px-5 sm:px-6 flex-1 flex flex-col justify-center py-10 sm:py-16 md:py-20">
+        <div className="grid lg:grid-cols-[1fr_1.05fr] gap-10 sm:gap-12 lg:gap-10 items-center [&>*]:min-w-0">
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-700">
             <p className="font-[family-name:var(--font-landing-display)] text-2xl sm:text-3xl font-semibold tracking-tight text-[var(--lp-ink)] mb-6">
               {brand.appName}
             </p>
 
-            <h1 className="font-[family-name:var(--font-landing-display)] text-4xl sm:text-5xl lg:text-[3.25rem] font-semibold tracking-tight text-[var(--lp-ink)] leading-[1.08] max-w-xl">
+            <h1 className="font-[family-name:var(--font-landing-display)] text-[2.15rem] sm:text-5xl lg:text-[3.25rem] font-semibold tracking-tight text-[var(--lp-ink)] leading-[1.08] max-w-xl">
               One workspace. Clear enough for anyone on the team.
             </h1>
 
@@ -145,7 +145,7 @@ export function LandingHero() {
 
       {/* Below-fold trust strip still in hero section but visually secondary */}
       <div className="relative border-t border-slate-200/60 bg-white/40 backdrop-blur-sm">
-        <div className="mx-auto max-w-6xl px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+        <div className="mx-auto max-w-6xl px-5 sm:px-6 py-5 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
           {[
             { value: 'Simple', label: 'Plain language, not IT jargon' },
             { value: 'Self-serve', label: 'Live in minutes, no sales call' },

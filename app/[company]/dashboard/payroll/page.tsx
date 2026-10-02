@@ -161,24 +161,24 @@ export default function CompanyPayrollPage() {
   }
 
   if (!canManage) {
-    return <p className="p-6 text-muted-foreground">Admin access required.</p>
+    return <p className="text-muted-foreground">Admin access required.</p>
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Wallet className="h-6 w-6" />
             Payroll
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Generate payslips, initiate Razorpay payment, or mark paid via webhook. In staging,
-            set <code className="text-xs">ALLOW_MANUAL_PAYROLL_MARK_PAID=true</code> to mark paid
+            set <code className="break-all text-xs">ALLOW_MANUAL_PAYROLL_MARK_PAID=true</code> to mark paid
             without Razorpay.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className="w-[120px]">
               <SelectValue />
@@ -231,14 +231,14 @@ export default function CompanyPayrollPage() {
               {payslips.map((p) => (
                 <div
                   key={p.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border rounded-lg p-4"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border rounded-lg p-3 sm:p-4"
                 >
-                  <div>
-                    <p className="font-medium">{p.employee.name}</p>
-                    <p className="text-sm text-muted-foreground">{p.employee.email}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{p.employee.name}</p>
+                    <p className="truncate text-sm text-muted-foreground">{p.employee.email}</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
+                    <span className="font-semibold tabular-nums">
                       ₹{p.netSalary.toLocaleString('en-IN')}
                     </span>
                     <Badge variant={p.isPaid ? 'default' : 'secondary'}>

@@ -22,8 +22,8 @@ export function LandingPage() {
   return (
     <div
       className={cn(
-        'min-h-screen antialiased text-[var(--lp-ink)] selection:bg-[var(--lp-accent)] selection:text-white',
-        'bg-[var(--lp-bg)] font-[family-name:var(--font-landing-sans)] pb-20 md:pb-0'
+        'min-h-[100dvh] overflow-x-clip antialiased text-[var(--lp-ink)] selection:bg-[var(--lp-accent)] selection:text-white',
+        'bg-[var(--lp-bg)] font-[family-name:var(--font-landing-sans)] pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0'
       )}
       style={
         {

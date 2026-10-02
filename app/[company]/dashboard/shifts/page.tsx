@@ -59,8 +59,8 @@ export default function ShiftsPage() {
         <CardHeader>
           <CardTitle className="text-base">Add shift</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-4">
-          <div className="space-y-2">
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="col-span-2 space-y-2 sm:col-span-1">
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
@@ -72,12 +72,12 @@ export default function ShiftsPage() {
             <Label>End</Label>
             <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </div>
-          <div className="space-y-2">
+          <div className="col-span-2 space-y-2 sm:col-span-1">
             <Label>Grace (min)</Label>
             <Input value={graceMinutes} onChange={(e) => setGraceMinutes(e.target.value)} />
           </div>
           <Button
-            className="sm:col-span-4 w-fit"
+            className="col-span-2 w-full sm:col-span-4 sm:w-fit"
             disabled={!name.trim() || create.isPending}
             onClick={() => create.mutate()}
           >
@@ -103,10 +103,10 @@ export default function ShiftsPage() {
             }) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
               >
-                <div>
-                  <p className="font-medium">{s.name}</p>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{s.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {s.startTime} – {s.endTime} · grace {s.graceMinutes}m ·{' '}
                     {s._count?.assignments ?? 0} assigned
@@ -115,6 +115,7 @@ export default function ShiftsPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  className="shrink-0"
                   onClick={async () => {
                     await fetch(`/api/hr/shifts?id=${s.id}`, { method: 'DELETE' })
                     void qc.invalidateQueries({ queryKey: ['hr-shifts'] })

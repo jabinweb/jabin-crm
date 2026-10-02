@@ -151,7 +151,7 @@ export function AttendanceTodayCard({ name, attendance, loading }: Props) {
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
           <div className="rounded-md border p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
               <Clock className="h-3.5 w-3.5" />

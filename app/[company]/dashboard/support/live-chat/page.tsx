@@ -129,8 +129,8 @@ function LiveChatDesk() {
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr] min-h-[520px]">
-        <Card className="overflow-hidden">
+      <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:min-h-[520px]">
+        <Card className="min-w-0 overflow-hidden">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Open sessions</CardTitle>
           </CardHeader>
@@ -145,7 +145,7 @@ function LiveChatDesk() {
                 <p>No open chats</p>
               </div>
             ) : (
-              <ScrollArea className="h-[480px]">
+              <ScrollArea className="h-[260px] lg:h-[480px]">
                 <div className="divide-y">
                   {sessions.map((session) => {
                     const title =
@@ -184,7 +184,7 @@ function LiveChatDesk() {
           </CardContent>
         </Card>
 
-        <Card className="flex flex-col min-h-[520px]">
+        <Card className="flex min-w-0 flex-col min-h-[420px] lg:min-h-[520px]">
           {!selectedId ? (
             <CardContent className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
               Select a chat to reply
@@ -192,7 +192,7 @@ function LiveChatDesk() {
           ) : (
             <>
               <CardHeader className="border-b space-y-1">
-                <CardTitle className="text-base">
+                <CardTitle className="text-base break-words">
                   {selected?.visitorName ||
                     selected?.customer?.organizationName ||
                     selected?.visitorEmail ||
@@ -222,7 +222,7 @@ function LiveChatDesk() {
                               : 'bg-muted'
                           }`}
                         >
-                          <p>{m.body}</p>
+                          <p className="break-words">{m.body}</p>
                           <p className="text-[10px] opacity-70 mt-1">
                             {formatDistanceToNow(new Date(m.createdAt), { addSuffix: true })}
                           </p>
@@ -231,7 +231,7 @@ function LiveChatDesk() {
                     </div>
                   )}
                 </ScrollArea>
-                <div className="border-t p-3 flex gap-2">
+                <div className="border-t p-3 flex gap-2 [&>input]:min-w-0">
                   <Input
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}

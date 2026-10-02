@@ -13,6 +13,7 @@ export default function AdminError({
     <ErrorPageClient
       error={error}
       reset={reset}
+      inline
       title="Admin error"
       description="An error occurred in the platform admin area."
       primaryHref="/admin"

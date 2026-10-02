@@ -85,8 +85,8 @@ export function EmailsInboxView({
         )}
       >
         <div className="border-b">
-          <div className="flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <FolderIcon className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-base font-semibold">{getCurrentFolderName()}</h2>
               {currentFolder && currentFolder.count > 0 && (
@@ -106,8 +106,8 @@ export function EmailsInboxView({
             </Button>
           </div>
 
-          <div className="flex items-center gap-2 px-3 pb-3">
-            <div className="relative flex-1">
+          <div className="flex items-center gap-2 px-4 pb-3 sm:px-6 lg:px-8">
+            <div className="relative min-w-0 flex-1">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search..."
@@ -170,12 +170,12 @@ export function EmailsInboxView({
                 <div
                   key={email.id}
                   className={cn(
-                    'cursor-pointer border-b transition-all hover:shadow-none',
+                    'cursor-pointer border-b transition-all hover:shadow-none pl-3 pr-4 sm:pl-5 sm:pr-6 lg:pl-7 lg:pr-8',
                     selectedEmail?.id === email.id
-                      ? 'bg-blue-50 border-l-4 border-l-blue-500 pl-3 pr-3 py-2.5'
+                      ? 'bg-blue-50 border-l-4 border-l-blue-500 py-2.5'
                       : email.repliedAt && !email.openedAt
-                        ? 'hover:bg-emerald-50/50 border-l-4 border-l-emerald-400 pl-3 pr-3 py-2.5 bg-emerald-50/30'
-                        : 'hover:bg-muted/50 border-l-4 border-l-transparent pl-3 pr-3 py-2.5',
+                        ? 'hover:bg-emerald-50/50 border-l-4 border-l-emerald-400 py-2.5 bg-emerald-50/30'
+                        : 'hover:bg-muted/50 border-l-4 border-l-transparent py-2.5',
                     !email.isRead && 'bg-muted/20'
                   )}
                   onClick={() => handleEmailClick(email)}

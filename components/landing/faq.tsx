@@ -42,7 +42,7 @@ export function FAQ() {
 
   return (
     <section id="faq" className="border-t border-[var(--lp-line)] bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-14 sm:py-20 md:py-28">
         <div className="max-w-2xl mx-auto">
           <div className="text-center mb-10">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
@@ -60,7 +60,7 @@ export function FAQ() {
                 <div key={faq.question}>
                   <button
                     type="button"
-                    className="w-full px-6 py-4 flex items-start justify-between gap-4 text-left hover:bg-white/60 transition-colors"
+                    className="w-full px-4 sm:px-6 py-4 flex items-start justify-between gap-4 text-left hover:bg-white/60 transition-colors"
                     onClick={() => setOpenIndex(isOpen ? null : index)}
                   >
                     <span className="text-sm font-medium text-[var(--lp-ink)]">{faq.question}</span>
@@ -69,7 +69,7 @@ export function FAQ() {
                     </span>
                   </button>
                   {isOpen && (
-                    <div className="px-6 pb-4 -mt-1">
+                    <div className="px-4 sm:px-6 pb-4 -mt-1">
                       <p className="text-sm text-[var(--lp-muted)] leading-relaxed">{faq.answer}</p>
                     </div>
                   )}

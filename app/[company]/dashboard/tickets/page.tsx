@@ -320,9 +320,9 @@ export default function TicketsPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b pb-6">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Tickets</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Assign work, track SLA, and close service requests.
@@ -370,7 +370,7 @@ export default function TicketsPage() {
                   : 'Search by subject or client name'}
               </CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full md:w-auto flex-wrap">
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -576,6 +576,7 @@ export default function TicketsPage() {
                 columns={columns}
                 itemsByStage={itemsByStage}
                 onMove={onMove}
+                className="-mx-4 px-4 scroll-px-4 sm:mx-0 sm:px-0 sm:scroll-px-0"
                 renderCard={(ticket) => (
                   <button
                     type="button"
@@ -625,7 +626,55 @@ export default function TicketsPage() {
               }
             />
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {filteredTickets.map((ticket) => (
+                <div
+                  key={ticket.id}
+                  role="link"
+                  tabIndex={0}
+                  className="flex cursor-pointer items-start gap-3 p-3 hover:bg-muted/40"
+                  onClick={() => router.push(path(`/dashboard/tickets/${ticket.id}`))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') router.push(path(`/dashboard/tickets/${ticket.id}`));
+                  }}
+                >
+                  <div
+                    className="flex h-10 w-6 shrink-0 items-start pt-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <Checkbox
+                      checked={selectedIds.has(ticket.id)}
+                      onCheckedChange={(c) => toggleSelect(ticket.id, c === true)}
+                      aria-label={`Select ${ticket.subject}`}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <p className="truncate text-sm font-medium">{ticket.subject}</p>
+                    <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span className="font-mono">{ticket.id.slice(-6).toUpperCase()}</span>
+                      <span>·</span>
+                      <span className="truncate">{ticket.customer?.organizationName ?? '—'}</span>
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <Badge variant={getPriorityVariant(ticket.priority)} className="text-[10px]">
+                        {ticket.priority}
+                      </Badge>
+                      <span className="capitalize text-muted-foreground">
+                        {formatStatus(ticket.status)}
+                      </span>
+                      <span className="truncate text-muted-foreground">
+                        {ticket.assignedTechnician?.name || 'Unassigned'}
+                      </span>
+                      <TicketSlaTimer ticket={ticket} />
+                    </div>
+                  </div>
+                  <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
+              ))}
+            </div>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -706,6 +755,7 @@ export default function TicketsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

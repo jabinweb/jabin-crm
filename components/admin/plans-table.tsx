@@ -38,7 +38,62 @@ interface PlansTableProps {
 export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
   const rows = Array.isArray(plans) ? plans : [];
   return (
-    <div className="rounded-none border">
+    <>
+    {/* Phones: one card per plan */}
+    <div className="divide-y rounded-md border md:hidden">
+      {rows.map((plan) => (
+        <div key={plan.id} className="flex items-start gap-2 p-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate font-medium">{plan.displayName}</p>
+              <Badge
+                className={`shrink-0 ${
+                  plan.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {plan.isActive ? "Active" : "Inactive"}
+              </Badge>
+            </div>
+            <p className="truncate text-sm text-gray-600">
+              {plan.name} · ₹{(plan.price / 100).toLocaleString()} per {plan.interval}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Leads: {plan.maxLeads === -1 ? 'Unlimited' : plan.maxLeads} · Emails:{' '}
+              {plan.maxEmails === -1 ? 'Unlimited' : plan.maxEmails} · Campaigns:{' '}
+              {plan.maxCampaigns === -1 ? 'Unlimited' : plan.maxCampaigns}
+            </p>
+            <Badge variant="secondary" className="mt-1.5">
+              {plan._count?.subscriptions || 0} users
+            </Badge>
+          </div>
+          <div className="flex shrink-0">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => onEdit(plan.id)}
+                aria-label="Edit plan"
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => onDelete(plan.id)}
+                className="h-10 w-10 text-red-600 hover:text-red-700"
+                aria-label="Delete plan"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="hidden rounded-none border md:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -116,6 +171,7 @@ export function PlansTable({ plans, onEdit, onDelete }: PlansTableProps) {
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }
 

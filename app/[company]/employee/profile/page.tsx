@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ProfileCard } from '@/components/employee/profile-card'
+import { EssPageHeader } from '@/components/employee/mobile/page-header'
 import { toast } from '@/hooks/use-toast'
 import { PageHeaderSkeleton, DetailSkeleton } from '@/components/loading'
 
@@ -161,7 +162,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto p-4 space-y-6 max-w-lg lg:max-w-4xl">
+      <div className="mx-auto w-full max-w-lg space-y-5 lg:mx-0 lg:max-w-4xl">
         <PageHeaderSkeleton />
         <DetailSkeleton />
       </div>
@@ -170,10 +171,11 @@ export default function ProfilePage() {
   if (!profile) return null
 
   return (
-    <div className="mx-auto max-w-lg space-y-5 p-1 pb-4 lg:max-w-4xl lg:p-6">
-      <div className="flex justify-between items-center gap-3">
-        <h1 className="text-xl font-semibold lg:text-2xl">My Profile</h1>
-        {!editing ? (
+    <div className="mx-auto w-full max-w-lg space-y-5 lg:mx-0 lg:max-w-4xl">
+      <EssPageHeader
+        title="My Profile"
+        className="items-center"
+        action={!editing ? (
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             Edit
           </Button>
@@ -194,9 +196,9 @@ export default function ProfilePage() {
             </Button>
           </div>
         )}
-      </div>
+      />
 
-      <div className="grid gap-5">
+      <div className="grid gap-5 [&>*]:min-w-0">
         <ProfileCard {...profile} companyName={profile.company.name} />
 
         <Card>
@@ -266,11 +268,11 @@ export default function ProfilePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{profile.phone || 'Not provided'}</p>
+                  <p className="break-words font-medium">{profile.phone || 'Not provided'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Date of birth</p>
-                  <p className="font-medium">
+                  <p className="break-words font-medium">
                     {profile.dateOfBirth
                       ? new Date(profile.dateOfBirth).toLocaleDateString()
                       : 'Not provided'}
@@ -278,11 +280,11 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Gender</p>
-                  <p className="font-medium">{profile.gender || 'Not provided'}</p>
+                  <p className="break-words font-medium">{profile.gender || 'Not provided'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{formatAddress(profile.address)}</p>
+                  <p className="break-words font-medium">{formatAddress(profile.address)}</p>
                 </div>
               </div>
             )}
@@ -317,16 +319,16 @@ export default function ProfilePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground">Name</p>
-                  <p className="font-medium">{profile.emergencyContact.name}</p>
+                  <p className="break-words font-medium">{profile.emergencyContact.name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{profile.emergencyContact.phone}</p>
+                  <p className="break-words font-medium">{profile.emergencyContact.phone}</p>
                 </div>
                 {profile.emergencyContact.relation && (
                   <div>
                     <p className="text-sm text-muted-foreground">Relation</p>
-                    <p className="font-medium">{profile.emergencyContact.relation}</p>
+                    <p className="break-words font-medium">{profile.emergencyContact.relation}</p>
                   </div>
                 )}
               </div>
@@ -343,21 +345,21 @@ export default function ProfilePage() {
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm text-muted-foreground">Employee ID</p>
-              <p className="font-medium">{profile.id}</p>
+              <p className="break-all font-medium">{profile.id}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Date Joined</p>
-              <p className="font-medium">
+              <p className="break-words font-medium">
                 {new Date(profile.dateJoined).toLocaleDateString()}
               </p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Employment Type</p>
-              <p className="font-medium">{profile.employmentType}</p>
+              <p className="break-words font-medium">{profile.employmentType}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Role</p>
-              <p className="font-medium">{profile.role}</p>
+              <p className="break-words font-medium">{profile.role}</p>
             </div>
           </CardContent>
         </Card>

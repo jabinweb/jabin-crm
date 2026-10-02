@@ -35,20 +35,20 @@ export default function HrTicketsAdminPage() {
         <p className="text-sm text-muted-foreground">Employee helpdesk inbox.</p>
       </div>
       <Card>
-        <CardContent className="space-y-3 pt-6">
+        <CardContent className="space-y-3 pt-4 sm:pt-6">
           {tickets.map((t) => (
             <div key={t.id} className="rounded-lg border p-3 space-y-2">
               <div className="flex justify-between gap-2">
-                <div>
-                  <p className="font-medium">{t.subject}</p>
+                <div className="min-w-0">
+                  <p className="break-words font-medium">{t.subject}</p>
                   <p className="text-xs text-muted-foreground">
                     {t.employee.name} · {t.category}
                   </p>
                 </div>
-                <Badge>{t.status}</Badge>
+                <Badge className="shrink-0 self-start">{t.status}</Badge>
               </div>
-              <p className="text-sm text-muted-foreground">{t.body}</p>
-              <div className="flex gap-2">
+              <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">{t.body}</p>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   variant="outline"

@@ -15,7 +15,7 @@ export default function EmployeeTasksRedirectPage() {
   }, [router, path]);
 
   return (
-    <div className="container mx-auto p-8">
+    <div className="mx-auto w-full max-w-lg lg:mx-0 lg:max-w-3xl">
       <PageHeaderSkeleton />
     </div>
   );

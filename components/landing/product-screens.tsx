@@ -131,14 +131,14 @@ function ProjectsScreen() {
             cards: ['Kickoff brief', 'Brand assets'],
           },
         ].map((column) => (
-          <div key={column.col} className="rounded-xl border border-[var(--lp-line)] bg-white p-2.5 space-y-2">
+          <div key={column.col} className="min-w-0 rounded-xl border border-[var(--lp-line)] bg-white p-1.5 sm:p-2.5 space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--lp-muted)] px-1">
               {column.col}
             </p>
             {column.cards.map((card) => (
               <div
                 key={card}
-                className="rounded-lg border border-[var(--lp-line)] bg-[var(--lp-bg)] px-2.5 py-2 text-xs text-[var(--lp-ink)]"
+                className="break-words rounded-lg border border-[var(--lp-line)] bg-[var(--lp-bg)] px-2 py-2 text-xs text-[var(--lp-ink)] sm:px-2.5"
               >
                 {card}
               </div>
@@ -185,7 +185,7 @@ export function ProductScreens() {
 
   return (
     <section id="product" className="border-t border-[var(--lp-line)] bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-14 sm:py-20 md:py-28">
         <div className="max-w-2xl mb-10">
           <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
             Product

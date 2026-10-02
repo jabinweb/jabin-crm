@@ -48,7 +48,7 @@ export function TransactionHistoryDialog({
         <DialogHeader>
           <DialogTitle>Transaction History</DialogTitle>
         </DialogHeader>
-        <div className="max-h-[600px] overflow-y-auto">
+        <div className="max-h-[70vh] min-w-0 overflow-y-auto sm:max-h-[600px]">
           <Table>
             <TableHeader>
               <TableRow>

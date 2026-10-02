@@ -35,7 +35,7 @@ const statusIcons: Record<string, any> = {
 function ServiceEventCard({ report }: { report: any }) {
     const StatusIcon = statusIcons[report.ticket?.status] ?? FileText;
     return (
-        <div className="relative flex gap-6">
+        <div className="relative flex gap-3 sm:gap-6">
             {/* Timeline spine */}
             <div className="flex flex-col items-center">
                 <div className="flex h-10 w-10 rounded-none bg-blue-600/10 border border-blue-200 dark:border-blue-800 items-center justify-center flex-shrink-0 shadow-none">
@@ -44,7 +44,7 @@ function ServiceEventCard({ report }: { report: any }) {
                 <div className="w-px flex-1 bg-slate-200 dark:bg-slate-800 mt-2" />
             </div>
 
-            <Card className="flex-1 mb-6 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none hover:shadow-none transition-shadow">
+            <Card className="flex-1 min-w-0 mb-6 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-none hover:shadow-none transition-shadow">
                 <CardHeader className="pb-3">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
@@ -62,7 +62,7 @@ function ServiceEventCard({ report }: { report: any }) {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-3 pt-0">
-                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{report.serviceNotes}</p>
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed break-words">{report.serviceNotes}</p>
                     {report.partsReplaced && (
                         <div className="flex items-start gap-2 rounded-none bg-slate-50 dark:bg-slate-800/60 p-3">
                             <Wrench className="h-3.5 w-3.5 text-slate-400 mt-0.5 flex-shrink-0" />
@@ -129,14 +129,14 @@ function ServiceHistoryContent() {
     });
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" asChild className="rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
+                <div className="flex min-w-0 flex-col items-start gap-2">
+                    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                         <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
                     </Button>
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Service History</h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">A chronological log of all maintenance performed on your equipment.</p>
                     </div>

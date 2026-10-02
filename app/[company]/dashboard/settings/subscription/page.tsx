@@ -256,7 +256,7 @@ export default function SubscriptionSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Subscription Settings</h1>
+        <h1 className="text-2xl font-bold sm:text-3xl">Subscription Settings</h1>
         <p className="text-muted-foreground mt-2">Manage your plan and billing</p>
       </div>
 
@@ -292,7 +292,7 @@ export default function SubscriptionSettingsPage() {
             </div>
             
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Billing Period:</span>
                 <span className="font-medium">
@@ -364,7 +364,7 @@ export default function SubscriptionSettingsPage() {
 
           <Separator />
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button
               onClick={() => {
                 const el = document.getElementById('available-plans');
@@ -580,8 +580,8 @@ export default function SubscriptionSettingsPage() {
           <CardContent>
             <div className="space-y-4">
               {payments.map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between p-4 border rounded-none">
-                  <div className="flex items-center gap-4">
+                <div key={payment.id} className="flex items-center justify-between gap-3 p-4 border rounded-none">
+                  <div className="flex min-w-0 items-center gap-4">
                     <div className={`p-2 rounded-none ${payment.status === 'SUCCESS' ? 'bg-green-100' : 'bg-gray-100'}`}>
                       <CreditCard className={`h-4 w-4 ${payment.status === 'SUCCESS' ? 'text-green-600' : 'text-gray-600'}`} />
                     </div>
@@ -591,7 +591,7 @@ export default function SubscriptionSettingsPage() {
                         {format(new Date(payment.createdAt), 'MMM dd, yyyy • hh:mm a')}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        ID: {payment.razorpayPaymentId}
+                        ID: <span className="break-all">{payment.razorpayPaymentId}</span>
                       </p>
                     </div>
                   </div>

@@ -211,7 +211,7 @@ export default function DealDetailPage() {
       </DetailChrome>
 
       <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{deal.title}</h1>
+            <h1 className="break-words text-2xl font-semibold tracking-tight">{deal.title}</h1>
             <p className="text-sm text-muted-foreground">
               {deal.lead?.companyName}
               {deal.lead?.contactName ? ` · ${deal.lead.contactName}` : ''}
@@ -227,7 +227,7 @@ export default function DealDetailPage() {
             <Label>Title</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>Value ({formatCurrency(Number(value) || 0, deal.currency as never)})</Label>
               <Input type="number" value={value} onChange={(e) => setValue(e.target.value)} />
@@ -304,7 +304,7 @@ export default function DealDetailPage() {
                     {p.status.replace(/_/g, ' ')} · {p.progress}%
                   </p>
                 </div>
-                <Badge variant="outline">{p.status.replace(/_/g, ' ')}</Badge>
+                <Badge variant="outline" className="shrink-0">{p.status.replace(/_/g, ' ')}</Badge>
               </div>
             ))}
           </CardContent>
@@ -312,7 +312,7 @@ export default function DealDetailPage() {
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4" />
             Quotations
@@ -342,7 +342,7 @@ export default function DealDetailPage() {
                 <span className="truncate">
                   {q.quotationNumber} · {q.title}
                 </span>
-                <Badge variant="outline">{q.status}</Badge>
+                <Badge variant="outline" className="shrink-0">{q.status}</Badge>
               </DashboardLink>
             ))
           )}
@@ -350,7 +350,7 @@ export default function DealDetailPage() {
       </Card>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
           <CardTitle className="text-base flex items-center gap-2">
             <Receipt className="h-4 w-4" />
             Invoices
@@ -380,7 +380,7 @@ export default function DealDetailPage() {
                 <span className="truncate">
                   {inv.invoiceNumber} · {inv.title}
                 </span>
-                <Badge variant="outline">{inv.status}</Badge>
+                <Badge variant="outline" className="shrink-0">{inv.status}</Badge>
               </DashboardLink>
             ))
           )}
@@ -397,10 +397,10 @@ export default function DealDetailPage() {
               <DashboardLink
                 key={t.id}
                 href={path(`/dashboard/tasks`)}
-                className="flex justify-between text-sm hover:underline"
+                className="flex items-center justify-between gap-3 text-sm hover:underline"
               >
-                <span>{t.title}</span>
-                <Badge variant="outline">{t.status}</Badge>
+                <span className="min-w-0 truncate">{t.title}</span>
+                <Badge variant="outline" className="shrink-0">{t.status}</Badge>
               </DashboardLink>
             ))}
           </CardContent>

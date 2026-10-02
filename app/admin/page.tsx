@@ -170,8 +170,8 @@ export default async function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Platform health across workspaces, users, and billing.
@@ -193,18 +193,18 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map((kpi) => (
-          <Link key={kpi.title} href={kpi.href} className="group">
+          <Link key={kpi.title} href={kpi.href} className="group min-w-0">
             <Card className="h-full transition-colors group-hover:border-teal-700/30">
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">{kpi.title}</p>
-                    <p className="text-2xl font-semibold tracking-tight mt-1">{kpi.value}</p>
-                    <p className="text-[11px] text-muted-foreground mt-1">{kpi.hint}</p>
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-start justify-between gap-2 sm:gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-muted-foreground">{kpi.title}</p>
+                    <p className="truncate text-xl sm:text-2xl font-semibold tracking-tight tabular-nums mt-1">{kpi.value}</p>
+                    <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{kpi.hint}</p>
                   </div>
-                  <div className="rounded-md bg-teal-700/10 p-2 text-teal-800">
+                  <div className="hidden sm:block shrink-0 rounded-md bg-teal-700/10 p-2 text-teal-800">
                     <kpi.icon className="h-4 w-4" />
                   </div>
                 </div>
@@ -217,14 +217,14 @@ export default async function AdminDashboard() {
       {stats.nearLimitAccounts.length > 0 && (
         <Card className="border-orange-200/80">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
                 <CardTitle className="text-base">Approaching / at plan limits</CardTitle>
                 <CardDescription>
                   Billing accounts at ≥80% of leads, emails, or campaigns — good candidates to upgrade
                 </CardDescription>
               </div>
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="sm" className="shrink-0">
                 <Link href="/admin/subscriptions">
                   Grant plans
                   <ArrowRight className="ml-1 h-3.5 w-3.5" />
@@ -296,11 +296,11 @@ export default async function AdminDashboard() {
                     <p className="text-sm font-medium truncate">{user.name || 'Unnamed'}</p>
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-col items-end gap-1 shrink-0 sm:flex-row sm:items-center sm:gap-2">
                     <Badge variant={roleTone(user.role)} className="capitalize">
                       {user.role.replaceAll('_', ' ').toLowerCase()}
                     </Badge>
-                    <span className="text-[11px] text-muted-foreground tabular-nums w-16 text-right">
+                    <span className="text-[11px] text-muted-foreground tabular-nums sm:w-16 text-right">
                       {new Date(user.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -384,7 +384,7 @@ export default async function AdminDashboard() {
                     {activity.lead?.companyName ? ` · ${activity.lead.companyName}` : ''}
                   </p>
                 </div>
-                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 max-w-[6.5rem] text-right sm:max-w-none">
                   {new Date(activity.createdAt).toLocaleString()}
                 </span>
               </div>

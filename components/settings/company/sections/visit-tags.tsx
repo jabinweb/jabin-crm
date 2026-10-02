@@ -124,7 +124,7 @@ export function VisitTagsSection() {
             {tags.map((tag) => (
               <div
                 key={tag.id}
-                className="flex items-center justify-between rounded-md border px-3 py-2"
+                className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
               >
                 <div className="flex items-center gap-2">
                   <span

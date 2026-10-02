@@ -71,9 +71,9 @@ export function LoginForm({ type, title, subtitle, redirectPath, registerPath }:
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 sm:p-6 lg:p-8">
-      <div className="max-w-md w-full space-y-10 p-12 border-2 border-foreground/5 bg-background shadow-none">
-        <div className="text-center border-b border-foreground/5 pb-10">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-background px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 lg:p-8">
+      <div className="max-w-md w-full space-y-8 p-6 sm:space-y-10 sm:p-12 border-2 border-foreground/5 bg-background shadow-none">
+        <div className="text-center border-b border-foreground/5 pb-8 sm:pb-10">
           <div className="flex justify-center mb-6">
             <div className="w-3 h-3 bg-foreground" />
           </div>

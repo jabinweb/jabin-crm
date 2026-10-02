@@ -57,7 +57,7 @@ export function SecuritySection({ onChange }: SecuritySectionProps) {
           <CardTitle>Two-Factor Authentication</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label>Require 2FA for all users</Label>
             <Switch 
               checked={settings?.security?.twoFactorAuth}
@@ -81,14 +81,14 @@ export function SecuritySection({ onChange }: SecuritySectionProps) {
               onChange={(e) => handlePasswordPolicyUpdate('minLength', parseInt(e.target.value))}
             />
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label>Require Special Characters</Label>
             <Switch 
               checked={settings?.security?.passwordPolicy?.requireSpecialChars}
               onCheckedChange={(checked) => handlePasswordPolicyUpdate('requireSpecialChars', checked)}
             />
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label>Require Numbers</Label>
             <Switch 
               checked={settings?.security?.passwordPolicy?.requireNumbers}

@@ -57,11 +57,11 @@ function DocumentsList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-none">
+      <div className="flex flex-col items-start gap-2">
+        <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">Documents</h1>
           <p className="text-sm text-muted-foreground">
             Invoices, quotations, and service contracts for your account.
@@ -71,6 +71,40 @@ function DocumentsList() {
 
       <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
         <CardContent className="p-0">
+          <div className="divide-y md:hidden">
+            {documents.length === 0 ? (
+              <p className="py-12 text-center text-sm italic text-muted-foreground">No documents yet.</p>
+            ) : (
+              documents.map((doc) => (
+                <div key={`${doc.type}-${doc.id}`} className="flex items-start gap-3 p-4">
+                  <Link href={doc.href} className="min-w-0 flex-1 space-y-1">
+                    <p className="truncate text-sm font-medium">{doc.number || doc.title}</p>
+                    {doc.number ? (
+                      <p className="truncate text-xs text-muted-foreground">{doc.title}</p>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <Badge variant="secondary">{typeLabel(doc.type)}</Badge>
+                      <Badge variant="outline">{doc.status}</Badge>
+                      <span>{new Date(doc.date).toLocaleDateString()}</span>
+                      {doc.amount != null && doc.currency ? (
+                        <span className="font-medium tabular-nums text-foreground">
+                          {formatCurrency(doc.amount, doc.currency as never)}
+                        </span>
+                      ) : null}
+                    </div>
+                  </Link>
+                  {doc.downloadHref ? (
+                    <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" asChild>
+                      <a href={doc.downloadHref} target="_blank" rel="noreferrer" aria-label="Download">
+                        <Download className="h-4 w-4" />
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
               <TableRow className="hover:bg-transparent border-none">
@@ -143,6 +177,7 @@ function DocumentsList() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

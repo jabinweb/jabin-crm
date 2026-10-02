@@ -27,7 +27,7 @@ export default function CompanyAttendancePage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2 text-muted-foreground">
             <Link href={path('/dashboard')}>
               <ArrowLeft className="h-4 w-4 mr-1" />
@@ -39,7 +39,7 @@ export default function CompanyAttendancePage() {
             Today&apos;s roster status for this workspace.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href={path('/dashboard/leave-requests')}>Leave requests</Link>
           </Button>
@@ -78,10 +78,10 @@ export default function CompanyAttendancePage() {
                   (p: { id: string; name: string; checkIn: string | null }) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
                     >
-                      <span className="font-medium">{p.name}</span>
-                      <Badge variant="secondary">
+                      <span className="min-w-0 truncate font-medium">{p.name}</span>
+                      <Badge variant="secondary" className="shrink-0">
                         {p.checkIn
                           ? new Date(p.checkIn).toLocaleTimeString(undefined, {
                               hour: '2-digit',
@@ -113,10 +113,10 @@ export default function CompanyAttendancePage() {
                   (p: { id: string; name: string; checkIn: string | null }) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
                     >
-                      <span className="font-medium">{p.name}</span>
-                      <Badge variant="destructive">Outside fence</Badge>
+                      <span className="min-w-0 truncate font-medium">{p.name}</span>
+                      <Badge variant="destructive" className="shrink-0">Outside fence</Badge>
                     </li>
                   )
                 )}
@@ -141,10 +141,10 @@ export default function CompanyAttendancePage() {
                   (p: { id: string; name: string; type: string }) => (
                     <li
                       key={p.id}
-                      className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
                     >
-                      <span className="font-medium">{p.name}</span>
-                      <Badge variant="outline">{p.type}</Badge>
+                      <span className="min-w-0 truncate font-medium">{p.name}</span>
+                      <Badge variant="outline" className="shrink-0">{p.type}</Badge>
                     </li>
                   )
                 )}

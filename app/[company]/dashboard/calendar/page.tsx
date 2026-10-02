@@ -321,9 +321,9 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Calendar</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Calendar</h1>
           <p className="text-gray-500">
             Manage your meetings and events.{' '}
             <a
@@ -335,15 +335,15 @@ export default function CalendarPage() {
             are scheduled on each client&apos;s Visits tab.
           </p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => setShowCreateDialog(true)} className="self-start sm:self-auto">
           <Plus className="h-4 w-4 mr-2" />
           New Event
         </Button>
       </div>
 
       <Card>
-        <CardContent className="p-6">
-          <div style={{ height: '700px' }}>
+        <CardContent className="p-2 sm:p-6">
+          <div style={{ height: '700px' }} className="min-w-0">
             <Calendar
               localizer={localizer}
               events={calendarEvents}
@@ -382,7 +382,7 @@ export default function CalendarPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="eventType">Type</Label>
                 <Select value={formData.eventType} onValueChange={(value) => setFormData({ ...formData, eventType: value })}>
@@ -417,7 +417,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="startTime">Start Time *</Label>
                 <Input
@@ -545,7 +545,7 @@ export default function CalendarPage() {
                     href={selectedEvent.meetingLink}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:underline"
+                    className="min-w-0 break-all text-sm text-blue-600 hover:underline"
                   >
                     {selectedEvent.meetingLink}
                   </a>

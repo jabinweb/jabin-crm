@@ -260,7 +260,7 @@ export function EmailComposeDialog({
                   </Button>
                 </PopoverTrigger>
                 {subjectVariants.length > 0 && (
-                  <PopoverContent className="w-96" align="end">
+                  <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96" align="end">
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">AI-Generated Subject Lines</h4>
                       <div className="space-y-2 max-h-96 overflow-y-auto">
@@ -302,9 +302,9 @@ export function EmailComposeDialog({
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Label htmlFor="body">Message</Label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {contentOptimization && (
                   <Popover>
                     <PopoverTrigger asChild>
@@ -313,7 +313,7 @@ export function EmailComposeDialog({
                         Score: {contentOptimization.score}/100
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-96" align="end">
+                    <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96" align="end">
                       <div className="space-y-3">
                         <div>
                           <h4 className="font-medium text-sm mb-2">Content Analysis</h4>

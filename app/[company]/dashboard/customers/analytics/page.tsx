@@ -38,7 +38,7 @@ export default function CustomerAnalyticsPage() {
 
     if (isLoading) {
         return (
-            <div className="flex-1 space-y-6">
+            <div className="space-y-6">
                 <PageHeaderSkeleton />
                 <StatCardsSkeleton count={4} />
                 <SectionSkeleton lines={8} />
@@ -47,10 +47,10 @@ export default function CustomerAnalyticsPage() {
     }
 
     return (
-        <div className="flex-1 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Customer Analytics Hub</h2>
+                    <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Customer Analytics Hub</h2>
                     <p className="text-muted-foreground">Strategic overview of client engagement and installed assets.</p>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -64,10 +64,10 @@ export default function CustomerAnalyticsPage() {
             </div>
 
             {/* Top Level Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">
                 <Card className="border-l-4 border-l-blue-600 shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total clients</CardTitle>
+                        <CardTitle className="truncate text-sm font-medium">Total clients</CardTitle>
                         <Building className="h-4 w-4 text-blue-600" />
                     </CardHeader>
                     <CardContent>
@@ -78,7 +78,7 @@ export default function CustomerAnalyticsPage() {
 
                 <Card className="border-l-4 border-l-green-600 shadow-none">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Field Assets</CardTitle>
+                        <CardTitle className="truncate text-sm font-medium">Field Assets</CardTitle>
                         <Activity className="h-4 w-4 text-green-600" />
                     </CardHeader>
                     <CardContent>
@@ -87,9 +87,9 @@ export default function CustomerAnalyticsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-orange-600 shadow-none">
+                <Card className="col-span-2 border-l-4 border-l-orange-600 shadow-none md:col-span-1">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Service Pressure</CardTitle>
+                        <CardTitle className="truncate text-sm font-medium">Service Pressure</CardTitle>
                         <AlertTriangle className="h-4 w-4 text-orange-600" />
                     </CardHeader>
                     <CardContent>
@@ -111,15 +111,15 @@ export default function CustomerAnalyticsPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {analytics?.cityDistribution?.map((city: any, i: number) => (
-                            <div key={city.name} className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-none bg-muted flex items-center justify-center text-[10px] font-bold">
+                            <div key={city.name} className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <div className="w-6 h-6 shrink-0 rounded-none bg-muted flex items-center justify-center text-[10px] font-bold">
                                         {i + 1}
                                     </div>
-                                    <span className="text-sm font-medium">{city.name}</span>
+                                    <span className="truncate text-sm font-medium">{city.name}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-32 h-2 bg-muted rounded-none overflow-hidden">
+                                    <div className="w-20 sm:w-32 h-2 bg-muted rounded-none overflow-hidden">
                                         <div
                                             className="h-full bg-primary"
                                             style={{ width: `${(city.count / analytics.summary.totalCustomers) * 100}%` }}
@@ -173,7 +173,7 @@ export default function CustomerAnalyticsPage() {
                     <CardContent className="space-y-4">
                         {analytics?.highDemandAccounts?.map((h: any) => (
                             <div key={h.name} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded transition-colors group">
-                                <span className="text-sm truncate w-40">{h.name}</span>
+                                <span className="min-w-0 flex-1 text-sm truncate sm:w-40 sm:flex-none">{h.name}</span>
                                 <Badge variant="secondary" className="group-hover:bg-primary group-hover:text-white transition-colors">
                                     {h.ticketCount} Tickets
                                 </Badge>
@@ -201,12 +201,12 @@ export default function CustomerAnalyticsPage() {
                                 </div>
                             ) : (
                                 analytics?.upcomingExpiries?.map((eq: any) => (
-                                    <div key={eq.id} className="flex items-center justify-between p-3 border rounded-none bg-orange-50/20">
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-bold">{eq.product.name} (SN: {eq.serialNumber})</p>
+                                    <div key={eq.id} className="flex items-center justify-between gap-3 p-3 border rounded-none bg-orange-50/20">
+                                        <div className="min-w-0 space-y-1">
+                                            <p className="break-words text-sm font-bold">{eq.product.name} (SN: {eq.serialNumber})</p>
                                             <p className="text-xs text-muted-foreground">{eq.customer.organizationName}</p>
                                         </div>
-                                        <div className="text-right space-y-1">
+                                        <div className="shrink-0 text-right space-y-1">
                                             <p className="text-xs font-bold text-red-600 leading-none">
                                                 {new Date(eq.warrantyExpiry).toLocaleDateString()}
                                             </p>
@@ -236,12 +236,12 @@ export default function CustomerAnalyticsPage() {
                                 <div className="absolute left-0 top-1 w-9 h-9 rounded-none bg-background border flex items-center justify-center z-10">
                                     <Activity className="h-4 w-4 text-primary" />
                                 </div>
-                                <div className="space-y-1 py-1">
-                                    <div className="flex items-center gap-2">
+                                <div className="min-w-0 space-y-1 py-1">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <p className="text-sm font-bold">{activity.customer.organizationName}</p>
                                         <Badge variant="outline" className="text-[9px] h-4">{activity.eventType}</Badge>
                                     </div>
-                                    <p className="text-sm text-muted-foreground">{activity.description}</p>
+                                    <p className="break-words text-sm text-muted-foreground">{activity.description}</p>
                                     <p className="text-[10px] text-muted-foreground">{new Date(activity.createdAt).toLocaleString()}</p>
                                 </div>
                             </div>

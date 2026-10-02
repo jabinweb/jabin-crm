@@ -175,7 +175,7 @@ export default function ServiceGpsPage() {
           <CardDescription>Use browser GPS to save current location.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <p className="text-sm mb-2">
                 {isTechnician ? 'Technician' : 'Technician (required)'}
@@ -213,7 +213,7 @@ export default function ServiceGpsPage() {
               </Select>
             </div>
           </div>
-          <Button onClick={checkInNow} disabled={tracking}>{tracking ? 'Capturing...' : 'Capture Current Location'}</Button>
+          <Button className="w-full sm:w-auto" onClick={checkInNow} disabled={tracking}>{tracking ? 'Capturing...' : 'Capture Current Location'}</Button>
         </CardContent>
       </Card>
 

@@ -85,9 +85,9 @@ export default function FreshdeskMigratePage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-start">
         <SupportBackLink />
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Freshdesk import</h1>
           <p className="text-sm text-muted-foreground">
             Store connection details, then run the migration wizard

@@ -36,9 +36,11 @@ export default function WorkspaceLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-[100dvh] bg-muted/20">
       <Navbar />
-      <main className="p-4 md:p-6">{children}</main>
+      <main className="mx-auto w-full max-w-7xl px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:px-8">
+        {children}
+      </main>
     </div>
   );
 }

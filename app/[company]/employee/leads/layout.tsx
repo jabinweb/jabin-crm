@@ -39,7 +39,7 @@ export default function LeadsLayout({ children }: { children: React.ReactNode })
 
   return (
     <FeatureModuleGuard module="LEADS" title="Leads not available">
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <Tabs 
         defaultValue={tabs.find(tab => tab.path === pathname)?.value || 'dashboard'}
         onValueChange={handleTabChange}

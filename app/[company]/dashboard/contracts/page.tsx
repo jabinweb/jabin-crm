@@ -96,23 +96,23 @@ export default function ContractsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b pb-6">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between border-b pb-6">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">AMC / CMC contracts</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Track maintenance agreements and renewals before they lapse.
           </p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="self-start sm:self-auto">
           <Link href={path('/dashboard/contracts/new')}>
             <Plus className="w-4 h-4 mr-1.5" /> New contract
           </Link>
         </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -124,7 +124,7 @@ export default function ContractsPage() {
           </SelectContent>
         </Select>
         <Select value={type} onValueChange={setType}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-full sm:w-36">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
@@ -155,6 +155,69 @@ export default function ContractsPage() {
               className="py-10"
             />
           ) : (
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {contracts.map((c) => {
+                const left = daysUntil(new Date(c.endDate));
+                const urgency =
+                  c.status === 'ACTIVE' ? renewalUrgency(left) : 'ok';
+                return (
+                  <Link
+                    key={c.id}
+                    href={path(`/dashboard/contracts/${c.id}`)}
+                    className="block space-y-1.5 p-3 active:bg-muted/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{c.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {c.customer.organizationName}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1">
+                        <Badge variant="outline">{c.type}</Badge>
+                        <Badge variant={statusVariant(c.status)}>{c.status}</Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="min-w-0 truncate text-muted-foreground">
+                        Ends {formatDate(c.endDate)}
+                        {c.status === 'ACTIVE' && (
+                          <span
+                            className={
+                              urgency === 'overdue' || urgency === 'critical'
+                                ? ' text-destructive'
+                                : urgency === 'soon'
+                                  ? ' text-amber-700'
+                                  : ''
+                            }
+                          >
+                            {' · '}
+                            {left < 0
+                              ? `${Math.abs(left)}d overdue`
+                              : left === 0
+                                ? 'Ends today'
+                                : `${left}d left`}
+                          </span>
+                        )}
+                        {c.visitLimit != null ? (
+                          <span className={c.overLimit ? ' text-destructive' : ''}>
+                            {' · '}
+                            {c.visitsUsed}/{c.visitLimit} visits
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="shrink-0 tabular-nums font-medium">
+                        {c.annualValue != null
+                          ? `${c.currency} ${c.annualValue.toLocaleString()}`
+                          : '—'}
+                      </span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -272,6 +335,8 @@ export default function ContractsPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

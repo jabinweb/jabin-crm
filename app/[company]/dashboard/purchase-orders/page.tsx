@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -260,10 +262,57 @@ export default function PurchaseOrdersPage() {
 
   const canCreate = !!supplierId && validLines.length > 0 && !createMutation.isPending;
 
+  const renderPoActions = (o: PurchaseOrder, className?: string) => {
+    const busy = actionMutation.isPending && actionId === o.id;
+    const canApprove = o.status === 'DRAFT';
+    const canReceive = o.status === 'DRAFT' || o.status === 'SENT';
+    const canCancel = o.status !== 'CANCELLED' && o.status !== 'RECEIVED';
+    return (
+      <div className={cn('flex flex-wrap gap-1', className)}>
+        {canApprove && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              actionMutation.mutate({ id: o.id, action: 'approve' })
+            }
+          >
+            Approve
+          </Button>
+        )}
+        {canReceive && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              actionMutation.mutate({ id: o.id, action: 'receive' })
+            }
+          >
+            Receive
+          </Button>
+        )}
+        {canCancel && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            onClick={() =>
+              actionMutation.mutate({ id: o.id, action: 'cancel' })
+            }
+          >
+            Cancel
+          </Button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Purchase orders</h1>
           <p className="text-sm text-muted-foreground">Create and track POs with suppliers.</p>
         </div>
@@ -301,44 +350,44 @@ export default function PurchaseOrdersPage() {
       </div>
 
       {reportEnabled && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total POs</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total POs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold">
+              <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
                 {isLoading ? '—' : (report?.count ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Open</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Open</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold">
+              <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
                 {isLoading ? '—' : (report?.openCount ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total spend</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total spend</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold">
+              <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
                 {isLoading ? '—' : (report?.totalSpend ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">By status</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">By status</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading || !report?.byStatus ? (
-                <div className="text-2xl font-semibold">—</div>
+                <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">—</div>
               ) : (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                   {Object.entries(report.byStatus).map(([s, n]) => (
@@ -404,7 +453,84 @@ export default function PurchaseOrdersPage() {
                 Add row
               </Button>
             </div>
-            <div className="rounded-md border">
+            <div className="space-y-3 md:hidden">
+              {lineItems.map((row) => {
+                const q = Number(row.quantity);
+                const p = Number(row.unitPrice);
+                const lineTotal =
+                  q > 0 && !Number.isNaN(p) && p >= 0 ? q * p : 0;
+                return (
+                  <div key={row.key} className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Label className="text-xs text-muted-foreground">Product</Label>
+                        <Select
+                          value={row.productId}
+                          onValueChange={(productId) => {
+                            const product = products.find((p) => p.id === productId);
+                            updateLine(row.key, {
+                              productId,
+                              unitPrice: product ? String(product.price ?? 0) : row.unitPrice,
+                            });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                                {p.sku ? ` (${p.sku})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mt-5 h-10 w-10 shrink-0"
+                        disabled={lineItems.length <= 1}
+                        onClick={() =>
+                          setLineItems((prev) => prev.filter((r) => r.key !== row.key))
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Qty</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={row.quantity}
+                          onChange={(e) => updateLine(row.key, { quantity: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Unit price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={row.unitPrice}
+                          onChange={(e) => updateLine(row.key, { unitPrice: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Line total</span>
+                      <span className="tabular-nums">{lineTotal.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden rounded-md border md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -493,7 +619,7 @@ export default function PurchaseOrdersPage() {
             </div>
           </div>
 
-          <Button disabled={!canCreate} onClick={() => createMutation.mutate()}>
+          <Button className="w-full sm:w-auto" disabled={!canCreate} onClick={() => createMutation.mutate()}>
             {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create PO
           </Button>
@@ -546,6 +672,26 @@ export default function PurchaseOrdersPage() {
                 description="Create a PO above."
               />
             ) : (
+              <>
+              <div className="divide-y rounded-md border md:hidden">
+                {orders.map((o) => (
+                  <div key={o.id} className="space-y-2 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{o.poNumber}</p>
+                        <p className="truncate text-xs text-muted-foreground">{o.supplier?.name}</p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">{o.status}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="tabular-nums font-medium">{o.totalAmount.toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleDateString()}</span>
+                    </div>
+                    {renderPoActions(o, '[&_button]:h-10')}
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -559,10 +705,6 @@ export default function PurchaseOrdersPage() {
                 </TableHeader>
                 <TableBody>
                   {orders.map((o) => {
-                    const busy = actionMutation.isPending && actionId === o.id;
-                    const canApprove = o.status === 'DRAFT';
-                    const canReceive = o.status === 'DRAFT' || o.status === 'SENT';
-                    const canCancel = o.status !== 'CANCELLED' && o.status !== 'RECEIVED';
                     return (
                       <TableRow key={o.id}>
                         <TableCell className="font-medium">{o.poNumber}</TableCell>
@@ -571,50 +713,15 @@ export default function PurchaseOrdersPage() {
                         <TableCell className="text-right">{o.totalAmount.toLocaleString()}</TableCell>
                         <TableCell>{new Date(o.createdAt).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex flex-wrap justify-end gap-1">
-                            {canApprove && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={busy}
-                                onClick={() =>
-                                  actionMutation.mutate({ id: o.id, action: 'approve' })
-                                }
-                              >
-                                Approve
-                              </Button>
-                            )}
-                            {canReceive && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={busy}
-                                onClick={() =>
-                                  actionMutation.mutate({ id: o.id, action: 'receive' })
-                                }
-                              >
-                                Receive
-                              </Button>
-                            )}
-                            {canCancel && (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                disabled={busy}
-                                onClick={() =>
-                                  actionMutation.mutate({ id: o.id, action: 'cancel' })
-                                }
-                              >
-                                Cancel
-                              </Button>
-                            )}
-                          </div>
+                          {renderPoActions(o, 'justify-end')}
                         </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
               </Table>
+              </div>
+              </>
             )}
           </CardContent>
         </Card>

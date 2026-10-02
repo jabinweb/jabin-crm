@@ -524,7 +524,7 @@ export default function ProjectTaskDetailPage() {
   const showHistory = activityTab === 'all' || activityTab === 'history';
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <DetailChrome
         crumbs={[
           { label: 'Projects', href: path('/dashboard/projects') },
@@ -554,7 +554,7 @@ export default function ProjectTaskDetailPage() {
         backLabel={task.parentTask ? 'Back to parent' : 'Back to project'}
       />
 
-      <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
         {/* Main column */}
         <div className="min-w-0 space-y-6 lg:pr-8">
           {task.parentTask ? (
@@ -935,7 +935,7 @@ export default function ProjectTaskDetailPage() {
               (task.linksFrom?.length ?? 0) + (task.linksTo?.length ?? 0) > 0 ? (
                 <ul className="space-y-2 text-sm">
                   {(task.linksFrom || []).map((link) => (
-                    <li key={link.id} className="flex items-center gap-2">
+                    <li key={link.id} className="flex min-w-0 items-center gap-2">
                       <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">{link.type.replace(/_/g, ' ')}</span>
                       <Link
@@ -949,7 +949,7 @@ export default function ProjectTaskDetailPage() {
                     </li>
                   ))}
                   {(task.linksTo || []).map((link) => (
-                    <li key={link.id} className="flex items-center gap-2">
+                    <li key={link.id} className="flex min-w-0 items-center gap-2">
                       <Link2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">{link.type.replace(/_/g, ' ')} (from)</span>
                       <Link
@@ -992,7 +992,7 @@ export default function ProjectTaskDetailPage() {
                       className="h-8 w-24"
                     />
                   </div>
-                  <div className="min-w-[200px] flex-1 space-y-1">
+                  <div className="w-full min-w-0 flex-1 space-y-1 sm:w-auto sm:min-w-[200px]">
                     <label className="text-xs text-muted-foreground">Note</label>
                     <Input
                       value={worklogNote}
@@ -1018,7 +1018,7 @@ export default function ProjectTaskDetailPage() {
                 {(task.worklogs?.length ?? 0) > 0 ? (
                   <ul className="divide-y rounded-md border text-sm">
                     {task.worklogs!.map((w) => (
-                      <li key={w.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                      <li key={w.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 px-3 py-2">
                         <div className="min-w-0">
                           <span className="font-medium tabular-nums">{w.hours}h</span>
                           {w.note ? (
@@ -1187,7 +1187,7 @@ export default function ProjectTaskDetailPage() {
         </div>
 
         {/* Details sidebar — Jira-style key/value */}
-        <aside className="space-y-4 border-t pt-4 lg:sticky lg:top-4 lg:self-start lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <aside className="min-w-0 space-y-4 border-t pt-4 lg:sticky lg:top-4 lg:self-start lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
           <div className="flex flex-wrap items-center gap-2">
             <Select
               value={task.status}

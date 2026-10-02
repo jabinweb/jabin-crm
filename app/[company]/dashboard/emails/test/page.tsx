@@ -135,10 +135,11 @@ export default function EmailTesterPage() {
   };
 
   return (
-    <div className="flex-1 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Email Tester</h2>
+    <div className="h-full overflow-y-auto">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-8 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Email Tester</h2>
           <p className="text-muted-foreground">
             Test your email configuration and deliverability
           </p>
@@ -147,7 +148,7 @@ export default function EmailTesterPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column - Test Configuration */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Send Test Email</CardTitle>
@@ -211,7 +212,7 @@ export default function EmailTesterPage() {
               {/* Templates */}
               <div className="space-y-2">
                 <Label>Quick Templates</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -252,7 +253,7 @@ export default function EmailTesterPage() {
 
               {/* Body */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <Label>Email Content</Label>
                   <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="w-auto">
                     <TabsList className="h-8">
@@ -310,7 +311,7 @@ export default function EmailTesterPage() {
         </div>
 
         {/* Right Column - Results & Info */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Test Result */}
           {testResult && (
             <Card>
@@ -333,12 +334,12 @@ export default function EmailTesterPage() {
                 {testResult.success ? (
                   <>
                     <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between gap-2 text-sm">
                         <span className="text-muted-foreground">Delivery Time:</span>
                         <Badge variant="outline">{testResult.deliveryTime}ms</Badge>
                       </div>
                       {testResult.messageId && (
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between gap-2 text-sm">
                           <span className="text-muted-foreground">Message ID:</span>
                           <code className="text-xs bg-muted px-2 py-1 rounded">
                             {testResult.messageId.substring(0, 20)}...
@@ -346,7 +347,7 @@ export default function EmailTesterPage() {
                         </div>
                       )}
                       {testResult.logId && (
-                        <div className="flex justify-between text-sm">
+                        <div className="flex justify-between gap-2 text-sm">
                           <span className="text-muted-foreground">Log ID:</span>
                           <code className="text-xs bg-muted px-2 py-1 rounded">
                             {testResult.logId.substring(0, 20)}...
@@ -383,11 +384,11 @@ export default function EmailTesterPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">Provider:</span>
                   <Badge variant="outline">Nodemailer</Badge>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">SMTP Configured:</span>
                   <Badge variant="outline" className="bg-green-500/10 text-green-500">
                     Active
@@ -412,7 +413,7 @@ export default function EmailTesterPage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Add these to your .env file to enable reply checking:
                 </p>
-                <div className="bg-muted p-3 rounded-none mt-2 font-mono text-xs space-y-1">
+                <div className="bg-muted p-3 rounded-none mt-2 font-mono text-xs space-y-1 break-all">
                   <div>IMAP_HOST=imap.gmail.com</div>
                   <div>IMAP_PORT=993</div>
                   <div>IMAP_USER=your-email@gmail.com</div>
@@ -426,7 +427,7 @@ export default function EmailTesterPage() {
                   <Input
                     readOnly
                     value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/emails/check-replies`}
-                    className="font-mono text-xs"
+                    className="min-w-0 font-mono text-xs"
                   />
                   <Button
                     size="sm"
@@ -449,6 +450,7 @@ export default function EmailTesterPage() {
           </Card>
         </div>
       </div>
+    </div>
     </div>
   );
 }

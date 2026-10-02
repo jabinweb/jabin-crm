@@ -69,7 +69,69 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
   };
 
   return (
-    <div className="rounded-none border">
+    <>
+    {/* Phones: one row card per user */}
+    <div className="divide-y rounded-md border md:hidden">
+      {rows.length === 0 ? (
+        <p className="py-8 text-center text-sm text-muted-foreground">No users found</p>
+      ) : (
+        rows.map((user) => {
+          const companyLabel =
+            user.primaryCompany?.name || user.companies?.[0]?.name || null;
+          const membershipCount = user.companies?.length ?? 0;
+          return (
+            <div key={user.id} className="flex items-start gap-2 p-3">
+              <Link href={`/admin/users/${user.id}`} className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate font-medium">{user.name || "N/A"}</p>
+                  {user.isOrphan ? (
+                    <Badge variant="outline" className="shrink-0 border-amber-500 text-amber-700">
+                      Orphan
+                    </Badge>
+                  ) : null}
+                </div>
+                <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
+                  {companyLabel ? (
+                    <span className="truncate">
+                      {companyLabel}
+                      {membershipCount > 1 ? ` +${membershipCount - 1}` : ""}
+                    </span>
+                  ) : null}
+                  <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+                </div>
+              </Link>
+              <div className="flex shrink-0">
+                {onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10"
+                    onClick={() => onEdit(user.id)}
+                    aria-label="Edit user"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(user.id)}
+                    className="h-10 w-10 text-red-600 hover:text-red-700"
+                    aria-label="Delete user"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+    <div className="hidden rounded-none border md:block">
       <Table>
         <TableHeader>
           <TableRow>
@@ -163,5 +225,6 @@ export function UsersTable({ users, onEdit, onDelete }: UsersTableProps) {
         </TableBody>
       </Table>
     </div>
+    </>
   );
 }

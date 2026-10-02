@@ -76,8 +76,8 @@ export function EmailDetailPanel({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b p-4 sm:p-6">
+    <div className="flex h-full w-full min-w-0 flex-col">
+      <div className="border-b px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="flex items-start gap-2">
           {onBack ? (
             <Button
@@ -91,7 +91,7 @@ export function EmailDetailPanel({
               <ChevronLeft className="h-5 w-5" />
             </Button>
           ) : null}
-          <div className="flex min-w-0 flex-1 items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
             <div className="flex-1 min-w-0">
               <h2 className="text-lg sm:text-2xl font-semibold break-words">
                 {selectedEmail.subject || '(No subject)'}
@@ -103,7 +103,7 @@ export function EmailDetailPanel({
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium">To:</span>
-                <span className="text-muted-foreground">{selectedEmail.to}</span>
+                <span className="min-w-0 break-all text-muted-foreground">{selectedEmail.to}</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium">Date:</span>
@@ -115,7 +115,7 @@ export function EmailDetailPanel({
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
+          <div className="flex flex-wrap gap-2 sm:shrink-0">
             {selectedFolder === 'drafts' ? (
               <>
                 <Button variant="outline" size="sm" className="h-9" onClick={onEditDraft}>
@@ -183,11 +183,11 @@ export function EmailDetailPanel({
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-4 sm:p-6">
+      <ScrollArea className="flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-3 pb-3 border-b">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-none bg-blue-100 flex items-center justify-center">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-10 w-10 shrink-0 rounded-none bg-blue-100 flex items-center justify-center">
                 <span className="text-sm font-semibold text-blue-700">
                   {selectedFolder === 'sent'
                     ? 'You'
@@ -198,7 +198,7 @@ export function EmailDetailPanel({
                 <div className="font-medium text-sm">
                   {selectedFolder === 'sent' ? 'You' : selectedEmail.from || 'Unknown'}
                 </div>
-                <div className="text-xs text-muted-foreground">to {selectedEmail.to}</div>
+                <div className="break-all text-xs text-muted-foreground">to {selectedEmail.to}</div>
               </div>
             </div>
             <div className="text-xs text-muted-foreground">
@@ -208,7 +208,7 @@ export function EmailDetailPanel({
             </div>
           </div>
 
-          <div className="prose max-w-none">
+          <div className="prose max-w-none break-words">
             <div
               className="whitespace-pre-wrap text-sm leading-relaxed"
               dangerouslySetInnerHTML={{
@@ -229,15 +229,15 @@ export function EmailDetailPanel({
                   reply.isNew ? 'bg-blue-50 border-blue-200' : 'bg-muted/30'
                 )}
               >
-                <div className="flex items-center justify-between mb-3 pb-3 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-none bg-emerald-100 flex items-center justify-center">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-none bg-emerald-100 flex items-center justify-center">
                       <span className="text-sm font-semibold text-emerald-700">
                         {reply.from.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div>
-                      <div className="font-medium text-sm flex items-center gap-2">
+                      <div className="font-medium text-sm flex flex-wrap items-center gap-2 break-all">
                         {reply.from}
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                           Reply {index + 1}
@@ -262,7 +262,7 @@ export function EmailDetailPanel({
                   </div>
                 )}
 
-                <div className="prose max-w-none">
+                <div className="prose max-w-none break-words">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {extractReplyContent(reply.body)}
                   </div>
@@ -270,7 +270,7 @@ export function EmailDetailPanel({
 
                 {sentimentResults[reply.id] ? (
                   <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-none">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4 text-purple-600" />
                         <span className="text-sm font-medium">AI Analysis</span>
@@ -373,15 +373,15 @@ export function EmailDetailPanel({
 
             {emailReplies.length === 0 && selectedEmail.repliedAt && selectedEmail.replyBody && (
               <div className="border rounded-none p-4 bg-muted/30">
-                <div className="flex items-center justify-between mb-3 pb-3 border-b">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-none bg-emerald-100 flex items-center justify-center">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 rounded-none bg-emerald-100 flex items-center justify-center">
                       <span className="text-sm font-semibold text-emerald-700">
                         {selectedEmail.to.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div>
-                      <div className="font-medium text-sm flex items-center gap-2">
+                      <div className="font-medium text-sm flex flex-wrap items-center gap-2 break-all">
                         {selectedEmail.to}
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                           Reply
@@ -401,7 +401,7 @@ export function EmailDetailPanel({
                   </div>
                 )}
 
-                <div className="prose max-w-none">
+                <div className="prose max-w-none break-words">
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {extractReplyContent(selectedEmail.replyBody)}
                   </div>

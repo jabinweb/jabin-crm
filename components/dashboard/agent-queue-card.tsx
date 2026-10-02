@@ -73,7 +73,7 @@ export function AgentQueueCard() {
   if (isLoading || !data) return null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
       <Card className="shadow-none">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -85,7 +85,7 @@ export function AgentQueueCard() {
           {data.nextSla && (
             <div className="rounded-md border border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 p-2 text-xs flex items-center justify-between gap-2">
               <span className="truncate">Next SLA: {data.nextSla.subject}</span>
-              <Button asChild size="sm" variant="outline" className="h-7 shrink-0">
+              <Button asChild size="sm" variant="outline" className="h-8 shrink-0 sm:h-7">
                 <Link href={path(`/dashboard/tickets/${data.nextSla.id}`)}>Open</Link>
               </Button>
             </div>
@@ -102,7 +102,7 @@ export function AgentQueueCard() {
               <Link
                 key={t.id}
                 href={path(`/dashboard/tickets/${t.id}`)}
-                className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-muted/50"
+                className="flex min-h-[2.5rem] items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm hover:bg-muted/50 sm:min-h-0"
               >
                 <span className="truncate font-medium">{t.subject}</span>
                 <div className="flex items-center gap-1 shrink-0">

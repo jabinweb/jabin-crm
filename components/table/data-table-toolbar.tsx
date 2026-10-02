@@ -29,10 +29,10 @@ export function DataTableToolbar<TData>({
   const isFiltered = table.getState().columnFilters.length > 0
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-1 flex-wrap items-center gap-2">
         {searchableColumn && (
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={`Search ${searchableColumn.toLowerCase()}…`}
@@ -41,7 +41,7 @@ export function DataTableToolbar<TData>({
                 table.getColumn(searchableColumn)?.setFilterValue(event.target.value)
                 onSearch?.(event.target.value)
               }}
-              className="h-8 w-[150px] pl-8 lg:w-[250px]"
+              className="h-10 w-full pl-8 sm:h-8 sm:w-[150px] lg:w-[250px]"
             />
           </div>
         )}

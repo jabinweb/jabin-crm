@@ -183,7 +183,7 @@ export function EditEmployeeDialog({ employee, onUpdate }: EditEmployeeDialogPro
       <DialogTrigger asChild>
         <Button>Edit Details</Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl top-0 translate-y-0 h-full overflow-y-auto">
+      <DialogContent className="max-w-2xl overflow-y-auto sm:top-0 sm:translate-y-0 sm:h-full">
         <DialogHeader>
           <DialogTitle>Edit Employee Details</DialogTitle>
         </DialogHeader>
@@ -200,7 +200,7 @@ export function EditEmployeeDialog({ employee, onUpdate }: EditEmployeeDialogPro
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -346,8 +346,8 @@ export function EditEmployeeDialog({ employee, onUpdate }: EditEmployeeDialogPro
 
           <div className="space-y-4">
             <h3 className="font-medium">Address</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="street">Street</Label>
                 <Input
                   id="street"
@@ -395,7 +395,7 @@ export function EditEmployeeDialog({ employee, onUpdate }: EditEmployeeDialogPro
             </div>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>

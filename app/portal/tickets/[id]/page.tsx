@@ -123,8 +123,8 @@ export default function PortalTicketDetailPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <Button variant="ghost" size="sm" onClick={() => router.push('/portal/tickets')} className="text-slate-500 hover:text-blue-600">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <Button variant="ghost" size="sm" onClick={() => router.push('/portal/tickets')} className="-ml-3 text-slate-500 hover:text-blue-600">
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back to Queue
                 </Button>
@@ -138,25 +138,25 @@ export default function PortalTicketDetailPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 {/* Left: Content */}
-                <div className="lg:col-span-2 space-y-6">
+                <div className="lg:col-span-2 space-y-6 min-w-0">
                     <Card className="border-2 border-foreground/5 shadow-none bg-background overflow-hidden">
                         <div className="h-1 bg-foreground" />
                         <CardHeader className="pb-4">
-                            <div className="flex items-center justify-between mb-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                 <Badge variant="outline" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 border-slate-200">
                                     {ticket.priority} Priority
                                 </Badge>
-                                <span className="text-[10px] font-mono text-slate-400 tracking-tighter">REF: {ticket.id.toUpperCase()}</span>
+                                <span className="text-[10px] font-mono text-slate-400 tracking-tighter break-all">REF: {ticket.id.toUpperCase()}</span>
                             </div>
-                            <CardTitle className="text-2xl font-bold  leading-tight">
+                            <CardTitle className="text-xl sm:text-2xl font-bold leading-tight break-words">
                                 {ticket.subject}
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="p-8 border border-foreground/5 bg-muted/5">
-                                <p className="text-xs font-mono text-foreground whitespace-pre-wrap leading-relaxed">
+                            <div className="p-4 sm:p-8 border border-foreground/5 bg-muted/5">
+                                <p className="text-xs font-mono text-foreground whitespace-pre-wrap break-words leading-relaxed">
                                     {ticket.description}
                                 </p>
                             </div>
@@ -169,7 +169,7 @@ export default function PortalTicketDetailPage() {
                                 <CardDescription>Rate your support experience for this request.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                     {[1, 2, 3, 4, 5].map((n) => (
                                         <Button
                                             key={n}
@@ -188,7 +188,7 @@ export default function PortalTicketDetailPage() {
                                     onChange={(e) => setCsatComment(e.target.value)}
                                     className="min-h-[80px]"
                                 />
-                                <Button onClick={handleSubmitCsat} disabled={isSubmittingCsat || csatRating < 1}>
+                                <Button className="w-full sm:w-auto" onClick={handleSubmitCsat} disabled={isSubmittingCsat || csatRating < 1}>
                                     {isSubmittingCsat ? 'Submitting…' : 'Submit feedback'}
                                 </Button>
                             </CardContent>
@@ -222,16 +222,16 @@ export default function PortalTicketDetailPage() {
                                         ) : (
                                             ticket.activities?.filter((a: any) => a.eventType === 'COMMENT').map((comment: any) => (
                                                 <div key={comment.id} className={cn(
-                                                    "p-6 border border-foreground/5 max-w-full",
+                                                    "p-4 sm:p-6 border border-foreground/5 max-w-full",
                                                     comment.performedById ? "bg-background ml-0 mr-auto" : "bg-muted/5 ml-auto mr-0"
                                                 )}>
-                                                    <div className="flex items-center justify-between mb-4">
+                                                    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
                                                         <p className="text-[9px] font-black uppercase tracking-[0.2em] text-foreground">
                                                             SOURCE: {comment.performedBy?.name || 'Support Team'}
                                                         </p>
                                                         <p className="text-[9px] font-mono opacity-40">{new Date(comment.createdAt).toLocaleString().toUpperCase()}</p>
                                                     </div>
-                                                    <p className="text-xs font-mono leading-relaxed">{comment.description}</p>
+                                                    <p className="text-xs font-mono leading-relaxed break-words">{comment.description}</p>
                                                 </div>
                                             ))
                                         )}
@@ -250,7 +250,7 @@ export default function PortalTicketDetailPage() {
                                                 <Button
                                                     onClick={handleAddComment}
                                                     disabled={isSubmittingComment || !newComment.trim()}
-                                                    className="bg-foreground text-background hover:bg-foreground/80 px-10 h-11 uppercase font-black tracking-[0.2em]"
+                                                    className="w-full sm:w-auto bg-foreground text-background hover:bg-foreground/80 px-10 h-11 uppercase font-black tracking-[0.2em]"
                                                 >
                                                     {isSubmittingComment ? 'TRANSMITTING...' : 'SEND MESSAGE'}
                                                 </Button>
@@ -288,7 +288,7 @@ export default function PortalTicketDetailPage() {
                 </div>
 
                 {/* Right: Sidebar Meta */}
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-0">
                     <Card className="border-none shadow-sm bg-white dark:bg-slate-900">
                         <CardHeader className="pb-4 border-b border-slate-50 dark:border-slate-800">
                             <CardTitle className="text-sm font-bold uppercase tracking-widest text-slate-400">Request Lifecycle</CardTitle>
@@ -304,9 +304,9 @@ export default function PortalTicketDetailPage() {
                                             <User className="h-4 w-4" />
                                         </div>
                                     )}
-                                    <div>
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{ticket.assignedTechnician?.name || 'Triage in Progress'}</p>
-                                        <p className="text-xs text-slate-500">{ticket.assignedTechnician?.email || 'Support team'}</p>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{ticket.assignedTechnician?.name || 'Triage in Progress'}</p>
+                                        <p className="text-xs text-slate-500 truncate">{ticket.assignedTechnician?.email || 'Support team'}</p>
                                     </div>
                                 </div>
                             </div>

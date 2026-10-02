@@ -165,10 +165,23 @@ export default function ExpensesPage() {
     setDate(toDateInput(e.date));
   };
 
+  const confirmDeleteExpense = async (id: string) => {
+    if (
+      !(await confirmAction({
+        title: 'Delete this expense?',
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
+    deleteMutation.mutate(id);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
           <p className="text-sm text-muted-foreground">Company operating expenses.</p>
         </div>
@@ -177,48 +190,48 @@ export default function ExpensesPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+        <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="truncate text-sm font-medium text-muted-foreground">
               Expenses total
             </CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold tabular-nums">
+            <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
               {expenseTotal.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">{expenses.length} recorded</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="truncate text-sm font-medium text-muted-foreground">
               Budget {currentYear}
             </CardTitle>
             <PiggyBank className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold tabular-nums">
+            <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
               {budgetYearTotal.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">Sum of budgets for this year</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Assets</CardTitle>
+            <CardTitle className="truncate text-sm font-medium text-muted-foreground">Assets</CardTitle>
             <Building2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold tabular-nums">{assets.length}</div>
+            <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{assets.length}</div>
             <p className="text-xs text-muted-foreground">Tracked assets</p>
           </CardContent>
         </Card>
       </div>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="text-base">
             {editing ? 'Edit expense' : 'New expense'}
@@ -270,7 +283,7 @@ export default function ExpensesPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="text-base">All expenses</CardTitle>
         </CardHeader>
@@ -284,6 +297,34 @@ export default function ExpensesPage() {
               description="Record a company expense above."
             />
           ) : (
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {expenses.map((e) => (
+                <div key={e.id} className="flex items-start justify-between gap-2 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{e.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      <span className="tabular-nums">{e.amount.toLocaleString()}</span> ·{' '}
+                      {new Date(e.date).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="sm" className="h-10" onClick={() => startEdit(e)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10"
+                      onClick={() => confirmDeleteExpense(e.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -306,18 +347,7 @@ export default function ExpensesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={async () => {
-                          if (
-                            !(await confirmAction({
-                              title: 'Delete this expense?',
-                              description: 'This cannot be undone.',
-                              confirmLabel: 'Delete',
-                              variant: 'destructive',
-                            }))
-                          )
-                            return;
-                          deleteMutation.mutate(e.id);
-                        }}
+                        onClick={() => confirmDeleteExpense(e.id)}
                       >
                         Delete
                       </Button>
@@ -326,6 +356,8 @@ export default function ExpensesPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

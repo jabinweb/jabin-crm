@@ -69,9 +69,9 @@ export function LeadDetailActivity({
   return (
     <Card className="border-2">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+            <div className="h-8 w-8 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
               <FileText className="h-4 w-4 text-slate-600 dark:text-slate-400" />
             </div>
             Activity Timeline

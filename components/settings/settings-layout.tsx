@@ -24,12 +24,12 @@ export function SettingsLayout({
   }, [isDirty])
 
   return (
-    <div className="relative space-y-6 pb-16">
+    <div className="relative min-w-0 space-y-6 pb-16">
       {children}
       
       {showSaveBar && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-sm">
-          <div className="container flex h-16 items-center justify-end gap-4">
+        <div className="fixed bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-sm lg:bottom-0">
+          <div className="flex h-16 items-center justify-end gap-4 px-4 sm:px-6 lg:px-8">
             <Button
               onClick={() => window.location.reload()}
               variant="ghost"

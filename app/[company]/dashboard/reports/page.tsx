@@ -231,15 +231,15 @@ export default function ReportsPage() {
 
         <TabsContent value="overview" className="space-y-4 mt-6">
           {/* Key Metrics */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Total Leads</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{leads.total?.toLocaleString() || 0}</div>
-                <p className="text-xs text-muted-foreground flex items-center mt-1">
+                <div className="text-2xl font-bold tabular-nums">{leads.total?.toLocaleString() || 0}</div>
+                <p className="text-xs text-muted-foreground flex flex-wrap items-center mt-1">
                   {leads.growth >= 0 ? (
                     <>
                       <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
@@ -258,11 +258,11 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Emails Sent</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Emails Sent</CardTitle>
                 <Mail className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{emails.sent?.toLocaleString() || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{emails.sent?.toLocaleString() || 0}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {emails.openRate}% open rate
                 </p>
@@ -271,11 +271,11 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Active Campaigns</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{campaigns.active || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{campaigns.active || 0}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {campaigns.total || 0} total campaigns
                 </p>
@@ -284,11 +284,11 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Conversion Rate</CardTitle>
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{performance.conversionRate || 0}%</div>
+                <div className="text-2xl font-bold tabular-nums">{performance.conversionRate || 0}%</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {performance.conversions || 0} conversions
                 </p>
@@ -308,9 +308,9 @@ export default function ReportsPage() {
                   {topSources.length > 0 ? (
                     topSources.map((source: any, index: number) => (
                       <div key={index} className="flex items-center">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{source.name}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="min-w-0 truncate text-sm font-medium">{source.name}</span>
                             <span className="text-sm text-muted-foreground">
                               {source.count} leads
                             </span>
@@ -343,9 +343,9 @@ export default function ReportsPage() {
                   {topIndustries.length > 0 ? (
                     topIndustries.map((industry: any, index: number) => (
                       <div key={index} className="flex items-center">
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{industry.name || 'Unknown'}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="min-w-0 truncate text-sm font-medium">{industry.name || 'Unknown'}</span>
                             <span className="text-sm text-muted-foreground">
                               {industry.count} leads
                             </span>
@@ -380,13 +380,13 @@ export default function ReportsPage() {
                 <div className="space-y-3">
                   {recentActivities.map((activity: any, index: number) => (
                     <div key={index} className="flex items-center gap-4 text-sm">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-none bg-muted">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-none bg-muted">
                         {activity.type === 'lead' && <Users className="h-4 w-4" />}
                         {activity.type === 'email' && <Mail className="h-4 w-4" />}
                         {activity.type === 'campaign' && <Activity className="h-4 w-4" />}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium">{activity.description}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="break-words font-medium">{activity.description}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(activity.createdAt), 'MMM d, yyyy at HH:mm')}
                         </p>
@@ -409,25 +409,25 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="leads" className="space-y-4 mt-6">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">New Leads</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">New Leads</CardTitle>
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{leads.new || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{leads.new || 0}</div>
                 <p className="text-xs text-muted-foreground">{getDateRangeText()}</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Contacted</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Contacted</CardTitle>
                 <Mail className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{leads.contacted || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{leads.contacted || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {leads.contactRate || 0}% contact rate
                 </p>
@@ -436,11 +436,11 @@ export default function ReportsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Converted</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Converted</CardTitle>
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{leads.converted || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{leads.converted || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {leads.conversionRate || 0}% conversion rate
                 </p>
@@ -485,45 +485,45 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="campaigns" className="space-y-4 mt-6">
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Campaigns</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Total Campaigns</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{campaigns.total || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{campaigns.total || 0}</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Emails Sent</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Emails Sent</CardTitle>
                 <Mail className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{emails.sent || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">{emails.sent || 0}</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Open Rate</CardTitle>
                 <Eye className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{emails.openRate || 0}%</div>
+                <div className="text-2xl font-bold tabular-nums">{emails.openRate || 0}%</div>
                 <p className="text-xs text-muted-foreground">{emails.opened || 0} opened</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Click Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Click Rate</CardTitle>
                 <MousePointer className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{emails.clickRate || 0}%</div>
+                <div className="text-2xl font-bold tabular-nums">{emails.clickRate || 0}%</div>
                 <p className="text-xs text-muted-foreground">{emails.clicked || 0} clicked</p>
               </CardContent>
             </Card>
@@ -574,47 +574,47 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-4 mt-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg. Response Time</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Avg. Response Time</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{performance.avgResponseTime || 'N/A'}</div>
+                <div className="text-2xl font-bold tabular-nums">{performance.avgResponseTime || 'N/A'}</div>
                 <p className="text-xs text-muted-foreground">Hours to first response</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Lead Quality Score</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Lead Quality Score</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{performance.qualityScore || 0}/100</div>
+                <div className="text-2xl font-bold tabular-nums">{performance.qualityScore || 0}/100</div>
                 <p className="text-xs text-muted-foreground">Based on engagement</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">ROI</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">ROI</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{performance.roi || 0}%</div>
+                <div className="text-2xl font-bold tabular-nums">{performance.roi || 0}%</div>
                 <p className="text-xs text-muted-foreground">Return on investment</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Cost per Lead</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Cost per Lead</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${performance.costPerLead || 0}</div>
+                <div className="text-2xl font-bold tabular-nums">${performance.costPerLead || 0}</div>
                 <p className="text-xs text-muted-foreground">Average cost</p>
               </CardContent>
             </Card>
@@ -628,10 +628,10 @@ export default function ReportsPage() {
             <SectionSkeleton lines={6} />
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Outstanding</CardTitle>
+                    <CardTitle className="truncate text-sm font-medium">Outstanding</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold tabular-nums">
@@ -649,7 +649,7 @@ export default function ReportsPage() {
                   return (
                     <Card key={key}>
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">
+                        <CardTitle className="truncate text-sm font-medium">
                           {b?.label ?? key}
                         </CardTitle>
                       </CardHeader>

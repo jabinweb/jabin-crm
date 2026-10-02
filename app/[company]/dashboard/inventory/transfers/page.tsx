@@ -132,7 +132,7 @@ export default function StockTransferPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">Stock Transfer</h1>
         <Button variant="outline" asChild>
           <a href={`/${params.company}/dashboard/inventory/locations`}>Manage locations</a>
@@ -151,7 +151,7 @@ export default function StockTransferPage() {
         </p>
       )}
       <div className="grid gap-6 md:grid-cols-2">
-        <Card className="p-6">
+        <Card className="min-w-0 p-6">
           <form onSubmit={(e) => { e.preventDefault(); handleTransfer(); }} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="productId">Product</Label>
@@ -258,7 +258,7 @@ export default function StockTransferPage() {
           </form>
         </Card>
 
-        <Card className="p-6">
+        <Card className="min-w-0 p-6">
           <h2 className="text-lg font-semibold mb-4">Scan Product</h2>
           {showScanner ? (
             <BarcodeScanner

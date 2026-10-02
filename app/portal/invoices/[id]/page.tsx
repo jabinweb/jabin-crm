@@ -97,18 +97,18 @@ function InvoiceDetailView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex min-w-0 flex-col items-start gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push('/portal/invoices')}
-            className="rounded-none"
+            className="-ml-3 rounded-none"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{invoice.invoiceNumber}</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="text-2xl font-bold tracking-tight break-words min-w-0">{invoice.invoiceNumber}</h1>
               <Badge variant="outline">{invoice.status}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">{invoice.title}</p>
@@ -131,7 +131,7 @@ function InvoiceDetailView() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 min-w-0">
           <CardHeader>
             <CardTitle className="text-base">Line items</CardTitle>
           </CardHeader>
@@ -165,7 +165,7 @@ function InvoiceDetailView() {
                 ))}
               </TableBody>
             </Table>
-            <div className="space-y-2 border-t p-6 text-sm">
+            <div className="space-y-2 border-t p-4 sm:p-6 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(invoice.subtotal, invoice.currency as never)}</span>
@@ -248,13 +248,13 @@ function InvoiceDetailView() {
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">
                             Account number
                           </p>
-                          <p className="font-mono font-medium">{pay!.accountNumber}</p>
+                          <p className="font-mono font-medium break-all">{pay!.accountNumber}</p>
                         </div>
                       ) : null}
                       {pay!.iban ? (
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">IBAN</p>
-                          <p className="font-mono font-medium">{pay!.iban}</p>
+                          <p className="font-mono font-medium break-all">{pay!.iban}</p>
                         </div>
                       ) : null}
                       {pay!.routingNumber ? (
@@ -262,13 +262,13 @@ function InvoiceDetailView() {
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">
                             Routing
                           </p>
-                          <p className="font-mono font-medium">{pay!.routingNumber}</p>
+                          <p className="font-mono font-medium break-all">{pay!.routingNumber}</p>
                         </div>
                       ) : null}
                       {pay!.swiftCode ? (
                         <div>
                           <p className="text-xs text-muted-foreground uppercase tracking-wide">SWIFT</p>
-                          <p className="font-mono font-medium">{pay!.swiftCode}</p>
+                          <p className="font-mono font-medium break-all">{pay!.swiftCode}</p>
                         </div>
                       ) : null}
                       {pay!.paymentInstructions ? (

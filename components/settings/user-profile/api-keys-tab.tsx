@@ -76,7 +76,7 @@ export function ApiKeysTab({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="geminiApiKey" className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
                   Gemini API Key
@@ -178,7 +178,7 @@ export function ApiKeysTab({
             <Separator />
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="aiModel" className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
                   AI Model
@@ -252,7 +252,7 @@ export function ApiKeysTab({
             <Separator />
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <Label htmlFor="googlePlacesApiKey" className="flex items-center gap-2">
                   <Globe className="h-4 w-4" />
                   Google Places API Key

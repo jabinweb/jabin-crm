@@ -231,9 +231,9 @@ export default function ServiceJobBoardPage() {
   );
 
   return (
-    <div className="flex-1 space-y-6">
+    <div className="flex-1 min-w-0 space-y-6">
       <div className="border-b pb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Job board</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Status pipeline, technician dispatch, and day schedule.
@@ -278,7 +278,7 @@ export default function ServiceJobBoardPage() {
           {view === 'day' ? (
             <Input
               type="date"
-              className="mt-2 w-[200px]"
+              className="mt-2 w-full sm:w-[200px]"
               value={dayFilter}
               onChange={(e) => setDayFilter(e.target.value)}
             />
@@ -293,6 +293,7 @@ export default function ServiceJobBoardPage() {
               itemsByStage={statusBoard.itemsByStage}
               onMove={onMoveStatus}
               renderCard={renderCard}
+              className="-mx-4 px-4 scroll-px-4 sm:mx-0 sm:px-0 sm:scroll-px-0"
             />
           ) : view === 'technician' ? (
             <PipelineBoard
@@ -300,6 +301,7 @@ export default function ServiceJobBoardPage() {
               itemsByStage={techColumns.itemsByStage}
               onMove={onMoveTech}
               renderCard={renderCard}
+              className="-mx-4 px-4 scroll-px-4 sm:mx-0 sm:px-0 sm:scroll-px-0"
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

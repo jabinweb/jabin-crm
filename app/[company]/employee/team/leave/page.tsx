@@ -47,7 +47,7 @@ export default function ManagerTeamLeavePage() {
 
   if (error) {
     return (
-      <div className="max-w-lg mx-auto space-y-4">
+      <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
         <EssPageHeader title="Team leave" subtitle="Pending approvals" />
         <p className="text-sm text-muted-foreground text-center py-8">
           You do not have permission to manage leave.
@@ -57,7 +57,7 @@ export default function ManagerTeamLeavePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="Team leave" subtitle="Pending approvals" />
       <Card>
         <CardHeader className="pb-2">
@@ -78,8 +78,8 @@ export default function ManagerTeamLeavePage() {
             }) => (
               <div key={r.id} className="rounded-xl border p-3 space-y-2">
                 <div className="flex justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-sm">{r.employee.name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-sm">{r.employee.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {r.policy?.name || r.type} · {r.days} day(s)
                     </p>
@@ -87,9 +87,9 @@ export default function ManagerTeamLeavePage() {
                       {format(new Date(r.startDate), 'd MMM')} –{' '}
                       {format(new Date(r.endDate), 'd MMM yyyy')}
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">{r.reason}</p>
+                    <p className="break-words text-sm text-muted-foreground mt-1">{r.reason}</p>
                   </div>
-                  <Badge variant="secondary">PENDING</Badge>
+                  <Badge variant="secondary" className="shrink-0 self-start">PENDING</Badge>
                 </div>
                 <div className="flex gap-2">
                   <Button

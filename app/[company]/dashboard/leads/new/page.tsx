@@ -71,7 +71,7 @@ export default function NewLeadPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-3xl space-y-6">
       <LeadForm onSubmit={handleSubmit} isLoading={isLoading} />
     </div>
   )

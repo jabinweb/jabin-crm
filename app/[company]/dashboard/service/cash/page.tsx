@@ -133,20 +133,20 @@ export default function CashOnHandPage() {
         <p className="text-sm text-muted-foreground">Track technician advances, spends, and settlements.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         {balances.length === 0 ? (
-          <Card className="md:col-span-3">
+          <Card className="col-span-2 md:col-span-3">
             <CardContent className="py-6 text-sm text-muted-foreground">No technician balances yet.</CardContent>
           </Card>
         ) : (
           balances.map((item: any) => (
             <Card key={item.technician.id}>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">{item.technician.name || item.technician.email}</CardTitle>
+                <CardTitle className="text-base truncate">{item.technician.name || item.technician.email}</CardTitle>
                 <CardDescription>Available cash balance</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className={`text-2xl font-bold ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-xl sm:text-2xl font-bold tabular-nums break-words ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {formatCurrency(item.balance, 'USD')}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -163,7 +163,7 @@ export default function CashOnHandPage() {
           <CardTitle>Add Cash Entry</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label>Technician</Label>
               <Select value={form.technicianId} onValueChange={(value) => setForm({ ...form, technicianId: value })}>
@@ -200,7 +200,7 @@ export default function CashOnHandPage() {
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Linked Ticket (Optional)</Label>
               <Select value={form.ticketId} onValueChange={(value) => setForm({ ...form, ticketId: value })}>
@@ -232,7 +232,7 @@ export default function CashOnHandPage() {
             />
           </div>
 
-          <Button onClick={submitEntry} disabled={saving}>
+          <Button className="w-full sm:w-auto" onClick={submitEntry} disabled={saving}>
             {saving ? 'Saving...' : 'Record Entry'}
           </Button>
         </CardContent>

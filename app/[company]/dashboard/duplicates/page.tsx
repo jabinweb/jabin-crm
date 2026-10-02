@@ -152,14 +152,14 @@ export default function DuplicatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Duplicate Leads</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Duplicate Leads</h1>
           <p className="text-muted-foreground">
             Identify and merge duplicate leads to keep your database clean
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
@@ -179,14 +179,14 @@ export default function DuplicatesPage() {
       </div>
 
       {summary && (
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Groups</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Total Groups</CardTitle>
               <Copy className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalGroups}</div>
+              <div className="text-2xl font-bold tabular-nums">{summary.totalGroups}</div>
               <p className="text-xs text-muted-foreground">
                 Duplicate lead groups found
               </p>
@@ -195,11 +195,11 @@ export default function DuplicatesPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Duplicates</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Total Duplicates</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalDuplicates}</div>
+              <div className="text-2xl font-bold tabular-nums">{summary.totalDuplicates}</div>
               <p className="text-xs text-muted-foreground">
                 Duplicate leads detected
               </p>
@@ -208,11 +208,11 @@ export default function DuplicatesPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Exact Matches</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Exact Matches</CardTitle>
               <AlertTriangle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.exactMatches}</div>
+              <div className="text-2xl font-bold tabular-nums">{summary.exactMatches}</div>
               <p className="text-xs text-muted-foreground">
                 High confidence duplicates
               </p>
@@ -221,11 +221,11 @@ export default function DuplicatesPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Similar Matches</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Similar Matches</CardTitle>
               <Info className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.similarMatches}</div>
+              <div className="text-2xl font-bold tabular-nums">{summary.similarMatches}</div>
               <p className="text-xs text-muted-foreground">
                 Review recommended
               </p>
@@ -249,9 +249,9 @@ export default function DuplicatesPage() {
           {groups.map((group: any) => (
             <Card key={group.primaryLead.id}>
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardTitle className="flex flex-wrap items-center gap-2 break-words">
                       {group.primaryLead.companyName}
                       {getMatchTypeBadge(group.matchType)}
                     </CardTitle>
@@ -259,7 +259,7 @@ export default function DuplicatesPage() {
                       {group.totalMatches} duplicate{group.totalMatches > 1 ? 's' : ''} found
                     </CardDescription>
                   </div>
-                  <Button onClick={() => handleMergeGroup(group)} size="sm">
+                  <Button onClick={() => handleMergeGroup(group)} size="sm" className="shrink-0">
                     <Merge className="mr-2 h-4 w-4" />
                     Merge
                   </Button>
@@ -269,13 +269,13 @@ export default function DuplicatesPage() {
                 <div className="space-y-4">
                   {/* Primary Lead */}
                   <div className="rounded-none border-2 border-primary bg-primary/5 p-4">
-                    <div className="mb-2 flex items-center justify-between">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <Badge variant="outline">Primary Lead</Badge>
                       <span className="text-xs text-muted-foreground">
                         Created: {new Date(group.primaryLead.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 [&>div]:min-w-0 [&>div]:break-words">
                       <div>
                         <span className="font-medium">Company:</span> {group.primaryLead.companyName}
                       </div>
@@ -302,13 +302,13 @@ export default function DuplicatesPage() {
                   {/* Duplicate Leads */}
                   {group.duplicates.map((duplicate: any) => (
                     <div key={duplicate.id} className="rounded-none border p-4">
-                      <div className="mb-2 flex items-center justify-between">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <Badge variant="secondary">Duplicate</Badge>
                         <span className="text-xs text-muted-foreground">
                           Created: {new Date(duplicate.createdAt).toLocaleDateString()}
                         </span>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 [&>div]:min-w-0 [&>div]:break-words">
                         <div>
                           <span className="font-medium">Company:</span> {duplicate.companyName}
                         </div>

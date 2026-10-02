@@ -51,13 +51,13 @@ export default function TechnicianDashboard() {
     }
 
     return (
-        <div className="flex-1 space-y-6">
+        <div className="flex-1 min-w-0 space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Technician Workspace</h2>
+                <div className="min-w-0">
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Technician Workspace</h2>
                     <p className="text-muted-foreground">Manage your assigned service tickets and reports.</p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button asChild variant="outline">
                         <DashboardLink href="/dashboard/tickets">
                             View Full Queue
@@ -77,11 +77,11 @@ export default function TechnicianDashboard() {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-6">
                 <Card className="bg-blue-50/50 dark:bg-blue-950/10 border-blue-100">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Assigned Tickets</CardTitle>
-                        <ClipboardList className="h-4 w-4 text-blue-600" />
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                        <CardTitle className="text-sm font-medium truncate">Assigned Tickets</CardTitle>
+                        <ClipboardList className="h-4 w-4 shrink-0 text-blue-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats?.counts?.assigned || 0}</div>
@@ -90,9 +90,9 @@ export default function TechnicianDashboard() {
                 </Card>
 
                 <Card className="bg-orange-50/50 dark:bg-orange-950/10 border-orange-100">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                        <Clock className="h-4 w-4 text-orange-600" />
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                        <CardTitle className="text-sm font-medium truncate">In Progress</CardTitle>
+                        <Clock className="h-4 w-4 shrink-0 text-orange-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats?.counts?.inProgress || 0}</div>
@@ -100,10 +100,10 @@ export default function TechnicianDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="bg-green-50/50 dark:bg-green-950/10 border-green-100">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Monthly Resolved</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <Card className="col-span-2 md:col-span-1 bg-green-50/50 dark:bg-green-950/10 border-green-100">
+                    <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                        <CardTitle className="text-sm font-medium truncate">Monthly Resolved</CardTitle>
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats?.counts?.resolved || 0}</div>
@@ -114,7 +114,7 @@ export default function TechnicianDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Active Worklist */}
-                <Card className="lg:col-span-2">
+                <Card className="lg:col-span-2 min-w-0">
                     <CardHeader>
                         <CardTitle>My Active Worklist</CardTitle>
                         <CardDescription>Highest priority tickets assigned specifically to you.</CardDescription>
@@ -131,20 +131,20 @@ export default function TechnicianDashboard() {
                                 stats?.activeTickets?.map((ticket: any) => (
                                     <div key={ticket.id} className="group border rounded-none p-4 hover:bg-muted/30 transition-colors cursor-pointer"
                                         onClick={() => router.push(path(`/dashboard/tickets/${ticket.id}`))}>
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="font-bold">{ticket.subject}</p>
+                                        <div className="flex justify-between items-start gap-2 mb-2">
+                                            <div className="space-y-1 min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="font-bold break-words min-w-0">{ticket.subject}</p>
                                                     <Badge variant={ticket.priority === 'CRITICAL' ? 'destructive' : 'default'} className="text-[10px]">
                                                         {ticket.priority}
                                                     </Badge>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground">{ticket.customer.organizationName}</p>
                                             </div>
-                                            <Badge variant="outline">{ticket.status}</Badge>
+                                            <Badge variant="outline" className="shrink-0">{ticket.status}</Badge>
                                         </div>
-                                        <div className="flex items-center justify-between mt-4">
-                                            <div className="flex items-center space-x-4 text-[10px] text-muted-foreground">
+                                        <div className="flex items-center justify-between gap-2 mt-4">
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
                                                 <div className="flex items-center">
                                                     <Clock className="mr-1 h-3 w-3" />
                                                     Opened {new Date(ticket.createdAt).toLocaleDateString()}
@@ -154,7 +154,7 @@ export default function TechnicianDashboard() {
                                                     SLA: 4h
                                                 </div>
                                             </div>
-                                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="sm" className="hidden sm:inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
                                                 Open Details
                                                 <ChevronRight className="ml-1 h-3.5 w-3.5" />
                                             </Button>
@@ -167,7 +167,7 @@ export default function TechnicianDashboard() {
                 </Card>
 
                 {/* Recent Service Success */}
-                <Card>
+                <Card className="min-w-0">
                     <CardHeader>
                         <CardTitle>Recent Reports</CardTitle>
                         <CardDescription>Your recently completed visits.</CardDescription>

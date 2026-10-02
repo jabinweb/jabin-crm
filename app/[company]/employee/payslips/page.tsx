@@ -2,18 +2,14 @@
 
 import { useSession } from 'next-auth/react'
 import { PayslipCard } from '@/components/employee/payroll/payslip-card'
+import { EssPageHeader } from '@/components/employee/mobile/page-header'
 
 export default function PayslipsPage() {
   const { data: session } = useSession()
 
   return (
-    <div className="mx-auto max-w-lg space-y-4 px-1 pb-4 lg:max-w-2xl lg:px-0">
-      <div>
-        <h1 className="text-xl font-semibold lg:text-2xl">Payslips</h1>
-        <p className="text-sm text-muted-foreground">
-          View and download your salary statements
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
+      <EssPageHeader title="Payslips" subtitle="View and download your salary statements" />
       <PayslipCard employeeId={session?.user?.employeeId || ''} />
     </div>
   )

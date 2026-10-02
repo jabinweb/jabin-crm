@@ -257,22 +257,20 @@ export default function NewCampaignPage() {
   };
 
   return (
-    <div className="flex-1 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <DashboardLink href="/dashboard/campaigns">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </DashboardLink>
-            <h2 className="text-3xl font-bold tracking-tight">New Campaign</h2>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <DashboardLink href="/dashboard/campaigns" className="inline-flex">
+            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </DashboardLink>
+          <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">New Campaign</h2>
           <p className="text-muted-foreground">
             Create and schedule your email campaign
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={() => handleSave(true)}
@@ -298,14 +296,14 @@ export default function NewCampaignPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Form */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           {/* Step 1: Lead Selection */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">1</span>
+                    <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">1</span>
                     Select Recipients
                   </CardTitle>
                   <CardDescription>Choose which leads to send this campaign to</CardDescription>
@@ -313,6 +311,7 @@ export default function NewCampaignPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="self-start sm:self-auto"
                   onClick={() => setShowLeadSelector(!showLeadSelector)}
                 >
                   <Users className="mr-2 h-4 w-4" />
@@ -332,7 +331,7 @@ export default function NewCampaignPage() {
                   </Alert>
 
                   {/* Filters */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
                     <Select value={filterStatus} onValueChange={setFilterStatus}>
                       <SelectTrigger>
                         <SelectValue placeholder="Status" />
@@ -473,10 +472,10 @@ export default function NewCampaignPage() {
           {/* Step 2: Campaign Details */}
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">2</span>
+                    <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">2</span>
                     Campaign Details
                   </CardTitle>
                   <CardDescription>Write your email content and subject line</CardDescription>
@@ -487,7 +486,7 @@ export default function NewCampaignPage() {
                       variant="outline"
                       size="sm"
                       disabled={selectedLeads.length === 0}
-                      className="gap-2"
+                      className="gap-2 self-start sm:self-auto"
                     >
                       <Wand2 className="h-4 w-4" />
                       Generate with AI
@@ -618,7 +617,7 @@ export default function NewCampaignPage() {
             <CardHeader>
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">3</span>
+                  <span className="flex shrink-0 items-center justify-center w-6 h-6 rounded-none bg-primary text-primary-foreground text-sm">3</span>
                   Sender Information
                 </CardTitle>
                 <CardDescription>Configure who the email is from</CardDescription>
@@ -663,7 +662,7 @@ export default function NewCampaignPage() {
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Schedule */}
           <Card>
             <CardHeader>

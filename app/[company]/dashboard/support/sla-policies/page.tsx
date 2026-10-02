@@ -99,8 +99,8 @@ export default function SlaPoliciesPage() {
       </div>
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          <Clock className="h-8 w-8" />
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+          <Clock className="h-6 w-6 shrink-0 sm:h-8 sm:w-8" />
           SLA policies
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -122,7 +122,7 @@ export default function SlaPoliciesPage() {
           return (
             <Card key={priority}>
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">{priority}</CardTitle>
                   <Badge variant={tenantPolicy ? 'default' : 'secondary'}>
                     {tenantPolicy ? 'Tenant override' : 'Global default'}

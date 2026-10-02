@@ -158,7 +158,7 @@ export default function EmployeeRegisterPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
         <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
@@ -172,17 +172,17 @@ export default function EmployeeRegisterPage() {
 
   if (redirectingAway) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
         <p className="text-sm text-muted-foreground">Redirecting…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full p-8 bg-white rounded-lg shadow-lg">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50 px-4">
+      <div className="max-w-md w-full p-5 sm:p-8 bg-white rounded-lg shadow-lg">
         <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold">Employee Registration</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl">Employee Registration</h2>
           <p className="text-gray-600 mt-2">Join your company</p>
         </div>
 

@@ -43,10 +43,10 @@ export default function GuestTicketPage() {
   if (!data) return <p className="p-8 text-center text-muted-foreground">Ticket not found</p>
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-10">
+    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6 sm:py-10">
       <div>
         <p className="text-sm text-muted-foreground">Support ticket</p>
-        <h1 className="text-2xl font-semibold tracking-tight">{data.subject}</h1>
+        <h1 className="break-words text-2xl font-semibold tracking-tight">{data.subject}</h1>
         <div className="mt-2 flex gap-2">
           <Badge>{data.status}</Badge>
           <Badge variant="outline">{data.priority}</Badge>
@@ -57,7 +57,7 @@ export default function GuestTicketPage() {
           <CardTitle className="text-base">Description</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm whitespace-pre-wrap">{data.description}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">{data.description}</p>
         </CardContent>
       </Card>
       <Card>
@@ -71,7 +71,7 @@ export default function GuestTicketPage() {
                 <p className="text-xs text-muted-foreground">
                   {a.eventType} · {new Date(a.createdAt).toLocaleString()}
                 </p>
-                <p className="mt-1 whitespace-pre-wrap">{a.description}</p>
+                <p className="mt-1 whitespace-pre-wrap break-words">{a.description}</p>
               </div>
             )
           )}
@@ -80,7 +80,7 @@ export default function GuestTicketPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
           />
-          <Button disabled={!message || reply.isPending} onClick={() => reply.mutate()}>
+          <Button className="w-full sm:w-auto" disabled={!message || reply.isPending} onClick={() => reply.mutate()}>
             Send reply
           </Button>
         </CardContent>

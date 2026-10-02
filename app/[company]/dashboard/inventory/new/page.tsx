@@ -97,14 +97,14 @@ export default function NewEquipmentPage() {
     };
 
     return (
-        <div className="flex-1 space-y-6 max-w-2xl mx-auto py-6">
-            <div className="flex items-center space-x-4">
-                <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <div className="max-w-2xl space-y-6">
+            <div className="flex flex-col items-start gap-2">
+                <Button variant="ghost" size="sm" className="-ml-3" onClick={() => router.back()}>
                     <ChevronLeft className="h-4 w-4 mr-2" />
                     Back
                 </Button>
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Register New Equipment</h2>
+                <div className="min-w-0">
+                    <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Register New Equipment</h2>
                     <p className="text-sm text-muted-foreground">Record a new installation or deployment for a client account.</p>
                 </div>
             </div>
@@ -174,7 +174,7 @@ export default function NewEquipmentPage() {
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label className="flex items-center gap-2">
                                         <Calendar className="h-3.5 w-3.5 text-muted-foreground" />

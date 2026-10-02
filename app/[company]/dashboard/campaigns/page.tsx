@@ -91,9 +91,26 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleDeleteDraft = async (campaignId: string) => {
+    const ok = await confirmAction({
+      title: 'Delete this draft campaign?',
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/campaigns/${campaignId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      alert('Failed to delete campaign');
+      return;
+    }
+    refetch();
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Email Campaigns</h2>
         <DashboardLink href="/dashboard/campaigns/new">
           <Button className="w-full sm:w-auto">
@@ -104,45 +121,45 @@ export default function CampaignsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Campaigns</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Campaigns</CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{data?.pagination?.total || 0}</div>
+            <div className="text-2xl font-bold tabular-nums">{data?.pagination?.total || 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Emails Sent</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Emails Sent</CardTitle>
             <Send className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold tabular-nums">
               {data?.campaigns?.reduce((acc: number, c: any) => acc + c.sentCount, 0) || 0}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Opens</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Opens</CardTitle>
             <Eye className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold tabular-nums">
               {data?.campaigns?.reduce((acc: number, c: any) => acc + c.openCount, 0) || 0}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Clicks</CardTitle>
             <MousePointerClick className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold tabular-nums">
               {data?.campaigns?.reduce((acc: number, c: any) => acc + c.clickCount, 0) || 0}
             </div>
           </CardContent>
@@ -170,6 +187,48 @@ export default function CampaignsPage() {
             />
           ) : (
             <div className="space-y-4">
+              <div className="space-y-2 md:hidden">
+                {data.campaigns.map((campaign: any) => (
+                  <div key={campaign.id} className="rounded-xl border bg-card">
+                    <DashboardLink
+                      href={`/dashboard/campaigns/${campaign.id}`}
+                      className="block space-y-1 p-3 active:bg-muted/40"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="min-w-0 truncate font-medium">{campaign.name}</p>
+                        <div className="shrink-0">{getStatusBadge(campaign.status)}</div>
+                      </div>
+                      {campaign.subject ? (
+                        <p className="truncate text-sm text-muted-foreground">{campaign.subject}</p>
+                      ) : null}
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        Sent {campaign.sentCount}/{campaign.totalRecipients} · Opens {campaign.openCount} · Clicks {campaign.clickCount} · {format(new Date(campaign.createdAt), 'MMM d, yyyy')}
+                      </p>
+                    </DashboardLink>
+                    {campaign.status === 'DRAFT' ? (
+                      <div className="flex gap-2 border-t p-2">
+                        <Button
+                          size="sm"
+                          className="h-10 flex-1"
+                          onClick={() => handleSendCampaign(campaign.id)}
+                        >
+                          <Send className="mr-1 h-3 w-3" />
+                          Send
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-10 flex-1"
+                          onClick={() => void handleDeleteDraft(campaign.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -240,22 +299,7 @@ export default function CampaignsPage() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={async () => {
-                                  const ok = await confirmAction({
-                                    title: 'Delete this draft campaign?',
-                                    confirmLabel: 'Delete',
-                                    variant: 'destructive',
-                                  });
-                                  if (!ok) return;
-                                  const res = await fetch(`/api/campaigns/${campaign.id}`, {
-                                    method: 'DELETE',
-                                  });
-                                  if (!res.ok) {
-                                    alert('Failed to delete campaign');
-                                    return;
-                                  }
-                                  refetch();
-                                }}
+                                onClick={() => void handleDeleteDraft(campaign.id)}
                               >
                                 Delete
                               </Button>
@@ -272,10 +316,11 @@ export default function CampaignsPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
 
               {/* Pagination */}
               {data.pagination && data.pagination.pages > 1 && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Button
                     variant="outline"
                     onClick={() => setPage(page - 1)}

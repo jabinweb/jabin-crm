@@ -36,13 +36,13 @@ export function LandingHeader() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 pt-[env(safe-area-inset-top)] transition-all duration-300 ${
         isScrolled
           ? 'bg-white/85 backdrop-blur-md border-b border-[var(--lp-line)]'
           : 'bg-transparent'
       }`}
     >
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6">
         <div className="flex h-16 items-center justify-between">
           <Link
             href="/"
@@ -92,11 +92,11 @@ export function LandingHeader() {
 
           <button
             type="button"
-            className="md:hidden p-2 -mr-2 text-[var(--lp-muted)]"
+            className="md:hidden flex h-10 w-10 items-center justify-center -mr-2 text-[var(--lp-muted)]"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
             aria-label="Menu"
           >
-            {isMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
@@ -106,7 +106,7 @@ export function LandingHeader() {
               <Link
                 key={item.name}
                 href={item.href}
-                className="block py-2.5 text-sm text-[var(--lp-muted)]"
+                className="block py-3 text-sm text-[var(--lp-muted)]"
                 onClick={() => setIsMenuOpen(false)}
               >
                 {item.name}
@@ -114,17 +114,17 @@ export function LandingHeader() {
             ))}
             <div className="pt-3 mt-2 border-t border-[var(--lp-line)] space-y-2">
               {session ? (
-                <Button asChild className="w-full h-9 bg-[var(--lp-ink)]" size="sm">
+                <Button asChild className="w-full h-11 bg-[var(--lp-ink)]" size="sm">
                   <Link href={dashboardHref}>Open workspace</Link>
                 </Button>
               ) : (
                 <>
-                  <Button variant="outline" asChild className="w-full h-9" size="sm">
+                  <Button variant="outline" asChild className="w-full h-11" size="sm">
                     <Link href="/auth/signin">Sign in</Link>
                   </Button>
                   <Button
                     asChild
-                    className="w-full h-9 bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)]"
+                    className="w-full h-11 bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)]"
                     size="sm"
                   >
                     <Link href="/start">Start free</Link>

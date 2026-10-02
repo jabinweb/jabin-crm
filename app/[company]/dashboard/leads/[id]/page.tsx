@@ -21,7 +21,7 @@ export default function LeadDetailPage() {
 
   if (!detail.lead) {
     return (
-      <div className="flex-1 space-y-4">
+      <div className="space-y-4">
         <div className="text-center py-8">
           <p className="text-red-500">Lead not found</p>
           <Button asChild className="mt-4">
@@ -36,10 +36,10 @@ export default function LeadDetailPage() {
   }
 
   return (
-    <div className="flex-1 space-y-6 pb-8">
+    <div className="space-y-6">
       <LeadDetailHeader {...detail} />
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           <LeadDetailActions {...detail} />
           <LeadDetailActivity {...detail} />
           <LeadDocuments leadId={detail.lead.id} />

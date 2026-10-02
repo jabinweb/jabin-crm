@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { EssPageHeader } from '@/components/employee/mobile/page-header'
 
 export default function EmployeeClaimsPage() {
   const qc = useQueryClient()
@@ -45,8 +46,8 @@ export default function EmployeeClaimsPage() {
   })
 
   return (
-    <div className="space-y-6 p-4">
-      <h1 className="text-xl font-semibold">Claims & HR help</h1>
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
+      <EssPageHeader title="Claims & HR help" />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">New expense claim</CardTitle>
@@ -64,6 +65,7 @@ export default function EmployeeClaimsPage() {
             onChange={(e) => setAmount(e.target.value)}
           />
           <Button
+            className="w-full sm:w-auto"
             onClick={async () => {
               const res = await fetch('/api/hr/claims', {
                 method: 'POST',
@@ -83,11 +85,11 @@ export default function EmployeeClaimsPage() {
           </Button>
           <div className="space-y-2 pt-2">
             {claims.map((c: { id: string; description: string; amount: number; status: string }) => (
-              <div key={c.id} className="flex justify-between text-sm border rounded-lg p-2">
-                <span>
+              <div key={c.id} className="flex items-center justify-between gap-2 text-sm border rounded-lg p-2">
+                <span className="min-w-0 break-words">
                   {c.description} · ₹{c.amount}
                 </span>
-                <Badge>{c.status}</Badge>
+                <Badge className="shrink-0">{c.status}</Badge>
               </div>
             ))}
           </div>
@@ -101,6 +103,7 @@ export default function EmployeeClaimsPage() {
           <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
           <Textarea placeholder="Details" value={body} onChange={(e) => setBody(e.target.value)} />
           <Button
+            className="w-full sm:w-auto"
             onClick={async () => {
               const res = await fetch('/api/hr/tickets', {
                 method: 'POST',
@@ -119,9 +122,9 @@ export default function EmployeeClaimsPage() {
             Open ticket
           </Button>
           {tickets.map((t: { id: string; subject: string; status: string }) => (
-            <div key={t.id} className="flex justify-between text-sm border rounded-lg p-2">
-              <span>{t.subject}</span>
-              <Badge>{t.status}</Badge>
+            <div key={t.id} className="flex items-center justify-between gap-2 text-sm border rounded-lg p-2">
+              <span className="min-w-0 break-words">{t.subject}</span>
+              <Badge className="shrink-0">{t.status}</Badge>
             </div>
           ))}
         </CardContent>
@@ -132,7 +135,7 @@ export default function EmployeeClaimsPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {policies.map((p) => (
-            <a key={p.id} href={p.fileUrl} className="block text-sm underline" target="_blank" rel="noreferrer">
+            <a key={p.id} href={p.fileUrl} className="block break-words py-1 text-sm underline" target="_blank" rel="noreferrer">
               {p.title}
             </a>
           ))}

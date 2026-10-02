@@ -186,8 +186,8 @@ export default function RetainersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
             Client retainers
           </h1>
@@ -206,22 +206,22 @@ export default function RetainersPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <Card>
           <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-md bg-muted p-2 text-muted-foreground">
+            <div className="shrink-0 rounded-md bg-muted p-2 text-muted-foreground">
               <Repeat className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Active retainers</p>
-              <p className="text-xl font-semibold tabular-nums">{activeCount}</p>
+            <div className="min-w-0">
+              <p className="truncate text-xs text-muted-foreground">Active retainers</p>
+              <p className="truncate text-xl font-semibold tabular-nums">{activeCount}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">Estimated MRR</p>
-            <p className="text-xl font-semibold tabular-nums">
+            <p className="truncate text-xs text-muted-foreground">Estimated MRR</p>
+            <p className="truncate text-xl font-semibold tabular-nums">
               {mrr.toLocaleString(undefined, {
                 maximumFractionDigits: 0,
               })}
@@ -243,7 +243,72 @@ export default function RetainersPage() {
               onAction={() => setDialogOpen(true)}
             />
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {retainers.map((r) => (
+                <div key={r.id} className="space-y-2 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{r.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {r.customer?.organizationName ?? '—'}
+                      </p>
+                      {r.project && (
+                        <Link
+                          href={path(`/dashboard/projects/${r.project.id}`)}
+                          className="block truncate text-xs text-muted-foreground hover:underline"
+                        >
+                          {r.project.name}
+                        </Link>
+                      )}
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'shrink-0 font-medium',
+                        r.status === 'ACTIVE' &&
+                          'bg-emerald-500/10 text-emerald-700 border-emerald-500/20 dark:text-emerald-400'
+                      )}
+                    >
+                      {r.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="min-w-0 text-sm tabular-nums">
+                      {r.currency} {r.amount.toLocaleString()}
+                      <span className="text-muted-foreground">
+                        {' '}
+                        / {r.billingCycle.toLowerCase()}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        Next bill{' '}
+                        {r.nextBillAt
+                          ? new Date(r.nextBillAt).toLocaleDateString(undefined, {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : '—'}
+                        {r.includedHours != null ? ` · ${r.includedHours}h included` : null}
+                      </p>
+                    </div>
+                    {r.status === 'ACTIVE' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-10 shrink-0"
+                        disabled={billMutation.isPending}
+                        onClick={() => billMutation.mutate(r.id)}
+                      >
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                        Bill
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -323,6 +388,7 @@ export default function RetainersPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

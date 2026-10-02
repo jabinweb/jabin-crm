@@ -138,41 +138,41 @@ export default function SubscriptionsPage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Active</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{activeCount}</p>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Active</p>
+                <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-gray-900">{activeCount}</p>
               </div>
-              <div className="rounded-none bg-green-100 p-3">
+              <div className="hidden sm:block shrink-0 rounded-none bg-green-100 p-3">
                 <TrendingUp className="h-6 w-6 text-green-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Trialing</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{trialingCount}</p>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Trialing</p>
+                <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-gray-900">{trialingCount}</p>
               </div>
-              <div className="rounded-none bg-blue-100 p-3">
+              <div className="hidden sm:block shrink-0 rounded-none bg-blue-100 p-3">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Canceled</p>
-                <p className="mt-2 text-3xl font-bold text-gray-900">{canceledCount}</p>
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Canceled</p>
+                <p className="mt-1 sm:mt-2 text-2xl sm:text-3xl font-bold tabular-nums text-gray-900">{canceledCount}</p>
               </div>
-              <div className="rounded-none bg-red-100 p-3">
+              <div className="hidden sm:block shrink-0 rounded-none bg-red-100 p-3">
                 <DollarSign className="h-6 w-6 text-red-600" />
               </div>
             </div>
@@ -221,7 +221,7 @@ export default function SubscriptionsPage() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={grantPlan} disabled={granting || loading}>
+          <Button onClick={grantPlan} disabled={granting || loading} className="w-full sm:w-auto">
             {granting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Grant 1 year
           </Button>
@@ -236,7 +236,55 @@ export default function SubscriptionsPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : (
-            <div className="rounded-none border">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {subscriptions.length === 0 ? (
+                <p className="p-4 text-sm text-muted-foreground">No billing accounts yet</p>
+              ) : (
+                subscriptions.map((subscription) => (
+                  <div key={subscription.id} className="space-y-2 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">
+                          {subscription.workspace?.name || subscription.user.name || 'N/A'}
+                        </p>
+                        <p className="truncate text-xs text-gray-600">
+                          {subscription.user.email}
+                          {subscription.workspace?.slug ? ` · /${subscription.workspace.slug}` : ''}
+                        </p>
+                      </div>
+                      <Badge className={`shrink-0 ${getStatusColor(subscription.status)}`}>
+                        {subscription.status}
+                      </Badge>
+                    </div>
+                    <div className="flex items-end justify-between gap-2">
+                      <div className="min-w-0 text-xs text-gray-600">
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {subscription.plan.displayName} · ₹{(subscription.plan.price / 100).toLocaleString()}/
+                          {subscription.plan.interval}
+                        </p>
+                        <p>
+                          {new Date(subscription.currentPeriodStart).toLocaleDateString()} –{' '}
+                          {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-10 shrink-0"
+                        onClick={() => {
+                          setGrantUserId(subscription.userId);
+                          toast.message('Selected — pick a plan above and Grant');
+                        }}
+                      >
+                        Upgrade
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="hidden rounded-none border md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -322,6 +370,7 @@ export default function SubscriptionsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

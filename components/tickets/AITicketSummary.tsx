@@ -51,8 +51,8 @@ export function AITicketSummary({ ticketId, initialSummary, className }: AITicke
     return (
         <Card className={cn("border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 shadow-none", className)}>
             <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2 min-w-0">
                         <Sparkles className="h-4 w-4 text-blue-600 animate-pulse" />
                         <CardTitle className="text-sm font-bold text-teal-900 dark:text-teal-100 uppercase tracking-widest">OPS Insights</CardTitle>
                     </div>

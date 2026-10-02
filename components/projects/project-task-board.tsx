@@ -378,7 +378,7 @@ export function ProjectTaskBoard({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+              className="h-9 w-9 shrink-0 focus:opacity-100 sm:h-7 sm:w-7 sm:opacity-0 sm:group-hover:opacity-100"
               onClick={(e) => e.stopPropagation()}
             >
               <MoreHorizontal className="size-3.5" />
@@ -519,8 +519,8 @@ export function ProjectTaskBoard({
   );
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex flex-row flex-wrap items-center justify-between gap-3">
         <ToggleGroup
           type="single"
           value={view}
@@ -559,6 +559,7 @@ export function ProjectTaskBoard({
           />
         ) : (
           <PipelineBoard
+            className="-mx-4 px-4 sm:mx-0 sm:px-0"
             columns={columns.filter((c) => c.id !== UNMAPPED_STAGE_ID)}
             itemsByStage={itemsByStage}
             onMove={(id, toStage, fromStage) =>
@@ -614,7 +615,7 @@ export function ProjectTaskBoard({
                     <TableCell>
                       <Link
                         href={taskHref(t.id)}
-                        className="max-w-[260px] truncate font-medium hover:underline underline-offset-2"
+                        className="block max-w-[200px] truncate font-medium sm:max-w-[260px] hover:underline underline-offset-2"
                       >
                         {t.title}
                       </Link>

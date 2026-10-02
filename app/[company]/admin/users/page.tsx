@@ -175,17 +175,19 @@ export default function WorkspaceUsersPage() {
 
   return (
     <DashboardPage>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Workspace users</h1>
           <p className="text-sm text-muted-foreground">
             People with access to this company workspace.
           </p>
         </div>
-        <Button onClick={() => setInviteOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Invite teammate
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setInviteOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Invite teammate
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -193,6 +195,44 @@ export default function WorkspaceUsersPage() {
           <CardTitle className="text-base">Members</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="divide-y rounded-md border md:hidden">
+            {users.length > 0 ? (
+              users.map((user) => (
+                <div key={user.id} className="space-y-1 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{user.name || '—'}</p>
+                      <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">
+                      {user.status}
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>{user.role}</span>
+                    <span>·</span>
+                    <span className="truncate">
+                      {user.primaryCompany?.name || user.companies?.[0]?.name || 'N/A'}
+                    </span>
+                    {user.primaryCompany ? (
+                      <Badge
+                        variant={
+                          user.primaryCompany.status === 'APPROVED' ? 'default' : 'secondary'
+                        }
+                      >
+                        {user.primaryCompany.status}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No users found in this workspace
+              </p>
+            )}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -241,6 +281,7 @@ export default function WorkspaceUsersPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 

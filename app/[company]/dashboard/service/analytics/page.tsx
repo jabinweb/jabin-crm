@@ -49,7 +49,7 @@ export default function ServiceAnalyticsPage() {
   });
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Service analytics</h1>
         <p className="text-sm text-muted-foreground">
@@ -61,11 +61,11 @@ export default function ServiceAnalyticsPage() {
         <TableSkeleton columnCount={4} />
       ) : (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Tickets</CardDescription>
-                <CardTitle className="text-3xl">{data.totals.tickets}</CardTitle>
+                <CardTitle className="text-2xl sm:text-3xl tabular-nums">{data.totals.tickets}</CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-muted-foreground">
                 {data.totals.open} open · {data.totals.resolved} resolved
@@ -74,7 +74,7 @@ export default function ServiceAnalyticsPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Avg MTTR (hours)</CardDescription>
-                <CardTitle className="text-3xl">
+                <CardTitle className="text-2xl sm:text-3xl tabular-nums">
                   {data.mttrHours ?? '—'}
                 </CardTitle>
               </CardHeader>
@@ -82,7 +82,7 @@ export default function ServiceAnalyticsPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Avg first response (hours)</CardDescription>
-                <CardTitle className="text-3xl">
+                <CardTitle className="text-2xl sm:text-3xl tabular-nums">
                   {data.firstResponseHours ?? '—'}
                 </CardTitle>
               </CardHeader>
@@ -90,7 +90,7 @@ export default function ServiceAnalyticsPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>Service reports</CardDescription>
-                <CardTitle className="text-3xl">{data.totals.reports}</CardTitle>
+                <CardTitle className="text-2xl sm:text-3xl tabular-nums">{data.totals.reports}</CardTitle>
               </CardHeader>
             </Card>
           </div>

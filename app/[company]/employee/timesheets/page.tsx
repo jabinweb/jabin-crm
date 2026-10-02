@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { EssPageHeader } from '@/components/employee/mobile/page-header'
 
 type ProjectOption = { id: string; name: string }
 
@@ -104,13 +105,11 @@ export default function EmployeeTimesheetsPage() {
   })
 
   return (
-    <div className="space-y-6 p-4">
-      <div>
-        <h1 className="text-xl font-semibold">Timesheets</h1>
-        <p className="text-sm text-muted-foreground">
-          Log hours against delivery projects and submit for approval.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
+      <EssPageHeader
+        title="Timesheets"
+        subtitle="Log hours against delivery projects and submit for approval."
+      />
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Today</CardTitle>
@@ -119,7 +118,7 @@ export default function EmployeeTimesheetsPage() {
           <div className="space-y-1">
             <Label>Project</Label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-base sm:text-sm"
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
             >
@@ -139,16 +138,16 @@ export default function EmployeeTimesheetsPage() {
             <Label>Note</Label>
             <Input value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
-          <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          <Button className="w-full sm:w-auto" onClick={() => save.mutate()} disabled={save.isPending}>
             Save & submit week
           </Button>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="space-y-2 pt-6">
+        <CardContent className="space-y-2 pt-4 sm:pt-6">
           {sheets.map((s) => (
-            <div key={s.id} className="flex justify-between rounded-lg border p-3 text-sm">
-              <div>
+            <div key={s.id} className="flex justify-between gap-2 rounded-lg border p-3 text-sm">
+              <div className="min-w-0">
                 <p className="font-medium">Week of {new Date(s.weekStart).toLocaleDateString()}</p>
                 <p className="text-xs text-muted-foreground">
                   {s.entries.reduce((a, e) => a + e.hours, 0)} hrs
@@ -157,7 +156,7 @@ export default function EmployeeTimesheetsPage() {
                     : ''}
                 </p>
               </div>
-              <Badge>{s.status}</Badge>
+              <Badge className="shrink-0 self-start">{s.status}</Badge>
             </div>
           ))}
         </CardContent>

@@ -44,8 +44,8 @@ function SearchResults() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Searching…</p>
       ) : (
-        <div className="grid gap-8 lg:grid-cols-3">
-          <section className="space-y-3">
+        <div className="grid gap-6 sm:gap-8 lg:grid-cols-3">
+          <section className="min-w-0 space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Tickets</h2>
             {data?.tickets?.length ? (
               data.tickets.map((t) => (
@@ -54,7 +54,7 @@ function SearchResults() {
                   href={`/portal/tickets/${t.id}`}
                   className="block rounded-lg border p-3 hover:bg-muted/40 transition-colors"
                 >
-                  <p className="font-medium text-sm">{t.subject}</p>
+                  <p className="font-medium text-sm break-words">{t.subject}</p>
                   <p className="text-xs text-muted-foreground mt-1">{t.status}</p>
                 </Link>
               ))
@@ -63,7 +63,7 @@ function SearchResults() {
             )}
           </section>
 
-          <section className="space-y-3">
+          <section className="min-w-0 space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Projects</h2>
             {data?.projects?.length ? (
               data.projects.map((p) => (
@@ -72,7 +72,7 @@ function SearchResults() {
                   href={`/portal/projects/${p.id}`}
                   className="block rounded-lg border p-3 hover:bg-muted/40 transition-colors"
                 >
-                  <p className="font-medium text-sm">{p.name}</p>
+                  <p className="font-medium text-sm break-words">{p.name}</p>
                   <p className="text-xs text-muted-foreground mt-1">{p.status}</p>
                 </Link>
               ))
@@ -81,7 +81,7 @@ function SearchResults() {
             )}
           </section>
 
-          <section className="space-y-3">
+          <section className="min-w-0 space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Quotations</h2>
             {data?.quotations?.length ? (
               data.quotations.map((q) => (
@@ -90,7 +90,7 @@ function SearchResults() {
                   href={`/portal/quotations/${q.id}`}
                   className="block rounded-lg border p-3 hover:bg-muted/40 transition-colors"
                 >
-                  <p className="font-medium text-sm">{q.title}</p>
+                  <p className="font-medium text-sm break-words">{q.title}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {q.quotationNumber} · {q.status}
                   </p>

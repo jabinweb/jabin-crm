@@ -73,8 +73,8 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
                 const key = module as FeatureModuleKey;
                 const planAllowed = planModules[key] === true;
                 return (
-                  <div key={module} className="flex items-center justify-between p-3 rounded border">
-                    <div className="space-y-1">
+                  <div key={module} className="flex items-center justify-between gap-3 p-3 rounded border">
+                    <div className="min-w-0 space-y-1">
                       <Label htmlFor={`module-${module}`}>{FEATURE_MODULE_LABELS[key]}</Label>
                       {!planAllowed && (
                         <Badge variant="secondary" className="text-[10px]">

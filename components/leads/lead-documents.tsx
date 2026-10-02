@@ -187,11 +187,11 @@ export function LeadDocuments({ leadId, documents: initialDocuments }: LeadDocum
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle>
             Documents{!loading && documents.length > 0 ? ` (${documents.length})` : ''}
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"
               variant="outline"
@@ -263,9 +263,9 @@ export function LeadDocuments({ leadId, documents: initialDocuments }: LeadDocum
             {documents.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between p-4 rounded-none border"
+                className="flex items-center justify-between gap-2 p-3 rounded-none border sm:p-4"
               >
-                <div className="flex items-center gap-4 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 sm:gap-4">
                   <FileIcon className="h-8 w-8 text-blue-500 shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium truncate">{doc.name}</p>

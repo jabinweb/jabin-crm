@@ -86,6 +86,7 @@ export default function RecruitmentPage() {
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
           <Button
+            className="w-full sm:w-auto"
             disabled={!title || !description || createJob.isPending}
             onClick={() => createJob.mutate()}
           >
@@ -112,9 +113,9 @@ export default function RecruitmentPage() {
                 className="w-full text-left rounded-lg border px-3 py-2 hover:bg-muted/40"
                 onClick={() => setJobId(j.id)}
               >
-                <div className="flex justify-between">
-                  <span className="font-medium">{j.title}</span>
-                  <Badge variant="secondary">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate font-medium">{j.title}</span>
+                  <Badge variant="secondary" className="shrink-0">
                     {j.status} · {j._count?.applications ?? 0}
                   </Badge>
                 </div>
@@ -152,7 +153,7 @@ export default function RecruitmentPage() {
             onChange={(e) => setCandEmail(e.target.value)}
           />
           <Button
-            className="sm:col-span-3 w-fit"
+            className="w-full sm:col-span-3 sm:w-fit"
             disabled={!jobId || !candName || !candEmail}
             onClick={async () => {
               const res = await fetch('/api/hr/applications', {
@@ -195,9 +196,9 @@ export default function RecruitmentPage() {
                 key={a.id}
                 className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div>
-                  <p className="font-medium">{a.candidate.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{a.candidate.name}</p>
+                  <p className="break-words text-xs text-muted-foreground">
                     {a.job.title} · {a.candidate.email}
                   </p>
                 </div>
@@ -213,7 +214,7 @@ export default function RecruitmentPage() {
                     void qc.invalidateQueries({ queryKey: ['hr-apps'] })
                   }}
                 >
-                  <SelectTrigger className="w-[160px]">
+                  <SelectTrigger className="w-full sm:w-[160px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -228,6 +229,7 @@ export default function RecruitmentPage() {
                   <Button
                     size="sm"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={async () => {
                       const res = await fetch('/api/hr/applications', {
                         method: 'POST',

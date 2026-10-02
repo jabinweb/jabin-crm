@@ -406,7 +406,7 @@ export default function CustomerDetailPage() {
           <CardContent className="space-y-2 text-sm">
             <p>
               <span className="font-medium">Sign-in URL:</span>{' '}
-              <a href={inviteResult.signInUrl} className="text-primary underline">
+              <a href={inviteResult.signInUrl} className="break-all text-primary underline">
                 {inviteResult.signInUrl}
               </a>
             </p>
@@ -847,7 +847,7 @@ export default function CustomerDetailPage() {
                 onChange={(e) => setEditForm({ ...editForm, contactPerson: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label>Email</Label>
                 <Input
@@ -871,7 +871,7 @@ export default function CustomerDetailPage() {
                 onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label>City</Label>
                 <Input

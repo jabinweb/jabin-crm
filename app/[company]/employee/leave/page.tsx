@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from '@/hooks/use-toast'
 import { LeaveBalance } from '@/components/employee/leave/leave-balance'
+import { EssPageHeader } from '@/components/employee/mobile/page-header'
 import { format } from 'date-fns'
 import { CalendarDays } from 'lucide-react'
 
@@ -80,15 +81,10 @@ export default function LeavePage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-5 px-1 pb-4 lg:max-w-5xl lg:px-0">
-      <div>
-        <h1 className="text-xl font-semibold lg:text-2xl">Leave</h1>
-        <p className="text-sm text-muted-foreground">
-          Balances, requests, and upcoming holidays
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-lg space-y-5 lg:mx-0 lg:max-w-5xl">
+      <EssPageHeader title="Leave" subtitle="Balances, requests, and upcoming holidays" />
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-2 [&>*]:min-w-0">
         <LeaveBalance />
 
         <Card>
@@ -105,10 +101,10 @@ export default function LeavePage() {
             {holidays.slice(0, 6).map((h) => (
               <div
                 key={h.id}
-                className="flex items-center justify-between rounded-lg border px-3 py-2"
+                className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
               >
-                <span className="text-sm font-medium">{h.name}</span>
-                <span className="text-xs text-muted-foreground">
+                <span className="min-w-0 truncate text-sm font-medium">{h.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
                   {format(new Date(h.date), 'd MMM yyyy')}
                 </span>
               </div>
@@ -138,7 +134,7 @@ export default function LeavePage() {
                   className="space-y-2 rounded-xl border p-3"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-sm">
                         {format(new Date(request.startDate), 'd MMM')} –{' '}
                         {format(new Date(request.endDate), 'd MMM yyyy')}
@@ -147,11 +143,12 @@ export default function LeavePage() {
                         {request.policy?.name || request.type}
                         {request.days ? ` · ${request.days} day(s)` : ''}
                       </p>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <p className="break-words text-sm text-muted-foreground mt-1">
                         {request.reason}
                       </p>
                     </div>
                     <Badge
+                      className="shrink-0"
                       variant={
                         request.status === 'APPROVED'
                           ? 'default'

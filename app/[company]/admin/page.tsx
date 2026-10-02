@@ -34,15 +34,15 @@ export default function AdminDashboard() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {adminCards.map((card) => (
           <Link key={card.path} href={`/${slug}${card.path}`} className="block">
             <Card className="h-full transition-colors hover:bg-muted/40">
-              <CardContent className="flex items-start gap-3 p-5">
+              <CardContent className="flex items-start gap-3 p-4 sm:p-5">
                 <div className="rounded-md border bg-background p-2">
                   <card.icon className="h-4 w-4 text-muted-foreground" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="font-medium">{card.label}</p>
                   <p className="text-sm text-muted-foreground mt-0.5">{card.description}</p>
                 </div>

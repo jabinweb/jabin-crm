@@ -211,7 +211,7 @@ export function Composer({
   ) : null;
 
   return (
-    <div className="shrink-0 px-3 pb-3 sm:px-5">
+    <div className="shrink-0 px-3 pb-3 pt-1 sm:px-5">
       <div
         className="relative rounded-lg border bg-background shadow-sm focus-within:ring-1 focus-within:ring-ring"
         onDragOver={(e) => {
@@ -351,7 +351,7 @@ export function Composer({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground"
+            className="h-10 w-10 text-muted-foreground lg:h-8 lg:w-8"
             aria-label="Attach files"
             disabled={!!editing}
             onClick={() => fileRef.current?.click()}
@@ -360,7 +360,7 @@ export function Composer({
           </Button>
           <Popover>
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="Emoji">
+              <Button type="button" variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground lg:h-8 lg:w-8" aria-label="Emoji">
                 <Smile className="h-4 w-4" />
               </Button>
             </PopoverTrigger>
@@ -388,7 +388,7 @@ export function Composer({
           <Button
             type="button"
             size="sm"
-            className="ml-auto h-8 gap-1.5"
+            className="ml-auto h-10 gap-1.5 lg:h-8"
             disabled={(!text.trim() && attachments.length === 0) || uploading > 0}
             onClick={submit}
           >

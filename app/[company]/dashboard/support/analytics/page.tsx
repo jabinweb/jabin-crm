@@ -39,7 +39,7 @@ export default function SupportAnalyticsPage() {
       <div className="space-y-8">
         <div>
           <SupportBackLink />
-          <h1 className="text-3xl font-bold tracking-tight">Support analytics</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Support analytics</h1>
           <p className="text-muted-foreground mt-1">
             Executive view — volume, SLA compliance, CSAT, and channel mix (last 30 days).
           </p>
@@ -73,13 +73,13 @@ export default function SupportAnalyticsPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
+                  <CardDescription className="flex min-w-0 items-center gap-2">
                     <Ticket className="h-4 w-4" /> Total tickets
                   </CardDescription>
-                  <CardTitle className="text-3xl">{data.summary.totalTickets}</CardTitle>
+                  <CardTitle className="text-2xl sm:text-3xl tabular-nums">{data.summary.totalTickets}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">{data.summary.openTickets} open</p>
@@ -87,10 +87,10 @@ export default function SupportAnalyticsPage() {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
+                  <CardDescription className="flex min-w-0 items-center gap-2">
                     <TrendingUp className="h-4 w-4" /> Resolution rate
                   </CardDescription>
-                  <CardTitle className="text-3xl">{data.summary.resolutionRate}%</CardTitle>
+                  <CardTitle className="text-2xl sm:text-3xl tabular-nums">{data.summary.resolutionRate}%</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground">{data.summary.resolvedTickets} resolved/closed</p>
@@ -98,22 +98,22 @@ export default function SupportAnalyticsPage() {
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
+                  <CardDescription className="flex min-w-0 items-center gap-2">
                     <Clock className="h-4 w-4" /> SLA compliance
                   </CardDescription>
-                  <CardTitle className="text-3xl">{data.sla.complianceRate}%</CardTitle>
+                  <CardTitle className="text-2xl sm:text-3xl tabular-nums">{data.sla.complianceRate}%</CardTitle>
                 </CardHeader>
-                <CardContent className="flex gap-2 text-xs">
+                <CardContent className="flex flex-wrap gap-2 text-xs">
                   <Badge variant="outline">{data.sla.atRisk} at risk</Badge>
                   <Badge variant="destructive">{data.sla.breached} breached</Badge>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
-                  <CardDescription className="flex items-center gap-2">
+                  <CardDescription className="flex min-w-0 items-center gap-2">
                     <Star className="h-4 w-4" /> Avg CSAT
                   </CardDescription>
-                  <CardTitle className="text-3xl">
+                  <CardTitle className="text-2xl sm:text-3xl tabular-nums">
                     {data.summary.avgCsat ?? '—'}
                     {data.summary.avgCsat ? <span className="text-lg text-muted-foreground">/5</span> : null}
                   </CardTitle>
@@ -137,7 +137,7 @@ export default function SupportAnalyticsPage() {
                   ) : (
                     data.volumeTrend.map((row: { date: string; count: number }) => (
                       <div key={row.date} className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground w-24">{row.date}</span>
+                        <span className="text-xs text-muted-foreground w-20 shrink-0 sm:w-24">{row.date}</span>
                         <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-primary rounded-full"

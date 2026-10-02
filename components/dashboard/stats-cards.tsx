@@ -50,10 +50,10 @@ export function StatsCards({
       : 'md:grid-cols-3';
 
   return (
-    <div className={cn('grid gap-3', cols)}>
+    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4', cols)}>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardTitle className="truncate text-sm font-medium text-muted-foreground">
             {customersLabel}
           </CardTitle>
         </CardHeader>
@@ -66,7 +66,7 @@ export function StatsCards({
       {!omitOpenTickets && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="truncate text-sm font-medium text-muted-foreground">
               {ticketsLabel}
             </CardTitle>
           </CardHeader>
@@ -80,7 +80,7 @@ export function StatsCards({
       {showEquipment && (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+            <CardTitle className="truncate text-sm font-medium text-muted-foreground">
               {equipmentLabel}
             </CardTitle>
           </CardHeader>
@@ -95,7 +95,7 @@ export function StatsCards({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardTitle className="truncate text-sm font-medium text-muted-foreground">
             {leadsLabel}
           </CardTitle>
         </CardHeader>
@@ -103,7 +103,7 @@ export function StatsCards({
           <div className="text-2xl font-semibold tabular-nums">
             {stats?.totalLeads?.toLocaleString() ?? '0'}
           </div>
-          <div className="flex items-center gap-1 mt-1">
+          <div className="flex flex-wrap items-center gap-x-1 mt-1">
             <span
               className={cn(
                 'text-xs font-medium',
@@ -119,7 +119,7 @@ export function StatsCards({
       </Card>
 
       {stats?.duplicateLeadsCount !== undefined && stats.duplicateLeadsCount > 0 && (
-        <Card className="border-red-200 bg-red-50/40 md:col-span-full">
+        <Card className="col-span-full border-red-200 bg-red-50/40">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-red-700">
               Duplicates need review

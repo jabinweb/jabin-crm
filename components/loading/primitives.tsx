@@ -7,9 +7,9 @@ type ClassNameProps = {
 
 export function PageHeaderSkeleton({ className }: ClassNameProps) {
   return (
-    <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between', className)}>
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-48" />
+    <div className={cn('flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between', className)}>
+      <div className="min-w-0 space-y-2">
+        <Skeleton className="h-8 w-48 max-w-full" />
         <Skeleton className="h-4 w-72 max-w-full" />
       </div>
       <Skeleton className="h-9 w-28" />
@@ -24,7 +24,7 @@ export function CardListSkeleton({
   return (
     <div className={cn('space-y-2', className)}>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-4 rounded-md border p-4">
+        <div key={i} className="flex items-center gap-3 rounded-md border p-3 sm:gap-4 sm:p-4">
           <Skeleton className="h-10 w-10 shrink-0" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-[55%]" />
@@ -42,11 +42,11 @@ export function StatCardsSkeleton({
   className,
 }: ClassNameProps & { count?: number }) {
   return (
-    <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-4', className)}>
+    <div className={cn('grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4', className)}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="rounded-md border bg-card p-4 space-y-3">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-4 w-24 max-w-full" />
+          <Skeleton className="h-8 w-20 max-w-full" />
           <Skeleton className="h-3 w-16" />
         </div>
       ))}
@@ -94,7 +94,7 @@ export function SettingsPageSkeleton({
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: cards }).map((_, i) => (
-          <div key={i} className="space-y-3 rounded-lg border bg-card p-5">
+          <div key={i} className="space-y-3 rounded-lg border bg-card p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <Skeleton className="h-9 w-9 rounded-md" />
               <div className="space-y-2 flex-1">
@@ -118,9 +118,9 @@ export function BoardSkeleton({
   className,
 }: ClassNameProps & { columns?: number; cardsPerColumn?: number }) {
   return (
-    <div className={cn('flex gap-4 overflow-x-auto pb-2', className)}>
+    <div className={cn('flex gap-3 overflow-x-auto pb-2 sm:gap-4', className)}>
       {Array.from({ length: columns }).map((_, col) => (
-        <div key={col} className="w-72 shrink-0 space-y-3">
+        <div key={col} className="w-[85vw] max-w-xs shrink-0 space-y-3 sm:w-72">
           <div className="flex items-center justify-between gap-2">
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-5 w-8" />
@@ -142,9 +142,9 @@ export function BoardSkeleton({
 
 export function DetailSkeleton({ className }: ClassNameProps) {
   return (
-    <div className={cn('grid gap-6 lg:grid-cols-3', className)}>
-      <div className="lg:col-span-2 space-y-4">
-        <Skeleton className="h-8 w-64" />
+    <div className={cn('grid gap-4 sm:gap-6 lg:grid-cols-3', className)}>
+      <div className="min-w-0 lg:col-span-2 space-y-4">
+        <Skeleton className="h-8 w-64 max-w-full" />
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-[90%]" />
         <Skeleton className="h-48 w-full" />

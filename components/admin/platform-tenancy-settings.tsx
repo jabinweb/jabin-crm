@@ -90,12 +90,12 @@ export function PlatformTenancySettings() {
                 className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer has-[:checked]:border-foreground has-[:checked]:bg-muted/40"
               >
                 <RadioGroupItem value="path" id="tenancy-path" className="mt-1" />
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <Label htmlFor="tenancy-path" className="cursor-pointer font-medium">
                     Path-based (recommended for now)
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    <code className="text-xs">yourapp.vercel.app/acme/dashboard</code>
+                    <code className="text-xs break-all">yourapp.vercel.app/acme/dashboard</code>
                   </p>
                 </div>
               </label>
@@ -105,14 +105,14 @@ export function PlatformTenancySettings() {
                 className="flex items-start gap-3 rounded-lg border p-4 cursor-pointer has-[:checked]:border-foreground has-[:checked]:bg-muted/40"
               >
                 <RadioGroupItem value="subdomain" id="tenancy-subdomain" className="mt-1" />
-                <div className="space-y-1">
+                <div className="min-w-0 space-y-1">
                   <Label htmlFor="tenancy-subdomain" className="cursor-pointer font-medium">
                     Subdomain-based
                   </Label>
                   <p className="text-sm text-muted-foreground">
-                    <code className="text-xs">acme.yourdomain.com/dashboard</code>
+                    <code className="text-xs break-all">acme.yourdomain.com/dashboard</code>
                     {' — '}
-                    requires your own domain and <code className="text-xs">*.yourdomain.com</code>
+                    requires your own domain and <code className="text-xs break-all">*.yourdomain.com</code>
                   </p>
                 </div>
               </label>

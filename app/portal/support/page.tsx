@@ -103,14 +103,14 @@ function PortalSupportContent() {
               {article.category}
             </Badge>
           )}
-          <h1 className="text-3xl font-bold tracking-tight">{article.title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight break-words">{article.title}</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Updated {new Date(article.updatedAt).toLocaleDateString()}
           </p>
         </div>
 
         <Card>
-          <CardContent className="pt-6 prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+          <CardContent className="pt-6 prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words">
             {article.content}
           </CardContent>
         </Card>
@@ -123,7 +123,7 @@ function PortalSupportContent() {
                 If you still need assistance, open a support {ticketLabel.toLowerCase()}.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 onClick={async () => {
@@ -148,10 +148,10 @@ function PortalSupportContent() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Help &amp; support</h1>
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Help &amp; support</h1>
           <p className="text-muted-foreground mt-1">
             {terminology?.portalSubtitle ??
               'Search solutions, browse guides, or contact us through your preferred channel.'}
@@ -165,10 +165,10 @@ function PortalSupportContent() {
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex min-w-0 items-center gap-2">
               <BookOpen className="h-4 w-4" /> Knowledge base
             </CardTitle>
           </CardHeader>
@@ -178,7 +178,7 @@ function PortalSupportContent() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
+            <CardTitle className="text-sm flex min-w-0 items-center gap-2">
               <MessageSquarePlus className="h-4 w-4" /> {ticketLabel}
             </CardTitle>
           </CardHeader>
@@ -191,12 +191,12 @@ function PortalSupportContent() {
         {supportChannels?.email ? (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex min-w-0 items-center gap-2">
                 <Mail className="h-4 w-4" /> Email
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <a href={`mailto:${supportChannels.email}`} className="text-xs text-primary hover:underline">
+              <a href={`mailto:${supportChannels.email}`} className="text-xs text-primary hover:underline break-all">
                 {supportChannels.email}
               </a>
             </CardContent>
@@ -205,7 +205,7 @@ function PortalSupportContent() {
         {supportChannels?.phone ? (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex min-w-0 items-center gap-2">
                 <Phone className="h-4 w-4" /> Phone
               </CardTitle>
             </CardHeader>
@@ -219,7 +219,7 @@ function PortalSupportContent() {
         {supportChannels?.chat ? (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
+              <CardTitle className="text-sm flex min-w-0 items-center gap-2">
                 <MessageCircle className="h-4 w-4" /> Live chat
               </CardTitle>
             </CardHeader>
@@ -257,7 +257,7 @@ function PortalSupportContent() {
         <CardListSkeleton rows={4} />
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
+          <Card className="lg:col-span-2 min-w-0">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BookOpen className="h-5 w-5" />
@@ -281,8 +281,8 @@ function PortalSupportContent() {
                     className="block p-4 rounded-lg border hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="font-medium">{item.title}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium break-words">{item.title}</p>
                         {item.category && (
                           <Badge variant="secondary" className="mt-1 text-[10px]">
                             {item.category}
@@ -315,7 +315,7 @@ function PortalSupportContent() {
                     setQuery('');
                   }}
                 >
-                  <span>{cat.category || 'General'}</span>
+                  <span className="truncate">{cat.category || 'General'}</span>
                   <Badge variant="outline">{cat._count}</Badge>
                 </Button>
               ))}

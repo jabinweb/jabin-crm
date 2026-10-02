@@ -45,7 +45,7 @@ export default function PaymentSuccessPage() {
   }, [isOk, router, dashboardHref]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-background">
+    <div className="min-h-[100dvh] flex items-center justify-center px-5 py-10 bg-background">
       <div className="max-w-md w-full text-center space-y-6">
         {status === 'ok' && (
           <>

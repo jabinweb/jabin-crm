@@ -44,6 +44,7 @@ import { burnPercent } from '@/lib/projects/delivery-hours-math';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
+import { useFeatureModule } from '@/components/feature-module-guard';
 
 const ProjectTaskBoard = dynamic(
   () => import('@/components/projects/project-task-board').then((mod) => mod.ProjectTaskBoard),
@@ -154,6 +155,8 @@ export default function ProjectDetailPage() {
     enabled: !!slug && !!projectId,
   });
 
+  // INVOICES is plan-gated: /api/invoices returns 403 when the module is off.
+  const invoicesEnabled = useFeatureModule('INVOICES') === true;
   const invoiceQueryKey = ['project-invoices', slug, projectId, project?.customer?.id] as const;
   const { data: linkedInvoices = [] } = useQuery({
     queryKey: invoiceQueryKey,
@@ -168,14 +171,17 @@ export default function ProjectDetailPage() {
         projectId?: string | null;
       };
       const parse = async (res: Response) => {
+        // 403 (module off for this plan) and other failures read as "no invoices".
         if (!res.ok) return [] as Inv[];
         const body = await res.json();
         return (body.invoices ?? body ?? []) as Inv[];
       };
 
-      const byProject = await parse(
-        await workspaceFetch(`/api/invoices?projectId=${encodeURIComponent(projectId)}&limit=50`)
+      const byProjectRes = await workspaceFetch(
+        `/api/invoices?projectId=${encodeURIComponent(projectId)}&limit=50`
       );
+      if (byProjectRes.status === 403) return [] as Inv[];
+      const byProject = await parse(byProjectRes);
       if (byProject.length > 0) return byProject;
 
       if (project?.customer?.id) {
@@ -187,7 +193,7 @@ export default function ProjectDetailPage() {
       }
       return [];
     },
-    enabled: !!slug && !!projectId && !!project,
+    enabled: !!slug && !!projectId && !!project && invoicesEnabled,
   });
 
   const projectInvoices = linkedInvoices;
@@ -338,7 +344,7 @@ export default function ProjectDetailPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <DetailChrome
         crumbs={[
           { label: 'Projects', href: path('/dashboard/projects') },
@@ -359,7 +365,7 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1 flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+              <h1 className="min-w-0 break-words text-2xl font-bold tracking-tight md:text-3xl">
                 {project.name}
               </h1>
               <Badge variant="outline" className={cn('font-medium', statusMeta.className)}>
@@ -605,7 +611,7 @@ export default function ProjectDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Work board</CardTitle>
           <CardDescription>
@@ -640,7 +646,7 @@ export default function ProjectDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Client requests</CardTitle>
@@ -682,8 +688,8 @@ export default function ProjectDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-            <div>
+          <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
+            <div className="min-w-0">
               <CardTitle className="text-base font-semibold">Team</CardTitle>
               <CardDescription>People delivering this engagement.</CardDescription>
             </div>
@@ -767,9 +773,10 @@ export default function ProjectDetailPage() {
         </Card>
       </div>
 
+      {invoicesEnabled ? (
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-          <div>
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3">
+          <div className="min-w-0">
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Receipt className="size-4" />
               Invoices
@@ -819,6 +826,7 @@ export default function ProjectDetailPage() {
           )}
         </CardContent>
       </Card>
+      ) : null}
     </div>
   );
 }

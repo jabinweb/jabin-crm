@@ -39,13 +39,13 @@ export default function HrClaimsAdminPage() {
         <CardContent className="space-y-3">
           {claims.map((c) => (
             <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
-              <div>
-                <p className="font-medium">{c.description}</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="min-w-0">
+                <p className="break-words font-medium">{c.description}</p>
+                <p className="break-words text-xs text-muted-foreground">
                   {c.employee?.name} · {c.category} · ₹{c.amount.toLocaleString('en-IN')}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge>{c.status}</Badge>
                 {c.status === 'PENDING' && (
                   <>

@@ -84,7 +84,7 @@ export default function OnboardingAdminPage() {
               placeholder="Name or EMP-…"
             />
             <select
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
             >
@@ -115,7 +115,7 @@ export default function OnboardingAdminPage() {
               Ensure template
             </Button>
             <Input
-              className="max-w-xs"
+              className="w-full sm:max-w-xs"
               value={templateName}
               onChange={(e) => setTemplateName(e.target.value)}
             />
@@ -129,18 +129,18 @@ export default function OnboardingAdminPage() {
         <CardContent className="space-y-4">
           {data?.checklists?.map((c) => (
             <div key={c.id} className="rounded-lg border p-3 space-y-2">
-              <div className="flex justify-between">
-                <p className="font-medium">
+              <div className="flex justify-between gap-2">
+                <p className="min-w-0 break-words font-medium">
                   {c.employee.name}{' '}
                   <span className="text-xs text-muted-foreground">
                     ({c.employee.employeeId})
                   </span>
                 </p>
-                <Badge>{c.status}</Badge>
+                <Badge className="shrink-0 self-start">{c.status}</Badge>
               </div>
               <div className="space-y-1">
                 {(c.items || []).map((item, index) => (
-                  <label key={index} className="flex items-center gap-2 text-sm">
+                  <label key={index} className="flex min-h-[2rem] items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       checked={item.done}

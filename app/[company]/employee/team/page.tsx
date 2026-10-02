@@ -37,10 +37,10 @@ function ManagerCorrections() {
       <CardContent className="space-y-2">
         {rows.map((r) => (
           <div key={r.id} className="rounded-lg border p-3 space-y-2">
-            <p className="text-sm font-medium">
+            <p className="break-words text-sm font-medium">
               {r.employee.name} · {format(new Date(r.date), 'd MMM')}
             </p>
-            <p className="text-xs text-muted-foreground">{r.reason}</p>
+            <p className="break-words text-xs text-muted-foreground">{r.reason}</p>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -101,7 +101,7 @@ export default function ManagerTeamPage() {
 
   if (error) {
     return (
-      <div className="max-w-lg mx-auto space-y-4">
+      <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
         <EssPageHeader title="My team" subtitle="Manager tools" />
         <p className="text-sm text-muted-foreground text-center py-8">
           You do not have direct reports assigned.
@@ -111,7 +111,7 @@ export default function ManagerTeamPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="My team" subtitle="Today’s attendance" />
       <Button asChild variant="outline" className="w-full">
         <Link href={employeePath('/employee/team/leave')}>
@@ -143,9 +143,9 @@ export default function ManagerTeamPage() {
                 key={m.id}
                 className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2"
               >
-                <div>
-                  <p className="text-sm font-medium">{m.name}</p>
-                  <p className="text-xs text-muted-foreground">{m.jobTitle}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">{m.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{m.jobTitle}</p>
                   {m.today?.checkIn && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       In {format(new Date(m.today.checkIn), 'HH:mm')}
@@ -155,7 +155,7 @@ export default function ManagerTeamPage() {
                     </p>
                   )}
                 </div>
-                <Badge variant={m.today?.checkIn ? 'default' : 'secondary'}>
+                <Badge variant={m.today?.checkIn ? 'default' : 'secondary'} className="shrink-0">
                   {m.today?.status || 'ABSENT'}
                 </Badge>
               </div>

@@ -80,7 +80,7 @@ export function RazorpayIntegrationForm({ onChange }: RazorpayIntegrationFormPro
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-lg border p-4">
+      <div className="flex items-center justify-between gap-3 rounded-lg border p-4">
         <div>
           <Label>Enable Razorpay</Label>
           <p className="text-xs text-muted-foreground mt-1">

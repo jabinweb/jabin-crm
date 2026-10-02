@@ -100,17 +100,17 @@ export default async function EmailLogsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Sent</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Sent</p>
+                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-gray-900 mt-1 sm:mt-2">
                   {sentCount}
                 </p>
               </div>
-              <div className="p-3 rounded-none bg-green-100">
+              <div className="hidden sm:block shrink-0 p-3 rounded-none bg-green-100">
                 <CheckCircle className="w-6 h-6 text-green-600" />
               </div>
             </div>
@@ -118,15 +118,15 @@ export default async function EmailLogsPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Delivered</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Delivered</p>
+                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-gray-900 mt-1 sm:mt-2">
                   {deliveredCount}
                 </p>
               </div>
-              <div className="p-3 rounded-none bg-blue-100">
+              <div className="hidden sm:block shrink-0 p-3 rounded-none bg-blue-100">
                 <Mail className="w-6 h-6 text-blue-600" />
               </div>
             </div>
@@ -134,15 +134,15 @@ export default async function EmailLogsPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Failed</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Failed</p>
+                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-gray-900 mt-1 sm:mt-2">
                   {failedCount}
                 </p>
               </div>
-              <div className="p-3 rounded-none bg-red-100">
+              <div className="hidden sm:block shrink-0 p-3 rounded-none bg-red-100">
                 <XCircle className="w-6 h-6 text-red-600" />
               </div>
             </div>
@@ -150,15 +150,15 @@ export default async function EmailLogsPage() {
         </Card>
 
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Pending</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">
+          <CardContent className="p-3 sm:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-xs sm:text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl sm:text-3xl font-bold tabular-nums text-gray-900 mt-1 sm:mt-2">
                   {pendingCount}
                 </p>
               </div>
-              <div className="p-3 rounded-none bg-yellow-100">
+              <div className="hidden sm:block shrink-0 p-3 rounded-none bg-yellow-100">
                 <Clock className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
@@ -172,7 +172,26 @@ export default async function EmailLogsPage() {
           <CardTitle>Recent Email Logs</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-none border">
+          <div className="divide-y rounded-md border md:hidden">
+            {emailLogs.map((log) => (
+              <div key={log.id} className="space-y-1 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 truncate font-medium">{log.to}</p>
+                  <Badge className={`shrink-0 ${getStatusColor(log.status)}`}>{log.status}</Badge>
+                </div>
+                <p className="truncate text-sm">{log.subject}</p>
+                <p className="truncate text-xs text-gray-600">
+                  {log.user.name || log.user.email}
+                  {log.campaign ? ` · ${log.campaign.name}` : ''}
+                  {log.lead ? ` · ${log.lead.companyName}` : ''}
+                </p>
+                <p className="text-xs text-gray-600">
+                  {log.sentAt ? new Date(log.sentAt).toLocaleString() : '-'}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="hidden rounded-none border md:block">
             <Table>
               <TableHeader>
                 <TableRow>

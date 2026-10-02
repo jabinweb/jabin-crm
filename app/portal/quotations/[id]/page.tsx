@@ -125,18 +125,18 @@ function QuotationDetailView() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex min-w-0 flex-col items-start gap-2">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => router.push('/portal/quotations')}
-            className="rounded-none"
+            className="-ml-3 rounded-none"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold tracking-tight">{quotation.quotationNumber}</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="text-2xl font-bold tracking-tight break-words min-w-0">{quotation.quotationNumber}</h1>
               <Badge variant="outline">{quotation.status}</Badge>
             </div>
             <p className="text-sm text-muted-foreground">{quotation.title}</p>
@@ -155,7 +155,7 @@ function QuotationDetailView() {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 min-w-0">
           <CardHeader>
             <CardTitle className="text-base">Line items</CardTitle>
           </CardHeader>
@@ -189,7 +189,7 @@ function QuotationDetailView() {
                 ))}
               </TableBody>
             </Table>
-            <div className="space-y-2 border-t p-6 text-sm">
+            <div className="space-y-2 border-t p-4 sm:p-6 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatCurrency(quotation.subtotal, quotation.currency as never)}</span>

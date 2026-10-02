@@ -55,7 +55,7 @@ export default function RegularizationPage() {
   })
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="Regularization" subtitle="Request attendance correction" />
       <Card>
         <CardHeader>
@@ -66,7 +66,7 @@ export default function RegularizationPage() {
             <Label>Date</Label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
             <div className="space-y-2">
               <Label>Check-in</Label>
               <Input type="time" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
@@ -95,14 +95,14 @@ export default function RegularizationPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {rows.map((r: { id: string; date: string; status: string; reason: string }) => (
-            <div key={r.id} className="flex justify-between rounded-lg border px-3 py-2">
-              <div>
+            <div key={r.id} className="flex justify-between gap-2 rounded-lg border px-3 py-2">
+              <div className="min-w-0">
                 <p className="text-sm font-medium">
                   {format(new Date(r.date), 'd MMM yyyy')}
                 </p>
-                <p className="text-xs text-muted-foreground">{r.reason}</p>
+                <p className="break-words text-xs text-muted-foreground">{r.reason}</p>
               </div>
-              <Badge variant="secondary">{r.status}</Badge>
+              <Badge variant="secondary" className="shrink-0 self-start">{r.status}</Badge>
             </div>
           ))}
         </CardContent>

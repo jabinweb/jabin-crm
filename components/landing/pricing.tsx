@@ -39,7 +39,7 @@ export function Pricing() {
 
   return (
     <section id="pricing" className="border-t border-[var(--lp-line)] bg-[var(--lp-bg)]">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-14 sm:py-20 md:py-28">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-8">
           <div className="max-w-lg">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
@@ -77,7 +77,7 @@ export function Pricing() {
         {isLoading ? (
           <CardListSkeleton rows={4} />
         ) : plans.length === 0 ? (
-          <div className="rounded-2xl border border-[var(--lp-line)] bg-white p-10 text-center">
+          <div className="rounded-2xl border border-[var(--lp-line)] bg-white p-6 sm:p-10 text-center">
             <p className="text-sm text-[var(--lp-muted)] mb-4">Plans are configured in admin.</p>
             <Button asChild className="h-9 text-xs bg-[var(--lp-accent)] hover:bg-[var(--lp-accent-deep)]">
               <Link href="/pricing">View pricing</Link>
@@ -113,14 +113,14 @@ export function Pricing() {
                 return (
                   <div
                     key={plan.id}
-                    className={`px-6 py-5 ${i > 0 ? 'border-t border-[var(--lp-line)]' : ''} ${
+                    className={`px-4 sm:px-6 py-5 ${i > 0 ? 'border-t border-[var(--lp-line)]' : ''} ${
                       featured ? 'bg-teal-50/40' : 'bg-white'
                     }`}
                   >
                     <div className="flex flex-col gap-4 md:grid md:grid-cols-[1.2fr_1fr_1.5fr_auto] md:gap-4 md:items-center">
                       <div className="flex items-start justify-between gap-4 md:block">
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2">
                             <span className="text-sm font-medium text-[var(--lp-ink)] capitalize">
                               {plan.displayName || plan.name}
                             </span>

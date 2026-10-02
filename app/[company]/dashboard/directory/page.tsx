@@ -75,10 +75,10 @@ export default function DirectoryPage() {
           placeholder="Search…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="sm:max-w-sm"
+          className="w-full sm:max-w-sm"
         />
         <Select value={departmentId} onValueChange={setDepartmentId}>
-          <SelectTrigger className="sm:w-[220px]">
+          <SelectTrigger className="w-full sm:w-[220px]">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -97,15 +97,15 @@ export default function DirectoryPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {employees.map((e) => (
-            <Link key={e.id} href={path(`/dashboard/employees/${e.id}`)}>
+            <Link key={e.id} href={path(`/dashboard/employees/${e.id}`)} className="block min-w-0">
               <Card className="hover:bg-muted/40 transition-colors h-full">
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-medium">{e.name}</p>
-                      <p className="text-xs text-muted-foreground">{e.employeeId}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{e.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{e.employeeId}</p>
                     </div>
-                    <Badge variant="secondary">{e.status}</Badge>
+                    <Badge variant="secondary" className="shrink-0">{e.status}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {e.designation?.name || e.jobTitle}

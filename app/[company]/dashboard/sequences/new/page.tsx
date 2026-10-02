@@ -156,15 +156,15 @@ export default function NewSequencePage() {
 
   return (
     <div className="max-w-5xl space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <DashboardLink href="/dashboard/sequences">
-            <Button variant="ghost" size="icon">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0 space-y-1">
+          <DashboardLink href="/dashboard/sequences" className="inline-flex">
+            <Button variant="ghost" size="icon" className="-ml-2 h-10 w-10 sm:h-9 sm:w-9">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </DashboardLink>
           <div>
-            <h1 className="text-3xl font-bold">Create Email Sequence</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">Create Email Sequence</h1>
             <p className="text-muted-foreground">
               Build automated email campaigns with conditional logic
             </p>
@@ -174,7 +174,7 @@ export default function NewSequencePage() {
           type="button"
           variant="outline"
           onClick={() => setShowAIDialog(true)}
-          className="gap-2 border-purple-300 text-purple-700 hover:bg-purple-50"
+          className="gap-2 self-start border-purple-300 text-purple-700 hover:bg-purple-50 sm:self-auto"
         >
           <Sparkles className="h-4 w-4" />
           Generate with AI
@@ -215,8 +215,8 @@ export default function NewSequencePage() {
         {steps.map((step, index) => (
           <Card key={index}>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="min-w-0 break-words text-lg">
                   Step {step.stepNumber}: {step.name}
                 </CardTitle>
                 {steps.length > 1 && (
@@ -232,7 +232,7 @@ export default function NewSequencePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Step Name</Label>
                   <Input
@@ -263,7 +263,7 @@ export default function NewSequencePage() {
               </div>
 
               {index > 0 && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Delay (Days)</Label>
                     <Input
@@ -309,7 +309,7 @@ export default function NewSequencePage() {
                   rows={8}
                   required
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="break-words text-xs text-muted-foreground">
                   Available variables: {'{{companyName}}, {{contactName}}, {{email}}, {{phone}}, {{website}}'}
                 </p>
               </div>
@@ -324,7 +324,7 @@ export default function NewSequencePage() {
         </Button>
 
         {/* Submit */}
-        <div className="flex gap-4">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:gap-4">
           <DashboardLink href="/dashboard/sequences" className="flex-1">
             <Button type="button" variant="outline" className="w-full">
               Cancel
@@ -370,7 +370,7 @@ export default function NewSequencePage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="aiTone">Tone</Label>
                 <Select value={aiParams.tone} onValueChange={(value) => setAiParams({ ...aiParams, tone: value })}>

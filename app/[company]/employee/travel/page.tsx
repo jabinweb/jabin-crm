@@ -56,7 +56,7 @@ export default function EmployeeTravelPage() {
   })
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="Travel requests" subtitle="Plan and track business travel" />
       <Card>
         <CardHeader>
@@ -67,7 +67,7 @@ export default function EmployeeTravelPage() {
             <Label>Purpose</Label>
             <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 [&>*]:min-w-0">
             <div className="space-y-1">
               <Label>From</Label>
               <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
@@ -82,6 +82,7 @@ export default function EmployeeTravelPage() {
             <Input type="number" value={estimate} onChange={(e) => setEstimate(e.target.value)} />
           </div>
           <Button
+            className="w-full sm:w-auto"
             disabled={!purpose.trim() || !fromDate || !toDate || submit.isPending}
             onClick={() => submit.mutate()}
           >
@@ -95,16 +96,16 @@ export default function EmployeeTravelPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           {rows.map((r) => (
-            <div key={r.id} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-              <div>
-                <p className="font-medium">{r.purpose}</p>
+            <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm">
+              <div className="min-w-0">
+                <p className="break-words font-medium">{r.purpose}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(r.fromDate).toLocaleDateString()} –{' '}
                   {new Date(r.toDate).toLocaleDateString()} · ₹
                   {Number(r.estimate).toLocaleString('en-IN')}
                 </p>
               </div>
-              <Badge>{r.status}</Badge>
+              <Badge className="shrink-0">{r.status}</Badge>
             </div>
           ))}
           {rows.length === 0 && (

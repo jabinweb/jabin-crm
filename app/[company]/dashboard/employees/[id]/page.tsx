@@ -306,12 +306,12 @@ export default function EmployeePage() {
           <ChevronLeft className="h-4 w-4 mr-1" />
           Back to Employees
         </Link>
-        <div className="flex justify-between items-center gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{employee.name}</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-semibold tracking-tight">{employee.name}</h1>
             <p className="text-muted-foreground">{employee.jobTitle}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2 sm:gap-3">
             <Button variant="outline" onClick={() => setIsEditing(!isEditing)}>
               {isEditing ? 'Done' : 'Edit Status'}
             </Button>
@@ -330,27 +330,27 @@ export default function EmployeePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <Card className="p-4 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="flex items-center">
-                  <UserCircle className="h-5 w-5 text-muted-foreground mr-3" />
+                <div className="flex min-w-0 items-center">
+                  <UserCircle className="h-5 w-5 shrink-0 text-muted-foreground mr-3" />
                   <div>
                     <p className="text-sm text-muted-foreground">Full Name</p>
                     <p className="font-medium">{employee.name}</p>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <Mail className="h-5 w-5 text-muted-foreground mr-3" />
+                <div className="flex min-w-0 items-center">
+                  <Mail className="h-5 w-5 shrink-0 text-muted-foreground mr-3" />
                   <div>
                     <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{employee.email}</p>
+                    <p className="break-all font-medium">{employee.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <Phone className="h-5 w-5 text-muted-foreground mr-3" />
+                <div className="flex min-w-0 items-center">
+                  <Phone className="h-5 w-5 shrink-0 text-muted-foreground mr-3" />
                   <div>
                     <p className="text-sm text-muted-foreground">Phone</p>
                     <p className="font-medium">{employee.phone || '—'}</p>
@@ -358,8 +358,8 @@ export default function EmployeePage() {
                 </div>
               </div>
               <div>
-                <div className="flex items-start">
-                  <MapPin className="h-5 w-5 text-muted-foreground mr-3 mt-1" />
+                <div className="flex min-w-0 items-start">
+                  <MapPin className="h-5 w-5 shrink-0 text-muted-foreground mr-3 mt-1" />
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">Address</p>
                     {address ? (
@@ -383,26 +383,26 @@ export default function EmployeePage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Employment Details</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div className="flex items-center">
-                  <Briefcase className="h-5 w-5 text-muted-foreground mr-3" />
+                <div className="flex min-w-0 items-center">
+                  <Briefcase className="h-5 w-5 shrink-0 text-muted-foreground mr-3" />
                   <div>
                     <p className="text-sm text-muted-foreground">Job Title</p>
                     <p className="font-medium">{employee.jobTitle || '—'}</p>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <Building className="h-5 w-5 text-muted-foreground mr-3" />
+                <div className="flex min-w-0 items-center">
+                  <Building className="h-5 w-5 shrink-0 text-muted-foreground mr-3" />
                   <div>
                     <p className="text-sm text-muted-foreground">Department</p>
                     <p className="font-medium">{employee.department || '—'}</p>
                   </div>
                 </div>
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 text-muted-foreground mr-3" />
+                <div className="flex min-w-0 items-center">
+                  <Calendar className="h-5 w-5 shrink-0 text-muted-foreground mr-3" />
                   <div>
                     <p className="text-sm text-muted-foreground">Date Joined</p>
                     <p className="font-medium">
@@ -422,7 +422,7 @@ export default function EmployeePage() {
 
           <EmployeeDigitalFile employeeId={id} companySlug={companySlug} />
 
-          <Card className="p-6 space-y-4">
+          <Card className="space-y-4 p-4 sm:p-6">
             <h2 className="text-lg font-semibold">Custom fields</h2>
             <CustomFieldsEditor
               employeeId={id}
@@ -434,7 +434,7 @@ export default function EmployeePage() {
             />
           </Card>
 
-          <Card className="p-6 space-y-4">
+          <Card className="space-y-4 p-4 sm:p-6">
             <h2 className="text-lg font-semibold">India statutory</h2>
             <StatutoryEditor employeeId={id} headers={tenantHeaders} />
           </Card>
@@ -443,7 +443,7 @@ export default function EmployeePage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Status</h2>
             <div className="space-y-6">
               <div>
@@ -512,7 +512,7 @@ export default function EmployeePage() {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
             <div className="space-y-3">
               <Button variant="outline" className="w-full justify-start" disabled>

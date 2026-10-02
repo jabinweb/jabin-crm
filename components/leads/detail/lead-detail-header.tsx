@@ -57,21 +57,21 @@ export function LeadDetailHeader({
   const displayScore = getLeadDisplayScore(lead);
 
   return (
-    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800/50 rounded-lg border p-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-start space-x-4">
-          <Button variant="ghost" size="icon" asChild>
+    <div className="bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900 dark:to-slate-800/50 rounded-lg border p-4 sm:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-2 sm:gap-4">
+          <Button variant="ghost" size="icon" asChild className="-ml-2 h-10 w-10 shrink-0 sm:ml-0">
             <DashboardLink href="/dashboard/leads">
               <ArrowLeft className="h-5 w-5" />
             </DashboardLink>
           </Button>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+          <div className="min-w-0 space-y-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="h-12 w-12 shrink-0 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
                 {lead.companyName.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight">{lead.companyName}</h1>
+              <div className="min-w-0">
+                <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">{lead.companyName}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   {lead.contactName && (
                     <p className="text-muted-foreground flex items-center gap-1">
@@ -89,9 +89,9 @@ export function LeadDetailHeader({
                 <button
                   type="button"
                   onClick={() => setComposeOpen(true)}
-                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                  className="flex min-w-0 items-center gap-1.5 break-all text-left text-blue-600 hover:text-blue-700 hover:underline font-medium"
                 >
-                  <Mail className="h-4 w-4" />
+                  <Mail className="h-4 w-4 shrink-0" />
                   {lead.email}
                 </button>
               )}
@@ -120,14 +120,14 @@ export function LeadDetailHeader({
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-3">
+        <div className="flex flex-col items-start gap-3 lg:items-end">
           {displayScore !== undefined && (
             <LeadScoreBadge score={displayScore} showNumber={true} size="lg" />
           )}
           <Badge className="text-sm px-3 py-1" variant={getStatusVariant(lead.status)}>
             {lead.status}
           </Badge>
-          <div className="flex flex-wrap items-center gap-2 justify-end">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             <Button size="sm" variant="outline" onClick={() => setComposeOpen(true)} className="gap-2">
               <Mail className="h-4 w-4" />
               Send Email

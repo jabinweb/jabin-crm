@@ -254,16 +254,16 @@ export function PortalTicketForm() {
 
   return (
     <div className="w-full space-y-6">
-      <div className="flex items-center space-x-4">
+      <div className="flex flex-col items-start gap-2">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => router.push('/portal/tickets')}
-          className="rounded-none"
+          className="-ml-3 rounded-none"
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">
             {terminology?.newRequest ?? `New ${ticketLabel}`}
           </h1>
@@ -274,7 +274,7 @@ export function PortalTicketForm() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2">
+        <div className="min-w-0 xl:col-span-2">
           <Card className="border-none border-t-4 border-t-blue-600 bg-white shadow-none dark:bg-slate-900">
             <CardHeader>
               <CardTitle className="text-lg">Request details</CardTitle>
@@ -442,7 +442,7 @@ export function PortalTicketForm() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 border-t border-slate-50 pt-6">
+                <div className="flex flex-col-reverse gap-2 border-t border-slate-50 pt-6 sm:flex-row sm:justify-end sm:gap-3">
                   <Button
                     type="button"
                     variant="ghost"
@@ -453,7 +453,7 @@ export function PortalTicketForm() {
                   <Button
                     type="submit"
                     disabled={isSubmitting}
-                    className="min-w-[160px] bg-blue-600 hover:bg-blue-700"
+                    className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto sm:min-w-[160px]"
                   >
                     {isSubmitting ? (
                       <>
@@ -499,7 +499,7 @@ export function PortalTicketForm() {
 
           <Card className="border-none bg-blue-50/50 shadow-none dark:bg-blue-900/10">
             <CardContent className="flex items-start gap-3 pt-6">
-              <Sparkles className="mt-0.5 h-4 w-4 text-blue-600" />
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
               <p className="text-xs leading-relaxed text-blue-800 dark:text-blue-200">
                 Requests are routed to the right team based on category. You can track updates
                 from your {ticketLabel.toLowerCase()} list.

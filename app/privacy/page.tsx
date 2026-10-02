@@ -9,10 +9,10 @@ export default function PrivacyPage() {
   const brand = getBrandConfig();
 
   return (
-    <div className="min-h-screen bg-stone-50">
-      <div className="mx-auto max-w-2xl px-6 py-16 space-y-6">
+    <div className="min-h-[100dvh] bg-stone-50">
+      <div className="mx-auto max-w-2xl px-5 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-16 space-y-6">
         <ButtonBack />
-        <h1 className="text-3xl font-semibold tracking-tight">Privacy</h1>
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Privacy</h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
           {brand.appName} processes account and workspace data to provide the service (tickets,
           CRM, field tools, billing). Data is scoped to your company workspace. We do not sell

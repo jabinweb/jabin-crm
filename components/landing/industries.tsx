@@ -3,7 +3,7 @@ import { LANDING_INDUSTRY_LABELS } from '@/lib/industry-aliases';
 export function IndustryStrip() {
   return (
     <section className="border-t border-[var(--lp-line)] bg-[var(--lp-bg)]">
-      <div className="mx-auto max-w-6xl px-6 py-12 md:py-14">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-10 md:py-14">
         <p className="text-center text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-muted)] mb-6">
           Built for every industry
         </p>

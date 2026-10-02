@@ -20,7 +20,7 @@ export function FinalCta() {
           `,
         }}
       />
-      <div className="relative mx-auto max-w-3xl px-6 py-20 md:py-28 text-center">
+      <div className="relative mx-auto max-w-3xl px-5 sm:px-6 py-14 sm:py-20 md:py-28 text-center">
         <h2 className="font-[family-name:var(--font-landing-display)] text-3xl md:text-4xl font-semibold tracking-tight text-[var(--lp-ink)]">
           Built to be used — not just implemented
         </h2>

@@ -554,7 +554,7 @@ export function OpsAgentPanel() {
     <>
       <Button
         size="icon"
-        className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full shadow-lg bg-teal-700 hover:bg-teal-800"
+        className="fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] right-4 z-50 h-12 w-12 rounded-full shadow-lg bg-teal-700 hover:bg-teal-800 lg:bottom-6 lg:right-6"
         onClick={() => {
           setOpen((o) => {
             const next = !o;
@@ -568,7 +568,7 @@ export function OpsAgentPanel() {
       </Button>
 
       {open ? (
-        <div className="fixed bottom-24 right-6 z-50 flex h-[min(580px,72vh)] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl">
+        <div className="fixed bottom-[calc(8.5rem+env(safe-area-inset-bottom))] right-3 z-50 flex h-[min(580px,calc(100dvh-13rem))] w-[calc(100vw-1.5rem)] max-w-[420px] flex-col overflow-hidden rounded-xl border bg-background shadow-2xl lg:bottom-24 lg:right-6 lg:h-[min(580px,72vh)]">
           <div className="flex items-center gap-2 border-b px-3 py-2.5 bg-muted/40">
             {view === 'chat' ? (
               <Button
@@ -641,7 +641,7 @@ export function OpsAgentPanel() {
                       </button>
                       <button
                         type="button"
-                        className="px-3 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                        className="px-3 text-muted-foreground hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
                         aria-label="Delete chat"
                         onClick={() => void deleteThread(t.id)}
                       >

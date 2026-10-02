@@ -12,6 +12,8 @@ type ErrorPageProps = {
   description?: string;
   primaryHref?: string;
   primaryLabel?: string;
+  /** Render inside an app shell instead of covering the whole screen. */
+  inline?: boolean;
 };
 
 export function ErrorPageClient({
@@ -21,6 +23,7 @@ export function ErrorPageClient({
   description = 'An unexpected error occurred. You can try again or return to a safe page.',
   primaryHref = '/workspace',
   primaryLabel = 'Open workspace',
+  inline = false,
 }: ErrorPageProps) {
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -45,6 +48,7 @@ export function ErrorPageClient({
       title={title}
       description={description}
       secondaryAction={{ label: 'Homepage', href: '/' }}
+      className={inline ? 'static inset-auto min-h-[60dvh] overflow-visible rounded-xl' : undefined}
     >
       <div className="rounded-lg border border-[var(--lp-line)] bg-white/90 p-4 space-y-4">
         <div className="flex flex-col sm:flex-row gap-3 justify-center">

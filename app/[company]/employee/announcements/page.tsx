@@ -4,22 +4,23 @@ import { useSession } from "next-auth/react"
 import { AnnouncementsCard } from "@/components/employee/announcements-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { EssPageHeader } from "@/components/employee/mobile/page-header"
 
 export default function AnnouncementsPage() {
   const { data: session } = useSession()
   const companyId = (session?.user as any)?.employeeCompanyId ?? (session?.user as any)?.companyId ?? 0
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Company Announcements</h1>
-      
-      <div className="grid gap-6">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
+      <EssPageHeader title="Company Announcements" />
+
+      <div className="grid gap-4">
         <Card>
           <CardHeader>
             <CardTitle>All Announcements</CardTitle>
           </CardHeader>
           <CardContent>
-            <ScrollArea className="h-[600px]">
+            <ScrollArea className="h-[60dvh] sm:h-[600px]">
               <AnnouncementsCard companyId={companyId} />
             </ScrollArea>
           </CardContent>

@@ -102,9 +102,9 @@ export default function CustomFieldsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col items-start">
         <SupportBackLink />
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold">Custom fields</h1>
           <p className="text-sm text-muted-foreground">
             Extra fields on support tickets
@@ -187,9 +187,9 @@ export default function CustomFieldsPage() {
                 key={f.id}
                 className="flex items-center justify-between gap-3 border rounded-lg p-3"
               >
-                <div>
-                  <p className="font-medium text-sm">{f.name}</p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm break-words">{f.name}</p>
+                  <p className="text-xs text-muted-foreground break-all">
                     {f.key} · {f.fieldType}
                     {f.required ? ' · required' : ''}
                   </p>
@@ -197,7 +197,7 @@ export default function CustomFieldsPage() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 text-destructive"
+                  className="h-10 w-10 sm:h-8 sm:w-8 text-destructive"
                   onClick={async () => {
                     if (
                       !(await confirmAction({

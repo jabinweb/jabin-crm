@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card"
 import { useEffect, useState } from "react"
 import { toast } from "@/hooks/use-toast"
 import { PageHeaderSkeleton, DetailSkeleton } from "@/components/loading"
+import { EssPageHeader } from "@/components/employee/mobile/page-header"
 
 interface EmployeeData {
   id: string
@@ -50,7 +51,7 @@ export default function EmployeeDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
         <PageHeaderSkeleton />
         <DetailSkeleton />
       </div>
@@ -58,29 +59,29 @@ export default function EmployeeDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Employee Dashboard</h1>
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
+      <EssPageHeader title="Employee Dashboard" />
       
       {/* Employee Overview */}
-      <Card className="p-6">
-        <h2 className="text-xl font-semibold mb-4">My Profile</h2>
+      <Card className="p-4 sm:p-6">
+        <h2 className="text-lg font-semibold mb-4 sm:text-xl">My Profile</h2>
         {employeeData && (
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-gray-500">Name</p>
-              <p className="font-medium">{employeeData.name}</p>
+              <p className="break-words font-medium">{employeeData.name}</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-gray-500">Job Title</p>
-              <p className="font-medium">{employeeData.jobTitle}</p>
+              <p className="break-words font-medium">{employeeData.jobTitle}</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-gray-500">Department</p>
-              <p className="font-medium">{employeeData.department}</p>
+              <p className="break-words font-medium">{employeeData.department}</p>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-gray-500">Status</p>
-              <p className="font-medium">{employeeData.status}</p>
+              <p className="break-words font-medium">{employeeData.status}</p>
             </div>
           </div>
         )}

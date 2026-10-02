@@ -112,10 +112,10 @@ export default function LettersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold">HR letters</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="break-words text-sm text-muted-foreground">
             Templates with {'{{name}}'}, {'{{employeeId}}'}, {'{{jobTitle}}'}, {'{{department}}'},{' '}
             {'{{date}}'}.
           </p>
@@ -160,10 +160,10 @@ export default function LettersPage() {
           ) : (
             letters.map((l) => (
               <div key={l.id} className="rounded-lg border p-3">
-                <p className="font-medium">
+                <p className="break-words font-medium">
                   {l.title} — {l.employee.name}
                 </p>
-                <pre className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{l.body}</pre>
+                <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-muted-foreground">{l.body}</pre>
               </div>
             ))
           )}
@@ -233,7 +233,7 @@ export default function LettersPage() {
             <div className="space-y-2">
               <Label>Employee</Label>
               <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
               >
@@ -248,7 +248,7 @@ export default function LettersPage() {
             <div className="space-y-2">
               <Label>Template</Label>
               <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
               >

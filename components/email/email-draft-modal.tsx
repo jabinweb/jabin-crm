@@ -322,7 +322,7 @@ export function EmailDraftModal({ open, onClose, drafts }: EmailDraftModalProps)
                 )}
               </div>
               {currentDraft.recipientEmail ? (
-                <div className="text-sm text-blue-600">{currentDraft.recipientEmail}</div>
+                <div className="break-all text-sm text-blue-600">{currentDraft.recipientEmail}</div>
               ) : (
                 <div className="text-sm text-red-500">⚠️ No email address available</div>
               )}
@@ -380,12 +380,12 @@ export function EmailDraftModal({ open, onClose, drafts }: EmailDraftModalProps)
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-between border-t pt-4">
+          <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
             <Button variant="outline" onClick={onClose}>
               <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
-            <div className="flex space-x-2">
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
               {editedDrafts.length > 1 ? (
                 <>
                   <Button variant="outline" onClick={handleSaveAllDrafts}>

@@ -70,55 +70,55 @@ export default function TeamPerformancePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Team Performance</h1>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Team Performance</h1>
         <p className="text-gray-500">
           Track sales pipeline and CRM follow-up tasks (not project delivery work)
         </p>
       </div>
 
       {/* Team Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Team Members</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Team Members</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{teamMembers.length}</div>
+            <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{teamMembers.length}</div>
             <p className="text-xs text-muted-foreground">Active users</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Leads</CardTitle>
             <Target className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.leads}</div>
+            <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{totalStats.leads}</div>
             <p className="text-xs text-muted-foreground">Assigned to team</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Deals</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Deals</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalStats.deals}</div>
+            <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{totalStats.deals}</div>
             <p className="text-xs text-muted-foreground">In pipeline</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Revenue</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
               {formatCurrency(totalStats.revenue)}
             </div>
             <p className="text-xs text-muted-foreground">Won deals</p>
@@ -143,17 +143,17 @@ export default function TeamPerformancePage() {
               {teamMembers.map((member) => (
                 <div
                   key={member.id}
-                  className="border rounded-none p-6 space-y-4"
+                  className="border rounded-none p-4 space-y-4 sm:p-6"
                 >
                   {/* Member Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-3">
                       <UserAvatar person={member} size="lg" />
-                      <div>
+                      <div className="min-w-0">
                         <h3 className="font-semibold">
                           {member.name || 'Unnamed User'}
                         </h3>
-                        <p className="text-sm text-gray-500">{member.email}</p>
+                        <p className="truncate text-sm text-gray-500">{member.email}</p>
                       </div>
                     </div>
                     <Badge className="bg-purple-600">
@@ -162,7 +162,7 @@ export default function TeamPerformancePage() {
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Leads</p>
                       <p className="text-2xl font-bold">
@@ -191,7 +191,7 @@ export default function TeamPerformancePage() {
 
                   {/* Sales follow-up completion (CRM Task model) */}
                   <div>
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between gap-2 mb-2">
                       <p className="text-sm font-medium">Follow-up completion rate</p>
                       <span className="text-sm font-bold">
                         {member.stats.taskCompletionRate.toFixed(1)}%

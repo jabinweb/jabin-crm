@@ -60,11 +60,11 @@ function CustomerEquipmentInventory() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center space-x-4">
-                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="rounded-none">
+                <div className="flex min-w-0 flex-col items-start gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => router.push('/portal')} className="-ml-3 rounded-none">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-2xl font-bold tracking-tight">{equipmentLabel}</h1>
                         <p className="text-sm text-muted-foreground">
                           Inventory of {equipmentLabel.toLowerCase()} linked to your account.
@@ -73,8 +73,8 @@ function CustomerEquipmentInventory() {
                 </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <div className="relative w-full sm:max-w-sm sm:flex-1">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                     <Input
                         placeholder="Search by SN or Model name..."
@@ -83,13 +83,46 @@ function CustomerEquipmentInventory() {
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
-                <div className="text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-none">
+                <div className="self-start text-xs font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-none sm:self-auto">
                     {filteredInventory?.length || 0} Assets Registered
                 </div>
             </div>
 
             <Card className="border-none bg-white dark:bg-slate-900 shadow-none overflow-hidden">
                 <CardContent className="p-0">
+                    <div className="divide-y md:hidden">
+                        {filteredInventory?.length === 0 ? (
+                            <p className="py-12 text-center text-sm italic text-slate-400">
+                                No equipment assets found in your inventory.
+                            </p>
+                        ) : (
+                            filteredInventory?.map((item: any) => {
+                                const isWarrantyActive = new Date(item.warrantyExpiry) > new Date();
+                                return (
+                                    <div key={item.id} className="space-y-2 p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-bold text-slate-900 dark:text-white">{item.product?.name}</p>
+                                                <p className="truncate font-mono text-xs text-slate-500">{item.serialNumber}</p>
+                                            </div>
+                                            <span className={`shrink-0 text-[10px] font-bold tracking-wider uppercase ${isWarrantyActive ? 'text-green-700' : 'text-red-700'}`}>
+                                                {isWarrantyActive ? 'Active Coverage' : 'Service Required'}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500">
+                                            Installed {new Date(item.installationDate).toLocaleDateString()} · Expires {new Date(item.warrantyExpiry).toLocaleDateString()}
+                                        </p>
+                                        <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700 shadow-none text-xs" asChild>
+                                            <Link href={`/portal/tickets/new?equipmentId=${item.id}`}>
+                                                Request Service
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                    <div className="hidden md:block">
                     <Table>
                         <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
                             <TableRow className="hover:bg-transparent border-none">
@@ -154,6 +187,7 @@ function CustomerEquipmentInventory() {
                             )}
                         </TableBody>
                     </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

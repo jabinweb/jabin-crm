@@ -6,8 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 function LoadingSkeleton() {
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-4 w-48 mt-2" />

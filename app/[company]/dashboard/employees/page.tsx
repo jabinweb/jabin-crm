@@ -6,9 +6,18 @@ import { useParams } from 'next/navigation'
 import { DashboardLink } from '@/components/navigation/dashboard-link'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { Button } from '@/components/ui/button'
-import { UserPlus, Upload } from 'lucide-react'
+import Link from 'next/link'
+import { UserPlus, Upload, Search } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { columns, type Employee } from '@/components/employees/employees-columns'
+import {
+  columns,
+  employeeStatusColors,
+  type Employee,
+} from '@/components/employees/employees-columns'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { UserAvatar } from '@/components/ui/user-avatar'
+import { cn } from '@/lib/utils'
 import { DataTable } from '@/components/table/data-table'
 import { EmptyState } from '@/components/ui/empty-state'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
@@ -27,6 +36,7 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [filterOptions, setFilterOptions] = useState<Metadata | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [mobileQuery, setMobileQuery] = useState('')
   const tenantHeaders = useMemo(
     () => (companySlug ? workspaceSlugHeaders(companySlug) : {}),
     [companySlug]
@@ -114,15 +124,21 @@ export default function EmployeesPage() {
     }
   }, [companySlug, fetchEmployees, fetchMetadata])
 
+  const mobileEmployees = useMemo(() => {
+    const q = mobileQuery.trim().toLowerCase()
+    if (!q) return employees
+    return employees.filter((e) => (e.name ?? '').toLowerCase().includes(q))
+  }, [employees, mobileQuery])
+
   if (!companySlug) {
     return <div className="space-y-6">Invalid company.</div>
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employees</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="min-w-0 text-2xl font-bold">Employees</h1>
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <DashboardLink
               href="/dashboard/settings/migration"
@@ -156,6 +172,53 @@ export default function EmployeesPage() {
           actionHref={path('/dashboard/employees/new')}
         />
       ) : (
+        <>
+        <div className="space-y-3 md:hidden">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search name…"
+              value={mobileQuery}
+              onChange={(e) => setMobileQuery(e.target.value)}
+              className="w-full pl-9"
+            />
+          </div>
+          {isLoading && employees.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : mobileEmployees.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No results.</p>
+          ) : (
+            <ul className="divide-y rounded-lg border bg-card">
+              {mobileEmployees.map((employee) => (
+                <li key={employee.id}>
+                  <Link
+                    href={path(`/dashboard/employees/${employee.id}`)}
+                    className="flex items-center gap-3 p-3 active:bg-muted/60"
+                  >
+                    <UserAvatar person={employee} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{employee.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[employee.department, employee.email].filter(Boolean).join(' · ')}
+                      </p>
+                    </div>
+                    {employee.status ? (
+                      <Badge
+                        className={cn(
+                          'shrink-0',
+                          employeeStatusColors[employee.status] ?? 'bg-gray-100 text-gray-800'
+                        )}
+                      >
+                        {employee.status.split('_').join(' ')}
+                      </Badge>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="hidden min-w-0 md:block">
         <DataTable
           columns={columns}
           data={employees}
@@ -172,6 +235,8 @@ export default function EmployeesPage() {
             },
           }}
         />
+        </div>
+        </>
       )}
     </div>
   )

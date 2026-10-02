@@ -301,8 +301,8 @@ export function GettingStartedChecklist() {
 
   return (
     <Card className="border-border shadow-none">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
-        <div className="space-y-1">
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-3">
+        <div className="min-w-0 space-y-1">
           <CardTitle className="text-base font-semibold tracking-tight">
             Getting started
           </CardTitle>
@@ -314,7 +314,7 @@ export function GettingStartedChecklist() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0"
+          className="-mr-2 -mt-1 h-10 w-10 shrink-0 sm:mr-0 sm:mt-0 sm:h-8 sm:w-8"
           onClick={() => dismiss.mutate()}
           disabled={dismiss.isPending}
           aria-label="Dismiss checklist"

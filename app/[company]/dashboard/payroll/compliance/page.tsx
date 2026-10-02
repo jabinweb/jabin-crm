@@ -54,7 +54,7 @@ export default function PayrollCompliancePage() {
         <CardHeader>
           <CardTitle className="text-base">Period</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3 items-end">
+        <CardContent className="grid grid-cols-2 gap-3 sm:flex sm:flex-wrap sm:items-end">
           <div className="space-y-1">
             <Label>Month</Label>
             <Input value={month} onChange={(e) => setMonth(e.target.value)} type="number" />
@@ -63,13 +63,13 @@ export default function PayrollCompliancePage() {
             <Label>Year</Label>
             <Input value={year} onChange={(e) => setYear(e.target.value)} type="number" />
           </div>
-          <Button variant="outline" onClick={() => download('bank-csv')}>
+          <Button variant="outline" className="col-span-2 sm:col-auto" onClick={() => download('bank-csv')}>
             Bank advice CSV
           </Button>
-          <Button variant="outline" onClick={() => download('pf-csv')}>
+          <Button variant="outline" className="col-span-2 sm:col-auto" onClick={() => download('pf-csv')}>
             PF register CSV
           </Button>
-          <Button variant="outline" onClick={() => download('esi-csv')}>
+          <Button variant="outline" className="col-span-2 sm:col-auto" onClick={() => download('esi-csv')}>
             ESI register CSV
           </Button>
         </CardContent>
@@ -81,8 +81,8 @@ export default function PayrollCompliancePage() {
         <CardContent className="space-y-2">
           {(data?.payslips || []).map((p) => (
             <div key={p.id} className="flex justify-between gap-2 border rounded-lg p-3 text-sm">
-              <div>
-                <p className="font-medium">
+              <div className="min-w-0">
+                <p className="break-words font-medium">
                   {p.employee.name}{' '}
                   <span className="text-muted-foreground">({p.employee.employeeId})</span>
                 </p>
@@ -93,7 +93,7 @@ export default function PayrollCompliancePage() {
                   {p.breakdown?.components?.deductions?.tax ?? '—'}
                 </p>
               </div>
-              <p className="font-medium">₹{p.netSalary.toLocaleString('en-IN')}</p>
+              <p className="shrink-0 font-medium tabular-nums">₹{p.netSalary.toLocaleString('en-IN')}</p>
             </div>
           ))}
         </CardContent>
@@ -104,7 +104,7 @@ export default function PayrollCompliancePage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex gap-2 items-end">
-            <div className="flex-1 space-y-1">
+            <div className="min-w-0 flex-1 space-y-1">
               <Label>Employee internal id</Label>
               <Input value={form16Emp} onChange={(e) => setForm16Emp(e.target.value)} />
             </div>
@@ -125,7 +125,7 @@ export default function PayrollCompliancePage() {
           </div>
           {form16 && (
             <div className="rounded-lg border p-3 text-sm space-y-1">
-              <p className="font-medium">
+              <p className="break-words font-medium">
                 {form16.employee.name} ({form16.employee.employeeId}) · PAN{' '}
                 {form16.employee.pan || '—'}
               </p>

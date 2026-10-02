@@ -32,7 +32,7 @@ export function ProfileCompletionBanner({ isComplete }: ProfileCompletionBannerP
         <Button
           size="sm"
           variant="outline"
-          className="h-8"
+          className="h-9 sm:h-8"
           onClick={() => router.push(path('/dashboard/settings'))}
         >
           Complete profile
@@ -41,7 +41,7 @@ export function ProfileCompletionBanner({ isComplete }: ProfileCompletionBannerP
           size="sm"
           variant="ghost"
           onClick={() => setIsDismissed(true)}
-          className="h-8 w-8 p-0"
+          className="h-10 w-10 p-0 sm:h-8 sm:w-8"
           aria-label="Dismiss"
         >
           <X className="h-3.5 w-3.5" />

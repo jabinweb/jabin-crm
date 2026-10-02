@@ -74,14 +74,14 @@ export default async function UserDetailPage({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-gray-900">User Details</h2>
-        <p className="text-gray-600 mt-1">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">User Details</h2>
+        <p className="text-gray-600 mt-1 break-words">
           Detailed information about {user.name || user.email}
         </p>
       </div>
 
       {/* User Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">User Information</CardTitle>
@@ -93,7 +93,7 @@ export default async function UserDetailPage({
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Email</p>
-              <p className="text-lg">{user.email}</p>
+              <p className="text-lg break-all">{user.email}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600">Role</p>
@@ -161,7 +161,7 @@ export default async function UserDetailPage({
       <FeatureModulesCard userId={user.id} />
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <Tabs defaultValue="leads">
             <TabsList>
               <TabsTrigger value="leads">
@@ -234,7 +234,7 @@ export default async function UserDetailPage({
             <TabsContent value="profile" className="mt-4">
               {user.profile ? (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 break-words">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Company Name</p>
                       <p>{user.profile.companyName || "N/A"}</p>

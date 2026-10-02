@@ -241,8 +241,8 @@ export default function NewQuotationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold">Create Quotation</h1>
           <p className="text-sm md:text-base text-muted-foreground">Generate a new quotation for your customer</p>
         </div>
@@ -255,15 +255,15 @@ export default function NewQuotationPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Quotation Details</CardTitle>
               <CardDescription>Basic information about the quotation</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="title">Title *</Label>
                   <Input
                     id="title"
@@ -274,7 +274,7 @@ export default function NewQuotationPage() {
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
                     id="description"
@@ -332,7 +332,7 @@ export default function NewQuotationPage() {
 
               <Separator />
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="customerName">Customer Name *</Label>
                   <Input
@@ -382,8 +382,8 @@ export default function NewQuotationPage() {
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <CardTitle>Line Items</CardTitle>
                   <CardDescription>Add products or services</CardDescription>
                 </div>
@@ -395,7 +395,7 @@ export default function NewQuotationPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
-                <div key={index} className="p-4 border rounded-none space-y-3">
+                <div key={index} className="p-3 sm:p-4 border rounded-none space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Item #{index + 1}</span>
                     {items.length > 1 && (
@@ -403,6 +403,7 @@ export default function NewQuotationPage() {
                         type="button"
                         variant="ghost"
                         size="sm"
+                        className="h-10 w-10 p-0 sm:h-9 sm:w-auto sm:px-3"
                         onClick={() => removeItem(index)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -410,8 +411,8 @@ export default function NewQuotationPage() {
                     )}
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2 md:col-span-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2 col-span-2">
                       <Label>Item Name *</Label>
                       <Input
                         value={item.name}
@@ -421,7 +422,7 @@ export default function NewQuotationPage() {
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 col-span-2">
                       <Label>Description</Label>
                       <Textarea
                         value={item.description}
@@ -454,9 +455,9 @@ export default function NewQuotationPage() {
                       />
                     </div>
 
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 col-span-2">
                       <Label>Amount</Label>
-                      <div className="text-2xl font-bold text-primary">
+                      <div className="break-words text-xl font-bold text-primary tabular-nums sm:text-2xl">
                         {formatCurrency(item.amount)}
                       </div>
                     </div>
@@ -496,7 +497,7 @@ export default function NewQuotationPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Summary</CardTitle>

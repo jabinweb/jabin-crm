@@ -14,6 +14,6 @@ export default function CalendarSettingsRedirectPage() {
   }, [router, path]);
 
   return (
-    <p className="text-sm text-muted-foreground p-6">Redirecting to Integrations…</p>
+    <p className="text-sm text-muted-foreground">Redirecting to Integrations…</p>
   );
 }

@@ -146,8 +146,8 @@ export default function NewEmployeePage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold mb-6">Add New Employee</h1>
+    <div className="max-w-3xl space-y-6">
+      <h1 className="text-2xl font-bold">Add New Employee</h1>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
@@ -365,7 +365,7 @@ export default function NewEmployeePage() {
               </FormItem>
             )}
           />
-          <Button type="submit">Add Employee</Button>
+          <Button type="submit" className="w-full sm:w-auto">Add Employee</Button>
         </form>
       </Form>
     </div>

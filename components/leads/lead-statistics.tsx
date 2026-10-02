@@ -20,14 +20,14 @@ export function LeadStatistics() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Active Leads</CardTitle>
+          <CardTitle className="truncate text-sm font-medium">Active Leads</CardTitle>
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{data.activeLeads}</div>
+          <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{data.activeLeads}</div>
           <p className="text-xs text-muted-foreground">
             {data.upcomingFollowUps.length} follow-ups pending
           </p>
@@ -36,24 +36,24 @@ export function LeadStatistics() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Won Leads</CardTitle>
+          <CardTitle className="truncate text-sm font-medium">Won Leads</CardTitle>
           <Award className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{data.wonLeads}</div>
+          <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{data.wonLeads}</div>
           <p className="text-xs text-muted-foreground">
             {data.conversionRate.toFixed(1)}% conversion rate
           </p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="col-span-2 md:col-span-1">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+          <CardTitle className="truncate text-sm font-medium">Total Value</CardTitle>
           <Target className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
+          <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
             {new Intl.NumberFormat('en-US', {
               style: 'currency',
               currency: 'USD'

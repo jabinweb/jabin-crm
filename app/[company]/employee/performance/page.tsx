@@ -81,7 +81,7 @@ export default function EmployeePerformancePage() {
   })
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader title="Performance" subtitle="Goals and reviews" />
       <Card>
         <CardHeader>
@@ -91,12 +91,12 @@ export default function EmployeePerformancePage() {
           {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
           {(data?.goals || []).map((g) => (
             <div key={g.id} className="space-y-2 rounded-lg border p-3">
-              <div className="flex items-center justify-between">
-                <p className="font-medium text-sm">{g.title}</p>
-                <span className="text-xs text-muted-foreground">{g.cycle?.name}</span>
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 break-words font-medium text-sm">{g.title}</p>
+                <span className="shrink-0 text-xs text-muted-foreground">{g.cycle?.name}</span>
               </div>
               {g.description && (
-                <p className="text-xs text-muted-foreground">{g.description}</p>
+                <p className="break-words text-xs text-muted-foreground">{g.description}</p>
               )}
               <div className="flex items-center gap-2">
                 <Input
@@ -125,9 +125,9 @@ export default function EmployeePerformancePage() {
         <CardContent className="space-y-4">
           {(data?.reviews || []).map((r) => (
             <div key={r.id} className="space-y-2 rounded-lg border p-3">
-              <div className="flex items-center justify-between">
-                <p className="font-medium text-sm">{r.cycle?.name}</p>
-                <Badge>{r.status}</Badge>
+              <div className="flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate font-medium text-sm">{r.cycle?.name}</p>
+                <Badge className="shrink-0">{r.status}</Badge>
               </div>
               {r.status === 'PENDING' ? (
                 <div className="space-y-2">
@@ -154,7 +154,7 @@ export default function EmployeePerformancePage() {
                       }))
                     }
                   />
-                  <Button size="sm" onClick={() => submitSelfReview.mutate(r.id)}>
+                  <Button size="sm" className="w-full sm:w-auto" onClick={() => submitSelfReview.mutate(r.id)}>
                     Submit self-review
                   </Button>
                 </div>

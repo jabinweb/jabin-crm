@@ -227,20 +227,20 @@ export default function InvoiceDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
           <DashboardLink href="/dashboard/invoices">
             <Button variant="outline" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
           </DashboardLink>
-          <div>
-            <h1 className="text-3xl font-bold">Invoice {invoice.invoiceNumber}</h1>
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-bold sm:text-3xl">Invoice {invoice.invoiceNumber}</h1>
             <p className="text-muted-foreground">{invoice.title}</p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={() => router.push(path(`/dashboard/invoices/${params.id}/edit`))}
@@ -274,7 +274,7 @@ export default function InvoiceDetailPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
+        <div className="min-w-0 lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -336,8 +336,8 @@ export default function InvoiceDetailPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
+                <User className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 break-words">
                   {(invoice.customer?.id || invoice.customerId) ? (
                     <DashboardLink
                       href={`/dashboard/customers/${invoice.customer?.id || invoice.customerId}`}
@@ -352,7 +352,7 @@ export default function InvoiceDetailPage() {
               </div>
               {invoice.deal?.id ? (
                 <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground mb-0.5">Deal</p>
                     <DashboardLink
@@ -365,14 +365,14 @@ export default function InvoiceDetailPage() {
                 </div>
               ) : null}
               <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
+                <Mail className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+                <div className="min-w-0 break-words">
                   <p className="text-sm">{invoice.customerEmail}</p>
                 </div>
               </div>
               {invoice.customerPhone && (
                 <div className="flex items-start gap-3">
-                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <Phone className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm">{invoice.customerPhone}</p>
                   </div>
@@ -380,7 +380,7 @@ export default function InvoiceDetailPage() {
               )}
               {invoice.customerAddress && (
                 <div className="flex items-start gap-3">
-                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <MapPin className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                   <div>
                     <p className="text-sm">{invoice.customerAddress}</p>
                   </div>
@@ -451,7 +451,7 @@ export default function InvoiceDetailPage() {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Company Information</CardTitle>

@@ -22,6 +22,18 @@ export type Employee = {
   avatar?: string | null
 }
 
+export const employeeStatusColors: Record<EmployeeStatus, string> = {
+  ACTIVE: 'bg-green-100 text-green-800',
+  ON_LEAVE: 'bg-yellow-100 text-yellow-800',
+  PENDING: 'bg-blue-100 text-blue-800',
+  REJECTED: 'bg-red-100 text-red-800',
+  SUSPENDED: 'bg-red-100 text-red-800',
+  TERMINATED: 'bg-gray-100 text-gray-800',
+  SABBATICAL: 'bg-purple-100 text-purple-800',
+  MEDICAL_LEAVE: 'bg-orange-100 text-orange-800',
+  MATERNITY_LEAVE: 'bg-pink-100 text-pink-800',
+}
+
 function EmployeeNameCell({ employee }: { employee: Employee }) {
   const { path } = useWorkspacePaths()
   return (
@@ -87,20 +99,8 @@ export const columns: ColumnDef<Employee>[] = [
         return <Badge variant="outline">Unknown</Badge>
       }
 
-      const statusColors: Record<EmployeeStatus, string> = {
-        ACTIVE: 'bg-green-100 text-green-800',
-        ON_LEAVE: 'bg-yellow-100 text-yellow-800',
-        PENDING: 'bg-blue-100 text-blue-800',
-        REJECTED: 'bg-red-100 text-red-800',
-        SUSPENDED: 'bg-red-100 text-red-800',
-        TERMINATED: 'bg-gray-100 text-gray-800',
-        SABBATICAL: 'bg-purple-100 text-purple-800',
-        MEDICAL_LEAVE: 'bg-orange-100 text-orange-800',
-        MATERNITY_LEAVE: 'bg-pink-100 text-pink-800',
-      }
-
       return (
-        <Badge className={statusColors[status] ?? 'bg-gray-100 text-gray-800'}>
+        <Badge className={employeeStatusColors[status] ?? 'bg-gray-100 text-gray-800'}>
           {status.split('_').join(' ')}
         </Badge>
       )

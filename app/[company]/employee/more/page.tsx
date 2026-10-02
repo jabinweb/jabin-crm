@@ -131,7 +131,7 @@ export default function EmployeeMorePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4">
+    <div className="mx-auto w-full max-w-lg space-y-4 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader
         title="More"
         subtitle={session?.user?.email || 'Account & extras'}
@@ -140,17 +140,17 @@ export default function EmployeeMorePage() {
         {items.map((item) => {
           const Icon = item.icon
           return (
-            <Link key={item.href} href={item.href}>
-              <Card className="shadow-none mb-2 hover:bg-muted/40 transition-colors">
+            <Link key={item.href} href={item.href} className="block">
+              <Card className="shadow-none hover:bg-muted/40 transition-colors">
                 <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <div className="h-10 w-10 shrink-0 rounded-full bg-muted flex items-center justify-center">
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm">{item.label}</p>
                     <p className="text-xs text-muted-foreground truncate">{item.hint}</p>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </CardContent>
               </Card>
             </Link>
@@ -163,7 +163,7 @@ export default function EmployeeMorePage() {
         >
           <Card className="shadow-none hover:bg-muted/40 transition-colors">
             <CardContent className="p-4 flex items-center gap-3 text-destructive">
-              <div className="h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center">
+              <div className="h-10 w-10 shrink-0 rounded-full bg-destructive/10 flex items-center justify-center">
                 <LogOut className="h-4 w-4" />
               </div>
               <div className="flex-1 text-left">

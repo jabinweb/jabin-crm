@@ -63,7 +63,7 @@ export default function ProjectBacklogPage() {
   });
 
   return (
-    <div className="container mx-auto space-y-6 p-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Backlog</h1>
         <p className="text-sm text-muted-foreground">
@@ -71,9 +71,9 @@ export default function ProjectBacklogPage() {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Select value={projectId} onValueChange={setProjectId}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Project" />
           </SelectTrigger>
           <SelectContent>
@@ -87,7 +87,7 @@ export default function ProjectBacklogPage() {
         </Select>
 
         <Select value={assignee} onValueChange={setAssignee}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Assignee" />
           </SelectTrigger>
           <SelectContent>
@@ -98,7 +98,7 @@ export default function ProjectBacklogPage() {
         </Select>
 
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>

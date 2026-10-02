@@ -10,14 +10,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function LeadDashboardPage() {
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Lead Dashboard</h1>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold sm:text-3xl">Lead Dashboard</h1>
       
       <Suspense fallback={<Skeleton className="h-[120px]" />}>
         <LeadStatistics />
       </Suspense>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <Suspense fallback={<Skeleton className="h-[400px]" />}>
           <LeadStatusDistribution />
         </Suspense>
@@ -27,7 +27,7 @@ export default function LeadDashboardPage() {
         </Suspense>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <Suspense fallback={<Skeleton className="h-[400px]" />}>
           <LeadReminders activities={[]} />
         </Suspense>

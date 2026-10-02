@@ -108,9 +108,9 @@ export default function CannedResponsesPage() {
   return (
     <FeatureModuleGuard module="SUPPORT_CANNED">
       <div className="space-y-6 max-w-3xl">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col items-start">
           <SupportBackLink />
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold">Canned responses</h1>
             <p className="text-sm text-muted-foreground">
               Quick replies for support agents on tickets
@@ -180,7 +180,7 @@ export default function CannedResponsesPage() {
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8"
+                      className="h-10 w-10 sm:h-8 sm:w-8"
                       onClick={() => startEdit(r)}
                       title="Edit"
                     >
@@ -190,7 +190,7 @@ export default function CannedResponsesPage() {
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className="h-8 w-8 text-destructive"
+                      className="h-10 w-10 sm:h-8 sm:w-8 text-destructive"
                       onClick={async () => {
                         if (
                           !(await confirmAction({

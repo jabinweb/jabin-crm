@@ -136,7 +136,7 @@ export function NotificationsPanel({ userRole }: NotificationsPanelProps) {
           <SheetHeader>
             <SheetTitle>Notifications</SheetTitle>
           </SheetHeader>
-          <ScrollArea className="h-[calc(100vh-8rem)] mt-4">
+          <ScrollArea className="h-[calc(100dvh-8rem)] mt-4">
             <div className="space-y-4">
               {loading ? (
                 <SectionSkeleton lines={5} className="px-2" />

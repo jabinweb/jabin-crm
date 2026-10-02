@@ -122,6 +122,49 @@ export default function WorkspaceApprovalsPage() {
           <CardTitle className="text-base">Registrations</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="divide-y rounded-md border md:hidden">
+            {employees.map((emp) => (
+              <div key={emp.id} className="space-y-2 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{emp.name || emp.user?.name || '—'}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {emp.email || emp.user?.email || '—'}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">
+                    {emp.status || 'PENDING'}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10"
+                    disabled={actingId === emp.id}
+                    onClick={() => void handleAction(emp.id, 'approve')}
+                  >
+                    Approve
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-10"
+                    disabled={actingId === emp.id}
+                    onClick={() => void handleAction(emp.id, 'reject')}
+                  >
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {employees.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                No pending employee registrations
+              </p>
+            )}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -170,6 +213,7 @@ export default function WorkspaceApprovalsPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </DashboardPage>

@@ -251,7 +251,7 @@ export default function StartPage() {
       </aside>
 
       {/* Form — only this column scrolls */}
-      <main className="h-full min-h-0 overflow-y-auto overscroll-contain px-6 py-12 sm:px-10 lg:px-16 bg-stone-50">
+      <main className="h-full min-h-0 overflow-y-auto overscroll-contain px-5 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-12 lg:px-16 bg-stone-50">
         <div className="mx-auto w-full max-w-lg lg:min-h-full lg:flex lg:flex-col lg:justify-center">
           <div className="lg:hidden mb-8 flex items-center gap-2.5">
             <OpslaneLogo size={32} />
@@ -300,13 +300,13 @@ export default function StartPage() {
                 <Label htmlFor="slug">Workspace URL *</Label>
                 <div className="flex rounded-md border border-input bg-background overflow-hidden focus-within:ring-2 focus-within:ring-ring">
                   {tenancyMode === 'path' && (
-                    <span className="flex items-center pl-3 pr-1 text-xs text-muted-foreground bg-muted/50 border-r shrink-0">
+                    <span className="flex max-w-[55%] items-center overflow-hidden whitespace-nowrap pl-3 pr-1 text-xs text-muted-foreground bg-muted/50 border-r shrink-0">
                       {hostHint}/
                     </span>
                   )}
                   <Input
                     id="slug"
-                    className="border-0 shadow-none focus-visible:ring-0 rounded-none"
+                    className="min-w-0 border-0 shadow-none focus-visible:ring-0 rounded-none"
                     value={workspace.slug}
                     onChange={(e) => {
                       setSlugTouched(true);
@@ -318,7 +318,7 @@ export default function StartPage() {
                     placeholder="acme"
                   />
                   {tenancyMode === 'subdomain' && (
-                    <span className="flex items-center px-3 text-xs text-muted-foreground bg-muted/50 border-l shrink-0">
+                    <span className="flex max-w-[55%] items-center overflow-hidden whitespace-nowrap px-3 text-xs text-muted-foreground bg-muted/50 border-l shrink-0">
                       .{hostHint}
                     </span>
                   )}
@@ -435,7 +435,7 @@ export default function StartPage() {
                 </h2>
                 <p className="mt-1.5 text-sm text-muted-foreground">
                   You&apos;ll be the workspace admin for{' '}
-                  <span className="font-medium text-foreground">{workspace.companyName}</span>.
+                  <span className="break-words font-medium text-foreground">{workspace.companyName}</span>.
                 </p>
               </div>
 

@@ -182,21 +182,23 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Company-wise accounts across the platform. Orphans have no company membership.
           </p>
         </div>
-        <Button onClick={() => void fetchUsers()} variant="outline" size="sm">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void fetchUsers()} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search users or company…"
@@ -226,16 +228,16 @@ export default function UsersPage() {
       ) : (
         <div className="space-y-6">
           {grouped.map((group) => (
-            <div key={group.key} className="bg-white rounded-none border shadow-sm">
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="text-sm font-semibold">
+            <div key={group.key} className="min-w-0 bg-white rounded-none border shadow-sm">
+              <div className="p-3 sm:p-4 border-b flex items-center justify-between">
+                <h3 className="min-w-0 break-words text-sm font-semibold">
                   {group.label ?? `Users (${group.users.length})`}
                   <span className="text-muted-foreground font-normal ml-2">
                     ({group.users.length})
                   </span>
                 </h3>
               </div>
-              <div className="p-4">
+              <div className="p-3 sm:p-4">
                 <UsersTable
                   users={group.users}
                   onEdit={(userId) => {

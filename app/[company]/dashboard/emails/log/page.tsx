@@ -196,40 +196,41 @@ export default function EmailLogPage() {
   };
 
   return (
-    <div className="flex-1 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">Email Log</h2>
+    <div className="h-full overflow-y-auto">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pb-8 pt-4 sm:px-6 sm:pt-6 lg:px-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Email Log</h2>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sent</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Total Sent</CardTitle>
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{emailStats.sent}</div>
+            <div className="text-2xl font-bold tabular-nums">{emailStats.sent}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Delivered</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Delivered</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{emailStats.delivered}</div>
+            <div className="text-2xl font-bold tabular-nums">{emailStats.delivered}</div>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Open Rate</CardTitle>
             <Eye className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{emailStats.openRate}%</div>
+            <div className="text-2xl font-bold tabular-nums">{emailStats.openRate}%</div>
             <p className="text-xs text-muted-foreground">
               {emailStats.opened} opened
             </p>
@@ -238,11 +239,11 @@ export default function EmailLogPage() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Click Rate</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Click Rate</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-indigo-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{emailStats.clickRate}%</div>
+            <div className="text-2xl font-bold tabular-nums">{emailStats.clickRate}%</div>
             <p className="text-xs text-muted-foreground">
               {emailStats.clicked} clicked
             </p>
@@ -251,11 +252,11 @@ export default function EmailLogPage() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Reply Rate</CardTitle>
+            <CardTitle className="truncate text-sm font-medium">Reply Rate</CardTitle>
             <Mail className="h-4 w-4 text-emerald-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{emailStats.replyRate}%</div>
+            <div className="text-2xl font-bold tabular-nums">{emailStats.replyRate}%</div>
             <p className="text-xs text-muted-foreground">
               {emailStats.replied} replied
             </p>
@@ -272,8 +273,8 @@ export default function EmailLogPage() {
         </CardHeader>
         <CardContent>
           {/* Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1">
+          <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search by recipient or subject..."
@@ -290,7 +291,7 @@ export default function EmailLogPage() {
               setStatus(value);
               setPage(1);
             }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <Filter className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
@@ -321,7 +322,27 @@ export default function EmailLogPage() {
             </div>
           ) : (
             <>
-              <div className="border rounded-none">
+              <div className="divide-y border md:hidden">
+                {data?.logs?.map((email: EmailLog) => (
+                  <button
+                    key={email.id}
+                    type="button"
+                    onClick={() => handleViewDetails(email)}
+                    className="block w-full min-w-0 space-y-1 px-3 py-3 text-left hover:bg-muted/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="min-w-0 truncate text-sm font-medium">{email.to}</span>
+                      <div className="shrink-0">{getStatusBadge(email.status)}</div>
+                    </div>
+                    <p className="truncate text-sm">{email.subject}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {[email.lead?.companyName, email.campaign?.name].filter(Boolean).join(' · ') || '-'}
+                      {email.sentAt ? ` · ${format(new Date(email.sentAt), 'MMM d, h:mm a')}` : ''}
+                    </p>
+                  </button>
+                ))}
+              </div>
+              <div className="hidden border rounded-none md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -406,7 +427,7 @@ export default function EmailLogPage() {
 
               {/* Pagination */}
               {data?.pagination && (
-                <div className="flex items-center justify-between mt-4">
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
                     Showing {((data.pagination.page - 1) * data.pagination.limit) + 1} to{' '}
                     {Math.min(data.pagination.page * data.pagination.limit, data.pagination.total)}{' '}
@@ -449,7 +470,7 @@ export default function EmailLogPage() {
           
           {selectedEmail && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <FormLabel className="text-sm font-medium text-muted-foreground">Status</FormLabel>
                   <div className="mt-1">{getStatusBadge(selectedEmail.status)}</div>
@@ -457,16 +478,16 @@ export default function EmailLogPage() {
                 
                 <div>
                   <FormLabel className="text-sm font-medium text-muted-foreground">Recipient</FormLabel>
-                  <div className="mt-1 text-sm">{selectedEmail.to}</div>
+                  <div className="mt-1 break-all text-sm">{selectedEmail.to}</div>
                 </div>
                 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <FormLabel className="text-sm font-medium text-muted-foreground">Subject</FormLabel>
                   <div className="mt-1 text-sm">{selectedEmail.subject}</div>
                 </div>
                 
                 {selectedEmail.lead && (
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <FormLabel className="text-sm font-medium text-muted-foreground">Lead</FormLabel>
                     <div className="mt-1 text-sm">
                       <div className="font-medium">{selectedEmail.lead.companyName}</div>
@@ -478,7 +499,7 @@ export default function EmailLogPage() {
                 )}
                 
                 {selectedEmail.campaign && (
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <FormLabel className="text-sm font-medium text-muted-foreground">Campaign</FormLabel>
                     <div className="mt-1 text-sm">{selectedEmail.campaign.name}</div>
                   </div>
@@ -590,6 +611,7 @@ export default function EmailLogPage() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }

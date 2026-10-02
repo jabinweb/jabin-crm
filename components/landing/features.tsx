@@ -50,7 +50,7 @@ export function Features() {
   return (
     <>
       <section id="platform" className="border-t border-[var(--lp-line)] bg-[var(--lp-bg)]">
-        <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div className="mx-auto max-w-6xl px-5 sm:px-6 py-14 sm:py-20 md:py-28">
           <div className="max-w-2xl mb-12">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
               Platform overview
@@ -83,7 +83,7 @@ export function Features() {
       </section>
 
       <section id="modules" className="border-t border-[var(--lp-line)] bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <div className="mx-auto max-w-6xl px-5 sm:px-6 py-14 sm:py-20 md:py-28">
           <div className="max-w-xl mb-12">
             <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
               Core modules

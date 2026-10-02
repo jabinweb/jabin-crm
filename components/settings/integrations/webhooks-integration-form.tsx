@@ -101,7 +101,7 @@ export function WebhooksIntegrationForm({ onChange }: WebhooksIntegrationFormPro
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-lg border p-4">
+      <div className="flex items-center justify-between gap-3 rounded-lg border p-4">
         <div>
           <Label>Enable outgoing webhooks</Label>
           <p className="text-xs text-muted-foreground mt-1">
@@ -125,7 +125,7 @@ export function WebhooksIntegrationForm({ onChange }: WebhooksIntegrationFormPro
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <Label>Endpoints</Label>
           <Button type="button" size="sm" variant="outline" onClick={addSubscription}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />

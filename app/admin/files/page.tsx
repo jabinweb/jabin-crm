@@ -264,17 +264,17 @@ export default function FileManagerPage() {
     }
 
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div>
+            <div className="space-y-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">File Manager</h1>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                        <h1 className="text-2xl sm:text-3xl font-bold">File Manager</h1>
                         <p className="text-muted-foreground mt-1">
                             Manage files across all folders
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         {canUpload && (
                             <div className="relative">
                                 <input
@@ -300,7 +300,7 @@ export default function FileManagerPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     <Card>
                         <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -337,7 +337,7 @@ export default function FileManagerPage() {
                 {selectedFiles.size > 0 && (
                     <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
                         <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
                                 <span className="text-sm font-medium">
                                     {selectedFiles.size} file{selectedFiles.size > 1 ? 's' : ''} selected
                                 </span>
@@ -369,7 +369,7 @@ export default function FileManagerPage() {
                 {/* Files Table */}
                 <Card>
                     <CardHeader>
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
                             <CardTitle>
                                 Files ({filteredFiles.length})
                             </CardTitle>
@@ -392,7 +392,7 @@ export default function FileManagerPage() {
                             </div>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="min-w-0">
                         {loading ? (
                             <FullTableSkeleton columnCount={7} rowCount={6} />
                         ) : (
@@ -496,11 +496,11 @@ export default function FileManagerPage() {
 
                         {/* Pagination */}
                         {!loading && totalPages > 1 && (
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 pt-4 border-t">
                                 <div className="text-sm text-muted-foreground">
                                     Showing {startIndex + 1} to {Math.min(endIndex, filteredFiles.length)} of {filteredFiles.length} files
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
                                     <Button
                                         variant="outline"
                                         size="sm"

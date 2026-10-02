@@ -105,8 +105,8 @@ export function AuthShell({ children, className }: AuthShellProps) {
         </aside>
 
         {/* Form panel */}
-        <main className="flex min-h-0 flex-col justify-center overflow-y-auto bg-[var(--lp-surface)] px-6 py-10 sm:px-10 lg:px-14 xl:px-20">
-          <div className="mb-8 flex items-center justify-between lg:hidden">
+        <main className="flex min-h-0 flex-col overflow-y-auto overscroll-contain bg-[var(--lp-surface)] px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-10 lg:px-14 xl:px-20">
+          <div className="mb-8 flex items-center justify-between gap-3 lg:hidden">
             <Link
               href="/"
               className="inline-flex items-center gap-2 font-[family-name:var(--font-landing-display)] text-lg font-semibold tracking-tight text-[var(--lp-ink)]"
@@ -122,7 +122,7 @@ export function AuthShell({ children, className }: AuthShellProps) {
             </Link>
           </div>
 
-          <div className="mx-auto w-full max-w-[420px]">{children}</div>
+          <div className="mx-auto my-auto w-full max-w-[420px]">{children}</div>
         </main>
       </div>
     </div>

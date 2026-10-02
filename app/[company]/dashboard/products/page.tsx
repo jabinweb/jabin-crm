@@ -153,8 +153,8 @@ export default function ProductsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Product Catalog</h2>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <h2 className="min-w-0 text-2xl md:text-3xl font-bold tracking-tight">Product Catalog</h2>
                 <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                     <DialogTrigger asChild>
                         <Button>
@@ -179,7 +179,7 @@ export default function ProductsPage() {
                                     placeholder="e.g. Pro workstation bundle"
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="category">Category</Label>
                                     <Select
@@ -235,7 +235,7 @@ export default function ProductsPage() {
 
             <Card>
                 <CardHeader>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <CardTitle>Inventory List</CardTitle>
                             <CardDescription>
@@ -253,7 +253,7 @@ export default function ProductsPage() {
                                 />
                             </div>
                             <Select value={category} onValueChange={setCategory}>
-                                <SelectTrigger className="w-full sm:w-[180px]">
+                                <SelectTrigger className="w-full sm:w-44">
                                     <SelectValue placeholder="All Categories" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -292,7 +292,48 @@ export default function ProductsPage() {
                             }
                         />
                     ) : (
-                        <div className="rounded-none border">
+                        <>
+                        <div className="divide-y rounded-none border md:hidden">
+                            {filteredProducts?.map((p: any) => (
+                                <div key={p.id} className="flex items-start gap-2 p-3">
+                                    <DashboardLink
+                                        href={`/dashboard/products/${p.id}`}
+                                        className="min-w-0 flex-1"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Package className="h-4 w-4 shrink-0 text-blue-500" />
+                                            <span className="truncate font-medium">{p.name}</span>
+                                        </div>
+                                        <p className="mt-1 truncate text-xs text-muted-foreground">
+                                            {p.manufacturer || 'N/A'} ·{' '}
+                                            <span className="font-mono">{p.modelNumber || 'N/A'}</span>
+                                        </p>
+                                        {p.category ? (
+                                            <Badge variant="outline" className="mt-2 text-xs">
+                                                {p.category}
+                                            </Badge>
+                                        ) : null}
+                                    </DashboardLink>
+                                    <div className="flex shrink-0 flex-col gap-1">
+                                        <Button variant="ghost" size="sm" className="h-10" asChild>
+                                            <DashboardLink href={`/dashboard/products/${p.id}/edit`}>
+                                                Edit
+                                            </DashboardLink>
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-10"
+                                            disabled={deletingId === p.id}
+                                            onClick={() => handleDeleteProduct(p.id, p.name)}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="hidden rounded-none border md:block">
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -348,6 +389,7 @@ export default function ProductsPage() {
                                 </TableBody>
                             </Table>
                         </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

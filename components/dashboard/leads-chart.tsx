@@ -16,20 +16,21 @@ export function LeadsChart() {
   });
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader>
         <CardDescription>Pipeline</CardDescription>
         <CardTitle className="text-lg">Lead activity</CardTitle>
       </CardHeader>
       <CardContent className="pl-2">
         {isLoading ? (
-          <SectionSkeleton lines={8} className="h-[250px] md:h-[280px] justify-center py-8" />
+          <SectionSkeleton lines={8} className="h-[220px] sm:h-[280px] justify-center py-8" />
         ) : !data?.length ? (
-          <div className="flex items-center justify-center h-[250px] md:h-[280px] text-sm text-muted-foreground">
+          <div className="flex items-center justify-center h-[220px] sm:h-[280px] text-sm text-muted-foreground">
             No lead activity yet this period.
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="h-[220px] w-full min-w-0 sm:h-[280px]">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>
               <defs>
                 <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
@@ -51,6 +52,7 @@ export function LeadsChart() {
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={(value) => `${value}`}
+                width={36}
               />
               <Tooltip />
               <Area
@@ -64,6 +66,7 @@ export function LeadsChart() {
               />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>

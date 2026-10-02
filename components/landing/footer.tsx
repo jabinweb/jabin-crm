@@ -20,7 +20,7 @@ export function LandingFooter() {
 
   return (
     <footer id="contact" className="border-t border-[var(--lp-line)] bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-12">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 pt-12 pb-[max(3rem,env(safe-area-inset-bottom))]">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 md:grid-cols-3 md:gap-8">
           <div className="sm:col-span-2 md:col-span-1">
             <p className="font-[family-name:var(--font-landing-display)] text-sm font-semibold text-[var(--lp-ink)]">

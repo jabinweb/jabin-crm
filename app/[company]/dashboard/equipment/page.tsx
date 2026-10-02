@@ -80,9 +80,9 @@ export default function EquipmentFleetPage() {
   });
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Equipment fleet</h1>
           <p className="text-muted-foreground text-sm">
             Company-wide serial register with warranty and active AMC/CMC.
@@ -101,9 +101,9 @@ export default function EquipmentFleetPage() {
           <CardTitle className="text-base">Filters</CardTitle>
           <CardDescription>Narrow by status, contract coverage, or warranty window.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
+        <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -114,7 +114,7 @@ export default function EquipmentFleetPage() {
             </SelectContent>
           </Select>
           <Select value={contractFilter} onValueChange={setContractFilter}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Contract" />
             </SelectTrigger>
             <SelectContent>
@@ -124,7 +124,7 @@ export default function EquipmentFleetPage() {
             </SelectContent>
           </Select>
           <Select value={warrantyFilter} onValueChange={setWarrantyFilter}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Warranty" />
             </SelectTrigger>
             <SelectContent>
@@ -148,6 +148,42 @@ export default function EquipmentFleetPage() {
               actionHref={path('/dashboard/inventory/new')}
             />
           ) : (
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {rows.map((row) => {
+                const contract = row.serviceContracts[0];
+                return (
+                  <Link
+                    key={row.id}
+                    href={path(`/dashboard/customers/${row.customer.id}`)}
+                    className="block space-y-1 p-3 hover:bg-muted/40"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="min-w-0 truncate text-sm font-medium">
+                        {row.product.name}
+                        {row.serialNumber ? (
+                          <span className="font-normal text-muted-foreground"> · {row.serialNumber}</span>
+                        ) : null}
+                      </p>
+                      <Badge variant="secondary" className="shrink-0">
+                        {row.status.replace(/_/g, ' ')}
+                      </Badge>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {row.customer.organizationName}
+                      {row.customer.city ? ` · ${row.customer.city}` : ''}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      Warranty {formatDate(row.warrantyExpiry)} ·{' '}
+                      {contract
+                        ? `${contract.type}${contract.contractNumber ? ` · ${contract.contractNumber}` : ''}`
+                        : 'No AMC/CMC'}
+                    </p>
+                  </Link>
+                );
+              })}
+            </div>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -219,6 +255,8 @@ export default function EquipmentFleetPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

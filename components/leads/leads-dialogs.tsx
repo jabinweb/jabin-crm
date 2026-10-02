@@ -120,7 +120,7 @@ export function LeadsDialogs({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="contactName">Contact Name</Label>
                 <Input
@@ -142,7 +142,7 @@ export function LeadsDialogs({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -276,7 +276,7 @@ export function LeadsDialogs({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="taskType">Type</Label>
                 <Select value={taskData.type} onValueChange={(value) => setTaskData({ ...taskData, type: value })}>
@@ -353,7 +353,7 @@ export function LeadsDialogs({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="dealValue">Deal Value ($)</Label>
                 <Input

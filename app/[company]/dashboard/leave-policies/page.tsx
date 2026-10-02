@@ -70,7 +70,7 @@ export default function LeavePoliciesPage() {
         <CardHeader>
           <CardTitle className="text-base">Add policy</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-5">
+        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1">
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
@@ -87,8 +87,9 @@ export default function LeavePoliciesPage() {
             <Label>Carry forward max</Label>
             <Input value={cf} onChange={(e) => setCf(e.target.value)} type="number" />
           </div>
-          <div className="flex items-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:col-span-full sm:flex-row sm:flex-wrap sm:items-end">
             <Button
+              className="w-full sm:w-auto"
               disabled={!name || !code || create.isPending}
               onClick={() => create.mutate()}
             >
@@ -96,6 +97,7 @@ export default function LeavePoliciesPage() {
             </Button>
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={async () => {
                 const res = await fetch('/api/hr/leave-policies', {
                   method: 'POST',
@@ -127,8 +129,8 @@ export default function LeavePoliciesPage() {
               key={p.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
             >
-              <div>
-                <p className="font-medium">
+              <div className="min-w-0">
+                <p className="break-words font-medium">
                   {p.name}{' '}
                   <span className="text-xs text-muted-foreground">({p.code})</span>
                 </p>

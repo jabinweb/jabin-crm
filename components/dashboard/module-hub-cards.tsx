@@ -62,23 +62,23 @@ export function ModuleHubCards({ compact = false }: { compact?: boolean }) {
           </p>
         ) : null}
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
         {modules.map((m) => {
           const Icon = ICON_MAP[m.icon] || LayoutDashboard;
           return (
-            <Link key={m.id} href={path(m.href)} className="block">
+            <Link key={m.id} href={path(m.href)} className="block min-w-0">
               <Card className="h-full border-border shadow-none transition-colors hover:bg-muted/50">
-                <CardHeader className="flex-row items-center gap-3 space-y-0 p-3.5">
-                  <div className="rounded-md bg-muted p-2 text-foreground/70">
+                <CardHeader className="flex-row items-center gap-2 space-y-0 p-3 sm:gap-3 sm:p-3.5">
+                  <div className="shrink-0 rounded-md bg-muted p-2 text-foreground/70">
                     <Icon className="size-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="text-sm font-semibold">{m.label}</CardTitle>
+                    <CardTitle className="truncate text-sm font-semibold">{m.label}</CardTitle>
                     <CardDescription className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                       {m.description}
                     </CardDescription>
                   </div>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
+                  <ArrowRight className="hidden h-4 w-4 shrink-0 text-muted-foreground sm:block" />
                 </CardHeader>
               </Card>
             </Link>

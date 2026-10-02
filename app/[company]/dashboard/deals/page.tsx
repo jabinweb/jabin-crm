@@ -215,8 +215,8 @@ export default function DealsPage() {
 
   return (
     <DashboardPage>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">
             {terminology?.deals ?? 'Deal'} pipeline
           </h1>
@@ -231,32 +231,32 @@ export default function DealsPage() {
       </div>
 
       {stats && (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total pipeline</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Total pipeline</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.totalValue)}</div>
+              <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{formatCurrency(stats.totalValue)}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Weighted value</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Weighted value</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats.weightedValue)}</div>
+              <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">{formatCurrency(stats.weightedValue)}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="col-span-2 md:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active deals</CardTitle>
+              <CardTitle className="truncate text-sm font-medium">Active deals</CardTitle>
               <Award className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                 {stats.stages?.reduce((sum, s) => sum + s.count, 0) ?? 0}
               </div>
             </CardContent>
@@ -289,7 +289,7 @@ export default function DealsPage() {
         }
         renderCard={(deal) => (
           <Link href={path(`/dashboard/deals/${deal.id}`)} className="block p-3 space-y-2">
-            <p className="text-sm font-semibold">{deal.title}</p>
+            <p className="break-words text-sm font-semibold">{deal.title}</p>
             <p className="text-base font-bold text-emerald-600">
               {formatCurrency(deal.value, deal.currency as never)}
             </p>
@@ -352,7 +352,7 @@ export default function DealsPage() {
                 placeholder="Enterprise package"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Value *</Label>
                 <Input

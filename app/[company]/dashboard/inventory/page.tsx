@@ -152,49 +152,19 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium">Total Products</span>
-          </div>
-          <p className="text-2xl font-bold mt-2">{stats.totalProducts}</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 text-red-500" />
-            <span className="text-sm font-medium">Low Stock Items</span>
-          </div>
-          <p className="text-2xl font-bold mt-2">{stats.lowStock}</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-green-500" />
-            <span className="text-sm font-medium">Over Stock Items</span>
-          </div>
-          <p className="text-2xl font-bold mt-2">{stats.overStock}</p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-            <span className="text-sm font-medium">Total Value</span>
-          </div>
-          <p className="text-2xl font-bold mt-2">${stats.totalValue.toFixed(2)}</p>
-        </Card>
-      </div>
-
-      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
-        <h1 className="text-2xl font-bold">Inventory Management</h1>
-        <div className="flex flex-wrap gap-3 items-center">
-          <div className="relative">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <h1 className="min-w-0 text-2xl font-bold">Inventory Management</h1>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by product name or SKU"
-              className="pl-8 w-[300px]"
+              className="pl-8 w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href={path('/dashboard/inventory/batches')}>
               <ClipboardList className="h-4 w-4 mr-2" />
@@ -233,12 +203,88 @@ export default function InventoryPage() {
             <History className="h-4 w-4 mr-2" />
             Transaction History
           </Button>
+          </div>
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Card className="min-w-0 p-4">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 shrink-0 text-blue-500" />
+            <span className="truncate text-sm font-medium">Total Products</span>
+          </div>
+          <p className="text-2xl font-bold mt-2 tabular-nums">{stats.totalProducts}</p>
+        </Card>
+        <Card className="min-w-0 p-4">
+          <div className="flex items-center gap-2">
+            <TrendingDown className="h-4 w-4 shrink-0 text-red-500" />
+            <span className="truncate text-sm font-medium">Low Stock Items</span>
+          </div>
+          <p className="text-2xl font-bold mt-2 tabular-nums">{stats.lowStock}</p>
+        </Card>
+        <Card className="min-w-0 p-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 shrink-0 text-green-500" />
+            <span className="truncate text-sm font-medium">Over Stock Items</span>
+          </div>
+          <p className="text-2xl font-bold mt-2 tabular-nums">{stats.overStock}</p>
+        </Card>
+        <Card className="min-w-0 p-4">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+            <span className="truncate text-sm font-medium">Total Value</span>
+          </div>
+          <p className="truncate text-xl font-bold mt-2 tabular-nums sm:text-2xl">${stats.totalValue.toFixed(2)}</p>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="lg:col-span-2">
-          <Card className="p-6">
+        <div className="min-w-0 lg:col-span-2">
+          {isLoading ? null : (
+            <div className="space-y-2 md:hidden">
+              {filteredStockLevels.length === 0 ? (
+                <Card className="p-6 text-center text-sm text-muted-foreground">No products found</Card>
+              ) : (
+                filteredStockLevels.map((product) => (
+                  <Link
+                    key={product.id}
+                    href={path(`/dashboard/products/${product.id}`)}
+                    className="block rounded-lg border bg-card p-3 active:bg-muted/50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{product.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {product.sku || '—'} · {product._count.Inventory} transactions
+                        </p>
+                      </div>
+                      <Badge
+                        className="shrink-0"
+                        variant={
+                          product.stockStatus.isLowStock
+                            ? "destructive"
+                            : product.stockStatus.isOverStock
+                            ? "outline"
+                            : "default"
+                        }
+                      >
+                        {product.stockStatus.isLowStock
+                          ? "Low Stock"
+                          : product.stockStatus.isOverStock
+                          ? "Over Stock"
+                          : "In Stock"}
+                      </Badge>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-sm tabular-nums">
+                      <span>Qty {product.quantity} × ${(product.price ?? 0).toFixed(2)}</span>
+                      <span className="font-medium">${(product.quantity * (product.price ?? 0)).toFixed(2)}</span>
+                    </div>
+                  </Link>
+                ))
+              )}
+            </div>
+          )}
+          <Card className={isLoading ? "p-6" : "hidden p-6 md:block"}>
             {isLoading ? (
               <FullTableSkeleton columnCount={7} rowCount={6} className="border-0" />
             ) : (

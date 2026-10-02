@@ -29,7 +29,7 @@ export function NotificationsSection({ onChange }: NotificationsSectionProps) {
           <CardTitle>Email Notifications</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label>Enable Email Notifications</Label>
             <Switch 
               checked={settings?.notifications?.email?.enabled}
@@ -39,7 +39,7 @@ export function NotificationsSection({ onChange }: NotificationsSectionProps) {
           {settings?.notifications?.email?.enabled && (
             <div className="ml-6 space-y-2">
               {Object.entries(settings?.notifications?.email?.templates || {}).map(([key, enabled]) => (
-                <div key={key} className="flex items-center justify-between">
+                <div key={key} className="flex items-center justify-between gap-4">
                   <Label className="capitalize">{key.replace(/([A-Z])/g, ' $1')}</Label>
                   <Switch 
                     checked={enabled}
@@ -59,7 +59,7 @@ export function NotificationsSection({ onChange }: NotificationsSectionProps) {
           <CardTitle>In-App Notifications</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <Label>Enable In-App Notifications</Label>
             <Switch 
               checked={settings?.notifications?.inApp?.enabled}
@@ -69,7 +69,7 @@ export function NotificationsSection({ onChange }: NotificationsSectionProps) {
           {settings?.notifications?.inApp?.enabled && (
             <div className="ml-6 space-y-2">
               {Object.entries(settings?.notifications?.inApp?.categories || {}).map(([key, enabled]) => (
-                <div key={key} className="flex items-center justify-between">
+                <div key={key} className="flex items-center justify-between gap-4">
                   <Label className="capitalize">{key}</Label>
                   <Switch 
                     checked={enabled}

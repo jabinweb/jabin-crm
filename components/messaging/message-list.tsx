@@ -265,7 +265,7 @@ function MessageRow({
           </button>
         ) : null}
 
-        <div className="text-sm leading-relaxed">
+        <div className="text-sm leading-relaxed [overflow-wrap:anywhere]">
           {deleted ? (
             <span className="italic text-muted-foreground">This message was deleted</span>
           ) : (

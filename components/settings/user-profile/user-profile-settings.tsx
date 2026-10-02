@@ -24,7 +24,7 @@ export default function UserProfileSettings() {
   }
 
   return (
-    <div className="flex-1 space-y-6 pb-8">
+    <div className="min-w-0 flex-1 space-y-6 pb-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Personal CRM settings</h1>
         <p className="text-sm text-muted-foreground">
@@ -43,7 +43,7 @@ export default function UserProfileSettings() {
       </Alert>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto no-scrollbar">
           <TabsTrigger value="profile" className="gap-2">
             <Building className="h-4 w-4" />
             <span className="hidden sm:inline">Business</span>

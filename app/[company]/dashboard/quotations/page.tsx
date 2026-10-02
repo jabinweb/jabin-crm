@@ -102,8 +102,8 @@ export default function QuotationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl md:text-3xl font-bold">Quotations</h1>
           <p className="text-sm md:text-base text-gray-500">Manage your quotations and proposals</p>
         </div>
@@ -130,7 +130,38 @@ export default function QuotationsPage() {
               actionHref={path("/dashboard/quotations/new")}
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {quotations.map((quotation) => (
+                <button
+                  key={quotation.id}
+                  type="button"
+                  className="block w-full space-y-1 p-3 text-left active:bg-muted/50"
+                  onClick={() =>
+                    router.push(path(`/dashboard/quotations/${quotation.id}`))
+                  }
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{quotation.title}</p>
+                      <p className="truncate text-xs text-gray-500">
+                        <span className="font-mono">{quotation.quotationNumber}</span> · {quotation.customerName}
+                      </p>
+                    </div>
+                    <span className="shrink-0">{getStatusBadge(quotation.status)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="tabular-nums font-medium">
+                      {formatCurrency(quotation.total, quotation.currency as any)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(quotation.validUntil).toLocaleDateString()}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -190,6 +221,7 @@ export default function QuotationsPage() {
               </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

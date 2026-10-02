@@ -96,8 +96,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold mb-2">Analytics Dashboard</h1>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold mb-2 sm:text-3xl">Analytics Dashboard</h1>
         <p className="text-gray-500">Track your sales performance and email engagement</p>
       </div>
 
@@ -109,14 +109,14 @@ export default function AnalyticsPage() {
 
         <TabsContent value="pipeline" className="space-y-6">
           {/* Pipeline Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Pipeline</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Total Pipeline</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {formatCurrency(pipelineData?.summary.totalPipelineValue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -127,11 +127,11 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Weighted Pipeline</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Weighted Pipeline</CardTitle>
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {formatCurrency(pipelineData?.summary.weightedPipelineValue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -142,11 +142,11 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Win Rate</CardTitle>
                 <Award className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {pipelineData?.summary.winRate.toFixed(1) || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -157,11 +157,11 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Won Revenue</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Won Revenue</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {formatCurrency(pipelineData?.summary.wonValue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -232,14 +232,14 @@ export default function AnalyticsPage() {
 
         <TabsContent value="email" className="space-y-6">
           {/* Email Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Emails Sent</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Emails Sent</CardTitle>
                 <Mail className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {emailData?.summary.totalSent || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -250,11 +250,11 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Open Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Open Rate</CardTitle>
                 <Mail className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {emailData?.summary.openRate || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -265,11 +265,11 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Click Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Click Rate</CardTitle>
                 <MousePointer className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {emailData?.summary.clickRate || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -280,11 +280,11 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Reply Rate</CardTitle>
+                <CardTitle className="truncate text-sm font-medium">Reply Rate</CardTitle>
                 <Reply className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="break-words text-xl font-bold tabular-nums sm:text-2xl">
                   {emailData?.summary.replyRate || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -328,15 +328,15 @@ export default function AnalyticsPage() {
                   <p className="text-center text-gray-500 py-8">No active sequences yet</p>
                 ) : (
                   emailData?.sequencePerformance.map((seq) => (
-                    <div key={seq.sequenceId} className="flex items-center justify-between p-4 border rounded-none">
-                      <div className="flex-1">
-                        <h3 className="font-medium">{seq.name}</h3>
+                    <div key={seq.sequenceId} className="flex items-center justify-between gap-3 p-3 border rounded-none sm:p-4">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="break-words font-medium">{seq.name}</h3>
                         <p className="text-sm text-gray-500">
                           {seq.totalEnrollments} enrollments • {seq.active} active • {seq.completed} completed
                         </p>
                       </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-purple-600">
+                      <div className="shrink-0 text-right">
+                        <div className="text-xl font-bold text-purple-600 sm:text-2xl">
                           {seq.completionRate.toFixed(1)}%
                         </div>
                         <p className="text-xs text-gray-500">Completion rate</p>

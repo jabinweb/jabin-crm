@@ -111,16 +111,16 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-5">
+    <div className="mx-auto w-full max-w-lg space-y-5 lg:mx-0 lg:max-w-3xl">
       <EssPageHeader
         title="Attendance"
         subtitle={format(new Date(), 'EEEE, d MMMM')}
       />
 
       <Card className="shadow-none overflow-hidden">
-        <CardContent className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
+        <CardContent className="p-4 space-y-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Status</p>
               <p className="text-lg font-semibold">
                 {todayLoading
@@ -140,7 +140,7 @@ export default function AttendancePage() {
                 </p>
               ) : null}
             </div>
-            <Badge variant={punchedIn ? 'default' : 'secondary'}>
+            <Badge variant={punchedIn ? 'default' : 'secondary'} className="shrink-0">
               {today?.status || '—'}
             </Badge>
           </div>
@@ -168,7 +168,7 @@ export default function AttendancePage() {
         </CardContent>
       </Card>
 
-      <section className="space-y-2">
+      <section className="space-y-2 lg:max-w-lg">
         <h2 className="text-sm font-semibold">{format(month, 'MMMM yyyy')}</h2>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>

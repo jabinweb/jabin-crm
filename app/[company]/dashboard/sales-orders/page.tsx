@@ -225,7 +225,7 @@ export default function SalesOrdersPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Sales orders</h1>
           <p className="text-sm text-muted-foreground">Track outbound sales orders with line items.</p>
         </div>
@@ -259,44 +259,44 @@ export default function SalesOrdersPage() {
       </div>
 
       {reportEnabled && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total SOs</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Total SOs</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold">
+              <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
                 {isLoading ? '—' : (report?.count ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Open</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Open</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold">
+              <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
                 {isLoading ? '—' : (report?.openCount ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">Revenue</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-semibold">
+              <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
                 {isLoading ? '—' : (report?.totalRevenue ?? 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">By status</CardTitle>
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">By status</CardTitle>
             </CardHeader>
             <CardContent>
               {isLoading || !report?.byStatus ? (
-                <div className="text-2xl font-semibold">—</div>
+                <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">—</div>
               ) : (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
                   {Object.entries(report.byStatus).map(([s, n]) => (
@@ -316,7 +316,7 @@ export default function SalesOrdersPage() {
           <CardTitle className="text-base">New sales order</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2 max-w-xs">
+          <div className="space-y-2 sm:max-w-xs">
             <Label>Status</Label>
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger>
@@ -345,7 +345,84 @@ export default function SalesOrdersPage() {
                 Add row
               </Button>
             </div>
-            <div className="rounded-md border">
+            <div className="space-y-3 md:hidden">
+              {lineItems.map((row) => {
+                const q = Number(row.quantity);
+                const p = Number(row.unitPrice);
+                const lineTotal =
+                  q > 0 && !Number.isNaN(p) && p >= 0 ? q * p : 0;
+                return (
+                  <div key={row.key} className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <Label className="text-xs text-muted-foreground">Product</Label>
+                        <Select
+                          value={row.productId}
+                          onValueChange={(productId) => {
+                            const product = products.find((p) => p.id === productId);
+                            updateLine(row.key, {
+                              productId,
+                              unitPrice: product ? String(product.price ?? 0) : row.unitPrice,
+                            });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name}
+                                {p.sku ? ` (${p.sku})` : ''}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="mt-5 h-10 w-10 shrink-0"
+                        disabled={lineItems.length <= 1}
+                        onClick={() =>
+                          setLineItems((prev) => prev.filter((r) => r.key !== row.key))
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Qty</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={row.quantity}
+                          onChange={(e) => updateLine(row.key, { quantity: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Unit price</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={row.unitPrice}
+                          onChange={(e) => updateLine(row.key, { unitPrice: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Line total</span>
+                      <span className="tabular-nums">{lineTotal.toLocaleString()}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="hidden rounded-md border md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -433,7 +510,7 @@ export default function SalesOrdersPage() {
             </div>
           </div>
 
-          <Button disabled={!canCreate} onClick={() => createMutation.mutate()}>
+          <Button className="w-full sm:w-auto" disabled={!canCreate} onClick={() => createMutation.mutate()}>
             {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Create SO
           </Button>
@@ -488,6 +565,46 @@ export default function SalesOrdersPage() {
                 description="Create a sales order above."
               />
             ) : (
+              <>
+              <div className="divide-y rounded-md border md:hidden">
+                {orders.map((o) => {
+                  const currentStatus = optimistic[o.id] ?? o.status;
+                  const statusOptions = baseColumns.length
+                    ? baseColumns.map((c) => c.id)
+                    : ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
+                  return (
+                    <div key={o.id} className="flex items-center justify-between gap-3 p-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{o.orderNumber}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          <span className="tabular-nums">{o.totalAmount.toLocaleString()}</span> ·{' '}
+                          {Array.isArray(o.lineItems) ? `${o.lineItems.length} lines` : '—'} ·{' '}
+                          {new Date(o.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Select
+                        value={currentStatus}
+                        disabled={o.status === 'DELIVERED'}
+                        onValueChange={(next) => {
+                          void onBoardMove(o.id, next, currentStatus);
+                        }}
+                      >
+                        <SelectTrigger className="h-10 w-36 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -539,6 +656,8 @@ export default function SalesOrdersPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
+              </>
             )}
           </CardContent>
         </Card>

@@ -31,7 +31,7 @@ export function TrustSection() {
 
   return (
     <section id="trust" className="border-t border-[var(--lp-line)] bg-[var(--lp-bg)]">
-      <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
+      <div className="mx-auto max-w-6xl px-5 sm:px-6 py-14 sm:py-20 md:py-24">
         <div className="max-w-2xl mb-10">
           <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--lp-accent)] mb-3">
             Trust

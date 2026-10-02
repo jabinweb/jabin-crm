@@ -7,7 +7,7 @@ export default function DashboardLoading() {
   const show = useDelayedLoading(true, 180)
   if (!show) return null
   return (
-    <div className="space-y-6 p-1">
+    <div className="space-y-6">
       <PageHeaderSkeleton />
       <StatCardsSkeleton />
       <SectionSkeleton lines={8} />

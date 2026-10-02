@@ -9,6 +9,7 @@ import { Menu, Bell, Search, Settings, LogOut, LayoutDashboard, ChevronDown } fr
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { PortalSidebar } from '@/components/layout/portal-sidebar';
+import { PortalTabBar } from '@/components/portal/portal-tab-bar';
 import { Input } from '@/components/ui/input';
 import { signOut } from 'next-auth/react';
 import { Toaster } from '@/components/ui/toaster';
@@ -39,7 +40,7 @@ function PortalLiveChat() {
         }
     }, [session?.user?.companyId, session?.user?.role]);
 
-    return <LiveChatWidget companyId={companyId} />;
+    return <LiveChatWidget companyId={companyId} aboveTabBar />;
 }
 
 function notificationHref(metadata: unknown): string | null {
@@ -285,16 +286,19 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
+        <div className="h-[100dvh] bg-slate-50 dark:bg-slate-950 flex overflow-hidden">
             {/* Desktop Sidebar */}
-            <aside className="hidden lg:block h-screen sticky top-0 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 shadow-none z-30">
+            <aside className="hidden lg:block h-full sticky top-0 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 shadow-none z-30">
                 <PortalSidebar />
             </aside>
 
             {/* Main Wrapper */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden">
                 {/* Top Navbar */}
-                <header className="h-16 border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-6 lg:px-8 flex items-center justify-between sticky top-0 z-20">
+                <header
+                    className="min-h-[4rem] shrink-0 border-b border-slate-100 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md px-3 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-20"
+                    style={{ paddingTop: 'env(safe-area-inset-top)' }}
+                >
                     <div className="flex items-center gap-3">
                         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
                             <SheetTrigger asChild>
@@ -302,7 +306,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                                     <Menu className="h-5 w-5" />
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="left" className="p-0 w-64" srOnlyTitle="Navigation menu">
+                            <SheetContent
+                                side="left"
+                                className="p-0 w-64"
+                                style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                                srOnlyTitle="Navigation menu"
+                            >
                                 <PortalSidebar onNavigate={() => setSidebarOpen(false)} />
                             </SheetContent>
                         </Sheet>
@@ -325,12 +334,19 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                         </form>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
+                        <Link
+                            href="/portal/search"
+                            className="md:hidden h-10 w-10 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800"
+                            aria-label="Search"
+                        >
+                            <Search className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                        </Link>
                         {/* Notification Bell */}
                         <div className="relative" ref={notifRef}>
                             <button
                                 onClick={() => setNotifOpen(v => !v)}
-                                className="relative h-9 w-9 flex items-center justify-center rounded-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                className="relative h-10 w-10 flex items-center justify-center rounded-none hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                 aria-label="Notifications"
                             >
                                 <Bell className="h-5 w-5 text-slate-600 dark:text-slate-400" />
@@ -347,11 +363,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 </header>
 
                 {/* Page Content — same horizontal padding as header; full width of main pane */}
-                <main className="flex-1 overflow-y-auto">
-                    <div className="w-full p-6 lg:p-8">
+                <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                    <div className="w-full px-4 py-4 sm:p-6 lg:p-8">
                         {children}
                     </div>
                 </main>
+                <PortalTabBar onMore={() => setSidebarOpen(true)} moreOpen={sidebarOpen} />
             </div>
 
             <Toaster />

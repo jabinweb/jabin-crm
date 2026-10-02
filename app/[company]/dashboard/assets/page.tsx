@@ -173,10 +173,23 @@ export default function AssetsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const confirmDeleteAsset = async (id: string) => {
+    if (
+      !(await confirmAction({
+        title: 'Delete this asset?',
+        description: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        variant: 'destructive',
+      }))
+    )
+      return;
+    deleteMutation.mutate(id);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Assets</h1>
           <p className="text-sm text-muted-foreground">
             Internal fixed-asset register. Installed customer equipment lives on{' '}
@@ -210,7 +223,46 @@ export default function AssetsPage() {
               onAction={openCreate}
             />
           ) : (
-            <div className="rounded-md border overflow-x-auto">
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {assets.map((a) => (
+                <div key={a.id} className="flex items-start justify-between gap-2 p-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{a.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {a.type} · {new Date(a.purchaseDate).toLocaleDateString()}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground tabular-nums">
+                      Value {a.value.toLocaleString()} · Depreciation {a.depreciation.toLocaleString()}
+                    </p>
+                    {a.equipmentInstallation ? (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {[
+                          a.equipmentInstallation.product?.name,
+                          a.equipmentInstallation.serialNumber,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button variant="ghost" size="sm" className="h-10" onClick={() => openEdit(a)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10"
+                      onClick={() => confirmDeleteAsset(a.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="hidden rounded-md border overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -248,18 +300,7 @@ export default function AssetsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={async () => {
-                            if (
-                              !(await confirmAction({
-                                title: 'Delete this asset?',
-                                description: 'This cannot be undone.',
-                                confirmLabel: 'Delete',
-                                variant: 'destructive',
-                              }))
-                            )
-                              return;
-                            deleteMutation.mutate(a.id);
-                          }}
+                          onClick={() => confirmDeleteAsset(a.id)}
                         >
                           Delete
                         </Button>
@@ -269,6 +310,7 @@ export default function AssetsPage() {
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>

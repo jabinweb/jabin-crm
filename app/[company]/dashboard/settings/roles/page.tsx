@@ -64,7 +64,7 @@ export default function RolesPermissionsPage() {
   const permissions = data?.permissions || [];
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="min-w-0 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Roles & permissions</h1>
         <p className="text-sm text-muted-foreground">
@@ -72,7 +72,7 @@ export default function RolesPermissionsPage() {
         </p>
       </div>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="text-base">Permission matrix</CardTitle>
           <CardDescription>Catalog permissions granted to each workspace role.</CardDescription>
@@ -118,7 +118,7 @@ export default function RolesPermissionsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="text-base">Teammates</CardTitle>
           <CardDescription>Change role for workspace members.</CardDescription>
@@ -140,7 +140,7 @@ export default function RolesPermissionsPage() {
                 {(data?.members || []).map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>{m.name || '—'}</TableCell>
-                    <TableCell>{m.email}</TableCell>
+                    <TableCell className="break-all">{m.email}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{m.userStatus}</Badge>
                     </TableCell>

@@ -128,6 +128,7 @@ export default function HolidaysAdminPage() {
             </div>
           </div>
           <Button
+            className="w-full sm:w-auto"
             disabled={
               !name.trim() || !date || createMutation.isPending
             }
@@ -161,8 +162,8 @@ export default function HolidaysAdminPage() {
                   key={h.id}
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <div>
-                    <p className="font-medium">{h.name}</p>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{h.name}</p>
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(h.date), 'EEE, d MMM yyyy')} · {h.type}
                     </p>
@@ -170,6 +171,7 @@ export default function HolidaysAdminPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="shrink-0"
                     disabled={deleteMutation.isPending}
                     onClick={() => deleteMutation.mutate(h.id)}
                   >

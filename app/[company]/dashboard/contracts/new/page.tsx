@@ -136,7 +136,7 @@ export default function NewContractPage() {
   };
 
   return (
-    <div className="container max-w-lg py-8 space-y-6">
+    <div className="max-w-lg space-y-6">
       <Button variant="ghost" size="sm" asChild>
         <Link href={path('/dashboard/contracts')}>
           <ChevronLeft className="h-4 w-4 mr-2" />
@@ -146,7 +146,7 @@ export default function NewContractPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>New AMC / CMC contract</CardTitle>
+          <CardTitle><h1>New AMC / CMC contract</h1></CardTitle>
           <CardDescription>
             AMC covers labour/visits; CMC usually includes parts.
           </CardDescription>
@@ -227,7 +227,7 @@ export default function NewContractPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="startDate">Start *</Label>
                 <Input
@@ -254,7 +254,7 @@ export default function NewContractPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="annualValue">Annual value</Label>
                 <Input

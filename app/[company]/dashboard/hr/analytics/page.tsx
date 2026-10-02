@@ -48,16 +48,16 @@ export default function HrAnalyticsPage() {
         <h1 className="text-2xl font-semibold">HR analytics</h1>
         <p className="text-sm text-muted-foreground">Operational snapshot for People ops.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {tiles.map((t) => (
-          <Card key={t.label}>
+          <Card key={t.label} className="min-w-0">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="truncate text-sm font-medium text-muted-foreground">
                 {t.label}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-semibold">{t.value ?? '—'}</p>
+              <p className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{t.value ?? '—'}</p>
             </CardContent>
           </Card>
         ))}

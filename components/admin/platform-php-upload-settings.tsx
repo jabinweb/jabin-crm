@@ -129,7 +129,7 @@ export function PlatformPhpUploadSettings() {
                 )}
               </Label>
               <div className="flex gap-2">
-                <div className="relative flex-1">
+                <div className="relative min-w-0 flex-1">
                   <Input
                     id="php-upload-password"
                     type={showPassword ? 'text' : 'password'}
@@ -161,7 +161,7 @@ export function PlatformPhpUploadSettings() {
                 <>
                   {' '}
                   (save once to pin{' '}
-                  <code className="text-xs">{defaultUrl}</code> in the DB)
+                  <code className="text-xs break-all">{defaultUrl}</code> in the DB)
                 </>
               ) : null}
               . Password is never returned to the browser after save.

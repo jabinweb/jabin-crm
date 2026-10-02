@@ -1252,7 +1252,7 @@ export default function WhatsAppHubPage() {
         : 'All chats';
 
   return (
-    <div className="flex h-[calc(100dvh-7.5rem)] min-h-0 flex-col gap-2 sm:h-[calc(100dvh-5.5rem)] sm:min-h-[480px]">
+    <div className="flex h-[calc(100dvh-10.25rem)] min-h-0 flex-col gap-2 sm:h-[calc(100dvh-10.75rem)] sm:min-h-[480px] lg:h-[calc(100dvh-7.25rem)]">
       {/* Header */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div className="min-w-0">

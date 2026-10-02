@@ -119,7 +119,7 @@ function SignInForm() {
             </h2>
             <p className="text-sm leading-relaxed text-[var(--lp-muted)]">
               We sent a sign-in link to{' '}
-              <span className="font-medium text-[var(--lp-ink)]">{email}</span>. Click the link to
+              <span className="break-all font-medium text-[var(--lp-ink)]">{email}</span>. Click the link to
               continue — it expires in 24 hours.
             </p>
           </div>
@@ -233,7 +233,7 @@ function SignInForm() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-slate-400 hover:text-slate-600"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -243,7 +243,7 @@ function SignInForm() {
               <div className="flex items-center justify-between">
                 <Link
                   href="/auth/forgot-password"
-                  className="text-xs text-[var(--lp-muted)] hover:text-[var(--lp-accent-deep)] hover:underline"
+                  className="py-1 text-xs text-[var(--lp-muted)] hover:text-[var(--lp-accent-deep)] hover:underline"
                 >
                   Forgot password?
                 </Link>

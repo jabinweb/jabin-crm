@@ -96,14 +96,14 @@ export default function SequencesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Email Sequences</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold sm:text-3xl">Email Sequences</h1>
           <p className="text-muted-foreground">
             Automate your email outreach with multi-step sequences
           </p>
         </div>
-        <DashboardLink href="/dashboard/sequences/new">
+        <DashboardLink href="/dashboard/sequences/new" className="self-start sm:self-auto">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
             Create Sequence
@@ -128,14 +128,14 @@ export default function SequencesPage() {
           {sequences.map((sequence) => (
             <Card key={sequence.id} className="hover:shadow-none transition-shadow">
               <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{sequence.name}</CardTitle>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <CardTitle className="break-words text-lg">{sequence.name}</CardTitle>
                     <CardDescription className="mt-1 line-clamp-2">
                       {sequence.description || 'No description'}
                     </CardDescription>
                   </div>
-                  <Badge variant={sequence.isActive ? 'default' : 'secondary'}>
+                  <Badge variant={sequence.isActive ? 'default' : 'secondary'} className="shrink-0">
                     {sequence.isActive ? 'Active' : 'Paused'}
                   </Badge>
                 </div>
@@ -166,6 +166,7 @@ export default function SequencesPage() {
                     <Button
                       variant={sequence.isActive ? 'secondary' : 'default'}
                       size="sm"
+                      className="h-10 w-10 shrink-0 px-0 sm:h-9 sm:w-auto sm:px-3"
                       onClick={() => toggleSequence(sequence.id, sequence.isActive)}
                     >
                       {sequence.isActive ? (

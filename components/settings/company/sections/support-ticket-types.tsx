@@ -324,14 +324,14 @@ export function SupportTicketTypesSection({
               placeholder="+1 555 0100"
             />
           </div>
-          <div className="flex items-center justify-between rounded-md border p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
             <Label>Live chat</Label>
             <Switch
               checked={support.channels?.chat === true}
               onCheckedChange={(checked) => updateChannel('chat', checked)}
             />
           </div>
-          <div className="flex items-center justify-between rounded-md border p-3">
+          <div className="flex items-center justify-between gap-3 rounded-md border p-3">
             <Label>WhatsApp</Label>
             <Switch
               checked={support.channels?.whatsApp === true}

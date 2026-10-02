@@ -69,8 +69,8 @@ export default function PortalProjectsPage() {
               <Card className="h-full transition-colors hover:bg-muted/40">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{p.name}</CardTitle>
-                    <Badge variant="secondary">{p.status}</Badge>
+                    <CardTitle className="text-base min-w-0 break-words">{p.name}</CardTitle>
+                    <Badge variant="secondary" className="shrink-0">{p.status}</Badge>
                   </div>
                   {p.description && (
                     <p className="text-sm text-muted-foreground line-clamp-2">
@@ -90,7 +90,7 @@ export default function PortalProjectsPage() {
                     {p.milestones.slice(0, 4).map((m) => (
                       <li
                         key={m.id}
-                        className="flex items-center justify-between text-sm"
+                        className="flex items-center justify-between gap-2 text-sm"
                       >
                         <span
                           className={
@@ -101,7 +101,7 @@ export default function PortalProjectsPage() {
                         >
                           {m.title}
                         </span>
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="shrink-0 text-[10px]">
                           {m.status.replace('_', ' ')}
                         </Badge>
                       </li>

@@ -60,7 +60,7 @@ function ErrorContent() {
         </div>
 
         {process.env.NODE_ENV === 'development' && (
-          <pre className="rounded-lg bg-slate-50 p-3 text-xs text-[var(--lp-muted)] overflow-auto">
+          <pre className="whitespace-pre-wrap break-all rounded-lg bg-slate-50 p-3 text-xs text-[var(--lp-muted)] overflow-auto">
             {JSON.stringify({ error, params: Object.fromEntries(searchParams) }, null, 2)}
           </pre>
         )}

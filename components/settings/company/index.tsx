@@ -106,7 +106,7 @@ function CompanySettingsContent() {
         .
       </p>
       <Tabs defaultValue="basic" className="space-y-4">
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 overflow-x-auto sm:flex-nowrap">
+        <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-auto no-scrollbar">
           <TabsTrigger value="basic" className="shrink-0">Basic Info</TabsTrigger>
           <TabsTrigger value="workspace" className="shrink-0">Business</TabsTrigger>
           <TabsTrigger value="customization" className="shrink-0">Customization</TabsTrigger>

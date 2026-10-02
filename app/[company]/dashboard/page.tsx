@@ -190,9 +190,9 @@ export default function WorkspaceDashboardPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div className="flex flex-col gap-4 sm:gap-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {setupActive
@@ -203,7 +203,7 @@ export default function WorkspaceDashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isAgency ? (
             <Button asChild size="sm">
               <Link href={path('/dashboard/projects')}>
@@ -286,7 +286,10 @@ export default function WorkspaceDashboardPage() {
       <WorkspaceSetupPendingBanner />
       <GettingStartedChecklist />
 
-      <ModuleHubCards compact={setupActive} />
+      {/* Phones: modules sit below the day's numbers (the tab bar + menu already navigate) */}
+      <div className="order-1 empty:hidden lg:order-none">
+        <ModuleHubCards compact={setupActive} />
+      </div>
 
       <DailyEntryBanner
         loading={opsLoading}
@@ -300,7 +303,7 @@ export default function WorkspaceDashboardPage() {
         name={opsToday?.me?.name}
         attendance={opsToday?.attendance}
       />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {supportLoading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
@@ -314,15 +317,17 @@ export default function WorkspaceDashboardPage() {
           <>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription className="flex items-center gap-1.5">
-                  <Ticket className="h-3.5 w-3.5" />
-                  {showOpenWorkOrdersWidget
-                    ? 'Open work orders'
-                    : showDeliveryExceptionsWidget
-                      ? 'Open delivery / ops tickets'
-                      : `Open ${ticketsLabel.toLowerCase()}`}
+                <CardDescription className="flex min-w-0 items-center gap-1.5">
+                  <Ticket className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">
+                    {showOpenWorkOrdersWidget
+                      ? 'Open work orders'
+                      : showDeliveryExceptionsWidget
+                        ? 'Open delivery / ops tickets'
+                        : `Open ${ticketsLabel.toLowerCase()}`}
+                  </span>
                 </CardDescription>
-                <CardTitle className="text-3xl font-semibold tabular-nums">
+                <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums">
                   {supportStats?.summary?.openTickets ?? stats?.openTickets ?? 0}
                 </CardTitle>
               </CardHeader>
@@ -335,10 +340,10 @@ export default function WorkspaceDashboardPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
-                  SLA on track
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">SLA on track</span>
                 </CardDescription>
-                <CardTitle className="text-3xl font-semibold tabular-nums">
+                <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums">
                   {supportStats?.sla?.complianceRate != null
                     ? `${supportStats.sla.complianceRate}%`
                     : '—'}
@@ -352,7 +357,7 @@ export default function WorkspaceDashboardPage() {
                   <AlertTriangle className="h-3.5 w-3.5" />
                   At risk
                 </CardDescription>
-                <CardTitle className="text-3xl font-semibold tabular-nums text-amber-700">
+                <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums text-amber-700">
                   {supportStats?.sla?.atRisk ?? 0}
                 </CardTitle>
               </CardHeader>
@@ -363,7 +368,7 @@ export default function WorkspaceDashboardPage() {
                 <CardDescription className="flex items-center gap-1.5 text-destructive">
                   Breached
                 </CardDescription>
-                <CardTitle className="text-3xl font-semibold tabular-nums text-destructive">
+                <CardTitle className="text-2xl sm:text-3xl font-semibold tabular-nums text-destructive">
                   {supportStats?.sla?.breached ?? 0}
                 </CardTitle>
               </CardHeader>
@@ -373,7 +378,7 @@ export default function WorkspaceDashboardPage() {
       </div>
 
       {statsLoading ? (
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
@@ -403,16 +408,16 @@ export default function WorkspaceDashboardPage() {
       )}
 
       {showLowStockWidget && (inventoryAlerts?.lowStock?.length ?? 0) > 0 && (
-        <Card className="border-amber-200/80">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
+        <Card className="order-2 border-amber-200/80 lg:order-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+            <div className="min-w-0">
               <CardTitle className="text-base flex items-center gap-2">
                 <TrendingDown className="h-4 w-4 text-amber-700" />
                 Low stock
               </CardTitle>
               <CardDescription>Products at or below minimum quantity</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" className="shrink-0" asChild>
               <Link href={path('/dashboard/inventory')}>Inventory</Link>
             </Button>
           </CardHeader>
@@ -441,9 +446,9 @@ export default function WorkspaceDashboardPage() {
       )}
 
       {showRenewalsWidget && (renewalsData?.count ?? 0) > 0 && (
-        <Card className="border-amber-200/80">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
+        <Card className="order-2 border-amber-200/80 lg:order-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+            <div className="min-w-0">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-4 w-4 text-amber-700" />
                 Contract renewals
@@ -452,7 +457,7 @@ export default function WorkspaceDashboardPage() {
                 Coverage ending within 60 days or already overdue
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" className="shrink-0" asChild>
               <Link href={path('/dashboard/contracts')}>All contracts</Link>
             </Button>
           </CardHeader>
@@ -506,16 +511,17 @@ export default function WorkspaceDashboardPage() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="order-2 grid gap-4 sm:gap-6 lg:order-none lg:grid-cols-2 [&>*]:min-w-0">
         <LeadsChart />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
+        {/* Phones: recent work comes before the chart */}
+        <Card className="order-first lg:order-none">
+          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+            <div className="min-w-0">
               <CardTitle className="text-base">Recent {ticketsLabel.toLowerCase()}</CardTitle>
               <CardDescription>Latest requests in this workspace</CardDescription>
             </div>
-            <Button variant="ghost" size="sm" asChild>
+            <Button variant="ghost" size="sm" className="shrink-0" asChild>
               <Link href={path('/dashboard/tickets')}>View all</Link>
             </Button>
           </CardHeader>

@@ -43,6 +43,7 @@ export default function HrPoliciesPage() {
           </div>
           <div className="flex items-end">
             <Button
+              className="w-full sm:w-auto"
               disabled={!title || !fileUrl}
               onClick={async () => {
                 const res = await fetch('/api/hr/policies', {
@@ -65,14 +66,14 @@ export default function HrPoliciesPage() {
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="space-y-2 pt-6">
+        <CardContent className="space-y-2 pt-4 sm:pt-6">
           {docs.map((d) => (
-            <div key={d.id} className="flex justify-between rounded-lg border p-3">
-              <div>
-                <p className="font-medium">{d.title}</p>
+            <div key={d.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{d.title}</p>
                 <p className="text-xs text-muted-foreground">{d.category}</p>
               </div>
-              <a className="text-sm underline" href={d.fileUrl} target="_blank" rel="noreferrer">
+              <a className="shrink-0 py-2 text-sm underline" href={d.fileUrl} target="_blank" rel="noreferrer">
                 Open
               </a>
             </div>

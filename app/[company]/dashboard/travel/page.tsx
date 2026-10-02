@@ -60,8 +60,8 @@ export default function TravelAdminPage() {
               key={r.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
             >
-              <div>
-                <p className="font-medium">
+              <div className="min-w-0">
+                <p className="break-words font-medium">
                   {r.purpose}{' '}
                   <span className="text-xs text-muted-foreground">
                     ({r.employee?.name} · {r.employee?.employeeId})
@@ -73,7 +73,7 @@ export default function TravelAdminPage() {
                   {Number(r.estimate).toLocaleString('en-IN')}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge>{r.status}</Badge>
                 {r.status === 'PENDING' && (
                   <>

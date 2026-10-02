@@ -33,7 +33,7 @@ function WarrantyCard({ installation }: { installation: any }) {
         <Card className={`border ${ws.borderColor} bg-white dark:bg-slate-900 shadow-none hover:shadow-none transition-all group`}>
             <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                         <div className="h-10 w-10 rounded-none bg-blue-600/10 flex items-center justify-center flex-shrink-0">
                             <Wrench className="h-5 w-5 text-blue-600" />
                         </div>
@@ -108,14 +108,14 @@ function WarrantiesContent() {
     const noWarranty = equipment.filter((e: any) => !e.warrantyExpiry);
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="icon" asChild className="rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
+                <div className="flex min-w-0 flex-col items-start gap-2">
+                    <Button variant="ghost" size="icon" asChild className="-ml-3 rounded-none hover:bg-slate-100 dark:hover:bg-slate-800">
                         <Link href="/portal"><ChevronLeft className="h-4 w-4" /></Link>
                     </Button>
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Warranty Overview</h1>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Track warranty status and expiry dates for all installed equipment.</p>
                     </div>
@@ -124,7 +124,7 @@ function WarrantiesContent() {
 
             {/* Summary Cards */}
             {!isLoading && equipment.length > 0 && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {[
                         { label: 'Active', count: active.length, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', Icon: ShieldCheck },
                         { label: 'Expiring Soon', count: expiringSoon.length, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-900/20', Icon: AlertTriangle },
@@ -132,13 +132,13 @@ function WarrantiesContent() {
                         { label: 'No Warranty', count: noWarranty.length, color: 'text-slate-500', bg: 'bg-slate-50 dark:bg-slate-800', Icon: ShieldAlert },
                     ].map(({ label, count, color, bg, Icon }) => (
                         <Card key={label} className="border-none shadow-none bg-white dark:bg-slate-900">
-                            <CardContent className="pt-5 pb-4 flex items-center gap-4">
+                            <CardContent className="pt-5 pb-4 flex items-center gap-3 sm:gap-4">
                                 <div className={`h-10 w-10 rounded-none ${bg} flex items-center justify-center flex-shrink-0`}>
                                     <Icon className={`h-5 w-5 ${color}`} />
                                 </div>
-                                <div>
-                                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{count}</p>
-                                    <p className="text-xs text-slate-500">{label}</p>
+                                <div className="min-w-0">
+                                    <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{count}</p>
+                                    <p className="text-xs text-slate-500 truncate">{label}</p>
                                 </div>
                             </CardContent>
                         </Card>

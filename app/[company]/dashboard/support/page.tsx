@@ -115,7 +115,7 @@ export default function SupportDeskHubPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Support desk</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Support desk</h1>
         <p className="text-muted-foreground mt-1 max-w-2xl">
           Full customer support for every category — SaaS, retail, healthcare, manufacturing, and more.
           Built with Freshdesk-style ticketing, knowledge base, agent tools, and CSAT.
@@ -163,7 +163,7 @@ export default function SupportDeskHubPage() {
       )}
 
       {moduleMap && modules.some((mod) => moduleMap[mod.feature] !== true) && (
-        <p className="text-sm text-muted-foreground flex items-center gap-2">
+        <p className="text-sm text-muted-foreground flex flex-wrap items-center gap-2">
           <Badge variant="secondary">Plan limited</Badge>
           Some support modules are hidden because they are not on your current plan.{' '}
           <Link href={path('/dashboard/settings/subscription')} className="underline underline-offset-2">

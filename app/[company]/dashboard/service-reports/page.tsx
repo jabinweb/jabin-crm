@@ -74,7 +74,7 @@ export default function ServiceReportsPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between border-b pb-6">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Service reports</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Field visit notes and maintenance follow-ups from technicians.
@@ -100,6 +100,31 @@ export default function ServiceReportsPage() {
               className="py-10"
             />
           ) : (
+            <>
+            <div className="divide-y rounded-md border md:hidden">
+              {reports.map((r) => (
+                <Link
+                  key={r.id}
+                  href={path(`/dashboard/tickets/${r.ticket.id}`)}
+                  className="block space-y-1 p-3 hover:bg-muted/40"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 truncate text-sm font-medium">{r.ticket.subject}</p>
+                    <Badge variant={statusVariant(r.ticket.status)} className="shrink-0">
+                      {r.ticket.status.replaceAll('_', ' ')}
+                    </Badge>
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {r.ticket.customer.organizationName} · {r.technician.name || r.technician.email || '—'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDate(r.createdAt)}
+                    {r.nextMaintenanceDate ? ` · Next: ${formatDate(r.nextMaintenanceDate)}` : ''}
+                  </p>
+                </Link>
+              ))}
+            </div>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -153,6 +178,8 @@ export default function ServiceReportsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
+            </>
           )}
         </CardContent>
       </Card>

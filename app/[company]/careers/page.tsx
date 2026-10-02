@@ -47,7 +47,7 @@ export default function CareersPage() {
   })
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8 px-4 py-12">
+    <div className="mx-auto max-w-3xl space-y-8 px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-12">
       <div>
         <p className="text-sm text-muted-foreground">Careers</p>
         <h1 className="text-3xl font-semibold tracking-tight">

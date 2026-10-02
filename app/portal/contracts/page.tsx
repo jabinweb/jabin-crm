@@ -64,8 +64,8 @@ function ContractsList() {
               <Card className="h-full transition-colors hover:bg-muted/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base">{c.title}</CardTitle>
-                    <Badge variant="secondary">{c.status}</Badge>
+                    <CardTitle className="text-base min-w-0 break-words">{c.title}</CardTitle>
+                    <Badge variant="secondary" className="shrink-0">{c.status}</Badge>
                   </div>
                   {c.contractNumber ? (
                     <p className="font-mono text-xs text-muted-foreground">
