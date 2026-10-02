@@ -15,14 +15,13 @@ export const GET = withSessionRoute(async (req, { userId, session }) => {
   const type = searchParams.get('type') ?? undefined;
   const overdue = searchParams.get('overdue') === 'true';
 
+  // Everyone's list is scoped to the current workspace; admins see all of it
   let companyId: string | undefined;
-  if (isCompanyAdmin(session.user.role)) {
-    try {
-      const ctx = await resolveCompanyContextFromRequest(session, req);
-      companyId = ctx.companyId;
-    } catch {
-      /* user-scoped */
-    }
+  try {
+    const ctx = await resolveCompanyContextFromRequest(session, req);
+    companyId = ctx.companyId;
+  } catch {
+    /* no workspace context: only the user's own tasks */
   }
 
   const tasks = await taskService.getUserTasks(userId, {
@@ -31,6 +30,7 @@ export const GET = withSessionRoute(async (req, { userId, session }) => {
     type,
     overdue,
     companyId,
+    isAdmin: isCompanyAdmin(session.user.role),
   });
 
   return jsonOk(tasks);

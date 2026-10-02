@@ -1,5 +1,41 @@
 import { prisma } from '@/lib/prisma';
 
+/** A user who belongs to the workspace (home, legacy companyId, or membership). */
+function memberOf(companyId: string) {
+  return {
+    OR: [
+      { primaryCompanyId: companyId },
+      { companyId },
+      { userCompanies: { some: { companyId } } },
+    ],
+  };
+}
+
+/**
+ * Which follow-ups a viewer sees. Tasks have no workspace column, so a task belongs to a
+ * workspace through its lead / deal — or, when unlinked, only if its creator AND its
+ * assignee (if any) are members. That keeps a multi-workspace user's tasks (e.g. OPS
+ * messages to teammates elsewhere) out of the other workspaces. Admins see the whole
+ * workspace; everyone else sees tasks they created or that are assigned to them.
+ */
+export function taskScopeWhere(opts: { userId: string; companyId?: string; isAdmin?: boolean }) {
+  const mine = { OR: [{ userId: opts.userId }, { assignedToId: opts.userId }] };
+  if (!opts.companyId) return mine;
+  const inWorkspace = {
+    OR: [
+      { lead: { companyId: opts.companyId } },
+      { deal: { lead: { companyId: opts.companyId } } },
+      {
+        leadId: null,
+        dealId: null,
+        user: memberOf(opts.companyId),
+        OR: [{ assignedToId: null }, { assignedTo: memberOf(opts.companyId) }],
+      },
+    ],
+  };
+  return opts.isAdmin ? inWorkspace : { AND: [mine, inWorkspace] };
+}
+
 export interface CreateTaskData {
   leadId?: string;
   dealId?: string;
@@ -61,27 +97,13 @@ export class TaskService {
     dealId?: string;
     overdue?: boolean;
     companyId?: string;
+    isAdmin?: boolean;
   }) {
-    const where: any = filters?.companyId
-      ? {
-          OR: [
-            { lead: { companyId: filters.companyId } },
-            { deal: { lead: { companyId: filters.companyId } } },
-            // Unlinked tasks of this workspace's members — a task tied to another
-            // workspace's lead/deal belongs to that workspace, not this one
-            {
-              leadId: null,
-              dealId: null,
-              user: {
-                OR: [
-                  { primaryCompanyId: filters.companyId },
-                  { userCompanies: { some: { companyId: filters.companyId } } },
-                ],
-              },
-            },
-          ],
-        }
-      : { userId };
+    const where: any = taskScopeWhere({
+      userId,
+      companyId: filters?.companyId,
+      isAdmin: filters?.isAdmin,
+    });
 
     if (filters?.status) where.status = filters.status;
     if (filters?.priority) where.priority = filters.priority;
@@ -288,9 +310,10 @@ export class TaskService {
   /**
    * Get task stats
    */
-  async getTaskStats(userId: string) {
+  async getTaskStats(userId: string, scope?: { companyId?: string; isAdmin?: boolean }) {
     const tasks = await prisma.task.findMany({
-      where: { userId },
+      // Same scope as the list, so the counters match what is shown
+      where: taskScopeWhere({ userId, ...scope }),
       select: {
         status: true,
         priority: true,
