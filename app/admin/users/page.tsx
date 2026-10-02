@@ -13,7 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Search, RefreshCw } from "lucide-react";
+import { Search, RefreshCw, Users as UsersIcon, Loader2 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,6 +57,8 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -83,6 +86,7 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const params = new URLSearchParams();
       if (companyFilter === "orphans") params.set("orphans", "1");
@@ -98,6 +102,7 @@ export default function UsersPage() {
           : [];
       setUsers(list);
     } catch {
+      setLoadError(true);
       toast({
         title: "Error",
         description: "Failed to fetch users",
@@ -138,7 +143,7 @@ export default function UsersPage() {
       const label =
         user.primaryCompany?.name ||
         user.companies?.[0]?.name ||
-        "Orphan users (no company)";
+        "Users without a company";
       const bucket = map.get(key) ?? { label, users: [] };
       bucket.users.push(user);
       map.set(key, bucket);
@@ -151,8 +156,9 @@ export default function UsersPage() {
   }, [companyFilter, filteredUsers]);
 
   const handleDelete = async () => {
-    if (!deleteUserId) return;
+    if (!deleteUserId || deleting) return;
 
+    setDeleting(true);
     try {
       const response = await fetch(`/api/admin/users/${deleteUserId}`, {
         method: "DELETE",
@@ -176,6 +182,7 @@ export default function UsersPage() {
         variant: "destructive",
       });
     } finally {
+      setDeleting(false);
       setDeleteUserId(null);
     }
   };
@@ -186,12 +193,12 @@ export default function UsersPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Company-wise accounts across the platform. Orphans have no company membership.
+            Accounts across the platform, grouped by company.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={() => void fetchUsers()} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button onClick={() => void fetchUsers()} variant="outline" size="sm" disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
         </div>
@@ -199,8 +206,13 @@ export default function UsersPage() {
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
           <Input
+            type="search"
+            aria-label="Search users or company"
             placeholder="Search users or company…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -208,12 +220,12 @@ export default function UsersPage() {
           />
         </div>
         <Select value={companyFilter} onValueChange={setCompanyFilter}>
-          <SelectTrigger className="w-full sm:w-[240px]">
+          <SelectTrigger className="w-full sm:w-[240px]" aria-label="Filter by company">
             <SelectValue placeholder="Filter by company" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All companies</SelectItem>
-            <SelectItem value="orphans">Orphans only</SelectItem>
+            <SelectItem value="orphans">Users without a company</SelectItem>
             {companies.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.name}
@@ -225,17 +237,46 @@ export default function UsersPage() {
 
       {showSkeleton ? (
         <FullTableSkeleton columnCount={5} rowCount={6} />
+      ) : loadError && users.length === 0 ? (
+        <EmptyState
+          icon={UsersIcon}
+          title="Couldn't load users"
+          description="Something went wrong while fetching accounts."
+          actionLabel="Try again"
+          onAction={() => void fetchUsers()}
+          className="rounded-lg border"
+        />
+      ) : !loading && filteredUsers.length === 0 ? (
+        <EmptyState
+          icon={UsersIcon}
+          title={searchQuery.trim() ? "No users match your search" : "No users here"}
+          description={
+            searchQuery.trim()
+              ? "Try a different name, email, or company."
+              : "No accounts match this company filter."
+          }
+          actionLabel={searchQuery.trim() || companyFilter !== "all" ? "Clear filters" : undefined}
+          onAction={
+            searchQuery.trim() || companyFilter !== "all"
+              ? () => {
+                  setSearchQuery("");
+                  setCompanyFilter("all");
+                }
+              : undefined
+          }
+          className="rounded-lg border"
+        />
       ) : (
         <div className="space-y-6">
           {grouped.map((group) => (
-            <div key={group.key} className="min-w-0 bg-white rounded-none border shadow-sm">
+            <div key={group.key} className="min-w-0 rounded-lg border bg-card shadow-sm">
               <div className="p-3 sm:p-4 border-b flex items-center justify-between">
-                <h3 className="min-w-0 break-words text-sm font-semibold">
-                  {group.label ?? `Users (${group.users.length})`}
+                <h2 className="min-w-0 break-words text-sm font-semibold">
+                  {group.label ?? "Users"}
                   <span className="text-muted-foreground font-normal ml-2">
                     ({group.users.length})
                   </span>
-                </h3>
+                </h2>
               </div>
               <div className="p-3 sm:p-4">
                 <UsersTable
@@ -259,7 +300,7 @@ export default function UsersPage() {
         onSuccess={fetchUsers}
       />
 
-      <AlertDialog open={!!deleteUserId} onOpenChange={() => setDeleteUserId(null)}>
+      <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && !deleting && setDeleteUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this user?</AlertDialogTitle>
@@ -269,9 +310,17 @@ export default function UsersPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              Delete
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDelete();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete user
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

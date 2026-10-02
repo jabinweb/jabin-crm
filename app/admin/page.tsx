@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
+import { format, formatDistanceToNow } from 'date-fns';
+import { humanizeEnum } from '@/lib/format/humanize';
+import { formatCurrency } from '@/lib/currency';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,11 +11,10 @@ import {
   Users,
   Mail,
   Building2,
-  DollarSign,
+  IndianRupee,
   TrendingUp,
   Activity,
   ArrowRight,
-  CreditCard,
 } from 'lucide-react';
 
 type RecentUserRow = Prisma.UserGetPayload<{
@@ -161,9 +163,9 @@ export default async function AdminDashboard() {
     },
     {
       title: 'Revenue captured',
-      value: `₹${stats.totalRevenue.toLocaleString()}`,
+      value: formatCurrency(stats.totalRevenue, 'INR', { maximumFractionDigits: 0 }),
       hint: 'Successful payments',
-      icon: DollarSign,
+      icon: IndianRupee,
       href: '/admin/subscriptions',
     },
   ];
@@ -184,7 +186,7 @@ export default async function AdminDashboard() {
               Companies
             </Link>
           </Button>
-          <Button asChild size="sm" className="bg-teal-700 hover:bg-teal-800">
+          <Button asChild size="sm">
             <Link href="/admin/users">
               <Users className="h-4 w-4 mr-1.5" />
               Manage users
@@ -196,7 +198,7 @@ export default async function AdminDashboard() {
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {kpis.map((kpi) => (
           <Link key={kpi.title} href={kpi.href} className="group min-w-0">
-            <Card className="h-full transition-colors group-hover:border-teal-700/30">
+            <Card className="h-full transition-colors group-hover:border-primary/30">
               <CardContent className="p-3 sm:p-4">
                 <div className="flex items-start justify-between gap-2 sm:gap-3">
                   <div className="min-w-0">
@@ -204,7 +206,7 @@ export default async function AdminDashboard() {
                     <p className="truncate text-xl sm:text-2xl font-semibold tracking-tight tabular-nums mt-1">{kpi.value}</p>
                     <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{kpi.hint}</p>
                   </div>
-                  <div className="hidden sm:block shrink-0 rounded-md bg-teal-700/10 p-2 text-teal-800">
+                  <div className="hidden sm:block shrink-0 rounded-md bg-muted p-2 text-muted-foreground">
                     <kpi.icon className="h-4 w-4" />
                   </div>
                 </div>
@@ -215,7 +217,7 @@ export default async function AdminDashboard() {
       </div>
 
       {stats.nearLimitAccounts.length > 0 && (
-        <Card className="border-orange-200/80">
+        <Card className="border-orange-200/80 dark:border-orange-900/60">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -297,11 +299,9 @@ export default async function AdminDashboard() {
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0 sm:flex-row sm:items-center sm:gap-2">
-                    <Badge variant={roleTone(user.role)} className="capitalize">
-                      {user.role.replaceAll('_', ' ').toLowerCase()}
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground tabular-nums sm:w-16 text-right">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                    <Badge variant={roleTone(user.role)}>{humanizeEnum(user.role)}</Badge>
+                    <span className="whitespace-nowrap text-[11px] text-muted-foreground tabular-nums sm:w-20 text-right">
+                      {format(new Date(user.createdAt), 'MMM d, yyyy')}
                     </span>
                   </div>
                 </div>
@@ -339,13 +339,6 @@ export default async function AdminDashboard() {
                 {stats.totalLeads.toLocaleString()}
               </span>
             </div>
-            <div className="flex items-center justify-between rounded-md border px-3 py-2.5">
-              <div className="flex items-center gap-2 text-sm">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                System
-              </div>
-              <Badge className="bg-teal-700 hover:bg-teal-700">Healthy</Badge>
-            </div>
             <Button asChild variant="outline" className="w-full" size="sm">
               <Link href="/admin/settings">Platform settings</Link>
             </Button>
@@ -376,17 +369,19 @@ export default async function AdminDashboard() {
                   <Activity className="h-3.5 w-3.5 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium capitalize">
-                    {activity.activityType.replaceAll('_', ' ').toLowerCase()}
-                  </p>
+                  <p className="text-sm font-medium">{humanizeEnum(activity.activityType)}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     {activity.user?.name || 'System'}
                     {activity.lead?.companyName ? ` · ${activity.lead.companyName}` : ''}
                   </p>
                 </div>
-                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 max-w-[6.5rem] text-right sm:max-w-none">
-                  {new Date(activity.createdAt).toLocaleString()}
-                </span>
+                <time
+                  dateTime={new Date(activity.createdAt).toISOString()}
+                  title={format(new Date(activity.createdAt), 'MMM d, yyyy · h:mm a')}
+                  className="text-[11px] text-muted-foreground tabular-nums shrink-0 text-right"
+                >
+                  {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                </time>
               </div>
             ))}
             {stats.recentActivity.length === 0 && (

@@ -81,6 +81,7 @@ import {
 import { PROJECT_HUB_COLUMNS } from '@/lib/projects/task-board';
 import { UNMAPPED_STAGE_ID } from '@/lib/pipelines';
 import { useFeatureModule } from '@/components/feature-module-guard';
+import { humanizeEnum } from '@/lib/format/humanize';
 
 type Project = {
   id: string;
@@ -172,7 +173,7 @@ export default function ProjectsPage() {
   const [customerId, setCustomerId] = useState('');
   const [dealId, setDealId] = useState('');
 
-  const { data: projects = [], isLoading } = useQuery({
+  const { data: projects = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['projects', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/projects');
@@ -359,7 +360,7 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Projects</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Plan and track delivery — board and list views for every engagement.
           </p>
@@ -376,11 +377,11 @@ export default function ProjectsPage() {
             className="justify-start"
           >
             <ToggleGroupItem value="board" aria-label="Board view" className="gap-1.5 px-3">
-              <LayoutGrid className="size-3.5" />
+              <LayoutGrid className="h-3.5 w-3.5" />
               Board
             </ToggleGroupItem>
             <ToggleGroupItem value="list" aria-label="List view" className="gap-1.5 px-3">
-              <List className="size-3.5" />
+              <List className="h-3.5 w-3.5" />
               List
             </ToggleGroupItem>
           </ToggleGroup>
@@ -391,7 +392,7 @@ export default function ProjectsPage() {
           )}
           {canManage && (
             <Button onClick={openCreate}>
-              <Plus className="mr-2 size-4" />
+              <Plus className="mr-2 h-4 w-4" />
               New project
             </Button>
           )}
@@ -449,8 +450,10 @@ export default function ProjectsPage() {
         <CardContent className="min-w-0 p-4 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative w-full sm:max-w-sm sm:flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <Input
+                type="search"
+                aria-label="Search projects or clients"
                 className="pl-9"
                 placeholder="Search projects or clients…"
                 value={search}
@@ -458,7 +461,7 @@ export default function ProjectsPage() {
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]" aria-label="Filter by status">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -475,6 +478,14 @@ export default function ProjectsPage() {
 
           {isLoading ? (
             <FullTableSkeleton columnCount={6} rowCount={6} />
+          ) : isError ? (
+            <EmptyState
+              icon={FolderKanban}
+              title="Couldn't load projects"
+              description="Something went wrong while fetching projects."
+              actionLabel="Try again"
+              onAction={() => void refetch()}
+            />
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={FolderKanban}
@@ -516,7 +527,7 @@ export default function ProjectsPage() {
                           className="h-9 w-9 shrink-0 focus:opacity-100 sm:h-7 sm:w-7 sm:opacity-0 sm:group-hover:opacity-100"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <MoreHorizontal className="size-3.5" />
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                           <span className="sr-only">Project actions</span>
                         </Button>
                       </DropdownMenuTrigger>
@@ -524,7 +535,7 @@ export default function ProjectsPage() {
                         <DropdownMenuGroup>
                           <DropdownMenuItem asChild>
                             <Link href={path(`/dashboard/projects/${p.id}`)}>
-                              <ExternalLink className="mr-2 size-4" />
+                              <ExternalLink className="mr-2 h-4 w-4" />
                               Open
                             </Link>
                           </DropdownMenuItem>
@@ -590,6 +601,7 @@ export default function ProjectsPage() {
                       </span>
                     </div>
                   </Link>
+                  {(canManage || isAdminRole) && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-10 w-10 shrink-0">
@@ -616,6 +628,7 @@ export default function ProjectsPage() {
                       </>)}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </li>
               ))}
             </ul>
@@ -628,7 +641,9 @@ export default function ProjectsPage() {
                     <TableHead className="w-[140px]">Progress</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="hidden lg:table-cell">Timeline</TableHead>
-                    <TableHead className="w-[50px]" />
+                    <TableHead className="w-[50px]">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -642,8 +657,8 @@ export default function ProjectsPage() {
                           {p.name}
                         </Link>
                         {p.projectType ? (
-                          <p className="text-xs text-muted-foreground capitalize mt-0.5">
-                            {p.projectType.replace('_', ' ')}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {humanizeEnum(p.projectType)}
                             {p._count?.milestones
                               ? ` · ${p._count.milestones} milestones`
                               : ''}
@@ -697,7 +712,7 @@ export default function ProjectsPage() {
                             <DropdownMenuGroup>
                               <DropdownMenuItem asChild>
                                 <Link href={path(`/dashboard/projects/${p.id}`)}>
-                                  <ExternalLink className="mr-2 size-4" />
+                                  <ExternalLink className="mr-2 h-4 w-4" />
                                   Open
                                 </Link>
                               </DropdownMenuItem>
@@ -762,9 +777,9 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Status</Label>
+              <Label htmlFor="proj-status">Status</Label>
               <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
+                <SelectTrigger id="proj-status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -779,9 +794,9 @@ export default function ProjectsPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Type</Label>
+              <Label htmlFor="proj-type">Type</Label>
               <Select value={projectType} onValueChange={setProjectType}>
-                <SelectTrigger>
+                <SelectTrigger id="proj-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -831,12 +846,12 @@ export default function ProjectsPage() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Client</Label>
+              <Label htmlFor="proj-client">Client</Label>
               <Select
                 value={customerId || '__none__'}
                 onValueChange={(v) => setCustomerId(v === '__none__' ? '' : v)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="proj-client">
                   <SelectValue placeholder="Select client" />
                 </SelectTrigger>
                 <SelectContent>
@@ -852,12 +867,12 @@ export default function ProjectsPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Opportunity</Label>
+              <Label htmlFor="proj-deal">Opportunity</Label>
               <Select
                 value={dealId || '__none__'}
                 onValueChange={(v) => setDealId(v === '__none__' ? '' : v)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="proj-deal">
                   <SelectValue placeholder="Optional" />
                 </SelectTrigger>
                 <SelectContent>
@@ -888,7 +903,7 @@ export default function ProjectsPage() {
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {editing ? 'Save changes' : 'Create project'}
             </Button>
@@ -915,10 +930,14 @@ export default function ProjectsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+              }}
             >
               {deleteMutation.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Delete
             </AlertDialogAction>

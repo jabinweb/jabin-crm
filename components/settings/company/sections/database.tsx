@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { confirmAction } from '@/lib/confirm-action';
+import { humanizeEnum } from '@/lib/format/humanize';
 
 export type CompanyDatabaseStatus = {
   databaseMode: string;
@@ -22,6 +24,23 @@ type Props = {
   /** When set, uses admin API for that company; otherwise session company API */
   companyId?: string;
   className?: string;
+};
+
+const MODE_LABELS: Record<string, string> = {
+  SHARED: 'Shared (Opslane)',
+  CONNECTING: 'Connecting',
+  BYO_ACTIVE: 'Own database active',
+  MIGRATING: 'Migrating',
+  FAILED: 'Failed',
+};
+
+const modeLabel = (mode: string) => MODE_LABELS[mode] ?? humanizeEnum(mode);
+
+const ACTION_DONE: Record<string, string> = {
+  connect: 'Database connected',
+  health: 'Database is reachable',
+  provision: 'Schema provisioned',
+  disconnect: 'Database disconnected',
 };
 
 function statusVariant(
@@ -72,6 +91,24 @@ export function CompanyDatabasePanel({ companyId, className }: Props) {
     action: 'connect' | 'health' | 'disconnect' | 'migrate' | 'provision',
     extra?: { url?: string }
   ) => {
+    if (action === 'migrate' || action === 'disconnect') {
+      const ok = await confirmAction(
+        action === 'migrate'
+          ? {
+              title: 'Migrate data to this database?',
+              description:
+                'Copies all company data to the connected Postgres and switches the workspace to it. Avoid making changes in the workspace while it runs.',
+              confirmLabel: 'Start migration',
+            }
+          : {
+              title: 'Disconnect this database?',
+              description: 'The saved connection URL is removed. Data stays on Opslane.',
+              confirmLabel: 'Disconnect',
+              variant: 'destructive',
+            }
+      );
+      if (!ok) return;
+    }
     setBusyAction(action);
     try {
       const res = await fetch(endpoint, {
@@ -81,7 +118,7 @@ export function CompanyDatabasePanel({ companyId, className }: Props) {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.success) {
-        throw new Error(json?.message || `Action ${action} failed`);
+        throw new Error(json?.message || 'That action failed. Try again.');
       }
       const next = json.data?.status ?? json.data;
       if (next?.databaseMode) setStatus(next as CompanyDatabaseStatus);
@@ -92,7 +129,7 @@ export function CompanyDatabasePanel({ companyId, className }: Props) {
         description:
           action === 'migrate'
             ? 'Migration completed. Data now lives on your database.'
-            : `Database ${action} succeeded`,
+            : ACTION_DONE[action] ?? 'Done',
       });
     } catch (e) {
       toast({
@@ -113,9 +150,9 @@ export function CompanyDatabasePanel({ companyId, className }: Props) {
     <Card className={className}>
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
-          <CardTitle>Company database</CardTitle>
+          <CardTitle className="text-base">Company database</CardTitle>
           {status ? (
-            <Badge variant={statusVariant(mode)}>{mode}</Badge>
+            <Badge variant={statusVariant(mode)}>{modeLabel(mode)}</Badge>
           ) : null}
           {status ? (
             <Badge variant="outline">

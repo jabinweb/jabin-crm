@@ -32,6 +32,7 @@ import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
+import { humanizeEnum } from '@/lib/format/humanize';
 
 type WorkflowActionDraft = {
   type: 'notify' | 'log' | 'assign' | 'create_task' | 'create_project_task' | 'send_email' | 'send_whatsapp';
@@ -76,12 +77,15 @@ type WorkflowDetail = WorkflowRow & {
 };
 
 const TRIGGERS = [
-  { value: 'lead.created', label: 'lead.created — new lead' },
-  { value: 'lead.updated', label: 'lead.updated — lead status change' },
-  { value: 'ticket.created', label: 'ticket.created — new ticket' },
-  { value: 'ticket.updated', label: 'ticket.updated — ticket status change' },
-  { value: 'deal.won', label: 'deal.won — deal marked won' },
+  { value: 'lead.created', label: 'A new lead is created' },
+  { value: 'lead.updated', label: 'A lead’s status changes' },
+  { value: 'ticket.created', label: 'A new ticket is created' },
+  { value: 'ticket.updated', label: 'A ticket’s status changes' },
+  { value: 'deal.won', label: 'A deal is marked won' },
 ] as const;
+
+const triggerLabel = (value: string) =>
+  TRIGGERS.find((t) => t.value === value)?.label ?? value;
 
 const emptyConditions = (): WorkflowConditionsDraft => ({
   status: '',
@@ -94,7 +98,7 @@ const emptyConditions = (): WorkflowConditionsDraft => ({
 const defaultAction = (trigger: string): WorkflowActionDraft => ({
   type: 'notify',
   title: 'Workflow fired',
-  message: `Trigger: ${trigger}`,
+  message: `Trigger: ${triggerLabel(trigger)}`,
   assigneeId: '',
   assigneeMode: 'round_robin',
   dueInDays: '1',
@@ -241,7 +245,7 @@ export default function WorkflowsPage() {
     defaultAction('lead.created'),
   ]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['workflows'],
     queryFn: async () => {
       const res = await fetch('/api/workflows');
@@ -339,7 +343,11 @@ export default function WorkflowsPage() {
       if (!res.ok) throw new Error('Failed to update');
       return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['workflows'] }),
+    onSuccess: (_data, vars) => {
+      toast.success(vars.isActive ? 'Workflow activated' : 'Workflow paused');
+      queryClient.invalidateQueries({ queryKey: ['workflows'] });
+    },
+    onError: () => toast.error('Could not update the workflow. Try again.'),
   });
 
   const deleteMutation = useMutation({
@@ -358,17 +366,18 @@ export default function WorkflowsPage() {
 
   const workflows = data?.workflows ?? [];
 
-  const ConditionsFields = ({
-    value,
-    onChange,
-  }: {
-    value: WorkflowConditionsDraft;
-    onChange: (next: WorkflowConditionsDraft) => void;
-  }) => (
+  // Plain render helpers, called as functions: declaring them as components inside this
+  // component remounted every input on each keystroke, dropping focus after one character.
+  const renderConditionsFields = (
+    idPrefix: string,
+    value: WorkflowConditionsDraft,
+    onChange: (next: WorkflowConditionsDraft) => void
+  ) => (
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="space-y-1.5">
-        <Label className="text-xs">Status equals</Label>
+        <Label htmlFor={`${idPrefix}-status`} className="text-xs">Status equals</Label>
         <Input
+          id={`${idPrefix}-status`}
           value={value.status}
           onChange={(e) => onChange({ ...value, status: e.target.value })}
           placeholder="e.g. OPEN / CONTACTED"
@@ -376,8 +385,9 @@ export default function WorkflowsPage() {
         />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">New status equals</Label>
+        <Label htmlFor={`${idPrefix}-newStatus`} className="text-xs">New status equals</Label>
         <Input
+          id={`${idPrefix}-newStatus`}
           value={value.newStatus}
           onChange={(e) => onChange({ ...value, newStatus: e.target.value })}
           placeholder="Lead status after change"
@@ -385,8 +395,9 @@ export default function WorkflowsPage() {
         />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">Priority equals</Label>
+        <Label htmlFor={`${idPrefix}-priority`} className="text-xs">Priority equals</Label>
         <Input
+          id={`${idPrefix}-priority`}
           value={value.priority}
           onChange={(e) => onChange({ ...value, priority: e.target.value })}
           placeholder="e.g. HIGH"
@@ -394,8 +405,9 @@ export default function WorkflowsPage() {
         />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-xs">Channel equals</Label>
+        <Label htmlFor={`${idPrefix}-channel`} className="text-xs">Channel equals</Label>
         <Input
+          id={`${idPrefix}-channel`}
           value={value.channel}
           onChange={(e) => onChange({ ...value, channel: e.target.value })}
           placeholder="e.g. WHATSAPP"
@@ -403,8 +415,9 @@ export default function WorkflowsPage() {
         />
       </div>
       <div className="space-y-1.5 sm:col-span-2">
-        <Label className="text-xs">Source equals</Label>
+        <Label htmlFor={`${idPrefix}-source`} className="text-xs">Source equals</Label>
         <Input
+          id={`${idPrefix}-source`}
           value={value.source}
           onChange={(e) => onChange({ ...value, source: e.target.value })}
           placeholder="Lead source"
@@ -412,23 +425,22 @@ export default function WorkflowsPage() {
         />
       </div>
       <p className="text-xs text-muted-foreground sm:col-span-2">
-        Leave blank to match all. Conditions are AND’d against event metadata.
+        Leave a field blank to match anything. A workflow runs only when every filled-in field matches.
       </p>
     </div>
   );
 
-  const ActionsEditor = ({
-    value,
-    onChange,
-  }: {
-    value: WorkflowActionDraft[];
-    onChange: (next: WorkflowActionDraft[]) => void;
-  }) => (
+  const renderActionsEditor = (
+    value: WorkflowActionDraft[],
+    onChange: (next: WorkflowActionDraft[]) => void,
+    currentTrigger: string
+  ) => (
     <div className="space-y-3">
       {value.map((action, idx) => (
         <div key={idx} className="rounded-lg border p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <select
+              aria-label={`Action ${idx + 1} type`}
               className="flex h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-sm sm:flex-none"
               value={action.type}
               onChange={(e) => {
@@ -455,6 +467,7 @@ export default function WorkflowsPage() {
               className="h-10 w-10 shrink-0 text-destructive sm:h-8 sm:w-8"
               disabled={value.length <= 1}
               onClick={() => onChange(value.filter((_, i) => i !== idx))}
+              aria-label={`Remove action ${idx + 1}`}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -495,6 +508,7 @@ export default function WorkflowsPage() {
           {action.type === 'assign' ? (
             <div className="grid gap-2 sm:grid-cols-2">
               <select
+                aria-label="Assign to"
                 className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
                 value={action.assigneeMode}
                 onChange={(e) => {
@@ -534,6 +548,10 @@ export default function WorkflowsPage() {
                   onChange(next);
                 }}
                 placeholder="Due in days"
+                aria-label="Due in days"
+                type="number"
+                inputMode="numeric"
+                min={0}
                 className="h-9"
               />
               <Input
@@ -611,7 +629,7 @@ export default function WorkflowsPage() {
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => onChange([...value, defaultAction(trigger)])}
+        onClick={() => onChange([...value, defaultAction(currentTrigger)])}
       >
         <Plus className="mr-1.5 h-3.5 w-3.5" />
         Add action
@@ -623,16 +641,17 @@ export default function WorkflowsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Workflows</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Workflows</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Event workflows (leads, deals, tickets) — separate from{' '}
+            Run actions automatically when leads, deals, or tickets change. Ticket routing and SLA
+            rules live in{' '}
             <Link
               href={path('/dashboard/support/automation')}
               className="text-primary underline underline-offset-2"
             >
-              ticket automation
-            </Link>{' '}
-            under Support.
+              Support automation
+            </Link>
+            .
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} className="self-start sm:self-auto">
@@ -645,11 +664,19 @@ export default function WorkflowsPage() {
         <CardContent className="p-4">
           {isLoading ? (
             <TableSkeleton columnCount={5} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={Zap}
+              title="Couldn't load workflows"
+              description="Something went wrong while fetching your workflows."
+              actionLabel="Try again"
+              onAction={() => void refetch()}
+            />
           ) : workflows.length === 0 ? (
             <EmptyState
               icon={Zap}
               title="No workflows yet"
-              description="Create a workflow to automate follow-ups and assignments."
+              description="Automate follow-ups, assignments, and alerts — e.g. notify sales when a new lead arrives."
               actionLabel="New workflow"
               onAction={() => setCreateOpen(true)}
             />
@@ -673,7 +700,7 @@ export default function WorkflowsPage() {
                       </Badge>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      <span className="font-mono">{w.trigger}</span> · {w._count?.executions ?? 0} runs
+                      {triggerLabel(w.trigger)} · {w._count?.executions ?? 0} runs
                     </p>
                   </button>
                   <div className="flex gap-2">
@@ -692,6 +719,7 @@ export default function WorkflowsPage() {
                       size="sm"
                       variant="outline"
                       className="h-10 flex-1"
+                      disabled={toggleMutation.isPending && toggleMutation.variables?.id === w.id}
                       onClick={() =>
                         toggleMutation.mutate({ id: w.id, isActive: !w.isActive })
                       }
@@ -707,17 +735,19 @@ export default function WorkflowsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Trigger</TableHead>
+                    <TableHead>When</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Runs</TableHead>
-                    <TableHead className="w-[180px]" />
+                    <TableHead className="w-[180px]">
+                      <span className="sr-only">Actions</span>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {workflows.map((w) => (
                     <TableRow key={w.id}>
                       <TableCell className="font-medium">{w.name}</TableCell>
-                      <TableCell className="font-mono text-xs">{w.trigger}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{triggerLabel(w.trigger)}</TableCell>
                       <TableCell>
                         <Badge variant={w.isActive ? 'default' : 'secondary'}>
                           {w.isActive ? 'Active' : 'Paused'}
@@ -738,6 +768,7 @@ export default function WorkflowsPage() {
                         <Button
                           size="sm"
                           variant="outline"
+                          disabled={toggleMutation.isPending && toggleMutation.variables?.id === w.id}
                           onClick={() =>
                             toggleMutation.mutate({ id: w.id, isActive: !w.isActive })
                           }
@@ -777,16 +808,18 @@ export default function WorkflowsPage() {
           </DialogHeader>
           <div className="space-y-5 py-2">
             <div className="space-y-2">
-              <Label>Name</Label>
+              <Label htmlFor="wf-new-name">Name</Label>
               <Input
+                id="wf-new-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Notify on new lead"
               />
             </div>
             <div className="space-y-2">
-              <Label>Trigger</Label>
+              <Label htmlFor="wf-new-trigger">When</Label>
               <select
+                id="wf-new-trigger"
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={trigger}
                 onChange={(e) => {
@@ -794,7 +827,7 @@ export default function WorkflowsPage() {
                   setActions((prev) =>
                     prev.map((a) =>
                       a.message.startsWith('Trigger:')
-                        ? { ...a, message: `Trigger: ${e.target.value}` }
+                        ? { ...a, message: `Trigger: ${triggerLabel(e.target.value)}` }
                         : a
                     )
                   );
@@ -808,24 +841,29 @@ export default function WorkflowsPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label htmlFor="wf-new-description">Description</Label>
               <Textarea
+                id="wf-new-description"
                 rows={2}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label>Conditions (optional)</Label>
-              <ConditionsFields value={conditions} onChange={setConditions} />
+              <p className="text-sm font-medium">Only when (optional)</p>
+              {renderConditionsFields('wf-new', conditions, setConditions)}
             </div>
             <div className="space-y-2">
-              <Label>Actions</Label>
-              <ActionsEditor value={actions} onChange={setActions} />
+              <p className="text-sm font-medium">Then do</p>
+              {renderActionsEditor(actions, setActions, trigger)}
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+            <Button
+              variant="outline"
+              disabled={createMutation.isPending}
+              onClick={() => setCreateOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -833,7 +871,7 @@ export default function WorkflowsPage() {
               onClick={() => createMutation.mutate()}
             >
               {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
+              Create workflow
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -859,12 +897,17 @@ export default function WorkflowsPage() {
           ) : (
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>Name</Label>
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+                <Label htmlFor="wf-edit-name">Name</Label>
+                <Input
+                  id="wf-edit-name"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Trigger</Label>
+                <Label htmlFor="wf-edit-trigger">When</Label>
                 <select
+                  id="wf-edit-trigger"
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   value={editTrigger}
                   onChange={(e) => setEditTrigger(e.target.value)}
@@ -877,23 +920,24 @@ export default function WorkflowsPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label htmlFor="wf-edit-description">Description</Label>
                 <Textarea
+                  id="wf-edit-description"
                   rows={2}
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Conditions</Label>
-                <ConditionsFields value={editConditions} onChange={setEditConditions} />
+                <p className="text-sm font-medium">Only when (optional)</p>
+                {renderConditionsFields('wf-edit', editConditions, setEditConditions)}
               </div>
               <div className="space-y-2">
-                <Label>Actions</Label>
-                <ActionsEditor value={editActions} onChange={setEditActions} />
+                <p className="text-sm font-medium">Then do</p>
+                {renderActionsEditor(editActions, setEditActions, editTrigger)}
               </div>
               <div className="space-y-2">
-                <Label>Recent runs</Label>
+                <p className="text-sm font-medium">Recent runs</p>
                 <div className="max-h-40 overflow-auto rounded-md border divide-y">
                   {(detail?.executions || []).length === 0 ? (
                     <p className="px-3 py-4 text-sm text-muted-foreground">No runs yet</p>
@@ -904,7 +948,7 @@ export default function WorkflowsPage() {
                         className="flex items-center justify-between gap-2 px-3 py-2 text-sm"
                       >
                         <Badge variant={ex.status === 'SUCCESS' ? 'default' : 'destructive'}>
-                          {ex.status}
+                          {humanizeEnum(ex.status)}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(ex.executedAt), { addSuffix: true })}
@@ -920,12 +964,13 @@ export default function WorkflowsPage() {
             <Button
               type="button"
               variant="destructive"
+              disabled={deleteMutation.isPending}
               onClick={async () => {
                 if (
                   editId &&
                   (await confirmAction({
-                    title: 'Delete this workflow?',
-                    description: 'This cannot be undone.',
+                    title: `Delete ${editName.trim() || 'this workflow'}?`,
+                    description: 'It stops running immediately. This cannot be undone.',
                     confirmLabel: 'Delete',
                     variant: 'destructive',
                   }))
@@ -946,7 +991,7 @@ export default function WorkflowsPage() {
                 disabled={!editName.trim() || saveMutation.isPending}
               >
                 {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save
+                Save changes
               </Button>
             </div>
           </DialogFooter>

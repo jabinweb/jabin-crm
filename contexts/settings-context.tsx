@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
@@ -80,7 +80,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const mutation = useMutation({
     mutationFn: async ({ company, settings }: { company?: any, settings?: any }) => {
-      console.log('Mutation received:', { company, settings })
       const res = await fetch('/api/dashboard/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...tenantHeaders },
@@ -100,7 +99,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       return res.json()
     },
     onSuccess: (data) => {
-      console.log('Mutation success:', data)
       queryClient.setQueryData(['settings', workspaceSlug], data)
       queryClient.invalidateQueries({ queryKey: ['workspace-config'] })
       toast({
@@ -133,6 +131,37 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       {children}
     </SettingsContext.Provider>
   )
+}
+
+/**
+ * Re-provides the settings context with unsaved edits layered on top, so sections render
+ * what the admin has typed/toggled before Save (they read `settings` / `company` from here).
+ * Sections send whole top-level keys, so a shallow merge per key is enough.
+ */
+export function SettingsDraftProvider({
+  draft,
+  children,
+}: {
+  draft: { company?: Record<string, unknown>; settings?: Record<string, unknown> }
+  children: React.ReactNode
+}) {
+  const parent = useSettings()
+  const value = useMemo<SettingsContextType>(() => {
+    const hasCompanyDraft = !!draft.company && Object.keys(draft.company).length > 0
+    const hasSettingsDraft = !!draft.settings && Object.keys(draft.settings).length > 0
+    return {
+      ...parent,
+      company:
+        parent.company && hasCompanyDraft
+          ? ({ ...parent.company, ...draft.company } as SettingsContextType['company'])
+          : parent.company,
+      settings:
+        parent.settings && hasSettingsDraft
+          ? ({ ...parent.settings, ...draft.settings } as CompanySettings)
+          : parent.settings,
+    }
+  }, [parent, draft])
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
 }
 
 export const useSettings = () => {

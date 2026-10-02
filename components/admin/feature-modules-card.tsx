@@ -16,9 +16,11 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
   const [planModules, setPlanModules] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   const loadModules = async () => {
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch(`/api/admin/users/${userId}/features`);
       if (!res.ok) throw new Error('Failed to fetch modules');
@@ -26,6 +28,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
       setModules(data.modules || {});
       setPlanModules(data.planModules || {});
     } catch {
+      setLoadError(true);
       toast.error('Failed to load feature modules');
     } finally {
       setLoading(false);
@@ -58,11 +61,18 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Feature Modules</CardTitle>
+        <CardTitle className="text-base">Feature modules</CardTitle>
       </CardHeader>
       <CardContent>
         {loading ? (
           <FormSkeleton fields={4} />
+        ) : loadError ? (
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-sm text-muted-foreground">Couldn&apos;t load this user&apos;s module access.</p>
+            <Button variant="outline" size="sm" onClick={() => void loadModules()}>
+              Try again
+            </Button>
+          </div>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
@@ -73,7 +83,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
                 const key = module as FeatureModuleKey;
                 const planAllowed = planModules[key] === true;
                 return (
-                  <div key={module} className="flex items-center justify-between gap-3 p-3 rounded border">
+                  <div key={module} className="flex items-center justify-between gap-3 rounded-md border p-3">
                     <div className="min-w-0 space-y-1">
                       <Label htmlFor={`module-${module}`}>{FEATURE_MODULE_LABELS[key]}</Label>
                       {!planAllowed && (
@@ -94,7 +104,7 @@ export function FeatureModulesCard({ userId }: { userId: string }) {
             </div>
             <Button onClick={saveModules} disabled={saving}>
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {saving ? 'Saving...' : 'Save Module Access'}
+              {saving ? 'Saving…' : 'Save module access'}
             </Button>
           </div>
         )}
