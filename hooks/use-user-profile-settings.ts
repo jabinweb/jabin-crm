@@ -56,7 +56,7 @@ export function useUserProfileSettings() {
         valueProposition: profile.valueProposition || '',
         geminiApiKey: geminiKeyTouched ? formData.geminiApiKey : (profile.geminiApiKey || ''),
         googlePlacesApiKey: googlePlacesKeyTouched ? formData.googlePlacesApiKey : (profile.googlePlacesApiKey || ''),
-        aiModel: profile.aiModel || 'gemini-2.0-flash',
+        aiModel: profile.aiModel || 'gemini-3.8-flash',
         preferredCurrency: profile.preferredCurrency || 'USD',
         companyAddress: profile.companyAddress || '',
         companyEmail: profile.companyEmail || '',

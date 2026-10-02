@@ -7,6 +7,7 @@ import { getAIClient } from '@/lib/ai/ai-service';
 import { decrypt } from '@/lib/encryption';
 import { sanitizeRichText } from '@/lib/html/sanitize-rich-text';
 import { logError } from '@/lib/logger';
+import { generateContentWithFallback, DEFAULT_TEXT_MODEL } from '@/lib/ai/generate';
 
 export const maxDuration = 60;
 
@@ -105,8 +106,8 @@ Output rules:
 - Do not invent facts, names, dates or numbers that are not in the document or instruction.`;
 
   try {
-    const response = await client.models.generateContent({
-      model: profile?.aiModel || 'gemini-2.0-flash',
+    const response = await generateContentWithFallback(client, {
+      model: profile?.aiModel || DEFAULT_TEXT_MODEL,
       contents: prompt,
     });
     const raw = (response.text || '')
@@ -115,14 +116,14 @@ Output rules:
       .replace(/\s*```$/, '');
     const html = sanitizeRichText(raw);
     if (!html.trim()) {
-      return NextResponse.json({ error: 'The assistant returned nothing' }, { status: 502 });
+      return NextResponse.json({ error: 'The assistant returned nothing' }, { status: 503 });
     }
     return jsonOk({ html });
   } catch (error) {
     logError(error, { context: 'docs ai: generation failed' });
     return NextResponse.json(
       { error: 'The assistant could not complete that request' },
-      { status: 502 }
+      { status: 503 }
     );
   }
 });

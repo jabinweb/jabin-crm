@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { analyzeSentiment, getAIClient } from '@/lib/ai/ai-service';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/generate';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       replyContent,
       originalEmail,
       context,
-      model: profile?.aiModel || 'gemini-2.0-flash',
+      model: profile?.aiModel || DEFAULT_TEXT_MODEL,
       apiKey: userApiKey,
     });
 

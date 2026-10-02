@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
           message:
             'Email reply check took too long and was stopped. Try again later, or use Email Settings to verify IMAP.',
         },
-        { status: 504 }
+        { status: 503 }
       );
     }
 

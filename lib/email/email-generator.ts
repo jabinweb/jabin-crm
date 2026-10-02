@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { logError } from '@/lib/logger';
+import { generateContentWithFallback, DEFAULT_TEXT_MODEL } from '@/lib/ai/generate';
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -56,8 +57,8 @@ BODY:
 
 Do not include any other text or explanations.`;
 
-    const response = await genAI.models.generateContent({
-      model: 'gemini-2.0-flash-exp',
+    const response = await generateContentWithFallback(genAI, {
+      model: DEFAULT_TEXT_MODEL,
       contents: prompt,
     });
 

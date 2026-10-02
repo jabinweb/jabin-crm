@@ -1,27 +1,24 @@
+import { isRetiredModel } from '@/lib/ai/generate';
+
 /** Preference order for Ops Agent — Text-out models with better free-tier headroom first. */
 export const DEFAULT_MODEL_FALLBACKS = [
-  // Highest remaining quota on typical free tiers (Flash Lite / 3.x)
+  // The agent makes many calls per turn: Flash Lite (largest daily quotas) first,
+  // then the newest Flash models. Retired 1.x / 2.0 models are never tried.
   'gemini-3.1-flash-lite',
   'gemini-3.1-flash-lite-preview',
   'gemini-3.5-flash-lite',
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash',
   'gemini-3-flash-preview',
-  'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
   'gemini-2.5-pro',
   'gemini-3.1-pro-preview',
-  'gemini-3-pro-preview',
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-001',
-  'gemini-2.0-flash-lite',
-  'gemini-2.0-flash-lite-001',
-  'gemini-flash-lite-latest',
   'gemini-flash-latest',
+  'gemini-flash-lite-latest',
   'gemini-pro-latest',
-  'gemini-1.5-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-pro',
 ] as const;
 
 /** Preferred + fallbacks must cover at least this many models. */
@@ -41,7 +38,7 @@ function cleanModelId(id?: string | null): string | null {
 /** Drop Live API / agent / image-adjacent ids that may still slip through listing. */
 function isAgentChatModel(id: string): boolean {
   const n = id.toLowerCase();
-  if (!n.includes('gemini')) return false;
+  if (!n.includes('gemini') || isRetiredModel(n)) return false;
   const exclude = [
     'embedding',
     'image',

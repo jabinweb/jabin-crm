@@ -1,4 +1,5 @@
 import { getAIClient } from './ai-service';
+import { generateContentWithFallback } from '@/lib/ai/generate';
 
 /**
  * Extract and parse JSON from AI response (handles markdown code blocks)
@@ -50,11 +51,6 @@ export interface ReportSummary {
   recommendation: string;
 }
 
-const MODEL_FALLBACKS = [
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.5-flash-lite',
-];
 
 export class TicketAIService {
   private async generateWithFallback(
@@ -62,28 +58,13 @@ export class TicketAIService {
     prompt: string,
     preferredModel: string
   ) {
-    const models = [
-      preferredModel,
-      ...MODEL_FALLBACKS.filter((m) => m !== preferredModel),
-    ];
-    let lastError: unknown;
-    for (const model of models) {
-      try {
-        const response = await client.models.generateContent({
-          model,
-          contents: prompt,
-        });
-        const text = responseText(response as any);
-        if (!text) throw new Error('No response from AI');
-        return text;
-      } catch (err) {
-        lastError = err;
-        console.warn(`[ticket-ai] model ${model} failed`, err);
-      }
-    }
-    throw lastError instanceof Error
-      ? lastError
-      : new Error('AI summary failed for all models');
+    const response = await generateContentWithFallback(client, {
+      model: preferredModel,
+      contents: prompt,
+    });
+    const text = responseText(response as any);
+    if (!text) throw new Error('No response from AI');
+    return text;
   }
 
   /**

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { generateCampaignEmail } from '@/lib/ai/ai-service';
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/generate';
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     console.log('Profile has geminiApiKey:', !!profile?.geminiApiKey);
     console.log('User API key after decrypt:', userApiKey ? userApiKey.substring(0, 15) + '...' : 'undefined');
     console.log('Env API key:', process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 15) + '...' : 'undefined');
-    console.log('Model to use:', profile?.aiModel || 'gemini-2.0-flash');
+    console.log('Model to use:', profile?.aiModel || DEFAULT_TEXT_MODEL);
 
     // Fetch the selected leads
     const leads = await prisma.lead.findMany({
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
       yourService,
       campaignGoal,
       tone,
-      model: profile?.aiModel || 'gemini-2.0-flash',
+      model: profile?.aiModel || DEFAULT_TEXT_MODEL,
       apiKey: userApiKey,
     });
 

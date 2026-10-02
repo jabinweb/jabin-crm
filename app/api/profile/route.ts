@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { encrypt } from '@/lib/encryption';
 import { logInfo, logError } from '@/lib/logger';
 import { handleApiError, ApiErrors } from '@/lib/api-error-handler';
+import { DEFAULT_TEXT_MODEL } from '@/lib/ai/generate';
 
 function asOptionalString(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
         imapPort: 993,
         imapSecure: true,
         imapUser: '',
-        aiModel: 'gemini-2.0-flash',
+        aiModel: DEFAULT_TEXT_MODEL,
         preferredCurrency: 'USD',
         companyAddress: '',
         companyPhone: '',
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
       imapPort: parseInt(String(imapPort), 10) || 993,
       imapSecure: imapSecure === 'true' || imapSecure === true || imapSecure === undefined,
       imapUser: asStringOrEmpty(imapUser),
-      aiModel: asOptionalString(aiModel) || 'gemini-2.0-flash',
+      aiModel: asOptionalString(aiModel) || DEFAULT_TEXT_MODEL,
       preferredCurrency: asOptionalString(preferredCurrency) || 'USD',
       companyAddress: asStringOrEmpty(companyAddress),
       companyPhone: asStringOrEmpty(companyPhone),

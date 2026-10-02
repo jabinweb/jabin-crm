@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import { logInfo, logError } from '@/lib/logger';
+import { generateContentWithFallback, DEFAULT_TEXT_MODEL } from '@/lib/ai/generate';
 
 /**
  * Get AI client with custom API key
@@ -168,7 +169,7 @@ export async function generateSubjectLines(params: {
   model?: string;
   apiKey?: string;
 }): Promise<SubjectLineVariant[]> {
-  const { companyName, industry, productService, targetAudience, tone = 'professional', count = 5, model = 'gemini-2.0-flash', apiKey } = params;
+  const { companyName, industry, productService, targetAudience, tone = 'professional', count = 5, model = DEFAULT_TEXT_MODEL, apiKey } = params;
   const client = getAIClient(apiKey);
 
   const prompt = `You are an expert email marketer specializing in cold outreach campaigns.
@@ -198,7 +199,7 @@ Return ONLY a JSON array with this structure:
   }
 ]`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -221,7 +222,7 @@ export async function optimizeEmailContent(params: {
   goal?: string;
   targetAudience?: string;
 }): Promise<ContentOptimization> {
-  const { content, companyName, goal = 'Generate leads', targetAudience = 'Business decision makers', model = 'gemini-2.0-flash', apiKey } = params;
+  const { content, companyName, goal = 'Generate leads', targetAudience = 'Business decision makers', model = DEFAULT_TEXT_MODEL, apiKey } = params;
   const client = getAIClient(apiKey);
 
   const prompt = `You are an expert copywriter specializing in cold email optimization.
@@ -269,7 +270,7 @@ Return ONLY a JSON object:
   }
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -298,7 +299,7 @@ export async function qualifyLead(params: {
   targetCriteria?: string;
   model?: string;
 }): Promise<LeadQualification> {
-  const { companyName, industry, website, email, phone, revenue, employeeCount, description, source, targetCriteria, model = 'gemini-2.0-flash', apiKey } = params;
+  const { companyName, industry, website, email, phone, revenue, employeeCount, description, source, targetCriteria, model = DEFAULT_TEXT_MODEL, apiKey } = params;
   const client = getAIClient(apiKey);
 
   const prompt = `You are an expert sales analyst. Evaluate this lead's quality and conversion potential.
@@ -341,7 +342,7 @@ Return ONLY a JSON object:
   "conversionProbability": 65
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -363,7 +364,7 @@ export async function analyzeSentiment(params: {
   context?: string;
   model?: string;
 }): Promise<SentimentAnalysis> {
-  const { replyContent, originalEmail, context, model = 'gemini-2.0-flash', apiKey } = params;
+  const { replyContent, originalEmail, context, model = DEFAULT_TEXT_MODEL, apiKey } = params;
   const client = getAIClient(apiKey);
 
   const prompt = `You are an expert at analyzing email communication sentiment and intent.
@@ -399,7 +400,7 @@ Return ONLY a JSON object:
   "urgency": "HIGH"
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -426,7 +427,7 @@ export async function generatePersonalizedEmail(params: {
   tone?: string;
   model?: string;
 }): Promise<string> {
-  const { companyName, contactName, industry, website, yourCompany, yourService, valueProposition, tone = 'professional', model = 'gemini-2.0-flash', apiKey } = params;
+  const { companyName, contactName, industry, website, yourCompany, yourService, valueProposition, tone = 'professional', model = DEFAULT_TEXT_MODEL, apiKey } = params;
   const client = getAIClient(apiKey);
 
   const prompt = `Write a personalized cold email for:
@@ -453,7 +454,7 @@ Requirements:
 
 Return only the email body text, no subject line.`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -482,7 +483,7 @@ export async function generateCampaignEmail(params: {
   tone?: 'professional' | 'casual' | 'friendly' | 'urgent';
   model?: string;
 }): Promise<{ subject: string; content: string; insights: string }> {
-  const { leads, yourCompany = 'Your Company', yourService = 'Your Service', campaignGoal = 'Generate interest', tone = 'professional', model = 'gemini-2.0-flash', apiKey } = params;
+  const { leads, yourCompany = 'Your Company', yourService = 'Your Service', campaignGoal = 'Generate interest', tone = 'professional', model = DEFAULT_TEXT_MODEL, apiKey } = params;
   const client = getAIClient(apiKey);
 
   // Analyze the audience
@@ -526,7 +527,7 @@ Return a JSON object with:
   "insights": "brief explanation of the strategy and why it works for this audience"
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -570,7 +571,7 @@ export async function generateSequence(params: {
     stepCount = 3,
     companyInfo = '',
     productService = '',
-    model = 'gemini-2.0-flash-exp',
+    model = DEFAULT_TEXT_MODEL,
     apiKey,
   } = params;
 
@@ -617,7 +618,7 @@ Return JSON in this exact format:
   ]
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -674,7 +675,7 @@ export async function suggestTasks(params: {
   const {
     context,
     maxSuggestions = 3,
-    model = 'gemini-2.0-flash-exp',
+    model = DEFAULT_TEXT_MODEL,
     apiKey,
   } = params;
 
@@ -720,7 +721,7 @@ Return JSON:
   "insights": "Overall analysis of lead/deal health and recommendations"
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });
@@ -770,7 +771,7 @@ export async function coachDeal(params: {
   const {
     dealData,
     leadData,
-    model = 'gemini-2.0-flash-exp',
+    model = DEFAULT_TEXT_MODEL,
     apiKey,
   } = params;
 
@@ -810,7 +811,7 @@ Return JSON:
   "insights": "Deal is healthy but needs momentum"
 }`;
 
-  const response = await client.models.generateContent({
+  const response = await generateContentWithFallback(client, {
     model,
     contents: prompt,
   });

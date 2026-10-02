@@ -217,25 +217,25 @@ export function ApiKeysTab({
                     </>
                   ) : (
                     <>
-                      {formData.aiModel && !['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash'].includes(formData.aiModel) && (
+                      {formData.aiModel && !['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'].includes(formData.aiModel) && (
                         <SelectItem value={formData.aiModel}>
                           {formData.aiModel} (Current)
                         </SelectItem>
                       )}
-                      <SelectItem value="gemini-2.0-flash">
-                        Gemini 2.0 Flash (Recommended)
+                      <SelectItem value="gemini-3.8-flash">
+                        Gemini 3.8 Flash (Recommended)
+                      </SelectItem>
+                      <SelectItem value="gemini-3.5-flash">
+                        Gemini 3.5 Flash
                       </SelectItem>
                       <SelectItem value="gemini-2.5-flash">
                         Gemini 2.5 Flash
                       </SelectItem>
+                      <SelectItem value="gemini-3.5-flash-lite">
+                        Gemini 3.5 Flash Lite (highest daily limit)
+                      </SelectItem>
                       <SelectItem value="gemini-2.5-pro">
                         Gemini 2.5 Pro
-                      </SelectItem>
-                      <SelectItem value="gemini-1.5-pro">
-                        Gemini 1.5 Pro
-                      </SelectItem>
-                      <SelectItem value="gemini-1.5-flash">
-                        Gemini 1.5 Flash
                       </SelectItem>
                     </>
                   )}

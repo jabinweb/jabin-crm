@@ -47,7 +47,7 @@ export const GET = withSessionRoute(async (req, { userId }) => {
         error:
           error instanceof Error ? error.message : 'Failed to fetch media',
       },
-      { status: 502 }
+      { status: 503 }
     );
   }
 });

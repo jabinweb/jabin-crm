@@ -72,7 +72,7 @@ export const POST = withTenantRoute(async (_request, { session, companyId }, rou
   if (error) {
     return NextResponse.json(
       { error, destination: serializeSlackDestination(updated) },
-      { status: 502 }
+      { status: 503 }
     );
   }
   return jsonOk(serializeSlackDestination(updated));
