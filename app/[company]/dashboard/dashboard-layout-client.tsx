@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Navbar } from '@/components/layout/navbar';
+import { MessengerProvider } from '@/components/messaging/messenger';
 import { Sidebar } from '@/components/layout/sidebar';
 import { UsageBanner } from '@/components/subscription/usage-banner';
 import { OnboardingRedirect } from '@/components/onboarding/onboarding-redirect';
@@ -100,6 +101,7 @@ export function DashboardLayoutClient({
   }
 
   return (
+    <MessengerProvider>
     <div className="fixed inset-0 flex flex-col overflow-hidden bg-background">
       <OnboardingRedirect />
       <ServiceWorkerRegistration />
@@ -150,5 +152,6 @@ export function DashboardLayoutClient({
       <MobileTabBar onMore={() => setSidebarOpen(true)} moreOpen={sidebarOpen} />
       <OpsAgentPanel />
     </div>
+    </MessengerProvider>
   );
 }

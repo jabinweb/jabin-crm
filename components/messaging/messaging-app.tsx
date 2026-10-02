@@ -12,6 +12,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { EmptyState } from '@/components/ui/empty-state';
 import { useRealtime } from '@/hooks/use-realtime';
+import { usePresence } from '@/hooks/use-presence';
 import { REALTIME_EVENTS } from '@/lib/realtime/events';
 import { cn } from '@/lib/utils';
 import { ConversationList } from './conversation-list';
@@ -81,14 +82,16 @@ export function MessagingApp() {
         : null),
     [meId, peopleById, sessionUser]
   );
+  // Online = the workspace presence heartbeat, plus anyone recently on this page
+  const presence = usePresence();
   const onlineIds = useMemo(() => {
     const now = Date.now();
-    return new Set(
-      people
-        .filter((p) => p.lastSeenAt && now - new Date(p.lastSeenAt).getTime() < ONLINE_WINDOW_MS)
-        .map((p) => p.id)
-    );
-  }, [people]);
+    const ids = new Set(presence.onlineIds);
+    for (const p of people) {
+      if (p.lastSeenAt && now - new Date(p.lastSeenAt).getTime() < ONLINE_WINDOW_MS) ids.add(p.id);
+    }
+    return ids;
+  }, [people, presence.onlineIds]);
 
   const detail = useConversation(selectedId);
   const messagesQuery = useMessages(selectedId);

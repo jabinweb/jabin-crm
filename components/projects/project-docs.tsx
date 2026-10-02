@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePresence } from '@/hooks/use-presence';
+import { LiveViewers } from '@/components/presence/live-viewers';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -93,6 +95,8 @@ function subtreeIds(index: Map<string, DocNode[]>, id: string): Set<string> {
 
 /** Notion-style project knowledge base: folder/page tree on the left, the open doc on the right. */
 export function ProjectDocs({ projectId }: { projectId: string }) {
+  // Teammates with a doc open show beside it in the tree (the open doc shows them in its header)
+  const presence = usePresence();
   const { slug, workspaceFetch } = useWorkspacePaths();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -439,6 +443,9 @@ export function ProjectDocs({ projectId }: { projectId: string }) {
                   )}
                 </span>
                 <span className="truncate">{node.title}</span>
+                {node.id !== selectedId ? (
+                  <LiveViewers people={presence.docViewers(node.id)} className="ml-auto" />
+                ) : null}
               </button>
             )}
 

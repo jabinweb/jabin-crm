@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { usePresence } from '@/hooks/use-presence';
+import { LiveViewers } from '@/components/presence/live-viewers';
 import { cn } from '@/lib/utils';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +69,8 @@ type SavedFilter = {
 };
 
 export default function TicketsPage() {
+  // Who has which ticket open right now (shared 30s presence heartbeat)
+  const presence = usePresence();
   const router = useRouter();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
@@ -583,7 +587,10 @@ export default function TicketsPage() {
                     className="w-full text-left p-3 space-y-1"
                     onClick={() => router.push(path(`/dashboard/tickets/${ticket.id}`))}
                   >
-                    <p className="text-sm font-semibold line-clamp-2">{ticket.subject}</p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold line-clamp-2">{ticket.subject}</p>
+                      <LiveViewers people={presence.ticketViewers(ticket.id)} />
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       {ticket.customer?.organizationName || 'No customer'}
                     </p>
@@ -651,7 +658,10 @@ export default function TicketsPage() {
                     />
                   </div>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="truncate text-sm font-medium">{ticket.subject}</p>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <p className="truncate text-sm font-medium">{ticket.subject}</p>
+                      <LiveViewers people={presence.ticketViewers(ticket.id)} />
+                    </div>
                     <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                       <span className="font-mono">{ticket.id.slice(-6).toUpperCase()}</span>
                       <span>·</span>
@@ -716,7 +726,10 @@ export default function TicketsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="space-y-0.5">
-                          <p className="font-medium text-sm">{ticket.subject}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">{ticket.subject}</p>
+                            <LiveViewers people={presence.ticketViewers(ticket.id)} />
+                          </div>
                           <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                             {ticket.channel === 'EMAIL' && <Mail className="h-3 w-3" />}
                             {ticket.channel === 'CHAT' && <MessageCircle className="h-3 w-3" />}
