@@ -16,7 +16,7 @@ export const GET = withMeetingsRoute(async (_request, { session, companyId }, ro
   const row = await reconcileRoomPresence(await getMeetingForViewer(id, companyId, viewer));
   return NextResponse.json({
     meeting: toMeetingDTO(row, viewer),
-    video: { configured: isLiveKitConfigured() },
+    video: { configured: await isLiveKitConfigured() },
   });
 });
 

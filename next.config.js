@@ -63,13 +63,17 @@ const nextConfig = {
     ];
 
     if (process.env.NODE_ENV === 'production') {
-      // Team meeting video (LiveKit): Cloud projects, plus a self-hosted server from LIVEKIT_URL
+      // Team meeting video (LiveKit): Cloud projects, plus a self-hosted server from LIVEKIT_URL.
+      // Without the env var the server is set in Admin → Settings (DB, unknown at build time),
+      // so any secure websocket is allowed instead.
       const liveKitConnect = ['wss://*.livekit.cloud', 'https://*.livekit.cloud'];
       try {
         const raw = process.env.LIVEKIT_URL || process.env.NEXT_PUBLIC_LIVEKIT_URL;
         if (raw) {
           const host = new URL(raw).host;
           liveKitConnect.push(`wss://${host}`, `https://${host}`);
+        } else {
+          liveKitConnect.push('wss:');
         }
       } catch {
         /* invalid LIVEKIT_URL — the token route reports it */

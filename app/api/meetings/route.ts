@@ -11,7 +11,7 @@ export const GET = withMeetingsRoute(async (request, { session, companyId }) => 
   const rows = await listMeetingsForUser(companyId, viewer.userId, scope);
   const body: MeetingListResponse = {
     meetings: rows.map((row: unknown) => toMeetingDTO(row, viewer)),
-    video: { configured: isLiveKitConfigured() },
+    video: { configured: await isLiveKitConfigured() },
   };
   return NextResponse.json(body);
 });
@@ -20,8 +20,8 @@ export const GET = withMeetingsRoute(async (request, { session, companyId }) => 
 export const POST = withMeetingsRoute(async (request, { session, companyId }) => {
   const body = (await request.json().catch(() => null)) ?? {};
   const viewer = meetingViewer(session);
-  if (body.provider === undefined) body.provider = isLiveKitConfigured() ? 'OPSLANE' : 'NONE';
-  if (body.provider === 'OPSLANE' && !isLiveKitConfigured()) {
+  if (body.provider === undefined) body.provider = (await isLiveKitConfigured()) ? 'OPSLANE' : 'NONE';
+  if (body.provider === 'OPSLANE' && !(await isLiveKitConfigured())) {
     return NextResponse.json(
       { error: 'Built-in video is not set up for this workspace yet. Use a meeting link instead.' },
       { status: 400 }

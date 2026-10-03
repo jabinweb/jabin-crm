@@ -31,7 +31,7 @@ export const POST = withMeetingsRoute(async (_request, { session, companyId }, r
       endTime: row.event.endTime,
       endedAt: row.endedAt,
     },
-    liveKitConfigured: isLiveKitConfigured(),
+    liveKitConfigured: await isLiveKitConfigured(),
   });
   if (!decision.ok) {
     return NextResponse.json({ error: decision.error, code: decision.code }, { status: decision.status });
@@ -51,7 +51,7 @@ export const POST = withMeetingsRoute(async (_request, { session, companyId }, r
     );
     return NextResponse.json({
       token,
-      url: getLiveKitServerUrl(),
+      url: await getLiveKitServerUrl(),
       isHost: decision.roomAdmin,
     });
   } catch (error) {

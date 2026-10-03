@@ -15,6 +15,11 @@ model PlatformSetting {
   phpUploadUrl       String?
   /** Shared secret sent as form field `password` to the PHP upload endpoint */
   phpUploadPassword  String?
+  /** Team meeting video (LiveKit) — wss:// server URL; env LIVEKIT_URL is the fallback */
+  livekitUrl         String?
+  livekitApiKey      String?
+  /** AES-GCM JSON from lib/encryption (never stored in plain text) */
+  livekitApiSecret   String?
   updatedAt          DateTime @updatedAt
   updatedBy          String?
 }
