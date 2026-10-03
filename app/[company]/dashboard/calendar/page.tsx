@@ -26,6 +26,7 @@ import { REALTIME_EVENTS } from '@/lib/realtime/events';
 import { useMeetingActions, useMeetingsNow } from '@/hooks/use-meetings';
 import { MeetingPhaseBadge, phaseOf } from '@/components/meetings/meeting-status';
 import { AttendeeList, JoinButton, RsvpControl, RsvpSummaryText } from '@/components/meetings/meeting-parts';
+import { MeetingNotesPreview } from '@/components/meetings/ai-notes/meeting-notes-preview';
 import {
   MeetingFields,
   ScheduleMeetingDialog,
@@ -817,6 +818,7 @@ function CalendarPageInner() {
                       <AttendeeList meeting={selectedEvent.meeting} />
                     </div>
                   </div>
+                  <MeetingNotesPreview meeting={selectedEvent.meeting} />
                 </div>
               ) : null}
 

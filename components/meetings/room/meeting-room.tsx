@@ -33,6 +33,7 @@ import {
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import type { MeetingDTO } from '@/lib/meetings/types';
 import { readAvDevices, readAvPrefs, writeAvPrefs } from './av-prefs';
+import { AiNotesControls } from './ai-notes-capture';
 
 export type LeaveReason = 'left' | 'ended' | 'removed';
 
@@ -237,6 +238,7 @@ function RoomTopBar({
           </span>
         </p>
       </div>
+      <AiNotesControls meeting={meeting} />
       {isHost ? (
         <>
           <Button

@@ -5,7 +5,8 @@
  * Requests are signed with the LiveKit API key/secret (Admin → Settings, else env). Optional: without it the
  * app still tracks presence from token requests, the leave call, and room reconciliation.
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
+import { finalizeNotesAfterEnd } from '@/lib/meetings/ai-notes/service';
 import { WebhookReceiver } from 'livekit-server-sdk';
 import { prisma } from '@/lib/prisma';
 import { MEETING_INCLUDE, markJoined, markLeft } from '@/lib/meetings/service';
@@ -15,6 +16,7 @@ import { getLiveKitConfig } from '@/lib/meetings/livekit-config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const { apiKey, apiSecret } = await getLiveKitConfig();
@@ -57,6 +59,8 @@ export async function POST(request: NextRequest) {
         row,
         row.attendees.map((a: { userId: string }) => a.userId)
       );
+      // Everyone left: stop AI-notes capture and write the summary (no-op without notes)
+      after(() => finalizeNotesAfterEnd(row.id, row.companyId));
     }
   } catch (error) {
     logError(error, { context: 'livekit webhook', event: event.event });

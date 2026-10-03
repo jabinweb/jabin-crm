@@ -90,6 +90,12 @@ export const AGENT_TOOL_ACCESS: Record<string, ToolAccess> = {
   delete_project_task: { roles: PROJECT_WRITERS },
   add_task_comment: { roles: PROJECT_WRITERS },
   log_task_hours: { roles: PROJECT_WRITERS },
+  // Team meetings + AI notes: every staff role uses meetings; per-meeting access (organizer,
+  // invited, admins) and project write access are checked inside the tools
+  list_meetings: { roles: ALL_STAFF },
+  get_meeting_notes: { roles: ALL_STAFF },
+  summarize_meeting: { roles: ALL_STAFF },
+  create_tasks_from_meeting_action_items: { roles: ALL_STAFF },
 };
 
 /**

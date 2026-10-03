@@ -4,6 +4,7 @@ import type { AgentRuntimeContext } from '@/lib/agent/context';
 import { invoiceService } from '@/lib/crm/invoice-service';
 import { qualifyLead, suggestTasks } from '@/lib/ai/ai-service';
 import { PROJECT_AGENT_TOOLS } from '@/lib/agent/project-tools';
+import { MEETING_AGENT_TOOLS } from '@/lib/agent/meeting-tools';
 import { canRoleUseTool } from '@/lib/agent/tool-access';
 export { AGENT_TOOL_ACCESS } from '@/lib/agent/tool-access';
 import { EXTENDED_OPS_TOOLS } from '@/lib/agent/ops-tools-extended';
@@ -720,6 +721,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   ...AGENT_TOOLS_BASE,
   ...EXTENDED_OPS_TOOLS,
   ...PROJECT_AGENT_TOOLS,
+  ...MEETING_AGENT_TOOLS,
 ];
 
 

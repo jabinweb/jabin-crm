@@ -36,6 +36,7 @@ import { ProviderIcon, providerLabel } from '@/components/meetings/meeting-card'
 import { ScheduleMeetingDialog } from '@/components/meetings/schedule-meeting-dialog';
 import { MeetingsNotReady, VideoSetupNotice } from '@/components/meetings/video-setup-notice';
 import { MeetingPreJoin } from '@/components/meetings/room/prejoin';
+import { MeetingNotesPanel } from '@/components/meetings/ai-notes/meeting-notes-panel';
 import type { LeaveReason } from '@/components/meetings/room/meeting-room';
 import { MeetingApiError, useMeeting, useMeetingActions } from '@/hooks/use-meetings';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
@@ -218,6 +219,11 @@ function MeetingDetail() {
               {!ended && leftReason !== 'removed' ? (
                 <Button onClick={() => setStage('prejoin')}>Rejoin</Button>
               ) : null}
+              {meeting.provider === 'OPSLANE' ? (
+                <Button variant="outline" onClick={() => setStage('details')}>
+                  Meeting details &amp; AI notes
+                </Button>
+              ) : null}
               <Button asChild variant="outline">
                 <Link href={path('/dashboard/meetings')}>Back to meetings</Link>
               </Button>
@@ -352,6 +358,8 @@ function MeetingDetail() {
               <p className="text-sm text-muted-foreground">No agenda yet.</p>
             )}
           </section>
+
+          {meeting.provider === 'OPSLANE' && !cancelled ? <MeetingNotesPanel meeting={meeting} /> : null}
         </div>
 
         <aside className="space-y-3">
