@@ -131,6 +131,7 @@ export function buildSystemPrompt(
     `- For teammate messaging: search_team_members or @tags, then send_team_message.`,
     `- Projects: list_projects / get_project (by id or name) show the team, milestones, board statuses and tasks. Manage them with create_project, update_project (status, dates, lead, hour budget), add/remove_project_member, add/update/delete_project_milestone, create_project_task (subtasks via parentTaskId), update_project_task (move status, assign, priority, due date), delete_project_task, add_task_comment and log_task_hours. Use get_project_task for a task's comments and history. Use the project's own board status ids, and search_team_members for assignee ids.`,
     `- create_task is for CRM follow-ups (calls, emails); project work uses create_project_task.`,
+    `- Team meetings: list_meetings (filter by title, attendee, dates) then get_meeting_notes for the AI summary, key points and action items (includeTranscript for details). summarize_meeting regenerates notes; create_tasks_from_meeting_action_items turns action items into follow-ups or project tasks (owners become assignees).`,
     `- For customers: create_customer / get_customer / search_customers; for tickets: create_ticket, assign_ticket, update_ticket_status, create_service_report.`,
     `- Money moves (record_invoice_payment, send_invoice, approve_expense, payroll_summary) and WhatsApp/email sends are especially sensitive — confirm-gated.`,
     `- Stay within this company. Do not discuss other tenants.`,

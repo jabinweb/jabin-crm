@@ -3387,10 +3387,58 @@ model TeamMeeting {
   company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   organizer   User      @relation("TeamMeetingOrganizer", fields: [organizerId], references: [id], onDelete: Cascade)
   attendees   MeetingAttendee[]
+  /// AI notes live in their own tables so meetings keep working before that migration
+  aiNotes     MeetingNotes?
+  transcriptSegments MeetingTranscriptSegment[]
 
   @@index([companyId])
   @@index([organizerId])
   @@index([seriesId])
+}
+
+/// AI meeting notes (1:1 with TeamMeeting): live-transcript switch, summary, key points, action items.
+model MeetingNotes {
+  id                 String    @id @default(cuid())
+  meetingId          String    @unique
+  companyId          String
+  /// While true, every participant's client uploads its own mic audio for transcription
+  aiNotesEnabled     Boolean   @default(false)
+  aiNotesStartedById String?
+  aiNotesStartedAt   DateTime?
+  /// Transcript compiled from segments when the notes were last generated
+  transcript         String?
+  summary            String?
+  /// string[]
+  keyPoints          Json?
+  /// Array<{ id, text, ownerUserId?, ownerName?, dueDate?, done?, followUpId?, taskId?, projectId? }>
+  actionItems        Json?
+  notesGeneratedAt   DateTime?
+  /// Claim so only one summary runs at a time (stale after a few minutes)
+  generatingAt       DateTime?
+  generationError    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  meeting            TeamMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+}
+
+/// One transcribed clip of one participant's own microphone (speaker known from the session).
+model MeetingTranscriptSegment {
+  id          String   @id @default(cuid())
+  meetingId   String
+  companyId   String
+  speakerId   String
+  speakerName String
+  /// When the clip started recording (client clock, clamped by the server)
+  startedAt   DateTime
+  durationMs  Int      @default(0)
+  text        String
+  createdAt   DateTime @default(now())
+  meeting     TeamMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, speakerId, startedAt])
+  @@index([meetingId, startedAt])
 }
 
 model MeetingAttendee {
