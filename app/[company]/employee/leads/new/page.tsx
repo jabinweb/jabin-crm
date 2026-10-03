@@ -18,8 +18,8 @@ export default function NewEmployeeLeadPage() {
   const handleSubmit = async (data: LeadFormValues) => {
     if (!session?.user?.employeeId) {
       toast({
-        title: "Error",
-        description: "You must be logged in as an employee to create leads",
+        title: "Can't add this lead",
+        description: "Your account isn't linked to an employee profile yet. Ask your HR admin to link it.",
         variant: "destructive"
       })
       return
@@ -36,19 +36,19 @@ export default function NewEmployeeLeadPage() {
         })
       })
 
-      if (!response.ok) throw new Error('Failed to create lead')
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}))
+        throw new Error(typeof errBody.error === 'string' ? errBody.error : "Couldn't create the lead")
+      }
 
-      toast({
-        title: "Success",
-        description: "Lead created successfully"
-      })
+      toast({ title: "Lead added" })
 
       router.push(employeePath('/employee/leads'))
       router.refresh()
-    } catch {
+    } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to create lead",
+        title: "Couldn't create the lead",
+        description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive"
       })
     } finally {

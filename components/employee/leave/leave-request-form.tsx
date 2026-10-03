@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import * as z from 'zod'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -27,10 +27,10 @@ import { toast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
 
 const formSchema = z.object({
-  policyId: z.string().min(1, 'Leave type is required'),
-  startDate: z.date(),
-  endDate: z.date(),
-  reason: z.string().min(1, 'Reason is required'),
+  policyId: z.string({ required_error: 'Choose a leave type' }).min(1, 'Choose a leave type'),
+  startDate: z.date({ required_error: 'Pick the dates you need off' }),
+  endDate: z.date({ required_error: 'Pick the dates you need off' }),
+  reason: z.string({ required_error: 'Add a short reason' }).trim().min(1, 'Add a short reason'),
 })
 
 type LeaveRequestFormValues = z.infer<typeof formSchema>
@@ -62,7 +62,15 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
 
   const form = useForm<LeaveRequestFormValues>({
     resolver: zodResolver(formSchema),
+    defaultValues: { policyId: '', reason: '' },
   })
+
+  const startDate = useWatch({ control: form.control, name: 'startDate' })
+  const endDate = useWatch({ control: form.control, name: 'endDate' })
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const maxDate = new Date(today)
+  maxDate.setMonth(today.getMonth() + 3)
 
   async function onSubmit(data: LeaveRequestFormValues) {
     try {
@@ -113,7 +121,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
           name="policyId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Leave Type</FormLabel>
+              <FormLabel>Leave type</FormLabel>
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
@@ -136,56 +144,39 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
           )}
         />
 
-        <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
-          <FormField
-            control={form.control}
-            name="startDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Start Date</FormLabel>
-                <FormControl>
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) => {
-                      const today = new Date()
-                      today.setHours(0, 0, 0, 0)
-                      const maxDate = new Date()
-                      maxDate.setMonth(today.getMonth() + 3)
-                      return date < today || date > maxDate
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="endDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>End Date</FormLabel>
-                <FormControl>
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) => {
-                      const startDate = form.getValues('startDate')
-                      const maxDate = new Date()
-                      maxDate.setMonth(maxDate.getMonth() + 3)
-                      return (startDate && date < startDate) || date > maxDate
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        {/* One range calendar instead of two stacked ones: tap the first day, then the last
+            (tap a single day for one-day leave). */}
+        <FormField
+          control={form.control}
+          name="startDate"
+          render={() => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Dates</FormLabel>
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                {startDate
+                  ? endDate && endDate.getTime() !== startDate.getTime()
+                    ? `${format(startDate, 'EEE, d MMM')} – ${format(endDate, 'EEE, d MMM yyyy')}`
+                    : format(startDate, 'EEE, d MMM yyyy')
+                  : 'Tap the first day, then the last day of your leave.'}
+              </p>
+              <FormControl>
+                <Calendar
+                  mode="range"
+                  className="self-center rounded-md border sm:self-start"
+                  selected={startDate ? { from: startDate, to: endDate ?? startDate } : undefined}
+                  onSelect={(range) => {
+                    const from = range?.from
+                    const to = range?.to ?? range?.from
+                    form.setValue('startDate', from as Date, { shouldValidate: Boolean(from) })
+                    form.setValue('endDate', to as Date, { shouldValidate: Boolean(to) })
+                  }}
+                  disabled={(date) => date < today || date > maxDate}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <FormField
           control={form.control}
@@ -195,7 +186,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
               <FormLabel>Reason</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Please provide a reason for your leave request"
+                  placeholder="e.g. Family function, medical appointment"
                   {...field}
                 />
               </FormControl>
@@ -205,7 +196,7 @@ export function LeaveRequestForm({ onSuccess }: LeaveRequestFormProps) {
         />
 
         <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
-          {isSubmitting ? 'Submitting...' : 'Submit Request'}
+          {isSubmitting ? 'Submitting…' : 'Submit request'}
         </Button>
       </form>
     </Form>

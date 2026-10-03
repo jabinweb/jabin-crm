@@ -16,6 +16,8 @@ import {
 } from 'lucide-react'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { format } from 'date-fns'
+import { Skeleton } from '@/components/ui/skeleton'
+import { humanizeStatus } from '@/components/employee/mobile/ess-states'
 
 export function EssHome() {
   const { data: session } = useSession()
@@ -25,7 +27,7 @@ export function EssHome() {
   const greeting =
     hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
-  const { data: today } = useQuery({
+  const { data: today, isLoading: todayLoading } = useQuery({
     queryKey: ['ess-attendance-today'],
     queryFn: async () => {
       const res = await workspaceFetch('/api/employee/attendance/today')
@@ -34,7 +36,7 @@ export function EssHome() {
     },
   })
 
-  const { data: balances = [] } = useQuery({
+  const { data: balances = [], isLoading: balancesLoading } = useQuery({
     queryKey: ['ess-leave-balances'],
     queryFn: async () => {
       const res = await workspaceFetch('/api/employee/leave/balances')
@@ -80,17 +82,21 @@ export function EssHome() {
         <div className="mt-5 flex items-center justify-between gap-3 rounded-xl bg-white/10 p-3">
           <div className="min-w-0">
             <p className="text-xs text-white/70">Today</p>
-            <p className="font-medium">
-              {punchedIn
-                ? `In since ${today?.checkIn ? format(new Date(today.checkIn), 'h:mm a') : '—'}`
-                : today?.checkOut
-                  ? 'Shift complete'
-                  : 'Not punched in'}
-            </p>
+            {todayLoading ? (
+              <Skeleton className="mt-1 h-5 w-28 bg-white/20" />
+            ) : (
+              <p className="font-medium">
+                {punchedIn
+                  ? `In since ${today?.checkIn ? format(new Date(today.checkIn), 'h:mm a') : '—'}`
+                  : today?.checkOut
+                    ? 'Shift complete'
+                    : 'Not punched in'}
+              </p>
+            )}
           </div>
-          <Button asChild size="sm" variant="secondary" className="shrink-0">
+          <Button asChild size="sm" variant="secondary" className="h-10 shrink-0">
             <Link href={employeePath('/employee/attendance')}>
-              {punchedIn ? 'Punch out' : 'Punch in'}
+              {punchedIn ? 'Punch out' : today?.checkOut ? 'View' : 'Punch in'}
             </Link>
           </Button>
         </div>
@@ -128,13 +134,17 @@ export function EssHome() {
           <h2 className="text-sm font-semibold">Leave balances</h2>
           <Link
             href={employeePath('/employee/leave')}
-            className="text-xs text-primary flex items-center"
+            className="-my-2 flex items-center py-2 text-xs text-primary"
           >
-            View all <ChevronRight className="h-3.5 w-3.5" />
+            View all <ChevronRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         </div>
         <div className="no-scrollbar -mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
-          {(balances as Array<{
+          {balancesLoading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[92px] min-w-[140px] shrink-0 rounded-lg" />
+            ))
+          ) : (balances as Array<{
             id: string
             entitled: number
             used: number
@@ -143,7 +153,7 @@ export function EssHome() {
           }>).length === 0 ? (
             <Card className="shadow-none flex-1">
               <CardContent className="p-3 text-sm text-muted-foreground">
-                Balances will appear after your first leave sync.
+                No leave balances yet. They appear once HR assigns you a leave policy.
               </CardContent>
             </Card>
           ) : (
@@ -181,7 +191,7 @@ export function EssHome() {
                 {format(new Date(nextHoliday.date), 'EEE, d MMM yyyy')}
               </p>
             </div>
-            <Badge variant="secondary" className="shrink-0">{nextHoliday.type || 'PUBLIC'}</Badge>
+            <Badge variant="secondary" className="shrink-0">{humanizeStatus(nextHoliday.type || 'PUBLIC')}</Badge>
           </CardContent>
         </Card>
       ) : null}
@@ -193,9 +203,9 @@ export function EssHome() {
               <p className="text-xs text-muted-foreground">Latest announcement</p>
               <Link
                 href={employeePath('/employee/announcements')}
-                className="text-xs text-primary"
+                className="-my-2 flex items-center py-2 text-xs text-primary"
               >
-                All
+                View all <ChevronRight className="h-3.5 w-3.5" aria-hidden />
               </Link>
             </div>
             <p className="font-medium line-clamp-1">{latestAnnouncement.title}</p>

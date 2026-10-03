@@ -1,6 +1,5 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { LoginForm } from "@/components/auth/login-form";
 import { useWorkspacePaths } from "@/hooks/use-workspace-paths";
 
@@ -10,8 +9,8 @@ export default function EmployeeLoginPage() {
   return (
     <LoginForm
       type="employee"
-      title="Employee Login"
-      subtitle="Sign in to your employee account"
+      title="Employee sign in"
+      subtitle="Punch in, apply for leave and download your payslips."
       redirectPath={employeePath("/employee/dashboard")}
       registerPath={employeePath("/employee/register")}
     />
