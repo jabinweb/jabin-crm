@@ -66,7 +66,13 @@ async function roomClient(): Promise<RoomServiceClient | null> {
   const { url, apiKey, apiSecret } = await getLiveKitConfig();
   if (!url || !apiKey || !apiSecret) return null;
   const httpUrl = url.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
-  return new RoomServiceClient(httpUrl, apiKey, apiSecret);
+  const client = new RoomServiceClient(httpUrl, apiKey, apiSecret);
+  // A server behind a path (e.g. wss://events.jabin.org/livekit) needs its API under that path
+  // too; the SDK always calls /twirp from the domain root and doesn't expose `prefix` here.
+  const basePath = new URL(httpUrl).pathname.replace(/\/+$/, '');
+  const rpc = (client as unknown as { rpc?: { prefix?: string } }).rpc;
+  if (basePath && rpc) rpc.prefix = `${basePath}/twirp`;
+  return client;
 }
 
 function swallowMissing(err: unknown) {
