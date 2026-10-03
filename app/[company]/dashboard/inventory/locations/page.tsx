@@ -33,7 +33,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, MapPin, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, MapPin, Plus } from 'lucide-react';
+import { humanizeEnum } from '@/lib/humanize-enum';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { useWorkspaceConfig } from '@/hooks/use-workspace-config';
@@ -65,7 +66,7 @@ export default function LocationsPage() {
   const [code, setCode] = useState('');
   const [editing, setEditing] = useState<Location | null>(null);
 
-  const { data: locations = [], isLoading } = useQuery({
+  const { data: locations = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['locations', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/locations');
@@ -151,10 +152,10 @@ export default function LocationsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const confirmDeleteLocation = async (id: string) => {
+  const confirmDeleteLocation = async ({ id, name: locationName }: Location) => {
     if (
       !(await confirmAction({
-        title: 'Delete this location?',
+        title: `Delete “${locationName}”?`,
         description: 'This cannot be undone.',
         confirmLabel: 'Delete',
         variant: 'destructive',
@@ -203,13 +204,25 @@ export default function LocationsPage() {
         <CardContent className="p-4">
           {isLoading ? (
             <FullTableSkeleton columnCount={5} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load locations"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
           ) : locations.length === 0 ? (
             <EmptyState
               icon={MapPin}
               title="No locations yet"
-              description="Create a warehouse or store so stock transfers can use it."
-              actionLabel="New location"
-              onAction={openCreate}
+              description={
+                isAdmin
+                  ? 'Create a warehouse, store, or van so stock can be held and transferred there.'
+                  : 'An admin needs to add warehouses or stores before stock can be transferred.'
+              }
+              actionLabel={isAdmin ? 'New location' : undefined}
+              onAction={isAdmin ? openCreate : undefined}
             />
           ) : (
             <>
@@ -219,7 +232,7 @@ export default function LocationsPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{loc.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {loc.type}
+                      {humanizeEnum(loc.type)}
                       {loc.code ? <> · <span className="font-mono">{loc.code}</span></> : null}
                     </p>
                     {loc.address ? (
@@ -234,7 +247,7 @@ export default function LocationsPage() {
                       variant="ghost"
                       size="sm"
                       className="h-10 sm:h-8"
-                      onClick={() => confirmDeleteLocation(loc.id)}
+                      onClick={() => confirmDeleteLocation(loc)}
                     >
                       Delete
                     </Button>
@@ -257,7 +270,7 @@ export default function LocationsPage() {
                   {locations.map((loc) => (
                     <TableRow key={loc.id}>
                       <TableCell className="font-medium">{loc.name}</TableCell>
-                      <TableCell>{loc.type}</TableCell>
+                      <TableCell>{humanizeEnum(loc.type)}</TableCell>
                       <TableCell className="font-mono text-xs">{loc.code}</TableCell>
                       <TableCell className="max-w-[240px] truncate">{loc.address}</TableCell>
                       <TableCell className={isAdmin ? 'space-x-1' : 'invisible'}>
@@ -267,7 +280,8 @@ export default function LocationsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => confirmDeleteLocation(loc.id)}
+                          className="text-destructive"
+                          onClick={() => confirmDeleteLocation(loc)}
                         >
                           Delete
                         </Button>
@@ -304,15 +318,15 @@ export default function LocationsPage() {
               <Input id="loc-name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Type</Label>
+              <Label htmlFor="loc-type">Type</Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger>
+                <SelectTrigger id="loc-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {LOCATION_TYPES.map((t) => (
                     <SelectItem key={t} value={t}>
-                      {t}
+                      {humanizeEnum(t)}
                     </SelectItem>
                   ))}
                 </SelectContent>

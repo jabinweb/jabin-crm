@@ -17,6 +17,8 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { StockTransfer, Location, Product } from "@/types/inventory"
 import { BarcodeScanner } from "@/components/inventory/barcode-scanner"
+import Link from 'next/link'
+import { ChevronLeft, Loader2, ScanLine } from 'lucide-react'
 
 export default function StockTransferPage() {
   const params = useParams<{ company: string }>()
@@ -114,8 +116,8 @@ export default function StockTransferPage() {
       }
 
       toast({
-        title: "Success",
-        description: "Stock transfer completed successfully"
+        title: "Stock transferred",
+        description: "The transfer has been recorded."
       })
 
       setTransfer({})
@@ -130,23 +132,36 @@ export default function StockTransferPage() {
     }
   }
 
+  const selectedProduct = products.find((p) => p.id === transfer.productId)
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Stock Transfer</h1>
+      <Button variant="ghost" size="sm" className="-ml-3 -mb-4" asChild>
+        <Link href={`/${params.company}/dashboard/inventory`}>
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          Inventory
+        </Link>
+      </Button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Stock transfers</h1>
+          <p className="text-sm text-muted-foreground">
+            Move stock between warehouses, stores, and vans.
+          </p>
+        </div>
         <Button variant="outline" asChild>
-          <a href={`/${params.company}/dashboard/inventory/locations`}>Manage locations</a>
+          <Link href={`/${params.company}/dashboard/inventory/locations`}>Manage locations</Link>
         </Button>
       </div>
       {locations.length === 0 && (
         <p className="text-sm text-muted-foreground">
           No locations yet.{' '}
-          <a
+          <Link
             className="underline text-primary"
             href={`/${params.company}/dashboard/inventory/locations`}
           >
             Create a warehouse or store
-          </a>{' '}
+          </Link>{' '}
           before transferring stock.
         </p>
       )}
@@ -176,7 +191,7 @@ export default function StockTransferPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="sourceLocationId">Source Location</Label>
+              <Label htmlFor="sourceLocationId">From location</Label>
               <Select
                 value={transfer.sourceLocationId ?? ''}
                 onValueChange={(value) =>
@@ -184,7 +199,7 @@ export default function StockTransferPage() {
                 }
               >
                 <SelectTrigger id="sourceLocationId">
-                  <SelectValue placeholder="Select source location" />
+                  <SelectValue placeholder="Select where stock is now" />
                 </SelectTrigger>
                 <SelectContent>
                   {locations.map((location) => (
@@ -197,7 +212,7 @@ export default function StockTransferPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="targetLocationId">Target Location</Label>
+              <Label htmlFor="targetLocationId">To location</Label>
               <Select
                 value={transfer.targetLocationId ?? ''}
                 onValueChange={(value) =>
@@ -205,7 +220,7 @@ export default function StockTransferPage() {
                 }
               >
                 <SelectTrigger id="targetLocationId">
-                  <SelectValue placeholder="Select target location" />
+                  <SelectValue placeholder="Select where it is going" />
                 </SelectTrigger>
                 <SelectContent>
                   {locations
@@ -233,12 +248,13 @@ export default function StockTransferPage() {
                     quantity: e.target.value ? Number(e.target.value) : undefined,
                   }))
                 }
+                inputMode="numeric"
                 placeholder="Enter quantity"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="batchNumber">Batch Number (optional)</Label>
+              <Label htmlFor="batchNumber">Batch number (optional)</Label>
               <Input
                 id="batchNumber"
                 value={transfer.batchNumber ?? ''}
@@ -248,23 +264,45 @@ export default function StockTransferPage() {
                     batchNumber: e.target.value || undefined,
                   }))
                 }
-                placeholder="Optional batch number"
+                placeholder="e.g. LOT-2026-04"
               />
             </div>
 
             <Button type="submit" disabled={isLoading} className="w-full">
-              {isLoading ? "Processing..." : "Transfer Stock"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Transferring…
+                </>
+              ) : (
+                "Transfer stock"
+              )}
             </Button>
           </form>
         </Card>
 
         <Card className="min-w-0 p-6">
-          <h2 className="text-lg font-semibold mb-4">Scan Product</h2>
+          <h2 className="text-lg font-semibold">Scan a product</h2>
+          <p className="mb-4 text-sm text-muted-foreground">
+            Use your camera to scan a product barcode or SKU instead of picking it from the list.
+          </p>
           {showScanner ? (
             <BarcodeScanner
               onDetected={(result) => {
-                setTransfer(prev => ({ ...prev, productId: result }))
+                const code = result.trim()
+                const match = products.find(
+                  (p) => p.id === code || (p.sku ?? '').toLowerCase() === code.toLowerCase()
+                )
                 setShowScanner(false)
+                if (!match) {
+                  toast({
+                    variant: "destructive",
+                    title: "Product not found",
+                    description: `No product matches the scanned code “${code}”.`,
+                  })
+                  return
+                }
+                setTransfer(prev => ({ ...prev, productId: match.id }))
               }}
               onError={(error) => {
                 toast({
@@ -275,13 +313,15 @@ export default function StockTransferPage() {
               }}
             />
           ) : (
-            <Button onClick={() => setShowScanner(true)} className="w-full">
-              Start Scanner
+            <Button variant="outline" onClick={() => setShowScanner(true)} className="w-full">
+              <ScanLine className="mr-2 h-4 w-4" />
+              Start scanner
             </Button>
           )}
-          {transfer.productId && (
+          {selectedProduct && (
             <p className="mt-4 text-sm text-muted-foreground">
-              Selected product ID: {transfer.productId}
+              Selected: <span className="font-medium text-foreground">{selectedProduct.name}</span>
+              {selectedProduct.sku ? ` (${selectedProduct.sku})` : ''}
             </p>
           )}
         </Card>

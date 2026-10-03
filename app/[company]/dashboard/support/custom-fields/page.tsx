@@ -19,7 +19,16 @@ import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, ListPlus, Loader2, Trash2 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+
+const FIELD_TYPE_LABELS: Record<string, string> = {
+  text: 'Text',
+  number: 'Number',
+  select: 'Dropdown',
+  boolean: 'Yes / no',
+  date: 'Date',
+};
 
 type CustomField = {
   id: string;
@@ -40,7 +49,7 @@ export default function CustomFieldsPage() {
   const [required, setRequired] = useState(false);
   const [options, setOptions] = useState('');
 
-  const { data: fields, isLoading } = useQuery({
+  const { data: fields, isLoading, isError, refetch } = useQuery({
     queryKey: ['ticket-custom-fields', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/support/custom-fields');
@@ -105,9 +114,9 @@ export default function CustomFieldsPage() {
       <div className="flex flex-col items-start">
         <SupportBackLink />
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Custom fields</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Custom fields</h1>
           <p className="text-sm text-muted-foreground">
-            Extra fields on support tickets
+            Capture extra details on every support ticket.
           </p>
         </div>
       </div>
@@ -118,8 +127,9 @@ export default function CustomFieldsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Name</Label>
+            <Label htmlFor="cf-name">Name</Label>
             <Input
+              id="cf-name"
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
@@ -129,35 +139,41 @@ export default function CustomFieldsPage() {
             />
           </div>
           <div>
-            <Label>Key</Label>
+            <Label htmlFor="cf-key">Key</Label>
             <Input
+              id="cf-key"
               value={key}
               onChange={(e) => setKey(e.target.value)}
               placeholder="contract_id"
+              aria-describedby="cf-key-hint"
             />
+            <p id="cf-key-hint" className="mt-1 text-xs text-muted-foreground">
+              Used in integrations and exports. Filled in from the name automatically.
+            </p>
           </div>
           <div>
-            <Label>Type</Label>
+            <Label htmlFor="cf-type">Type</Label>
             <Select value={fieldType} onValueChange={setFieldType}>
-              <SelectTrigger>
+              <SelectTrigger id="cf-type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="text">Text</SelectItem>
                 <SelectItem value="number">Number</SelectItem>
-                <SelectItem value="select">Select</SelectItem>
-                <SelectItem value="boolean">Boolean</SelectItem>
+                <SelectItem value="select">Dropdown</SelectItem>
+                <SelectItem value="boolean">Yes / no</SelectItem>
                 <SelectItem value="date">Date</SelectItem>
               </SelectContent>
             </Select>
           </div>
           {fieldType === 'select' ? (
             <div>
-              <Label>Options (comma-separated)</Label>
+              <Label htmlFor="cf-options">Options (comma-separated)</Label>
               <Input
                 value={options}
                 onChange={(e) => setOptions(e.target.value)}
-                placeholder="A, B, C"
+                id="cf-options"
+                placeholder="Basic, Pro, Enterprise"
               />
             </div>
           ) : null}
@@ -167,9 +183,10 @@ export default function CustomFieldsPage() {
           </div>
           <Button
             onClick={() => createMutation.mutate()}
-            disabled={!name || createMutation.isPending}
+            disabled={!name.trim() || createMutation.isPending}
           >
-            Create
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Create field
           </Button>
         </CardContent>
       </Card>
@@ -181,6 +198,14 @@ export default function CustomFieldsPage() {
         <CardContent className="space-y-3">
           {isLoading ? (
             <CardListSkeleton rows={3} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load custom fields"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
           ) : (
             fields?.map((f) => (
               <div
@@ -190,7 +215,7 @@ export default function CustomFieldsPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-sm break-words">{f.name}</p>
                   <p className="text-xs text-muted-foreground break-all">
-                    {f.key} · {f.fieldType}
+                    {f.key} · {FIELD_TYPE_LABELS[f.fieldType] ?? f.fieldType}
                     {f.required ? ' · required' : ''}
                   </p>
                 </div>
@@ -198,6 +223,8 @@ export default function CustomFieldsPage() {
                   size="icon"
                   variant="ghost"
                   className="h-10 w-10 sm:h-8 sm:w-8 text-destructive"
+                  aria-label={`Remove ${f.name}`}
+                  title="Remove"
                   onClick={async () => {
                     if (
                       !(await confirmAction({
@@ -216,10 +243,13 @@ export default function CustomFieldsPage() {
               </div>
             ))
           )}
-          {!isLoading && !fields?.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              No custom fields yet
-            </p>
+          {!isLoading && !isError && !fields?.length ? (
+            <EmptyState
+              icon={ListPlus}
+              title="No custom fields yet"
+              description="Add a field above — it will appear on every new ticket form."
+              className="py-8"
+            />
           ) : null}
         </CardContent>
       </Card>

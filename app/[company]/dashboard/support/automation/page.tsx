@@ -12,20 +12,30 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Zap, Save } from 'lucide-react';
+import { Loader2, Zap, Save, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeEnum, ENUM_LABEL_OVERRIDES } from '@/lib/humanize-enum';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import type { AutomationRule } from '@/lib/support/automation-rules';
+import type { AutomationRule, AutomationTrigger } from '@/lib/support/automation-rules';
+
+const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
+  TICKET_CREATED: 'a ticket is created',
+  TICKET_STATUS_CHANGED: 'a ticket changes status',
+  SLA_AT_RISK: 'an SLA is at risk',
+  SLA_BREACHED: 'an SLA is breached',
+};
 
 export default function SupportAutomationPage() {
   const queryClient = useQueryClient();
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const [localRules, setLocalRules] = useState<AutomationRule[] | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['automation-rules', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/support/automation-rules');
@@ -68,12 +78,12 @@ export default function SupportAutomationPage() {
             <p className="text-muted-foreground mt-1">
               Auto-tag, notify, and route tickets when events occur — no code required.
               For custom event rules, use{' '}
-              <a
+              <Link
                 href={path('/dashboard/workflows')}
                 className="text-primary underline underline-offset-2"
               >
                 Automations
-              </a>
+              </Link>
               .
             </p>
           </div>
@@ -92,6 +102,26 @@ export default function SupportAutomationPage() {
 
         {isLoading ? (
           <CardListSkeleton rows={4} />
+        ) : isError ? (
+          <Card>
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load automation rules"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
+          </Card>
+        ) : rules.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={Zap}
+              title="No automation rules yet"
+              description="Build custom event-driven rules in Automations."
+              actionLabel="Open Automations"
+              actionHref={path('/dashboard/workflows')}
+            />
+          </Card>
         ) : (
           <div className="grid gap-4">
             {rules.map((rule) => (
@@ -104,18 +134,30 @@ export default function SupportAutomationPage() {
                         {rule.name}
                       </CardTitle>
                       <CardDescription className="mt-1">
-                        When <Badge variant="outline">{rule.trigger}</Badge>
+                        When{' '}
+                        <Badge variant="outline">
+                          {TRIGGER_LABELS[rule.trigger] ?? humanizeEnum(rule.trigger)}
+                        </Badge>
                         {rule.conditions?.channel ? (
-                          <> on channel <Badge variant="secondary">{rule.conditions.channel}</Badge></>
+                          <>
+                            {' '}on channel{' '}
+                            <Badge variant="secondary">
+                              {humanizeEnum(rule.conditions.channel, ENUM_LABEL_OVERRIDES)}
+                            </Badge>
+                          </>
                         ) : null}
                         {rule.conditions?.priority ? (
-                          <> with priority <Badge variant="secondary">{rule.conditions.priority}</Badge></>
+                          <>
+                            {' '}with priority{' '}
+                            <Badge variant="secondary">{humanizeEnum(rule.conditions.priority)}</Badge>
+                          </>
                         ) : null}
                       </CardDescription>
                     </div>
                     <Switch
                       checked={rule.enabled}
                       onCheckedChange={(v) => toggleRule(rule.id, v)}
+                      aria-label={`${rule.enabled ? 'Disable' : 'Enable'} ${rule.name}`}
                     />
                   </div>
                 </CardHeader>
@@ -123,9 +165,9 @@ export default function SupportAutomationPage() {
                   <ul className="text-sm space-y-1 text-muted-foreground">
                     {rule.actions.map((action, i) => (
                       <li key={i}>
-                        → {action.type.replace(/_/g, ' ').toLowerCase()}
+                        → {humanizeEnum(action.type)}
                         {'tag' in action ? `: ${action.tag}` : ''}
-                        {'priority' in action ? `: ${action.priority}` : ''}
+                        {'priority' in action ? `: ${humanizeEnum(action.priority)}` : ''}
                         {'title' in action ? `: ${action.title}` : ''}
                         {'groupName' in action ? `: ${action.groupName}` : ''}
                       </li>

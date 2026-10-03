@@ -12,7 +12,9 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { MessageCircle, Send } from 'lucide-react';
+import { AlertTriangle, Loader2, MessageCircle, Send } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeEnum } from '@/lib/humanize-enum';
 import { formatDistanceToNow } from 'date-fns';
 import { CardListSkeleton } from '@/components/loading';
 import { DashboardLink } from '@/components/navigation/dashboard-link';
@@ -58,7 +60,7 @@ function LiveChatDesk() {
     if (sessionFromUrl) setSelectedId(sessionFromUrl);
   }, [sessionFromUrl]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['live-chat-sessions'],
     queryFn: async () => {
       const res = await workspaceFetch('/api/support/chat/sessions');
@@ -80,7 +82,7 @@ function LiveChatDesk() {
 
   const sessions = data?.sessions ?? [];
 
-  const { data: detail, isLoading: detailLoading } = useQuery({
+  const { data: detail, isLoading: detailLoading, isError: detailError } = useQuery({
     queryKey: ['live-chat-session', selectedId],
     enabled: !!selectedId,
     queryFn: async () => {
@@ -139,11 +141,22 @@ function LiveChatDesk() {
               <div className="p-4">
                 <CardListSkeleton rows={4} />
               </div>
+            ) : isError ? (
+              <EmptyState
+                icon={AlertTriangle}
+                title="Couldn't load chats"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => refetch()}
+                className="py-8"
+              />
             ) : sessions.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground space-y-2">
-                <MessageCircle className="mx-auto h-8 w-8 opacity-50" />
-                <p>No open chats</p>
-              </div>
+              <EmptyState
+                icon={MessageCircle}
+                title="No open chats"
+                description="New conversations from your website or portal chat widget will show up here."
+                className="py-8"
+              />
             ) : (
               <ScrollArea className="h-[260px] lg:h-[480px]">
                 <div className="divide-y">
@@ -159,6 +172,7 @@ function LiveChatDesk() {
                         key={session.id}
                         type="button"
                         onClick={() => setSelectedId(session.id)}
+                        aria-pressed={selectedId === session.id}
                         className={`w-full text-left px-4 py-3 hover:bg-muted/50 ${
                           selectedId === session.id ? 'bg-muted' : ''
                         }`}
@@ -166,7 +180,7 @@ function LiveChatDesk() {
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-medium text-sm truncate">{title}</p>
                           <Badge variant="secondary" className="shrink-0">
-                            {session.status}
+                            {humanizeEnum(session.status)}
                           </Badge>
                         </div>
                         {preview && (
@@ -210,7 +224,13 @@ function LiveChatDesk() {
               <CardContent className="flex-1 flex flex-col p-0">
                 <ScrollArea className="flex-1 px-4 py-3 h-[360px]">
                   {detailLoading && messages.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Loading…</p>
+                    <p className="text-sm text-muted-foreground">Loading conversation…</p>
+                  ) : detailError ? (
+                    <p className="text-sm text-destructive">
+                      Couldn&apos;t load this conversation. It may have been closed.
+                    </p>
+                  ) : messages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No messages yet.</p>
                   ) : (
                     <div className="space-y-3">
                       {messages.map((m) => (
@@ -236,8 +256,9 @@ function LiveChatDesk() {
                     value={reply}
                     onChange={(e) => setReply(e.target.value)}
                     placeholder="Type a reply…"
+                    aria-label="Reply message"
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.key === 'Enter' && !e.shiftKey && !sendMutation.isPending) {
                         e.preventDefault();
                         sendMutation.mutate();
                       }
@@ -246,8 +267,13 @@ function LiveChatDesk() {
                   <Button
                     onClick={() => sendMutation.mutate()}
                     disabled={sendMutation.isPending || !reply.trim()}
+                    aria-label="Send reply"
                   >
-                    <Send className="h-4 w-4" />
+                    {sendMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
               </CardContent>

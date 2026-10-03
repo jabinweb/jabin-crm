@@ -12,8 +12,16 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
-import { TableSkeleton } from '@/components/loading';
+import { StatCardsSkeleton, TableSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
+import { AlertTriangle } from 'lucide-react';
+import { format } from 'date-fns';
 import Link from 'next/link';
+
+function formatHours(value: number | null) {
+  if (value == null) return '—';
+  return `${Math.round(value * 10) / 10}h`;
+}
 
 type ServiceStats = {
   periodDays: number;
@@ -39,7 +47,7 @@ type ServiceStats = {
 export default function ServiceAnalyticsPage() {
   const { path, workspaceFetch } = useWorkspacePaths();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['service-stats'],
     queryFn: async () => {
       const res = await workspaceFetch('/api/dashboard/service-stats?days=30');
@@ -53,12 +61,26 @@ export default function ServiceAnalyticsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Service analytics</h1>
         <p className="text-sm text-muted-foreground">
-          MTTR, technician load, and AMC renewals for the last {data?.periodDays ?? 30} days.
+          Resolution times, technician workload, and upcoming AMC/CMC renewals over the last{' '}
+          {data?.periodDays ?? 30} days.
         </p>
       </div>
 
-      {isLoading || !data ? (
-        <TableSkeleton columnCount={4} />
+      {isError ? (
+        <Card>
+          <EmptyState
+            icon={AlertTriangle}
+            title="Couldn't load service analytics"
+            description="Something went wrong while loading the numbers. Try again in a moment."
+            actionLabel="Try again"
+            onAction={() => refetch()}
+          />
+        </Card>
+      ) : isLoading || !data ? (
+        <div className="space-y-6">
+          <StatCardsSkeleton count={4} />
+          <TableSkeleton columnCount={4} />
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -73,17 +95,17 @@ export default function ServiceAnalyticsPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Avg MTTR (hours)</CardDescription>
+                <CardDescription>Avg time to resolve</CardDescription>
                 <CardTitle className="text-2xl sm:text-3xl tabular-nums">
-                  {data.mttrHours ?? '—'}
+                  {formatHours(data.mttrHours)}
                 </CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Avg first response (hours)</CardDescription>
+                <CardDescription>Avg first response</CardDescription>
                 <CardTitle className="text-2xl sm:text-3xl tabular-nums">
-                  {data.firstResponseHours ?? '—'}
+                  {formatHours(data.firstResponseHours)}
                 </CardTitle>
               </CardHeader>
             </Card>
@@ -101,26 +123,32 @@ export default function ServiceAnalyticsPage() {
               <CardDescription>Open load, resolved tickets, and reports filed.</CardDescription>
             </CardHeader>
             <CardContent>
+              {data.technicians.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No technician activity in this period.
+                </p>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Technician</TableHead>
-                    <TableHead>Open</TableHead>
-                    <TableHead>Resolved</TableHead>
-                    <TableHead>Reports</TableHead>
+                    <TableHead className="text-right">Open</TableHead>
+                    <TableHead className="text-right">Resolved</TableHead>
+                    <TableHead className="text-right">Reports</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {data.technicians.map((t) => (
                     <TableRow key={t.id}>
-                      <TableCell>{t.name}</TableCell>
-                      <TableCell>{t.open}</TableCell>
-                      <TableCell>{t.resolved}</TableCell>
-                      <TableCell>{t.reports}</TableCell>
+                      <TableCell className="font-medium">{t.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{t.open}</TableCell>
+                      <TableCell className="text-right tabular-nums">{t.resolved}</TableCell>
+                      <TableCell className="text-right tabular-nums">{t.reports}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              )}
             </CardContent>
           </Card>
 
@@ -150,15 +178,13 @@ export default function ServiceAnalyticsPage() {
                   <TableBody>
                     {data.renewalsDue.slice(0, 20).map((c) => (
                       <TableRow key={c.id}>
-                        <TableCell>{c.title || c.id}</TableCell>
+                        <TableCell className="font-medium">{c.title || 'Untitled contract'}</TableCell>
                         <TableCell>{c.customer?.organizationName || '—'}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">{c.type || 'AMC'}</Badge>
                         </TableCell>
-                        <TableCell>
-                          {c.endDate
-                            ? new Date(c.endDate).toLocaleDateString()
-                            : '—'}
+                        <TableCell className="whitespace-nowrap">
+                          {c.endDate ? format(new Date(c.endDate), 'd MMM yyyy') : '—'}
                         </TableCell>
                       </TableRow>
                     ))}

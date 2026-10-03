@@ -71,7 +71,7 @@ const modules: Array<{
   },
   {
     title: 'Canned responses',
-    description: 'Agent reply templates for faster, consistent support (Freshdesk-style).',
+    description: 'Reusable reply templates for faster, consistent answers.',
     path: '/dashboard/support/canned-responses',
     icon: MessageSquare,
     feature: 'SUPPORT_CANNED',
@@ -133,8 +133,8 @@ export default function SupportDeskHubPage() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Support desk</h1>
         <p className="text-muted-foreground mt-1 max-w-2xl">
-          Full customer support for every category — SaaS, retail, healthcare, manufacturing, and more.
-          Built with Freshdesk-style ticketing, knowledge base, agent tools, and CSAT.
+          Tickets, live conversations, help articles, and the tools your agents use to resolve
+          them — all in one place.
         </p>
       </div>
 

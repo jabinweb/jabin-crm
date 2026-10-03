@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,11 +23,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, PiggyBank, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, PiggyBank, Plus } from 'lucide-react';
+import { format } from 'date-fns';
+import { useCurrency } from '@/hooks/use-currency';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
 import { confirmAction } from '@/lib/confirm-action';
+
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy');
+}
 
 type Budget = {
   id: string;
@@ -40,15 +47,16 @@ type Budget = {
 };
 
 export default function BudgetsPage() {
-  const { slug, path, workspaceFetch } = useWorkspacePaths();
+  const { slug, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
+  const { currency, formatCurrency } = useCurrency();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [year, setYear] = useState(String(new Date().getFullYear()));
   const [amount, setAmount] = useState('');
   const [projectId, setProjectId] = useState('');
   const [editing, setEditing] = useState<Budget | null>(null);
 
-  const { data: budgets = [], isLoading } = useQuery({
+  const { data: budgets = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['budgets', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/budgets');
@@ -142,10 +150,10 @@ export default function BudgetsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const confirmDeleteBudget = async (id: string) => {
+  const confirmDeleteBudget = async ({ id, year: budgetYear, project }: Budget) => {
     if (
       !(await confirmAction({
-        title: 'Delete this budget?',
+        title: `Delete the ${budgetYear}${project?.name ? ` ${project.name}` : ''} budget?`,
         description: 'This cannot be undone.',
         confirmLabel: 'Delete',
         variant: 'destructive',
@@ -165,9 +173,6 @@ export default function BudgetsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
-          </Button>
           <Button onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" />
             New budget
@@ -179,11 +184,19 @@ export default function BudgetsPage() {
         <CardContent className="p-4">
           {isLoading ? (
             <FullTableSkeleton columnCount={3} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load budgets"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
           ) : budgets.length === 0 ? (
             <EmptyState
               icon={PiggyBank}
               title="No budgets yet"
-              description="Add an annual budget to get started."
+              description="Set an annual spending budget for the company or a project, then track expenses against it."
               actionLabel="New budget"
               onAction={openCreate}
             />
@@ -197,8 +210,8 @@ export default function BudgetsPage() {
                       {b.year} · {b.project?.name || '—'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      <span className="tabular-nums">{b.amount.toLocaleString()}</span> · Created{' '}
-                      {new Date(b.createdAt).toLocaleDateString()}
+                      <span className="tabular-nums">{formatCurrency(b.amount)}</span> · Created{' '}
+                      {formatDate(b.createdAt)}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -209,7 +222,7 @@ export default function BudgetsPage() {
                       variant="ghost"
                       size="sm"
                       className="h-10"
-                      onClick={() => confirmDeleteBudget(b.id)}
+                      onClick={() => confirmDeleteBudget(b)}
                     >
                       Delete
                     </Button>
@@ -233,8 +246,8 @@ export default function BudgetsPage() {
                     <TableRow key={b.id}>
                       <TableCell className="font-medium">{b.year}</TableCell>
                       <TableCell>{b.project?.name || '—'}</TableCell>
-                      <TableCell className="text-right">{b.amount.toLocaleString()}</TableCell>
-                      <TableCell>{new Date(b.createdAt).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(b.amount)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDate(b.createdAt)}</TableCell>
                       <TableCell className="space-x-1">
                         <Button variant="ghost" size="sm" onClick={() => openEdit(b)}>
                           Edit
@@ -242,7 +255,7 @@ export default function BudgetsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => confirmDeleteBudget(b.id)}
+                          onClick={() => confirmDeleteBudget(b)}
                         >
                           Delete
                         </Button>
@@ -286,7 +299,7 @@ export default function BudgetsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="budget-amount">Amount</Label>
+              <Label htmlFor="budget-amount">Amount ({currency})</Label>
               <Input
                 id="budget-amount"
                 type="number"
@@ -297,9 +310,10 @@ export default function BudgetsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Project (optional)</Label>
+              <Label htmlFor="budget-project">Project (optional)</Label>
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                id="budget-project"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
               >

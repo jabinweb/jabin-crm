@@ -2,16 +2,19 @@
 
 import { useSession } from 'next-auth/react'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
+import { useCurrency } from '@/hooks/use-currency'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
 import Link from 'next/link'
-import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp, ArrowLeftRight, ClipboardList, Box, Truck, MapPin } from "lucide-react"
+import { Search, Package, Plus, History, AlertTriangle, TrendingDown, TrendingUp, ArrowLeftRight, ClipboardList, Box, Truck, MapPin, Wallet } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { StockAdjustmentDialog } from "@/components/inventory/stock-adjustment-dialog"
 import { TransactionHistoryDialog } from "@/components/inventory/transaction-history-dialog"
@@ -47,10 +50,23 @@ interface InventoryData {
   }
 }
 
+function stockLabel(product: StockLevel) {
+  if (product.stockStatus.isLowStock) return 'Low stock'
+  if (product.stockStatus.isOverStock) return 'Overstock'
+  return 'In stock'
+}
+
+function stockVariant(product: StockLevel): 'destructive' | 'outline' | 'secondary' {
+  if (product.stockStatus.isLowStock) return 'destructive'
+  if (product.stockStatus.isOverStock) return 'outline'
+  return 'secondary'
+}
+
 export default function InventoryPage() {
   const router = useRouter()
   const params = useParams<{ company: string }>()
   const { path } = useWorkspacePaths()
+  const { formatCurrency } = useCurrency()
   // Stock writes need inventory:write (admins by default); others get a read-only view
   const { data: session } = useSession()
   const canWriteStock = ['ADMIN', 'SUPER_ADMIN'].includes(session?.user?.role ?? '')
@@ -62,22 +78,20 @@ export default function InventoryPage() {
   })
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false)
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
 
-  useEffect(() => {
-    if (params.company) fetchInventory()
-  }, [params.company])
-
-  const fetchInventory = async () => {
+  const fetchInventory = useCallback(async () => {
     try {
+      setLoadError(false)
       const response = await fetch('/api/inventory', {
         headers: workspaceSlugHeaders(params.company),
       })
       if (!response.ok) throw new Error('Failed to fetch inventory')
-      
+
       const data = await response.json()
-      
+
       // Transform the data to match our interface expectations
       const transformedData = {
         data: {
@@ -95,20 +109,25 @@ export default function InventoryPage() {
           }))
         }
       }
-      
+
       setInventoryData(transformedData)
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to fetch inventory"
-      })
+    } catch {
+      setLoadError(true)
     } finally {
       setIsLoading(false)
     }
+  }, [params.company])
+
+  useEffect(() => {
+    if (params.company) void fetchInventory()
+  }, [params.company, fetchInventory])
+
+  const retry = () => {
+    setIsLoading(true)
+    void fetchInventory()
   }
 
-  const filteredStockLevels = inventoryData.data.products?.filter(product => 
+  const filteredStockLevels = inventoryData.data.products?.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (product.sku ?? "").toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
@@ -133,16 +152,16 @@ export default function InventoryPage() {
       if (!response.ok) throw new Error('Failed to update inventory')
 
       toast({
-        title: "Success",
-        description: "Inventory updated successfully"
+        title: "Stock updated",
+        description: "The adjustment has been recorded."
       })
-      
+
       fetchInventory()
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Error",
-        description: "Failed to update inventory"
+        title: "Couldn't update stock",
+        description: "Please try again."
       })
       throw error // Re-throw to be handled by the dialog
     }
@@ -150,222 +169,207 @@ export default function InventoryPage() {
 
   const stats = {
     totalProducts: inventoryData.data.products.length,
-    totalValue: inventoryData.data.products.reduce((acc, p) => acc + (p.price * p.quantity), 0),
+    totalValue: inventoryData.data.products.reduce((acc, p) => acc + ((p.price ?? 0) * p.quantity), 0),
     lowStock: inventoryData.data.products.filter(p => p.stockStatus.isLowStock).length,
     overStock: inventoryData.data.products.filter(p => p.stockStatus.isOverStock).length
   }
 
+  const statCards = [
+    { label: 'Products', value: String(stats.totalProducts), icon: Package },
+    { label: 'Low stock', value: String(stats.lowStock), icon: TrendingDown },
+    { label: 'Overstock', value: String(stats.overStock), icon: TrendingUp },
+    { label: 'Stock value', value: formatCurrency(stats.totalValue), icon: Wallet },
+  ]
+
+  const hasProducts = inventoryData.data.products.length > 0
+  const emptyState = loadError ? (
+    <EmptyState
+      icon={AlertTriangle}
+      title="Couldn't load inventory"
+      description="Check your connection and try again."
+      actionLabel="Try again"
+      onAction={retry}
+    />
+  ) : !hasProducts ? (
+    <EmptyState
+      icon={Package}
+      title="No products in inventory yet"
+      description="Add products to your catalog to start tracking stock levels and movements."
+      actionLabel="Add product"
+      actionHref={path('/dashboard/products/new')}
+    />
+  ) : (
+    <EmptyState
+      icon={Search}
+      title="No products match your search"
+      description="Try a different product name or SKU."
+      actionLabel="Clear search"
+      onAction={() => setSearchQuery('')}
+    />
+  )
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <h1 className="min-w-0 text-2xl font-bold">Inventory Management</h1>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by product name or SKU"
-              className="pl-8 w-full"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
+          <p className="text-sm text-muted-foreground">
+            Stock levels, value, and movements across your product catalog.
+          </p>
+        </div>
+        <div className={canWriteStock ? 'flex flex-wrap gap-2' : 'hidden'}>
           <Button variant="outline" asChild>
-            <Link href={path('/dashboard/inventory/batches')}>
-              <ClipboardList className="h-4 w-4 mr-2" />
-              Batches
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/inventory/locations')}>
-              <MapPin className="h-4 w-4 mr-2" />
-              Locations
-            </Link>
-          </Button>
-          <Button variant="outline" asChild className={canWriteStock ? undefined : 'hidden'}>
-            <Link href={path('/dashboard/inventory/transfers')}>
-              <ArrowLeftRight className="h-4 w-4 mr-2" />
-              Transfers
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/demo-equipment')}>
-              <Truck className="h-4 w-4 mr-2" />
-              Demo fleet
-            </Link>
-          </Button>
-          <Button variant="outline" asChild className={canWriteStock ? undefined : 'hidden'}>
             <Link href={path('/dashboard/inventory/stock-adjustment')}>
               <Box className="h-4 w-4 mr-2" />
-              Stock Adjustment
+              Stock adjustment
             </Link>
           </Button>
-          <Button onClick={() => setShowAdjustmentDialog(true)} className={canWriteStock ? undefined : 'hidden'}>
+          <Button onClick={() => setShowAdjustmentDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
-            Quick Adjust
+            Quick adjust
           </Button>
-          <Button variant="outline" onClick={() => setShowHistoryDialog(true)}>
-            <History className="h-4 w-4 mr-2" />
-            Transaction History
-          </Button>
-          </div>
         </div>
       </div>
 
+      <nav aria-label="Inventory sections" className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" asChild>
+          <Link href={path('/dashboard/inventory/batches')}>
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Batches
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={path('/dashboard/inventory/locations')}>
+            <MapPin className="h-4 w-4 mr-2" />
+            Locations
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild className={canWriteStock ? undefined : 'hidden'}>
+          <Link href={path('/dashboard/inventory/transfers')}>
+            <ArrowLeftRight className="h-4 w-4 mr-2" />
+            Transfers
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" asChild>
+          <Link href={path('/dashboard/demo-equipment')}>
+            <Truck className="h-4 w-4 mr-2" />
+            Demo fleet
+          </Link>
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setShowHistoryDialog(true)} disabled={isLoading || loadError}>
+          <History className="h-4 w-4 mr-2" />
+          Transaction history
+        </Button>
+      </nav>
+
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Card className="min-w-0 p-4">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 shrink-0 text-blue-500" />
-            <span className="truncate text-sm font-medium">Total Products</span>
-          </div>
-          <p className="text-2xl font-bold mt-2 tabular-nums">{stats.totalProducts}</p>
-        </Card>
-        <Card className="min-w-0 p-4">
-          <div className="flex items-center gap-2">
-            <TrendingDown className="h-4 w-4 shrink-0 text-red-500" />
-            <span className="truncate text-sm font-medium">Low Stock Items</span>
-          </div>
-          <p className="text-2xl font-bold mt-2 tabular-nums">{stats.lowStock}</p>
-        </Card>
-        <Card className="min-w-0 p-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 shrink-0 text-green-500" />
-            <span className="truncate text-sm font-medium">Over Stock Items</span>
-          </div>
-          <p className="text-2xl font-bold mt-2 tabular-nums">{stats.overStock}</p>
-        </Card>
-        <Card className="min-w-0 p-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
-            <span className="truncate text-sm font-medium">Total Value</span>
-          </div>
-          <p className="truncate text-xl font-bold mt-2 tabular-nums sm:text-2xl">${stats.totalValue.toFixed(2)}</p>
-        </Card>
+        {statCards.map((stat) => (
+          <Card key={stat.label} className="min-w-0 p-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <stat.icon className="h-4 w-4 shrink-0" />
+              <span className="truncate text-sm font-medium">{stat.label}</span>
+            </div>
+            {isLoading ? (
+              <Skeleton className="mt-3 h-7 w-20" />
+            ) : (
+              <p className="mt-2 truncate text-xl font-bold tabular-nums sm:text-2xl">
+                {loadError ? '—' : stat.value}
+              </p>
+            )}
+          </Card>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="min-w-0 lg:col-span-2">
-          {isLoading ? null : (
+      <Card className="min-w-0 p-4 sm:p-6 space-y-4">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-2.5 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="search"
+            aria-label="Search inventory"
+            placeholder="Search by product name or SKU"
+            className="pl-8 w-full"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={loadError}
+          />
+        </div>
+
+        {isLoading ? (
+          <FullTableSkeleton columnCount={7} rowCount={6} className="border-0" />
+        ) : loadError || filteredStockLevels.length === 0 ? (
+          emptyState
+        ) : (
+          <>
             <div className="space-y-2 md:hidden">
-              {filteredStockLevels.length === 0 ? (
-                <Card className="p-6 text-center text-sm text-muted-foreground">No products found</Card>
-              ) : (
-                filteredStockLevels.map((product) => (
-                  <Link
-                    key={product.id}
-                    href={path(`/dashboard/products/${product.id}`)}
-                    className="block rounded-lg border bg-card p-3 active:bg-muted/50"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{product.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {product.sku || '—'} · {product._count.Inventory} transactions
-                        </p>
-                      </div>
-                      <Badge
-                        className="shrink-0"
-                        variant={
-                          product.stockStatus.isLowStock
-                            ? "destructive"
-                            : product.stockStatus.isOverStock
-                            ? "outline"
-                            : "default"
-                        }
-                      >
-                        {product.stockStatus.isLowStock
-                          ? "Low Stock"
-                          : product.stockStatus.isOverStock
-                          ? "Over Stock"
-                          : "In Stock"}
-                      </Badge>
+              {filteredStockLevels.map((product) => (
+                <Link
+                  key={product.id}
+                  href={path(`/dashboard/products/${product.id}`)}
+                  className="block rounded-lg border bg-card p-3 active:bg-muted/50"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{product.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {product.sku || 'No SKU'} · {product._count.Inventory} movement{product._count.Inventory === 1 ? '' : 's'}
+                      </p>
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-sm tabular-nums">
-                      <span>Qty {product.quantity} × ${(product.price ?? 0).toFixed(2)}</span>
-                      <span className="font-medium">${(product.quantity * (product.price ?? 0)).toFixed(2)}</span>
-                    </div>
-                  </Link>
-                ))
-              )}
+                    <Badge className="shrink-0" variant={stockVariant(product)}>
+                      {stockLabel(product)}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-sm tabular-nums">
+                    <span>Qty {product.quantity} × {formatCurrency(product.price ?? 0)}</span>
+                    <span className="font-medium">{formatCurrency(product.quantity * (product.price ?? 0))}</span>
+                  </div>
+                </Link>
+              ))}
             </div>
-          )}
-          <Card className={isLoading ? "p-6" : "hidden p-6 md:block"}>
-            {isLoading ? (
-              <FullTableSkeleton columnCount={7} rowCount={6} className="border-0" />
-            ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Stock Level</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Total Value</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Transactions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredStockLevels.length === 0 ? (
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      No products found
-                    </TableCell>
+                    <TableHead>Product</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Unit price</TableHead>
+                    <TableHead className="text-right">Value</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Movements</TableHead>
                   </TableRow>
-                ) : (
-                  filteredStockLevels.map((product) => (
-                    <TableRow 
+                </TableHeader>
+                <TableBody>
+                  {filteredStockLevels.map((product) => (
+                    <TableRow
                       key={product.id}
                       className="cursor-pointer hover:bg-muted/50"
                       onClick={() => router.push(path(`/dashboard/products/${product.id}`))}
                     >
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.sku}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={
-                            product.quantity <= product.minQuantity 
-                              ? "destructive" 
-                              : product.quantity >= (product.maxQuantity || Infinity)
-                              ? "outline"
-                              : "default"
-                          }>
-                            {product.quantity}
-                          </Badge>
-                          {product.quantity <= product.minQuantity && (
-                            <span className="text-xs text-red-500">Low Stock</span>
-                          )}
-                        </div>
+                      <TableCell className="font-medium">
+                        <Link
+                          href={path(`/dashboard/products/${product.id}`)}
+                          className="hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {product.name}
+                        </Link>
                       </TableCell>
-                      <TableCell>${(product.price ?? 0).toFixed(2)}</TableCell>
-                      <TableCell>${(product.quantity * (product.price ?? 0)).toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground">{product.sku || '—'}</TableCell>
+                      <TableCell className="text-right tabular-nums">{product.quantity}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(product.price ?? 0)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(product.quantity * (product.price ?? 0))}</TableCell>
                       <TableCell>
-                        <Badge variant={
-                          product.stockStatus.isLowStock
-                            ? "destructive"
-                            : product.stockStatus.isOverStock
-                            ? "outline"
-                            : "default"
-                        }>
-                          {product.stockStatus.isLowStock
-                            ? "Low Stock"
-                            : product.stockStatus.isOverStock
-                            ? "Over Stock"
-                            : "In Stock"}
-                        </Badge>
+                        <Badge variant={stockVariant(product)}>{stockLabel(product)}</Badge>
                       </TableCell>
-                      <TableCell>{product._count.Inventory} transactions</TableCell>
+                      <TableCell className="text-right tabular-nums">{product._count.Inventory}</TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            )}
-          </Card>
-        </div>
-        <div>
-        </div>
-      </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+      </Card>
 
       <StockAdjustmentDialog
         open={showAdjustmentDialog}
