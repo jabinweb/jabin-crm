@@ -9,11 +9,13 @@ import { AttendanceTodayCard } from '@/components/dashboard/attendance-today-car
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { SectionSkeleton } from '@/components/loading';
 import { ArrowLeft, Clock, Users } from 'lucide-react';
+import { QueryErrorState, humanizeEnum } from '@/components/hr/hr-ui';
+import { format } from 'date-fns';
 
 export default function CompanyAttendancePage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
 
-  const { data: opsToday, isLoading } = useQuery({
+  const { data: opsToday, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['ops-today', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/dashboard/ops-today');
@@ -52,6 +54,15 @@ export default function CompanyAttendancePage() {
         </div>
       </div>
 
+      {!isLoading && !isFetching && opsToday === null && (
+        <QueryErrorState
+          title="Couldn’t load today’s attendance"
+          description="The figures below may be incomplete. Try again in a moment."
+          onRetry={() => void refetch()}
+          className="rounded-lg border py-6"
+        />
+      )}
+
       <AttendanceTodayCard
         loading={isLoading}
         name={opsToday?.me?.name}
@@ -83,10 +94,7 @@ export default function CompanyAttendancePage() {
                       <span className="min-w-0 truncate font-medium">{p.name}</span>
                       <Badge variant="secondary" className="shrink-0">
                         {p.checkIn
-                          ? new Date(p.checkIn).toLocaleTimeString(undefined, {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
+                          ? format(new Date(p.checkIn), 'h:mm a')
                           : 'Late'}
                       </Badge>
                     </li>
@@ -144,7 +152,7 @@ export default function CompanyAttendancePage() {
                       className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
                     >
                       <span className="min-w-0 truncate font-medium">{p.name}</span>
-                      <Badge variant="outline" className="shrink-0">{p.type}</Badge>
+                      <Badge variant="outline" className="shrink-0">{humanizeEnum(p.type)}</Badge>
                     </li>
                   )
                 )}

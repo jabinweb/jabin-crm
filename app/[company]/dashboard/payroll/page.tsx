@@ -17,6 +17,10 @@ import { Loader2, Wallet } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { workspaceSlugHeaders } from '@/lib/api/workspace-slug'
 import { CardListSkeleton } from '@/components/loading'
+import { EmptyState } from '@/components/ui/empty-state'
+import { QueryErrorState } from '@/components/hr/hr-ui'
+import { confirmAction } from '@/lib/confirm-action'
+import { useCurrency } from '@/hooks/use-currency'
 
 interface PayslipRow {
   id: string
@@ -29,13 +33,14 @@ interface PayslipRow {
 }
 
 const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
 export default function CompanyPayrollPage() {
   const params = useParams<{ company: string }>()
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
+  const { formatCurrency } = useCurrency()
   const companySlug = params.company
   const tenantHeaders = useMemo(
     () => (companySlug ? workspaceSlugHeaders(companySlug) : {}),
@@ -47,6 +52,7 @@ export default function CompanyPayrollPage() {
   const [year, setYear] = useState(String(now.getFullYear()))
   const [payslips, setPayslips] = useState<PayslipRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [processingId, setProcessingId] = useState<string | null>(null)
 
@@ -56,18 +62,15 @@ export default function CompanyPayrollPage() {
   const fetchPayslips = useCallback(async () => {
     if (!companySlug) return
     setLoading(true)
+    setLoadFailed(false)
     try {
       const qs = new URLSearchParams({ month, year })
       const res = await fetch(`/api/payrolls?${qs}`, { headers: tenantHeaders })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to load payslips')
       setPayslips(Array.isArray(data) ? data : [])
-    } catch (e) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Could not load payroll',
-      })
+    } catch {
+      setLoadFailed(true)
     } finally {
       setLoading(false)
     }
@@ -77,8 +80,16 @@ export default function CompanyPayrollPage() {
     if (canManage) fetchPayslips()
   }, [canManage, fetchPayslips])
 
+  const periodLabel = `${MONTHS[parseInt(month, 10) - 1]} ${year}`
+
   const handleGenerate = async () => {
     if (!companySlug) return
+    const ok = await confirmAction({
+      title: `Generate payslips for ${periodLabel}?`,
+      description: 'Creates payslips for every active employee with a salary structure.',
+      confirmLabel: 'Generate payslips',
+    })
+    if (!ok) return
     setGenerating(true)
     try {
       const ctxRes = await fetch('/api/dashboard/settings', { headers: tenantHeaders })
@@ -113,7 +124,14 @@ export default function CompanyPayrollPage() {
     }
   }
 
-  const handleInitiatePayment = async (payslipId: string) => {
+  const handleInitiatePayment = async (p: PayslipRow) => {
+    const payslipId = p.id
+    const ok = await confirmAction({
+      title: `Pay ${p.employee.name}?`,
+      description: `Starts a Razorpay payment of ${formatCurrency(p.netSalary, 'INR')}. The payslip is marked paid once the payment is confirmed.`,
+      confirmLabel: 'Start payment',
+    })
+    if (!ok) return
     setProcessingId(payslipId)
     try {
       const res = await fetch('/api/payrolls/process', {
@@ -124,21 +142,28 @@ export default function CompanyPayrollPage() {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Payment failed')
       toast({
-        title: 'Razorpay order created',
-        description: data.message || 'Payslip updates when payment.captured webhook runs.',
+        title: 'Payment started',
+        description: 'The payslip will show as paid once Razorpay confirms the payment.',
       })
     } catch (e) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Could not initiate payment',
+        title: 'Couldn’t start payment',
+        description: e instanceof Error ? e.message : 'Please try again.',
       })
     } finally {
       setProcessingId(null)
     }
   }
 
-  const handleMarkPaidStaging = async (payslipId: string) => {
+  const handleMarkPaidStaging = async (p: PayslipRow) => {
+    const payslipId = p.id
+    const ok = await confirmAction({
+      title: `Mark ${p.employee.name}’s payslip as paid?`,
+      description: 'Use this only if the salary was paid outside Opslane.',
+      confirmLabel: 'Mark paid',
+    })
+    if (!ok) return
     setProcessingId(payslipId)
     try {
       const res = await fetch(`/api/payrolls/${payslipId}/mark-paid`, {
@@ -152,35 +177,40 @@ export default function CompanyPayrollPage() {
     } catch (e) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: e instanceof Error ? e.message : 'Mark paid failed',
+        title: 'Couldn’t mark as paid',
+        description: e instanceof Error ? e.message : 'Please try again.',
       })
     } finally {
       setProcessingId(null)
     }
   }
 
+  if (sessionStatus === 'loading') {
+    return <CardListSkeleton rows={5} />
+  }
+
   if (!canManage) {
-    return <p className="text-muted-foreground">Admin access required.</p>
+    return (
+      <EmptyState
+        icon={Wallet}
+        title="Admin access required"
+        description="Ask a workspace admin to run payroll."
+      />
+    )
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Wallet className="h-6 w-6" />
-            Payroll
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Generate payslips, initiate Razorpay payment, or mark paid via webhook. In staging,
-            set <code className="break-all text-xs">ALLOW_MANUAL_PAYROLL_MARK_PAID=true</code> to mark paid
-            without Razorpay.
+          <h1 className="text-2xl font-semibold tracking-tight">Payroll</h1>
+          <p className="text-sm text-muted-foreground">
+            Generate monthly payslips, then pay through Razorpay or mark them paid.
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Select value={month} onValueChange={setMonth}>
-            <SelectTrigger className="w-[120px]">
+            <SelectTrigger className="w-[136px]" aria-label="Month">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -192,7 +222,7 @@ export default function CompanyPayrollPage() {
             </SelectContent>
           </Select>
           <Select value={year} onValueChange={setYear}>
-            <SelectTrigger className="w-[100px]">
+            <SelectTrigger className="w-[100px]" aria-label="Year">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -215,17 +245,21 @@ export default function CompanyPayrollPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>
-            {MONTHS[parseInt(month, 10) - 1]} {year}
-          </CardTitle>
+          <CardTitle className="text-base">{periodLabel}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <CardListSkeleton rows={5} />
+          ) : loadFailed ? (
+            <QueryErrorState title="Couldn’t load payslips" onRetry={() => void fetchPayslips()} />
           ) : payslips.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-8 text-center">
-              No payslips for this period. Generate payslips for active employees with salary configured.
-            </p>
+            <EmptyState
+              icon={Wallet}
+              title={`No payslips for ${periodLabel}`}
+              description="Generate payslips for active employees who have a salary structure on their profile."
+              actionLabel="Generate payslips"
+              onAction={() => void handleGenerate()}
+            />
           ) : (
             <div className="space-y-3">
               {payslips.map((p) => (
@@ -239,7 +273,7 @@ export default function CompanyPayrollPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2 sm:gap-3">
                     <span className="font-semibold tabular-nums">
-                      ₹{p.netSalary.toLocaleString('en-IN')}
+                      {formatCurrency(p.netSalary, 'INR')}
                     </span>
                     <Badge variant={p.isPaid ? 'default' : 'secondary'}>
                       {p.isPaid ? 'Paid' : 'Unpaid'}
@@ -250,7 +284,7 @@ export default function CompanyPayrollPage() {
                           size="sm"
                           variant="outline"
                           disabled={processingId === p.id}
-                          onClick={() => handleInitiatePayment(p.id)}
+                          onClick={() => void handleInitiatePayment(p)}
                         >
                           {processingId === p.id && (
                             <Loader2 className="mr-2 h-3 w-3 animate-spin" />
@@ -261,7 +295,7 @@ export default function CompanyPayrollPage() {
                           size="sm"
                           variant="ghost"
                           disabled={processingId === p.id}
-                          onClick={() => handleMarkPaidStaging(p.id)}
+                          onClick={() => void handleMarkPaidStaging(p)}
                         >
                           Mark paid
                         </Button>
