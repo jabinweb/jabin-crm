@@ -20,6 +20,17 @@ import { toast } from 'sonner'
 import { SupportBackLink } from '@/components/support/support-back-link'
 import { CardListSkeleton } from '@/components/loading'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
+import { EmptyState } from '@/components/ui/empty-state'
+import { AlertTriangle, Loader2, Map as MapIcon } from 'lucide-react'
+import { humanizeEnum } from '@/lib/humanize-enum'
+
+const STATUS_LABELS: Record<string, string> = {
+  considering: 'Considering',
+  planned: 'Planned',
+  in_progress: 'In progress',
+  shipped: 'Shipped',
+  wont_do: "Won't do",
+}
 
 type RoadmapItem = {
   id: string
@@ -38,7 +49,7 @@ export default function RoadmapPage() {
   const [status, setStatus] = useState('considering')
   const [published, setPublished] = useState(true)
 
-  const { data: items, isLoading } = useQuery({
+  const { data: items, isLoading, isError, refetch } = useQuery({
     queryKey: ['roadmap-items', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/roadmap')
@@ -88,6 +99,7 @@ export default function RoadmapPage() {
       return res.json()
     },
     onSuccess: () => {
+      toast.success('Roadmap item updated')
       queryClient.invalidateQueries({ queryKey: ['roadmap-items'] })
     },
     onError: (e: Error) => toast.error(e.message),
@@ -98,9 +110,9 @@ export default function RoadmapPage() {
       <div className="flex flex-col items-start">
         <SupportBackLink />
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">Product roadmap</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Product roadmap</h1>
           <p className="text-sm text-muted-foreground">
-            Public feature requests and status
+            Share what you are building and let customers vote on what matters.
           </p>
         </div>
       </div>
@@ -111,21 +123,22 @@ export default function RoadmapPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Title</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Label htmlFor="rm-title">Title</Label>
+            <Input id="rm-title" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div>
-            <Label>Description</Label>
+            <Label htmlFor="rm-description">Description (optional)</Label>
             <Textarea
+              id="rm-description"
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
           <div>
-            <Label>Status</Label>
+            <Label htmlFor="rm-status">Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
+              <SelectTrigger id="rm-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -142,13 +155,14 @@ export default function RoadmapPage() {
               onCheckedChange={setPublished}
               id="pub"
             />
-            <Label htmlFor="pub">Published</Label>
+            <Label htmlFor="pub">Visible to customers</Label>
           </div>
           <Button
             onClick={() => createMutation.mutate()}
-            disabled={!title || createMutation.isPending}
+            disabled={!title.trim() || createMutation.isPending}
           >
-            Add
+            {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Add item
           </Button>
         </CardContent>
       </Card>
@@ -160,12 +174,20 @@ export default function RoadmapPage() {
         <CardContent className="space-y-3">
           {isLoading ? (
             <CardListSkeleton rows={3} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load the roadmap"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
           ) : (
             items?.map((item) => (
               <div key={item.id} className="border rounded-lg p-3 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-sm">{item.title}</p>
-                  <Badge variant="secondary">{item.status}</Badge>
+                  <Badge variant="secondary">{STATUS_LABELS[item.status] ?? humanizeEnum(item.status)}</Badge>
                   {!item.published ? (
                     <Badge variant="outline">Draft</Badge>
                   ) : null}
@@ -176,7 +198,7 @@ export default function RoadmapPage() {
                   </p>
                 ) : null}
                 <p className="text-[11px] text-muted-foreground">
-                  {item._count?.votes ?? 0} votes
+                  {item._count?.votes ?? 0} vote{(item._count?.votes ?? 0) === 1 ? '' : 's'}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Select
@@ -185,7 +207,7 @@ export default function RoadmapPage() {
                       patchMutation.mutate({ id: item.id, status: v })
                     }
                   >
-                    <SelectTrigger className="h-8 w-[140px]">
+                    <SelectTrigger className="h-10 w-[150px] sm:h-8" aria-label={`Status for ${item.title}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -221,8 +243,13 @@ export default function RoadmapPage() {
               </div>
             ))
           )}
-          {!isLoading && !items?.length ? (
-            <p className="text-sm text-muted-foreground">No roadmap items yet.</p>
+          {!isLoading && !isError && !items?.length ? (
+            <EmptyState
+              icon={MapIcon}
+              title="No roadmap items yet"
+              description="Add your first item above to show customers what is coming next."
+              className="py-8"
+            />
           ) : null}
         </CardContent>
       </Card>

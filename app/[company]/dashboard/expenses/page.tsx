@@ -16,7 +16,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Receipt, PiggyBank, Building2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Receipt, PiggyBank, Building2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { useCurrency } from '@/hooks/use-currency';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
@@ -40,6 +42,12 @@ type Asset = {
   name: string;
 };
 
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy');
+}
+
 function toDateInput(value?: string | null) {
   if (!value) return '';
   return value.slice(0, 10);
@@ -48,13 +56,14 @@ function toDateInput(value?: string | null) {
 export default function ExpensesPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
+  const { currency, formatCurrency } = useCurrency();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [editing, setEditing] = useState<Expense | null>(null);
   const currentYear = new Date().getFullYear();
 
-  const { data: expenses = [], isLoading } = useQuery({
+  const { data: expenses = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['expenses', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/expenses');
@@ -163,12 +172,14 @@ export default function ExpensesPage() {
     setDescription(e.description);
     setAmount(String(e.amount));
     setDate(toDateInput(e.date));
+    document.getElementById('expense-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('exp-desc')?.focus({ preventScroll: true });
   };
 
-  const confirmDeleteExpense = async (id: string) => {
+  const confirmDeleteExpense = async ({ id, description: expenseDescription }: Expense) => {
     if (
       !(await confirmAction({
-        title: 'Delete this expense?',
+        title: `Delete “${expenseDescription}”?`,
         description: 'This cannot be undone.',
         confirmLabel: 'Delete',
         variant: 'destructive',
@@ -183,11 +194,14 @@ export default function ExpensesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Expenses</h1>
-          <p className="text-sm text-muted-foreground">Company operating expenses.</p>
+          <p className="text-sm text-muted-foreground">
+            Record operating expenses and see how spending compares with this year&apos;s{' '}
+            <Link href={path('/dashboard/budgets')} className="text-primary underline underline-offset-2">
+              budget
+            </Link>
+            .
+          </p>
         </div>
-        <Button variant="outline" asChild>
-          <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
-        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
@@ -200,7 +214,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
-              {expenseTotal.toLocaleString()}
+              {formatCurrency(expenseTotal)}
             </div>
             <p className="text-xs text-muted-foreground">{expenses.length} recorded</p>
           </CardContent>
@@ -214,7 +228,7 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">
-              {budgetYearTotal.toLocaleString()}
+              {formatCurrency(budgetYearTotal)}
             </div>
             <p className="text-xs text-muted-foreground">Sum of budgets for this year</p>
           </CardContent>
@@ -226,12 +240,17 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="truncate text-xl font-semibold tabular-nums sm:text-2xl">{assets.length}</div>
-            <p className="text-xs text-muted-foreground">Tracked assets</p>
+            <Link
+              href={path('/dashboard/assets')}
+              className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              View asset register
+            </Link>
           </CardContent>
         </Card>
       </div>
 
-      <Card className="min-w-0">
+      <Card id="expense-form" className="min-w-0 scroll-mt-20">
         <CardHeader>
           <CardTitle className="text-base">
             {editing ? 'Edit expense' : 'New expense'}
@@ -247,7 +266,7 @@ export default function ExpensesPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="exp-amount">Amount</Label>
+            <Label htmlFor="exp-amount">Amount ({currency})</Label>
             <Input
               id="exp-amount"
               type="number"
@@ -258,7 +277,7 @@ export default function ExpensesPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="exp-date">Date</Label>
+            <Label htmlFor="exp-date">Date (defaults to today)</Label>
             <Input
               id="exp-date"
               type="date"
@@ -290,11 +309,19 @@ export default function ExpensesPage() {
         <CardContent>
           {isLoading ? (
             <FullTableSkeleton columnCount={3} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load expenses"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
           ) : expenses.length === 0 ? (
             <EmptyState
               icon={Receipt}
               title="No expenses yet"
-              description="Record a company expense above."
+              description="Use the form above to record your first expense — it will count against this year's budget."
             />
           ) : (
             <>
@@ -304,8 +331,8 @@ export default function ExpensesPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{e.description}</p>
                     <p className="text-xs text-muted-foreground">
-                      <span className="tabular-nums">{e.amount.toLocaleString()}</span> ·{' '}
-                      {new Date(e.date).toLocaleDateString()}
+                      <span className="tabular-nums">{formatCurrency(e.amount)}</span> ·{' '}
+                      {formatDate(e.date)}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -316,7 +343,7 @@ export default function ExpensesPage() {
                       variant="ghost"
                       size="sm"
                       className="h-10"
-                      onClick={() => confirmDeleteExpense(e.id)}
+                      onClick={() => confirmDeleteExpense(e)}
                     >
                       Delete
                     </Button>
@@ -338,8 +365,8 @@ export default function ExpensesPage() {
                 {expenses.map((e) => (
                   <TableRow key={e.id}>
                     <TableCell className="font-medium">{e.description}</TableCell>
-                    <TableCell className="text-right">{e.amount.toLocaleString()}</TableCell>
-                    <TableCell>{new Date(e.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(e.amount)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{formatDate(e.date)}</TableCell>
                     <TableCell className="space-x-1">
                       <Button variant="ghost" size="sm" onClick={() => startEdit(e)}>
                         Edit
@@ -347,7 +374,7 @@ export default function ExpensesPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => confirmDeleteExpense(e.id)}
+                        onClick={() => confirmDeleteExpense(e)}
                       >
                         Delete
                       </Button>

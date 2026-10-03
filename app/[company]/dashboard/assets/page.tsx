@@ -24,7 +24,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Loader2, Building2, Plus } from 'lucide-react';
+import { AlertTriangle, Loader2, Building2, Plus } from 'lucide-react';
+import { format } from 'date-fns';
+import { useCurrency } from '@/hooks/use-currency';
 import { toast } from 'sonner';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FullTableSkeleton } from '@/components/loading';
@@ -46,6 +48,12 @@ type Asset = {
   } | null;
 };
 
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy');
+}
+
 function toDateInput(value?: string | null) {
   if (!value) return '';
   return value.slice(0, 10);
@@ -54,6 +62,7 @@ function toDateInput(value?: string | null) {
 export default function AssetsPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
   const queryClient = useQueryClient();
+  const { currency, formatCurrency } = useCurrency();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState('');
@@ -63,7 +72,7 @@ export default function AssetsPage() {
   const [equipmentInstallationId, setEquipmentInstallationId] = useState('');
   const [editing, setEditing] = useState<Asset | null>(null);
 
-  const { data: assets = [], isLoading } = useQuery({
+  const { data: assets = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['assets', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/assets');
@@ -173,10 +182,10 @@ export default function AssetsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const confirmDeleteAsset = async (id: string) => {
+  const confirmDeleteAsset = async ({ id, name: assetName }: Asset) => {
     if (
       !(await confirmAction({
-        title: 'Delete this asset?',
+        title: `Delete “${assetName}”?`,
         description: 'This cannot be undone.',
         confirmLabel: 'Delete',
         variant: 'destructive',
@@ -200,9 +209,6 @@ export default function AssetsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild>
-            <Link href={path('/dashboard/settings/migration')}>Import CSV</Link>
-          </Button>
           <Button onClick={openCreate}>
             <Plus className="mr-2 h-4 w-4" />
             New asset
@@ -214,11 +220,19 @@ export default function AssetsPage() {
         <CardContent className="p-4">
           {isLoading ? (
             <FullTableSkeleton columnCount={5} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load assets"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
           ) : assets.length === 0 ? (
             <EmptyState
               icon={Building2}
               title="No assets yet"
-              description="Add a company asset to get started."
+              description="Record vehicles, tools, IT hardware, and other company-owned assets to track their value and depreciation."
               actionLabel="New asset"
               onAction={openCreate}
             />
@@ -230,10 +244,10 @@ export default function AssetsPage() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{a.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
-                      {a.type} · {new Date(a.purchaseDate).toLocaleDateString()}
+                      {a.type} · {formatDate(a.purchaseDate)}
                     </p>
                     <p className="truncate text-xs text-muted-foreground tabular-nums">
-                      Value {a.value.toLocaleString()} · Depreciation {a.depreciation.toLocaleString()}
+                      Value {formatCurrency(a.value)} · Depreciation {formatCurrency(a.depreciation)}
                     </p>
                     {a.equipmentInstallation ? (
                       <p className="truncate text-xs text-muted-foreground">
@@ -254,7 +268,7 @@ export default function AssetsPage() {
                       variant="ghost"
                       size="sm"
                       className="h-10"
-                      onClick={() => confirmDeleteAsset(a.id)}
+                      onClick={() => confirmDeleteAsset(a)}
                     >
                       Delete
                     </Button>
@@ -290,9 +304,9 @@ export default function AssetsPage() {
                               .join(' · ')
                           : '—'}
                       </TableCell>
-                      <TableCell className="text-right">{a.value.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{a.depreciation.toLocaleString()}</TableCell>
-                      <TableCell>{new Date(a.purchaseDate).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(a.value)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{formatCurrency(a.depreciation)}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDate(a.purchaseDate)}</TableCell>
                       <TableCell className="space-x-1">
                         <Button variant="ghost" size="sm" onClick={() => openEdit(a)}>
                           Edit
@@ -300,7 +314,7 @@ export default function AssetsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => confirmDeleteAsset(a.id)}
+                          onClick={() => confirmDeleteAsset(a)}
                         >
                           Delete
                         </Button>
@@ -341,7 +355,7 @@ export default function AssetsPage() {
               <Input id="asset-type" value={type} onChange={(e) => setType(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="asset-value">Value</Label>
+              <Label htmlFor="asset-value">Value ({currency})</Label>
               <Input
                 id="asset-value"
                 type="number"
@@ -352,7 +366,7 @@ export default function AssetsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="asset-dep">Depreciation</Label>
+              <Label htmlFor="asset-dep">Depreciation ({currency})</Label>
               <Input
                 id="asset-dep"
                 type="number"
@@ -372,9 +386,10 @@ export default function AssetsPage() {
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label>Linked fleet unit (optional)</Label>
+              <Label htmlFor="asset-fleet">Linked fleet unit (optional)</Label>
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                id="asset-fleet"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 value={equipmentInstallationId}
                 onChange={(e) => setEquipmentInstallationId(e.target.value)}
               >

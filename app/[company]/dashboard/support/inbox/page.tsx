@@ -23,7 +23,11 @@ import {
   Globe,
   Loader2,
   Circle,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { humanizeEnum, ENUM_LABEL_OVERRIDES } from '@/lib/humanize-enum';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
@@ -44,11 +48,11 @@ const CHANNELS = [
 
 const channelBadge = (ch: string) => {
   const colors: Record<string, string> = {
-    EMAIL: 'bg-blue-100 text-blue-800',
-    CHAT: 'bg-purple-100 text-purple-800',
-    PORTAL: 'bg-green-100 text-green-800',
-    PHONE: 'bg-amber-100 text-amber-800',
-    WHATSAPP: 'bg-emerald-100 text-emerald-800',
+    EMAIL: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
+    CHAT: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300',
+    PORTAL: 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300',
+    PHONE: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
+    WHATSAPP: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
   };
   return colors[ch] ?? 'bg-muted text-muted-foreground';
 };
@@ -61,7 +65,7 @@ export default function OmnichannelInboxPage() {
   const [selectedItem, setSelectedItem] = useState<UnifiedInboxItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['unified-inbox', channel, search],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -111,7 +115,12 @@ export default function OmnichannelInboxPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-              {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh'}
+              {isFetching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Refresh
             </Button>
             <Button asChild>
               <Link href={path('/dashboard/tickets/new')}>New ticket</Link>
@@ -136,6 +145,8 @@ export default function OmnichannelInboxPage() {
 
           <TabsContent value={channel} className="space-y-4 mt-4">
             <Input
+              type="search"
+              aria-label="Search conversations"
               placeholder="Search conversations…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -154,8 +165,26 @@ export default function OmnichannelInboxPage() {
                   <div className="p-4">
                     <CardListSkeleton rows={6} />
                   </div>
+                ) : isError ? (
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="Couldn't load the inbox"
+                    description="Check your connection and try again."
+                    actionLabel="Try again"
+                    onAction={() => refetch()}
+                  />
                 ) : items.length === 0 ? (
-                  <p className="text-center py-12 text-muted-foreground">No conversations in this channel.</p>
+                  <EmptyState
+                    icon={Inbox}
+                    title={search.trim() ? 'No matching conversations' : 'No conversations here yet'}
+                    description={
+                      search.trim()
+                        ? 'Try a different search or switch channel.'
+                        : 'New tickets, chats, and WhatsApp messages will appear here as they arrive.'
+                    }
+                    actionLabel={search.trim() ? undefined : 'New ticket'}
+                    actionHref={search.trim() ? undefined : path('/dashboard/tickets/new')}
+                  />
                 ) : (
                   items.map((item) => (
                     <button
@@ -174,13 +203,13 @@ export default function OmnichannelInboxPage() {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge className={channelBadge(item.channel)} variant="secondary">
-                            {item.channel}
+                            {humanizeEnum(item.channel, ENUM_LABEL_OVERRIDES)}
                           </Badge>
                           {item.type !== 'ticket' ? (
-                            <Badge variant="outline" className="text-[10px]">{item.type}</Badge>
+                            <Badge variant="outline" className="text-[10px]">{humanizeEnum(item.type, ENUM_LABEL_OVERRIDES)}</Badge>
                           ) : null}
                           {item.priority ? (
-                            <Badge variant="outline" className="text-[10px]">{item.priority}</Badge>
+                            <Badge variant="outline" className="text-[10px]">{humanizeEnum(item.priority)} priority</Badge>
                           ) : null}
                           <span className="text-xs text-muted-foreground ml-auto">
                             {formatDistanceToNow(new Date(item.updatedAt), { addSuffix: true })}
@@ -190,7 +219,7 @@ export default function OmnichannelInboxPage() {
                         <p className="text-sm text-muted-foreground truncate">{item.preview}</p>
                         <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                           <span className="truncate">{item.customerName}</span>
-                          <span>{item.status}</span>
+                          <span>{humanizeEnum(item.status)}</span>
                           {item.agentName ? <span>→ {item.agentName}</span> : null}
                         </div>
                       </div>

@@ -17,6 +17,8 @@ import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
+import { EmptyState } from '@/components/ui/empty-state';
+import { AlertTriangle, BookOpen, Loader2 } from 'lucide-react';
 
 type Article = {
   id: string;
@@ -39,7 +41,7 @@ export default function KnowledgeBaseAdminPage() {
   const [published, setPublished] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { data: articles, isLoading } = useQuery({
+  const { data: articles, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-knowledge', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/support/knowledge?admin=1');
@@ -112,6 +114,7 @@ export default function KnowledgeBaseAdminPage() {
     setContent(a.content || '');
     setCategory(a.category || 'Getting started');
     setPublished(a.published ?? true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -121,9 +124,9 @@ export default function KnowledgeBaseAdminPage() {
           <div className="flex flex-col items-start">
             <SupportBackLink />
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold">Knowledge base</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Knowledge base</h1>
               <p className="text-sm text-muted-foreground">
-                Customer-facing help articles (portal Help Center)
+                Help articles customers can read in your portal Help Center.
               </p>
             </div>
           </div>
@@ -143,20 +146,22 @@ export default function KnowledgeBaseAdminPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Title</Label>
+              <Label htmlFor="kb-title">Title</Label>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                id="kb-title"
                 placeholder="How to track your order"
               />
             </div>
             <div>
-              <Label>Category</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+              <Label htmlFor="kb-category">Category</Label>
+              <Input id="kb-category" value={category} onChange={(e) => setCategory(e.target.value)} />
             </div>
             <div>
-              <Label>Content</Label>
+              <Label htmlFor="kb-content">Content</Label>
               <Textarea
+                id="kb-content"
                 rows={8}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -170,8 +175,9 @@ export default function KnowledgeBaseAdminPage() {
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => saveMutation.mutate()}
-                disabled={!title || !content || saveMutation.isPending}
+                disabled={!title.trim() || !content.trim() || saveMutation.isPending}
               >
+                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 {editingId ? 'Save changes' : 'Save article'}
               </Button>
               {editingId && (
@@ -191,6 +197,25 @@ export default function KnowledgeBaseAdminPage() {
           <CardContent>
             {isLoading ? (
               <CardListSkeleton rows={4} />
+            ) : isError ? (
+              <EmptyState
+                icon={AlertTriangle}
+                title="Couldn't load articles"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => refetch()}
+              />
+            ) : (articles?.articles ?? []).length === 0 ? (
+              <EmptyState
+                icon={BookOpen}
+                title="No articles yet"
+                description={
+                  canEdit
+                    ? 'Write your first article above, or import existing articles from a CSV.'
+                    : 'Help articles published by your support team will appear here.'
+                }
+                className="py-8"
+              />
             ) : (
               <ul className="space-y-2">
                 {(articles?.articles ?? []).map((a: Article) => (
@@ -214,10 +239,11 @@ export default function KnowledgeBaseAdminPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="text-destructive"
                         onClick={async () => {
                           if (
                             !(await confirmAction({
-                              title: 'Delete this article?',
+                              title: `Delete “${a.title}”?`,
                               description: 'This cannot be undone.',
                               confirmLabel: 'Delete',
                               variant: 'destructive',
