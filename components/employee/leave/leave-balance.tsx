@@ -7,12 +7,14 @@ import { Calendar, CalendarDays } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
 import { LeaveRequestForm } from './leave-request-form'
 import { useState } from 'react'
+import { EssErrorState, EssListSkeleton } from '@/components/employee/mobile/ess-states'
 
 type BalanceRow = {
   id: string
@@ -24,7 +26,7 @@ type BalanceRow = {
 
 export function LeaveBalance() {
   const [open, setOpen] = useState(false)
-  const { data: balances = [], refetch, isLoading } = useQuery({
+  const { data: balances = [], refetch, isLoading, isError } = useQuery({
     queryKey: ['leave-balances'],
     queryFn: async () => {
       const res = await fetch('/api/employee/leave/balances')
@@ -33,52 +35,63 @@ export function LeaveBalance() {
     },
   })
 
+  const noPolicies = !isLoading && !isError && balances.length === 0
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Leave Balance
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Calendar className="h-4 w-4" aria-hidden />
+          Leave balance
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-4">
-          {isLoading && (
-            <p className="text-sm text-muted-foreground">Loading balances…</p>
-          )}
-          {!isLoading && balances.length === 0 && (
-            <p className="text-sm text-muted-foreground">No leave policies yet.</p>
-          )}
-          {balances.map((balance) => {
-            const remaining = balance.entitled - balance.used - balance.pending
-            return (
-              <div
-                key={balance.id}
-                className="flex justify-between items-center gap-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{balance.policy.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {balance.used} used · {balance.pending} pending of{' '}
-                    {balance.entitled}
-                  </p>
+        <div className="space-y-3">
+          {isLoading ? (
+            <EssListSkeleton rows={2} />
+          ) : isError ? (
+            <EssErrorState
+              message="We couldn't load your leave balance."
+              onRetry={() => void refetch()}
+            />
+          ) : noPolicies ? (
+            <p className="text-sm text-muted-foreground">
+              No leave policy is assigned to you yet. Ask HR to set one up before requesting leave.
+            </p>
+          ) : (
+            balances.map((balance) => {
+              const remaining = Math.max(0, balance.entitled - balance.used - balance.pending)
+              return (
+                <div key={balance.id} className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{balance.policy.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {balance.used} used · {balance.pending} pending of {balance.entitled}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-2xl font-bold tabular-nums leading-none">{remaining}</p>
+                    <p className="text-[11px] text-muted-foreground">left</p>
+                  </div>
                 </div>
-                <div className="shrink-0 text-2xl font-bold tabular-nums">{remaining}</div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full">
-              <CalendarDays className="mr-2 h-4 w-4" />
-              Request Leave
+            <Button className="w-full" disabled={isLoading || noPolicies}>
+              <CalendarDays className="mr-2 h-4 w-4" aria-hidden />
+              Request leave
             </Button>
           </DialogTrigger>
-          <DialogContent className="md:max-w-2xl">
+          <DialogContent className="md:max-w-xl">
             <DialogHeader>
-              <DialogTitle>Request Leave</DialogTitle>
+              <DialogTitle>Request leave</DialogTitle>
+              <DialogDescription>
+                Pick the leave type and dates. The request goes for approval once you submit it.
+              </DialogDescription>
             </DialogHeader>
             <LeaveRequestForm
               onSuccess={() => {

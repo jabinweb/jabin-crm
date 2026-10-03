@@ -7,12 +7,18 @@ import {
   User,
   Megaphone,
   MessageSquare,
-  ClipboardList,
   Activity,
   ChevronRight,
   LogOut,
   Users,
   FileText,
+  CalendarClock,
+  Timer,
+  Receipt,
+  Plane,
+  DoorOpen,
+  Briefcase,
+  Target,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { EssPageHeader } from '@/components/employee/mobile/page-header'
@@ -50,26 +56,26 @@ export default function EmployeeMorePage() {
     {
       href: employeePath('/employee/documents'),
       label: 'My documents',
-      hint: 'Digital employee file',
+      hint: 'Your employee file',
       icon: FileText,
     },
     {
       href: employeePath('/employee/regularization'),
       label: 'Regularization',
-      hint: 'Attendance correction requests',
-      icon: ClipboardList,
+      hint: 'Fix a missed or wrong punch',
+      icon: CalendarClock,
     },
     {
       href: employeePath('/employee/timesheets'),
       label: 'Timesheets',
-      hint: 'Weekly hours',
-      icon: ClipboardList,
+      hint: 'Log hours and submit your week',
+      icon: Timer,
     },
     {
       href: employeePath('/employee/claims'),
       label: 'Claims & HR help',
-      hint: 'Expenses, tickets, policies',
-      icon: FileText,
+      hint: 'Expenses, HR questions, policies',
+      icon: Receipt,
     },
     {
       href: employeePath('/employee/performance'),
@@ -80,14 +86,14 @@ export default function EmployeeMorePage() {
     {
       href: employeePath('/employee/travel'),
       label: 'Travel requests',
-      hint: 'Business travel & expenses',
-      icon: ClipboardList,
+      hint: 'Request and track business trips',
+      icon: Plane,
     },
     {
       href: employeePath('/employee/exit'),
       label: 'Exit request',
       hint: 'Resignation & clearance',
-      icon: LogOut,
+      icon: DoorOpen,
     },
   ]
 
@@ -115,18 +121,18 @@ export default function EmployeeMorePage() {
     },
     {
       href: path('/dashboard/projects/my-work'),
-      label: 'My work (Projects)',
-      hint: 'Opens dashboard → Projects → My work for delivery tasks assigned to you',
-      icon: ClipboardList,
+      label: 'My project work',
+      hint: 'Project tasks assigned to you',
+      icon: Briefcase,
     }
   )
 
   if (leadsEnabled) {
     items.push({
       href: employeePath('/employee/leads'),
-      label: 'Work / Leads',
-      hint: 'Sales CRM for your role',
-      icon: Activity,
+      label: 'My leads',
+      hint: 'Leads and follow-ups assigned to you',
+      icon: Target,
     })
   }
 
