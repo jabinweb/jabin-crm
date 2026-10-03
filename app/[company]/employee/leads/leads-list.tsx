@@ -1,30 +1,32 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { useSession } from 'next-auth/react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, Target } from 'lucide-react'
 import { columns } from '@/components/employee/employee-leads-columns'
 import { DataTable } from '@/components/table/data-table'
 import { LeadStatus, CompanyTaskPriority } from '@prisma/client'
-import { useRouter } from 'next/navigation'
 import { useLeads } from '@/hooks/use-leads'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
+import {
+  EssEmptyState,
+  EssErrorState,
+  humanizeStatus,
+} from '@/components/employee/mobile/ess-states'
 
 type FilterState = {
   [key: string]: string[]
 }
 
 export function LeadsList() {
-  const router = useRouter()
   const { employeePath } = useWorkspacePaths()
-  const { data: session } = useSession()
   const [filters, setFilters] = useState<FilterState>({
     status: [],
     priority: []
   })
 
-  const { data, isLoading } = useLeads({
+  const { data, isLoading, isError, refetch } = useLeads({
     status: filters.status as LeadStatus[],
     priority: filters.priority as CompanyTaskPriority[],
     enabled: true
@@ -34,42 +36,69 @@ export function LeadsList() {
     status: {
       title: "Status",
       options: Object.values(LeadStatus).map(status => ({
-        label: status.toLowerCase().replace('_', ' '),
+        label: humanizeStatus(status),
         value: status
       }))
     },
     priority: {
       title: "Priority",
       options: Object.values(CompanyTaskPriority).map(priority => ({
-        label: priority.toLowerCase(),
+        label: humanizeStatus(priority),
         value: priority
       }))
     }
   }), [])
 
+  const leads = data?.data || []
+  const hasFilters = Object.values(filters).some((values) => values.length > 0)
+  const newLeadHref = employeePath('/employee/leads/new')
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">My Leads</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">My leads</h1>
           <p className="text-sm text-muted-foreground">
-            Manage and track your assigned leads
+            Manage and track the leads assigned to you
           </p>
         </div>
-        <Button onClick={() => router.push(employeePath('/employee/leads/new'))} className="self-start sm:self-auto">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Lead
+        <Button asChild className="shrink-0">
+          <Link href={newLeadHref}>
+            <Plus className="mr-2 h-4 w-4" aria-hidden />
+            Add lead
+          </Link>
         </Button>
       </div>
 
-      <DataTable 
-        columns={columns}
-        data={data?.data || []}
-        isLoading={isLoading}
-        searchableColumn="title"
-        filterableColumns={filterableColumns}
-        onFiltersChange={setFilters}
-      />
+      {isError ? (
+        <EssErrorState
+          message="We couldn't load your leads."
+          onRetry={() => void refetch()}
+        />
+      ) : !isLoading && leads.length === 0 && !hasFilters ? (
+        <EssEmptyState
+          icon={Target}
+          title="No leads yet"
+          description="Add a lead you're working on, or ask your manager to assign some to you."
+          action={
+            <Button asChild size="sm">
+              <Link href={newLeadHref}>
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+                Add lead
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={leads}
+          isLoading={isLoading}
+          searchableColumn="title"
+          filterableColumns={filterableColumns}
+          onFiltersChange={setFilters}
+        />
+      )}
     </div>
   )
 }

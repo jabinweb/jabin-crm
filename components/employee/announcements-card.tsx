@@ -1,9 +1,15 @@
-import { useEffect, useState, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Badge } from "@/components/ui/badge"
-import { Bell } from "lucide-react"
-import { CardListSkeleton } from "@/components/loading"
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { format } from 'date-fns'
+import { Megaphone } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  EssEmptyState,
+  EssErrorState,
+  EssListSkeleton,
+} from '@/components/employee/mobile/ess-states'
 
 interface Announcement {
   id: string
@@ -17,77 +23,67 @@ interface AnnouncementsCardProps {
   companyId: number
 }
 
-export function AnnouncementsCard({ companyId }: AnnouncementsCardProps) {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+const PRIORITY: Record<number, { label: string; variant: 'secondary' | 'default' | 'destructive' }> = {
+  0: { label: 'Low', variant: 'secondary' },
+  1: { label: 'Medium', variant: 'default' },
+  2: { label: 'High', variant: 'destructive' },
+}
 
-  const fetchAnnouncements = useCallback(async () => {
-    try {
+/** Full list of company announcements for the employee portal (page scrolls, no nested scroller). */
+export function AnnouncementsCard({ companyId }: AnnouncementsCardProps) {
+  const { data: announcements = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['employee-announcements', companyId],
+    queryFn: async () => {
       const response = await fetch(`/api/employee/announcements?companyId=${companyId}`)
       if (!response.ok) throw new Error('Failed to fetch announcements')
-      const data = await response.json()
-      setAnnouncements(data)
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [companyId])
+      return (await response.json()) as Announcement[]
+    },
+  })
 
-  useEffect(() => {
-    fetchAnnouncements()
-  }, [fetchAnnouncements])
+  if (isLoading) return <EssListSkeleton rows={4} />
 
-  const getPriorityBadge = (priority: number) => {
-    const variants = {
-      0: 'secondary',
-      1: 'default',
-      2: 'destructive'
-    }
-    return variants[priority as keyof typeof variants] as "default" | "destructive" | "outline" | "secondary"
+  if (isError) {
+    return (
+      <EssErrorState
+        message="We couldn't load announcements."
+        onRetry={() => void refetch()}
+      />
+    )
+  }
+
+  if (announcements.length === 0) {
+    return (
+      <EssEmptyState
+        icon={Megaphone}
+        title="No announcements yet"
+        description="Company updates from HR and management will show up here."
+      />
+    )
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center space-x-2">
-        <Bell className="h-5 w-5" />
-        <CardTitle>Announcements</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[200px]">
-          {isLoading ? (
-            <CardListSkeleton rows={3} />
-          ) : announcements.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              No announcements found
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="border rounded-none p-3 sm:p-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <h3 className="min-w-0 break-words font-medium">{announcement.title}</h3>
-                    <Badge className="shrink-0" variant={getPriorityBadge(announcement.priority)}>
-                      {announcement.priority === 2
-                        ? 'High'
-                        : announcement.priority === 1
-                          ? 'Medium'
-                          : 'Low'}
-                    </Badge>
-                  </div>
-                  <p className="break-words text-sm text-muted-foreground mb-2">
-                    {announcement.content}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(announcement.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      {announcements.map((announcement) => {
+        const priority = PRIORITY[announcement.priority] ?? PRIORITY[0]
+        return (
+          <Card key={announcement.id} className="shadow-none">
+            <CardContent className="space-y-2 p-4">
+              <div className="flex items-start justify-between gap-2">
+                <h2 className="min-w-0 break-words font-medium">{announcement.title}</h2>
+                <Badge className="shrink-0" variant={priority.variant}>
+                  {priority.label}
+                </Badge>
+              </div>
+              <p className="whitespace-pre-line break-words text-sm text-muted-foreground">
+                {announcement.content}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {format(new Date(announcement.createdAt), 'd MMM yyyy')}
+              </p>
+            </CardContent>
+          </Card>
+        )
+      })}
+    </div>
   )
 }
-

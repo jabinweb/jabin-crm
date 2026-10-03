@@ -11,6 +11,42 @@ import { toast } from 'sonner'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns'
 import { Loader2, MapPin } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Skeleton } from '@/components/ui/skeleton'
+import { EssErrorState, humanizeStatus } from '@/components/employee/mobile/ess-states'
+
+/** Calendar cell styling + short code per attendance status (legend below the grid). */
+const DAY_STATUS: Record<string, { code: string; label: string; cell: string; swatch: string }> = {
+  PRESENT: {
+    code: 'P',
+    label: 'Present',
+    cell: 'bg-emerald-50 dark:bg-emerald-950/30',
+    swatch: 'bg-emerald-500',
+  },
+  LATE: {
+    code: 'LT',
+    label: 'Late',
+    cell: 'bg-emerald-50 dark:bg-emerald-950/30',
+    swatch: 'bg-emerald-500',
+  },
+  HALF_DAY: {
+    code: 'H',
+    label: 'Half day',
+    cell: 'bg-amber-50 dark:bg-amber-950/30',
+    swatch: 'bg-amber-500',
+  },
+  ON_LEAVE: {
+    code: 'L',
+    label: 'On leave',
+    cell: 'bg-amber-50 dark:bg-amber-950/30',
+    swatch: 'bg-amber-500',
+  },
+  ABSENT: {
+    code: 'A',
+    label: 'Absent',
+    cell: 'bg-rose-50 dark:bg-rose-950/20',
+    swatch: 'bg-rose-500',
+  },
+}
 
 type AttendanceRow = {
   id: string
@@ -53,11 +89,16 @@ export default function AttendancePage() {
     refetchInterval: 30_000,
   })
 
-  const { data: monthRows = [], isLoading } = useQuery({
+  const {
+    data: monthRows = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['attendance-month', month.getFullYear(), month.getMonth()],
     queryFn: async () => {
       const res = await workspaceFetch('/api/employee/attendance')
-      if (!res.ok) return []
+      if (!res.ok) throw new Error('Failed to load attendance')
       return (await res.json()) as AttendanceRow[]
     },
   })
@@ -93,10 +134,14 @@ export default function AttendancePage() {
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(typeof body.error === 'string' ? body.error : 'Punch failed')
+        throw new Error(
+          typeof body.error === 'string' ? body.error : "Couldn't record your punch. Please try again."
+        )
       }
       if (body.outsideGeofence) {
-        toast.warning('Punched outside office geo-fence')
+        toast.warning(
+          `${punchedIn ? 'Punched out' : 'Punched in'} — note: you were outside the office area.`
+        )
       } else {
         toast.success(punchedIn ? 'Punched out' : 'Punched in')
       }
@@ -104,7 +149,7 @@ export default function AttendancePage() {
       queryClient.invalidateQueries({ queryKey: ['attendance-month'] })
       queryClient.invalidateQueries({ queryKey: ['ess-attendance-today'] })
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Punch failed')
+      toast.error(e instanceof Error ? e.message : "Couldn't record your punch. Please try again.")
     } finally {
       setBusy(false)
     }
@@ -122,15 +167,13 @@ export default function AttendancePage() {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs text-muted-foreground">Status</p>
-              <p className="text-lg font-semibold">
-                {todayLoading
-                  ? '…'
-                  : punchedIn
-                    ? 'On the clock'
-                    : today?.checkOut
-                      ? 'Completed'
-                      : 'Not punched in'}
-              </p>
+              {todayLoading ? (
+                <Skeleton className="mt-1 h-6 w-32" />
+              ) : (
+                <p className="text-lg font-semibold">
+                  {punchedIn ? 'On the clock' : today?.checkOut ? 'Completed' : 'Not punched in'}
+                </p>
+              )}
               {today?.checkIn ? (
                 <p className="text-xs text-muted-foreground mt-1">
                   In {format(new Date(today.checkIn), 'h:mm a')}
@@ -140,19 +183,24 @@ export default function AttendancePage() {
                 </p>
               ) : null}
             </div>
-            <Badge variant={punchedIn ? 'default' : 'secondary'} className="shrink-0">
-              {today?.status || '—'}
-            </Badge>
+            {today?.status ? (
+              <Badge variant={punchedIn ? 'default' : 'secondary'} className="shrink-0">
+                {humanizeStatus(today.status)}
+              </Badge>
+            ) : null}
           </div>
 
           <Button
             className="w-full h-14 text-base rounded-xl"
             size="lg"
-            disabled={busy || Boolean(today?.checkOut)}
+            disabled={busy || todayLoading || Boolean(today?.checkOut)}
             onClick={punch}
           >
             {busy ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden />
+                {punchedIn ? 'Punching out…' : 'Punching in…'}
+              </>
             ) : punchedIn ? (
               'Punch out'
             ) : today?.checkOut ? (
@@ -161,25 +209,33 @@ export default function AttendancePage() {
               'Punch in'
             )}
           </Button>
-          <p className="text-[11px] text-muted-foreground flex items-center gap-1 justify-center">
-            <MapPin className="h-3 w-3" />
-            Uses GPS when available (geo-fence may apply)
+          <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+            Your location is recorded when you punch, if allowed.
           </p>
         </CardContent>
       </Card>
 
-      <section className="space-y-2 lg:max-w-lg">
-        <h2 className="text-sm font-semibold">{format(month, 'MMMM yyyy')}</h2>
+      <section className="space-y-2 lg:max-w-lg" aria-labelledby="attendance-month-heading">
+        <h2 id="attendance-month-heading" className="text-sm font-semibold">
+          {format(month, 'MMMM yyyy')}
+        </h2>
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <Skeleton className="aspect-[7/6] w-full rounded-lg" />
+        ) : isError ? (
+          <EssErrorState
+            message="We couldn't load this month's attendance."
+            onRetry={() => void refetch()}
+          />
         ) : (
           <div className="grid grid-cols-7 gap-1.5">
-            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d) => (
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div
                 key={d}
-                className="text-center text-[10px] text-muted-foreground font-medium py-1"
+                className="py-1 text-center text-[10px] font-medium text-muted-foreground"
+                aria-hidden
               >
-                {d}
+                {d.slice(0, 1)}
               </div>
             ))}
             {Array.from({ length: days[0].getDay() }).map((_, i) => (
@@ -188,27 +244,24 @@ export default function AttendancePage() {
             {days.map((day) => {
               const key = format(day, 'yyyy-MM-dd')
               const row = byDay.get(key)
+              const meta = row ? DAY_STATUS[row.status] : undefined
               const isToday = isSameDay(day, new Date())
+              const label = row ? meta?.label ?? humanizeStatus(row.status) : 'No record'
               return (
                 <div
                   key={key}
                   className={cn(
-                    'aspect-square rounded-lg border flex flex-col items-center justify-center text-[11px]',
-                    isToday && 'border-primary',
-                    row?.status === 'PRESENT' || row?.status === 'LATE'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30'
-                      : row?.status === 'ON_LEAVE' || row?.status === 'HALF_DAY'
-                        ? 'bg-amber-50 dark:bg-amber-950/30'
-                        : row?.status === 'ABSENT'
-                          ? 'bg-rose-50 dark:bg-rose-950/20'
-                          : 'bg-background'
+                    'flex aspect-square flex-col items-center justify-center rounded-lg border text-[11px]',
+                    isToday && 'border-2 border-primary',
+                    meta?.cell ?? 'bg-background'
                   )}
-                  title={row?.status || 'No record'}
+                  title={label}
+                  aria-label={`${format(day, 'd MMMM')}: ${label}`}
                 >
                   <span className="font-medium">{format(day, 'd')}</span>
                   {row ? (
-                    <span className="text-[8px] text-muted-foreground leading-none">
-                      {row.status.slice(0, 1)}
+                    <span className="text-[9px] leading-none text-muted-foreground">
+                      {meta?.code ?? row.status.slice(0, 1)}
                     </span>
                   ) : null}
                 </div>
@@ -216,9 +269,14 @@ export default function AttendancePage() {
             })}
           </div>
         )}
-        <p className="text-[10px] text-muted-foreground">
-          P = present · L = leave · A = absent
-        </p>
+        <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+          {Object.values(DAY_STATUS).map((s) => (
+            <li key={s.code} className="flex items-center gap-1">
+              <span className={cn('h-2 w-2 rounded-full', s.swatch)} aria-hidden />
+              {s.code} = {s.label}
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   )

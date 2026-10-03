@@ -3,8 +3,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useQuery } from "@tanstack/react-query"
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
+import { PieChart as PieChartIcon } from "lucide-react"
 import { LeadStatus } from "@prisma/client"
 import { SectionSkeleton } from "@/components/loading"
+import {
+  EssEmptyState,
+  EssErrorState,
+  humanizeStatus,
+} from "@/components/employee/mobile/ess-states"
 
 const COLORS: Record<LeadStatus, string> = {
   NEW: "#60a5fa",
@@ -21,61 +27,66 @@ const COLORS: Record<LeadStatus, string> = {
 }
 
 export function LeadStatusDistribution() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['leadStatusDistribution'],
     queryFn: async () => {
       const response = await fetch('/api/employee/leads/status-distribution')
       if (!response.ok) throw new Error('Failed to fetch status distribution')
-      return response.json()
+      return response.json() as Promise<Record<string, number>>
     }
   })
 
-  if (isLoading || !data) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Lead Status Distribution</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <SectionSkeleton lines={8} className="h-[300px] py-8" />
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const chartData = Object.entries(data).map(([status, count]) => ({
-    name: status.toLowerCase().replace('_', ' '),
-    value: count,
-    color: COLORS[status as LeadStatus] ?? "#94a3b8",
-  }))
+  const chartData = Object.entries(data ?? {})
+    .filter(([, count]) => Number(count) > 0)
+    .map(([status, count]) => ({
+      name: humanizeStatus(status),
+      value: Number(count),
+      color: COLORS[status as LeadStatus] ?? "#94a3b8",
+    }))
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader>
-        <CardTitle>Lead Status Distribution</CardTitle>
+        <CardTitle className="text-base">Leads by status</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+        {isLoading ? (
+          <SectionSkeleton lines={8} className="h-[300px] py-8" />
+        ) : isError ? (
+          <EssErrorState
+            message="We couldn't load the status breakdown."
+            onRetry={() => void refetch()}
+          />
+        ) : chartData.length === 0 ? (
+          <EssEmptyState
+            icon={PieChartIcon}
+            title="No leads yet"
+            description="Once you have leads, you'll see how they're spread across stages."
+          />
+        ) : (
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="45%"
+                  innerRadius="45%"
+                  outerRadius="75%"
+                  paddingAngle={1}
+                >
+                  {chartData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
