@@ -3,18 +3,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { EmptyState } from '@/components/ui/empty-state'
+import { CardListSkeleton } from '@/components/loading'
+import { QueryErrorState, StatusBadge, ensureOk } from '@/components/hr/hr-ui'
+import { CalendarCheck, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
 
+type Correction = {
+  id: string
+  reason: string
+  date: string
+  status: string
+  employee: { name: string }
+  requestedCheckIn?: string | null
+  requestedCheckOut?: string | null
+}
+
 export default function AttendanceCorrectionsAdminPage() {
   const qc = useQueryClient()
-  const { data: rows = [], isLoading } = useQuery({
+  const {
+    data: rows = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['attendance-corrections-admin'],
     queryFn: async () => {
       const res = await fetch('/api/hr/attendance-corrections?status=PENDING&admin=1')
-      if (!res.ok) throw new Error('Failed')
-      return res.json()
+      await ensureOk(res, 'Failed to load requests')
+      return (await res.json()) as Correction[]
     },
   })
 
@@ -25,74 +43,75 @@ export default function AttendanceCorrectionsAdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action }),
       })
-      if (!res.ok) throw new Error('Failed')
+      await ensureOk(res, 'Action failed')
     },
-    onSuccess: () => {
-      toast.success('Updated')
+    onSuccess: (_d, v) => {
+      toast.success(v.action === 'approve' ? 'Correction approved' : 'Correction rejected')
       void qc.invalidateQueries({ queryKey: ['attendance-corrections-admin'] })
     },
-    onError: () => toast.error('Action failed'),
+    onError: (e: Error) => toast.error(e.message),
   })
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Attendance regularization</h1>
-        <p className="text-sm text-muted-foreground">Approve correction requests.</p>
+      <div className="min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">Attendance regularization</h1>
+        <p className="text-sm text-muted-foreground">
+          Review check-in and check-out corrections requested by employees.
+        </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Pending</CardTitle>
+          <CardTitle className="text-base">Pending requests</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
-          {rows.map(
-            (r: {
-              id: string
-              reason: string
-              date: string
-              status: string
-              employee: { name: string }
-              requestedCheckIn?: string | null
-              requestedCheckOut?: string | null
-            }) => (
-              <div key={r.id} className="rounded-lg border p-3 space-y-2">
-                <div className="flex justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate font-medium">{r.employee.name}</p>
-                    <p className="break-words text-xs text-muted-foreground">
-                      {format(new Date(r.date), 'd MMM yyyy')} · {r.reason}
-                    </p>
-                    <p className="text-xs mt-1">
-                      In:{' '}
-                      {r.requestedCheckIn
-                        ? format(new Date(r.requestedCheckIn), 'HH:mm')
-                        : '—'}{' '}
-                      · Out:{' '}
-                      {r.requestedCheckOut
-                        ? format(new Date(r.requestedCheckOut), 'HH:mm')
-                        : '—'}
-                    </p>
+          {isLoading ? (
+            <CardListSkeleton rows={3} />
+          ) : isError ? (
+            <QueryErrorState title="Couldn’t load requests" onRetry={() => void refetch()} />
+          ) : rows.length === 0 ? (
+            <EmptyState
+              icon={CalendarCheck}
+              title="No pending requests"
+              description="Corrections employees submit from their attendance page will appear here."
+            />
+          ) : (
+            rows.map((r) => {
+              const busy = act.isPending && act.variables?.id === r.id
+              return (
+                <div key={r.id} className="space-y-3 rounded-lg border p-3">
+                  <div className="flex justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{r.employee.name}</p>
+                      <p className="break-words text-xs text-muted-foreground">
+                        {format(new Date(r.date), 'd MMM yyyy')} · {r.reason}
+                      </p>
+                      <p className="mt-1 text-xs">
+                        Check-in{' '}
+                        {r.requestedCheckIn ? format(new Date(r.requestedCheckIn), 'HH:mm') : '—'} · Check-out{' '}
+                        {r.requestedCheckOut ? format(new Date(r.requestedCheckOut), 'HH:mm') : '—'}
+                      </p>
+                    </div>
+                    <StatusBadge status={r.status} className="self-start" />
                   </div>
-                  <Badge className="shrink-0 self-start">{r.status}</Badge>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => act.mutate({ id: r.id, action: 'reject' })}
+                    >
+                      Reject
+                    </Button>
+                    <Button disabled={busy} onClick={() => act.mutate({ id: r.id, action: 'approve' })}>
+                      {busy && act.variables?.action === 'approve' && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Approve
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => act.mutate({ id: r.id, action: 'approve' })}>
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => act.mutate({ id: r.id, action: 'reject' })}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            )
-          )}
-          {!isLoading && rows.length === 0 && (
-            <p className="text-sm text-muted-foreground">No pending requests</p>
+              )
+            })
           )}
         </CardContent>
       </Card>

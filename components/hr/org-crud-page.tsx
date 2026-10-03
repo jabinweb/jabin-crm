@@ -10,6 +10,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Loader2, Trash2, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardListSkeleton } from '@/components/loading'
+import { QueryErrorState } from '@/components/hr/hr-ui'
+import { confirmAction } from '@/lib/confirm-action'
 
 type OrgRow = {
   id: string
@@ -39,13 +41,21 @@ export function HrOrgCrudPage({
   fields = ['code'],
 }: Props) {
   const queryClient = useQueryClient()
+  const singularLower = title.toLowerCase().replace(/s$/, '')
+  const singular = singularLower.charAt(0).toUpperCase() + singularLower.slice(1)
+  const fieldId = (f: string) => `${queryKey}-${f}`
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [city, setCity] = useState('')
   const [address, setAddress] = useState('')
   const [level, setLevel] = useState('')
 
-  const { data: rows = [], isLoading } = useQuery({
+  const {
+    data: rows = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: [queryKey],
     queryFn: async () => {
       const res = await fetch(apiPath)
@@ -60,21 +70,21 @@ export function HrOrgCrudPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          code: code || undefined,
-          city: city || undefined,
-          address: address || undefined,
+          name: name.trim(),
+          code: code.trim() || undefined,
+          city: city.trim() || undefined,
+          address: address.trim() || undefined,
           level: level ? Number(level) : undefined,
         }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to create')
+        throw new Error(err.error || `Couldn’t add ${singularLower}`)
       }
       return res.json()
     },
     onSuccess: () => {
-      toast.success('Created')
+      toast.success(`${singular} added`)
       setName('')
       setCode('')
       setCity('')
@@ -92,11 +102,11 @@ export function HrOrgCrudPage({
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.error || 'Failed to delete')
+        throw new Error(err.error || `Couldn’t remove ${singularLower}`)
       }
     },
     onSuccess: () => {
-      toast.success('Removed')
+      toast.success(`${singular} removed`)
       void queryClient.invalidateQueries({ queryKey: [queryKey] })
     },
     onError: (e: Error) => toast.error(e.message),
@@ -111,53 +121,72 @@ export function HrOrgCrudPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Add {title.toLowerCase().replace(/s$/, '')}</CardTitle>
+          <CardTitle className="text-base">Add {singularLower}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            {fields.includes('code') && (
-              <div className="space-y-2">
-                <Label>Code</Label>
-                <Input value={code} onChange={(e) => setCode(e.target.value)} />
-              </div>
-            )}
-            {fields.includes('level') && (
-              <div className="space-y-2">
-                <Label>Level</Label>
-                <Input
-                  type="number"
-                  value={level}
-                  onChange={(e) => setLevel(e.target.value)}
-                />
-              </div>
-            )}
-            {fields.includes('city') && (
-              <div className="space-y-2">
-                <Label>City</Label>
-                <Input value={city} onChange={(e) => setCity(e.target.value)} />
-              </div>
-            )}
-            {fields.includes('address') && (
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Address</Label>
-                <Input value={address} onChange={(e) => setAddress(e.target.value)} />
-              </div>
-            )}
-          </div>
-          <Button
-            className="w-full sm:w-auto"
-            disabled={!name.trim() || createMutation.isPending}
-            onClick={() => createMutation.mutate()}
+        <CardContent>
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (name.trim() && !createMutation.isPending) createMutation.mutate()
+            }}
           >
-            {createMutation.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Add
-          </Button>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor={fieldId('name')}>Name</Label>
+                <Input id={fieldId('name')} value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              {fields.includes('code') && (
+                <div className="space-y-2">
+                  <Label htmlFor={fieldId('code')}>Code (optional)</Label>
+                  <Input id={fieldId('code')} value={code} onChange={(e) => setCode(e.target.value)} />
+                </div>
+              )}
+              {fields.includes('level') && (
+                <div className="space-y-2">
+                  <Label htmlFor={fieldId('level')}>Level (optional)</Label>
+                  <Input
+                    id={fieldId('level')}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                  />
+                </div>
+              )}
+              {fields.includes('city') && (
+                <div className="space-y-2">
+                  <Label htmlFor={fieldId('city')}>City (optional)</Label>
+                  <Input
+                    id={fieldId('city')}
+                    autoComplete="address-level2"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+              )}
+              {fields.includes('address') && (
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor={fieldId('address')}>Address (optional)</Label>
+                  <Input
+                    id={fieldId('address')}
+                    autoComplete="street-address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={!name.trim() || createMutation.isPending}
+            >
+              {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Add {singularLower}
+            </Button>
+          </form>
         </CardContent>
       </Card>
 
@@ -168,23 +197,25 @@ export function HrOrgCrudPage({
         <CardContent>
           {isLoading ? (
             <CardListSkeleton rows={4} />
+          ) : isError ? (
+            <QueryErrorState
+              title={`Couldn’t load ${title.toLowerCase()}`}
+              onRetry={() => void refetch()}
+            />
           ) : rows.length === 0 ? (
             <EmptyState
               icon={Icon}
               title={`No ${title.toLowerCase()} yet`}
-              description="Add items to assign them on employee profiles."
+              description={`Use the form above to add your first ${singularLower}, then assign it on employee profiles.`}
             />
           ) : (
             <div className="divide-y rounded-lg border">
               {rows.map((row) => (
-                <div
-                  key={row.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
-                >
+                <div key={row.id} className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{row.name}</p>
                     <p className="truncate text-sm text-muted-foreground">
-                      {[row.code, row.city, row.level != null ? `L${row.level}` : null]
+                      {[row.code, row.city, row.level != null ? `Level ${row.level}` : null]
                         .filter(Boolean)
                         .join(' · ') || '—'}
                     </p>
@@ -192,9 +223,18 @@ export function HrOrgCrudPage({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0"
-                    disabled={deleteMutation.isPending}
-                    onClick={() => deleteMutation.mutate(row.id)}
+                    className="h-10 w-10 shrink-0"
+                    aria-label={`Remove ${row.name}`}
+                    disabled={deleteMutation.isPending && deleteMutation.variables === row.id}
+                    onClick={async () => {
+                      const ok = await confirmAction({
+                        title: `Remove ${singularLower}?`,
+                        description: `“${row.name}” will be permanently deleted. This can’t be undone.`,
+                        confirmLabel: 'Remove',
+                        variant: 'destructive',
+                      })
+                      if (ok) deleteMutation.mutate(row.id)
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>

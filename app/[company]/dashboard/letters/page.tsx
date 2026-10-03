@@ -18,6 +18,12 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { FileText, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { CardListSkeleton } from '@/components/loading';
+import { QueryErrorState } from '@/components/hr/hr-ui';
+
+const SELECT_CLASS =
+  'h-10 w-full rounded-md border border-input bg-background px-3 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm';
 
 const DEFAULT_BODY = `To whom it may concern,
 
@@ -34,7 +40,7 @@ export default function LettersPage() {
   const [employeeId, setEmployeeId] = useState('');
   const [templateId, setTemplateId] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['hr-letters'],
     queryFn: async () => {
       const res = await fetch('/api/hr/letters');
@@ -81,7 +87,7 @@ export default function LettersPage() {
       if (!res.ok) throw new Error('Failed');
     },
     onSuccess: () => {
-      toast.success('Template saved');
+      toast.success(`Template “${tplName.trim()}” saved`);
       resetTemplateForm();
       setTemplateDialogOpen(false);
       void qc.invalidateQueries({ queryKey: ['hr-letters'] });
@@ -114,10 +120,11 @@ export default function LettersPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-semibold">HR letters</h1>
-          <p className="break-words text-sm text-muted-foreground">
-            Templates with {'{{name}}'}, {'{{employeeId}}'}, {'{{jobTitle}}'}, {'{{department}}'},{' '}
-            {'{{date}}'}.
+          <h1 className="text-2xl font-semibold tracking-tight">HR letters</h1>
+          <p className="text-sm text-muted-foreground">
+            Issue experience, employment and other letters from reusable templates.
+            {templates.length > 0 &&
+              ` ${templates.length} template${templates.length === 1 ? '' : 's'} saved.`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -145,25 +152,48 @@ export default function LettersPage() {
       <Card>
         <CardContent className="p-4 space-y-3">
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
+            <CardListSkeleton rows={3} />
+          ) : isError ? (
+            <QueryErrorState title="Couldn’t load letters" onRetry={() => void refetch()} />
           ) : letters.length === 0 ? (
             <EmptyState
               icon={FileText}
               title="No letters issued yet"
-              description="Create a template, then issue a letter to an employee."
-              actionLabel="Issue letter"
+              description={
+                templates.length === 0
+                  ? 'Start by creating a template, then issue it to an employee.'
+                  : 'Issue a letter to an employee from one of your templates.'
+              }
+              actionLabel={templates.length === 0 ? 'New template' : 'Issue letter'}
               onAction={() => {
-                resetIssueForm();
-                setIssueDialogOpen(true);
+                if (templates.length === 0) {
+                  resetTemplateForm();
+                  setTemplateDialogOpen(true);
+                } else {
+                  resetIssueForm();
+                  setIssueDialogOpen(true);
+                }
               }}
             />
           ) : (
             letters.map((l) => (
               <div key={l.id} className="rounded-lg border p-3">
-                <p className="break-words font-medium">
-                  {l.title} — {l.employee.name}
-                </p>
-                <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-muted-foreground">{l.body}</pre>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <p className="min-w-0 break-words font-medium">
+                    {l.title} · {l.employee.name}
+                  </p>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    Issued {format(new Date(l.issuedAt), 'd MMM yyyy')}
+                  </span>
+                </div>
+                <details className="mt-2 group">
+                  <summary className="cursor-pointer select-none py-1 text-sm text-primary hover:underline">
+                    View letter
+                  </summary>
+                  <div className="mt-2 whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-sm">
+                    {l.body}
+                  </div>
+                </details>
               </div>
             ))
           )}
@@ -181,17 +211,21 @@ export default function LettersPage() {
           <DialogHeader>
             <DialogTitle>New template</DialogTitle>
             <DialogDescription>
-              Save a reusable letter template with placeholder tokens.
+              Save a reusable letter. Details are filled in for each employee when you issue it.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={tplName} onChange={(e) => setTplName(e.target.value)} />
+              <Label htmlFor="tpl-name">Name</Label>
+              <Input id="tpl-name" value={tplName} onChange={(e) => setTplName(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Body</Label>
-              <Textarea rows={8} value={tplBody} onChange={(e) => setTplBody(e.target.value)} />
+              <Label htmlFor="tpl-body">Letter text</Label>
+              <Textarea id="tpl-body" rows={8} value={tplBody} onChange={(e) => setTplBody(e.target.value)} />
+              <p className="break-words text-xs text-muted-foreground">
+                Placeholders: {'{{name}}'}, {'{{employeeId}}'}, {'{{jobTitle}}'}, {'{{department}}'},{' '}
+                {'{{date}}'}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -231,13 +265,14 @@ export default function LettersPage() {
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
-              <Label>Employee</Label>
+              <Label htmlFor="issue-employee">Employee</Label>
               <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
+                id="issue-employee"
+                className={SELECT_CLASS}
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
               >
-                <option value="">Select…</option>
+                <option value="">Select an employee</option>
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name} ({e.employeeId})
@@ -246,19 +281,36 @@ export default function LettersPage() {
               </select>
             </div>
             <div className="space-y-2">
-              <Label>Template</Label>
+              <Label htmlFor="issue-template">Template</Label>
               <select
-                className="w-full rounded-md border bg-background px-3 py-2 text-base sm:text-sm"
+                id="issue-template"
+                className={SELECT_CLASS}
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
               >
-                <option value="">Select…</option>
+                <option value="">Select a template</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
                 ))}
               </select>
+              {templates.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No templates yet.{' '}
+                  <button
+                    type="button"
+                    className="text-primary underline"
+                    onClick={() => {
+                      setIssueDialogOpen(false);
+                      resetTemplateForm();
+                      setTemplateDialogOpen(true);
+                    }}
+                  >
+                    Create one
+                  </button>
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -276,7 +328,7 @@ export default function LettersPage() {
               onClick={() => issue.mutate()}
             >
               {issue.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Issue
+              Issue letter
             </Button>
           </DialogFooter>
         </DialogContent>

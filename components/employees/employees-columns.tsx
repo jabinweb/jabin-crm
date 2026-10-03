@@ -10,6 +10,10 @@ import { useRouter } from 'next/navigation'
 import { toast } from '@/hooks/use-toast'
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths'
 import { DataTableColumnHeader } from '@/components/table/data-table-column-header'
+import { humanizeEnum } from '@/components/hr/hr-ui'
+import { confirmAction } from '@/lib/confirm-action'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
 
 export type Employee = {
   id: string
@@ -23,15 +27,23 @@ export type Employee = {
 }
 
 export const employeeStatusColors: Record<EmployeeStatus, string> = {
-  ACTIVE: 'bg-green-100 text-green-800',
-  ON_LEAVE: 'bg-yellow-100 text-yellow-800',
-  PENDING: 'bg-blue-100 text-blue-800',
-  REJECTED: 'bg-red-100 text-red-800',
-  SUSPENDED: 'bg-red-100 text-red-800',
-  TERMINATED: 'bg-gray-100 text-gray-800',
-  SABBATICAL: 'bg-purple-100 text-purple-800',
-  MEDICAL_LEAVE: 'bg-orange-100 text-orange-800',
-  MATERNITY_LEAVE: 'bg-pink-100 text-pink-800',
+  ACTIVE: 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300',
+  ON_LEAVE: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300',
+  PENDING: 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300',
+  REJECTED: 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300',
+  SUSPENDED: 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300',
+  TERMINATED: 'bg-muted text-muted-foreground',
+  SABBATICAL: 'bg-purple-100 text-purple-800 dark:bg-purple-500/15 dark:text-purple-300',
+  MEDICAL_LEAVE: 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300',
+  MATERNITY_LEAVE: 'bg-pink-100 text-pink-800 dark:bg-pink-500/15 dark:text-pink-300',
+}
+
+/** Badge classes for an employee status (border-less tinted pill that works in dark mode). */
+export function employeeStatusClass(status: string): string {
+  return cn(
+    'border-transparent',
+    employeeStatusColors[status as EmployeeStatus] ?? 'bg-muted text-muted-foreground'
+  )
 }
 
 function EmployeeNameCell({ employee }: { employee: Employee }) {
@@ -41,7 +53,7 @@ function EmployeeNameCell({ employee }: { employee: Employee }) {
       <UserAvatar person={employee} size="md" />
       <Link
         href={path(`/dashboard/employees/${employee.id}`)}
-        className="font-medium hover:underline text-blue-600"
+        className="font-medium text-primary hover:underline"
       >
         {employee.name}
       </Link>
@@ -100,9 +112,7 @@ export const columns: ColumnDef<Employee>[] = [
       }
 
       return (
-        <Badge className={employeeStatusColors[status] ?? 'bg-gray-100 text-gray-800'}>
-          {status.split('_').join(' ')}
-        </Badge>
+        <Badge className={employeeStatusClass(status)}>{humanizeEnum(status)}</Badge>
       )
     },
   },
@@ -114,7 +124,7 @@ export const columns: ColumnDef<Employee>[] = [
       const date = row.original.dateJoined
       if (!date) return null
 
-      return new Date(date).toLocaleDateString()
+      return format(new Date(date), 'd MMM yyyy')
     },
   },
   {
@@ -133,6 +143,13 @@ function RowActions({ row }: { row: Row<Employee> }) {
 
   const handleDelete = async () => {
     if (!employee?.id) return
+    const ok = await confirmAction({
+      title: `Delete ${employee.name}?`,
+      description: 'This permanently removes the employee record. This can’t be undone.',
+      confirmLabel: 'Delete employee',
+      variant: 'destructive',
+    })
+    if (!ok) return
 
     try {
       const response = await workspaceFetch(`/api/employees/${employee.id}`, {
@@ -144,8 +161,7 @@ function RowActions({ row }: { row: Row<Employee> }) {
       }
 
       toast({
-        title: 'Success',
-        description: 'Employee deleted successfully',
+        title: 'Employee deleted',
       })
 
       window.location.assign(path('/dashboard/employees'))
@@ -153,8 +169,8 @@ function RowActions({ row }: { row: Row<Employee> }) {
       console.error('Delete employee error:', error)
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to delete employee',
+        title: 'Couldn’t delete employee',
+        description: 'Please try again.',
       })
     }
   }
