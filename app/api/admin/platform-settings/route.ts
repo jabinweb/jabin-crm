@@ -12,6 +12,7 @@ import {
   getPhpUploadConfig,
   setPhpUploadConfig,
 } from '@/lib/storage/php-upload-config';
+import { getLiveKitConfigSummary, setLiveKitConfig } from '@/lib/meetings/livekit-config';
 
 async function requireSuperAdmin() {
   const session = await auth();
@@ -27,9 +28,10 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const [tenancy, upload] = await Promise.all([
+  const [tenancy, upload, livekit] = await Promise.all([
     getPlatformTenancyConfig(),
     getPhpUploadConfig(),
+    getLiveKitConfigSummary(),
   ]);
 
   return NextResponse.json({
@@ -38,6 +40,7 @@ export async function GET() {
     phpUploadPasswordSet: upload.passwordConfigured,
     phpUploadSource: upload.source,
     phpUploadDefaultUrl: DEFAULT_PHP_UPLOAD_URL,
+    ...livekit,
   });
 }
 
@@ -47,6 +50,15 @@ const patchSchema = z.object({
   /** New password; omit or empty to keep existing */
   phpUploadPassword: z.string().nullable().optional(),
   clearPhpUploadPassword: z.boolean().optional(),
+  livekitUrl: z
+    .string()
+    .regex(/^wss?:\/\/\S+$/, 'LiveKit URL must start with wss:// (or ws:// for local)')
+    .nullable()
+    .optional(),
+  livekitApiKey: z.string().max(200).nullable().optional(),
+  /** New secret; omit or empty to keep existing */
+  livekitApiSecret: z.string().max(500).nullable().optional(),
+  clearLivekit: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request) {
@@ -79,9 +91,25 @@ export async function PATCH(req: Request) {
       });
     }
 
-    const [tenancy, upload] = await Promise.all([
+    if (
+      body.clearLivekit ||
+      body.livekitUrl !== undefined ||
+      body.livekitApiKey !== undefined ||
+      body.livekitApiSecret !== undefined
+    ) {
+      await setLiveKitConfig({
+        url: body.livekitUrl,
+        apiKey: body.livekitApiKey,
+        apiSecret: body.livekitApiSecret,
+        clear: body.clearLivekit === true,
+        updatedBy: session.user.id,
+      });
+    }
+
+    const [tenancy, upload, livekit] = await Promise.all([
       getPlatformTenancyConfig(),
       getPhpUploadConfig(),
+      getLiveKitConfigSummary(),
     ]);
 
     return NextResponse.json({
@@ -90,6 +118,7 @@ export async function PATCH(req: Request) {
       phpUploadPasswordSet: upload.passwordConfigured,
       phpUploadSource: upload.source,
       phpUploadDefaultUrl: DEFAULT_PHP_UPLOAD_URL,
+      ...livekit,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

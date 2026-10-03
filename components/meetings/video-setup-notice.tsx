@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ChevronDown, DatabaseZap, Video } from 'lucide-react';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -53,7 +54,20 @@ export function VideoSetupNotice({ className }: { className?: string }) {
             <div className="mt-3 space-y-2 text-xs text-muted-foreground">
               <p>
                 Opslane video runs on <span className="font-medium text-foreground">LiveKit</span>. Use LiveKit Cloud (free tier,
-                no servers) or self-host it with Docker, then add these environment variables and redeploy:
+                no servers) or self-host it with Docker.
+              </p>
+              <p>
+                {session?.user?.role === 'SUPER_ADMIN' ? (
+                  <>
+                    Then enter the server URL, API key and secret in{' '}
+                    <Link href="/admin/settings" className="font-medium text-primary underline-offset-2 hover:underline">
+                      Admin → Settings
+                    </Link>{' '}
+                    — no redeploy needed. Or set these environment variables and redeploy:
+                  </>
+                ) : (
+                  'Then a platform super admin enters the URL, key and secret in Admin → Settings, or sets these environment variables and redeploys:'
+                )}
               </p>
               <pre className="overflow-x-auto rounded-md bg-background p-2 font-mono text-[11px] leading-relaxed text-foreground">
 {`LIVEKIT_URL=wss://<your-project>.livekit.cloud

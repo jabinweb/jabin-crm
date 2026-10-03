@@ -1,5 +1,6 @@
 import { PlatformTenancySettings } from '@/components/admin/platform-tenancy-settings';
 import { PlatformPhpUploadSettings } from '@/components/admin/platform-php-upload-settings';
+import { PlatformLiveKitSettings } from '@/components/admin/platform-livekit-settings';
 
 export default function SettingsPage() {
   return (
@@ -13,6 +14,7 @@ export default function SettingsPage() {
 
       <PlatformTenancySettings />
       <PlatformPhpUploadSettings />
+      <PlatformLiveKitSettings />
     </div>
   );
 }

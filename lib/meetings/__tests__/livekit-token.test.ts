@@ -1,7 +1,12 @@
 /**
  * @jest-environment node
  */
+const findUnique = jest.fn();
+jest.mock('@/lib/prisma', () => ({ prisma: { platformSetting: { findUnique: (...a: unknown[]) => findUnique(...a) } } }));
+
 import { isLiveKitConfigured, mintLiveKitAccessToken } from '@/lib/meetings/livekit';
+import { clearLiveKitConfigCache } from '@/lib/meetings/livekit-config';
+import { encrypt } from '@/lib/encryption';
 
 const ENV_KEYS = ['LIVEKIT_URL', 'NEXT_PUBLIC_LIVEKIT_URL', 'LIVEKIT_API_KEY', 'LIVEKIT_API_SECRET'] as const;
 
@@ -13,6 +18,8 @@ function decodePayload(jwt: string) {
 describe('LiveKit token minting', () => {
   const saved: Record<string, string | undefined> = {};
   beforeEach(() => {
+    findUnique.mockReset().mockResolvedValue(null);
+    clearLiveKitConfigCache();
     for (const k of ENV_KEYS) {
       saved[k] = process.env[k];
       delete process.env[k];
@@ -25,13 +32,16 @@ describe('LiveKit token minting', () => {
     }
   });
 
-  it('is off until URL, key and secret are all set', () => {
-    expect(isLiveKitConfigured()).toBe(false);
+  it('is off until URL, key and secret are all set', async () => {
+    clearLiveKitConfigCache();
+    expect(await isLiveKitConfigured()).toBe(false);
     process.env.LIVEKIT_URL = 'wss://example.livekit.cloud';
     process.env.LIVEKIT_API_KEY = 'key';
-    expect(isLiveKitConfigured()).toBe(false);
+    clearLiveKitConfigCache();
+    expect(await isLiveKitConfigured()).toBe(false);
     process.env.LIVEKIT_API_SECRET = 'secret';
-    expect(isLiveKitConfigured()).toBe(true);
+    clearLiveKitConfigCache();
+    expect(await isLiveKitConfigured()).toBe(true);
   });
 
   it('refuses to mint without credentials', async () => {
@@ -57,5 +67,38 @@ describe('LiveKit token minting', () => {
     process.env.LIVEKIT_API_SECRET = 'a-very-long-development-secret-value-123';
     const token = await mintLiveKitAccessToken({ identity: 'org', roomName: 'r', roomAdmin: true });
     expect(decodePayload(token).video.roomAdmin).toBe(true);
+  });
+});
+
+describe('LiveKit config source', () => {
+  beforeEach(() => {
+    findUnique.mockReset();
+    clearLiveKitConfigCache();
+    process.env.LIVEKIT_URL = 'wss://env.example.com';
+    process.env.LIVEKIT_API_KEY = 'envkey';
+    process.env.LIVEKIT_API_SECRET = 'env-secret-value-long-enough-123';
+  });
+  afterEach(() => {
+    delete process.env.LIVEKIT_URL;
+    delete process.env.LIVEKIT_API_KEY;
+    delete process.env.LIVEKIT_API_SECRET;
+  });
+
+  it('prefers a complete set saved by a super admin (secret decrypted)', async () => {
+    findUnique.mockResolvedValue({
+      livekitUrl: 'wss://db.example.com',
+      livekitApiKey: 'dbkey',
+      livekitApiSecret: JSON.stringify(encrypt('db-secret-value-long-enough-123')),
+    });
+    const token = await mintLiveKitAccessToken({ identity: 'u', roomName: 'r' });
+    expect(decodePayload(token).iss).toBe('dbkey');
+  });
+
+  it('falls back to env when the saved set is incomplete or the column is missing', async () => {
+    findUnique.mockResolvedValue({ livekitUrl: 'wss://db.example.com', livekitApiKey: 'dbkey', livekitApiSecret: null });
+    expect(decodePayload(await mintLiveKitAccessToken({ identity: 'u', roomName: 'r' })).iss).toBe('envkey');
+    clearLiveKitConfigCache();
+    findUnique.mockRejectedValue(new Error('column does not exist'));
+    expect(await isLiveKitConfigured()).toBe(true);
   });
 });

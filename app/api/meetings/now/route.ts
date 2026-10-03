@@ -30,7 +30,7 @@ export const GET = withMeetingsRoute(async (_request, { session, companyId }) =>
   const body: MeetingsNowResponse = {
     meetings: rows.map((row: unknown) => toMeetingDTO(row, viewer)),
     pendingInvites,
-    video: { configured: isLiveKitConfigured() },
+    video: { configured: await isLiveKitConfigured() },
     ready: true,
   };
   return NextResponse.json(body);

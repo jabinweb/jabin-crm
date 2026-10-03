@@ -174,7 +174,7 @@ export async function getMeetingForViewer(meetingId: string, companyId: string, 
  * (cheap: one RoomService call, only for meetings near their time).
  */
 export async function reconcileRoomPresence(row: MeetingRow): Promise<MeetingRow> {
-  if (row.provider !== 'OPSLANE' || !isLiveKitConfigured()) return row;
+  if (row.provider !== 'OPSLANE' || !(await isLiveKitConfigured())) return row;
   const now = Date.now();
   const start = new Date(row.event.startTime).getTime();
   const end = new Date(row.event.endTime).getTime();

@@ -2,7 +2,8 @@
  * LiveKit (video rooms) — server only. Ported from Selah's lib/meeting-room
  * (config, livekit-token, livekit-admin) and trimmed to what team meetings use.
  *
- * Env (all three required to enable built-in video; see .env.example):
+ * Credentials (all three required to enable built-in video) come from
+ * Admin → Settings (PlatformSetting), else env — see ./livekit-config.ts:
  *   LIVEKIT_URL         wss://<project>.livekit.cloud  or  wss://livekit.your-domain.com
  *   LIVEKIT_API_KEY
  *   LIVEKIT_API_SECRET
@@ -10,17 +11,15 @@
  * message, room admin calls are no-ops, and the UI offers external links instead.
  */
 import { AccessToken, RoomServiceClient, TrackSource, type VideoGrant } from 'livekit-server-sdk';
+import { getLiveKitConfig } from './livekit-config';
 
-export function getLiveKitServerUrl(): string | null {
-  return process.env.LIVEKIT_URL?.trim() || process.env.NEXT_PUBLIC_LIVEKIT_URL?.trim() || null;
+export async function getLiveKitServerUrl(): Promise<string | null> {
+  return (await getLiveKitConfig()).url;
 }
 
-export function isLiveKitConfigured(): boolean {
-  return Boolean(
-    getLiveKitServerUrl() &&
-      process.env.LIVEKIT_API_KEY?.trim() &&
-      process.env.LIVEKIT_API_SECRET?.trim()
-  );
+export async function isLiveKitConfigured(): Promise<boolean> {
+  const cfg = await getLiveKitConfig();
+  return Boolean(cfg.url && cfg.apiKey && cfg.apiSecret);
 }
 
 export async function mintLiveKitAccessToken(opts: {
@@ -31,8 +30,7 @@ export async function mintLiveKitAccessToken(opts: {
   roomAdmin?: boolean;
   attributes?: Record<string, string>;
 }): Promise<string> {
-  const apiKey = process.env.LIVEKIT_API_KEY?.trim();
-  const apiSecret = process.env.LIVEKIT_API_SECRET?.trim();
+  const { apiKey, apiSecret } = await getLiveKitConfig();
   if (!apiKey || !apiSecret) {
     throw new Error('LIVEKIT_API_KEY and LIVEKIT_API_SECRET are required');
   }
@@ -64,15 +62,11 @@ export async function mintLiveKitAccessToken(opts: {
   return at.toJwt();
 }
 
-function roomClient(): RoomServiceClient | null {
-  if (!isLiveKitConfigured()) return null;
-  const url = getLiveKitServerUrl()!;
+async function roomClient(): Promise<RoomServiceClient | null> {
+  const { url, apiKey, apiSecret } = await getLiveKitConfig();
+  if (!url || !apiKey || !apiSecret) return null;
   const httpUrl = url.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
-  return new RoomServiceClient(
-    httpUrl,
-    process.env.LIVEKIT_API_KEY!.trim(),
-    process.env.LIVEKIT_API_SECRET!.trim()
-  );
+  return new RoomServiceClient(httpUrl, apiKey, apiSecret);
 }
 
 function swallowMissing(err: unknown) {
@@ -84,7 +78,7 @@ function swallowMissing(err: unknown) {
 
 /** Identities (user ids) currently connected to a room; null when unknown (not configured / error). */
 export async function listRoomIdentities(roomName: string): Promise<string[] | null> {
-  const svc = roomClient();
+  const svc = await roomClient();
   if (!svc) return null;
   try {
     const list = await svc.listParticipants(roomName);
@@ -97,7 +91,7 @@ export async function listRoomIdentities(roomName: string): Promise<string[] | n
 
 /** Disconnect everyone ("End for everyone"). */
 export async function closeRoom(roomName: string) {
-  const svc = roomClient();
+  const svc = await roomClient();
   if (!svc) return;
   try {
     await svc.deleteRoom(roomName);
