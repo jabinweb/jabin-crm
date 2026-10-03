@@ -32,9 +32,12 @@ import {
   Package,
   Plus,
   Search,
+  AlertTriangle,
   Truck,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
+import { humanizeEnum } from '@/lib/humanize-enum';
+import { EmptyState } from '@/components/ui/empty-state';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { CardListSkeleton } from '@/components/loading';
@@ -149,7 +152,7 @@ function DemoEquipmentPageInner() {
     return p.toString();
   }, [q, statusFilter, kindFilter]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['demo-equipment', listParams],
     queryFn: async () => {
       const res = await workspaceFetch(`/api/demo-equipment?${listParams}`);
@@ -349,7 +352,7 @@ function DemoEquipmentPageInner() {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground mb-1">
             <Link href={path('/dashboard/inventory')} className="hover:underline">
-              Equipment stock
+              Inventory
             </Link>
             <span>/</span>
             <span>Demo & instruments</span>
@@ -378,12 +381,14 @@ function DemoEquipmentPageInner() {
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            type="search"
+            aria-label="Search units"
             placeholder="Search name, serial, asset tag…"
             className="pl-8"
           />
         </div>
         <Select value={kindFilter} onValueChange={setKindFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]" aria-label="Filter by kind">
             <SelectValue placeholder="Kind" />
           </SelectTrigger>
           <SelectContent>
@@ -396,14 +401,14 @@ function DemoEquipmentPageInner() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]" aria-label="Filter by status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All statuses</SelectItem>
             {STATUSES.map((s) => (
               <SelectItem key={s} value={s}>
-                {s.replace(/_/g, ' ')}
+                {humanizeEnum(s)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -422,6 +427,26 @@ function DemoEquipmentPageInner() {
             <div className="p-4">
               <CardListSkeleton rows={5} />
             </div>
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load units"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
+          ) : units.length === 0 && listParams ? (
+            <EmptyState
+              icon={Search}
+              title="No units match"
+              description="Try a different search, kind, or status."
+              actionLabel="Clear filters"
+              onAction={() => {
+                setQ('');
+                setKindFilter('ALL');
+                setStatusFilter('ALL');
+              }}
+            />
           ) : units.length === 0 ? (
             <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
               <Package className="h-8 w-8 text-muted-foreground/50" />
@@ -454,7 +479,7 @@ function DemoEquipmentPageInner() {
                         {KINDS.find((k) => k.value === u.kind)?.label || u.kind}
                       </Badge>
                       <Badge variant={statusVariant(u.status)} className="text-[10px]">
-                        {u.status.replace(/_/g, ' ')}
+                        {humanizeEnum(u.status)}
                       </Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground truncate">
@@ -493,9 +518,11 @@ function DemoEquipmentPageInner() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="text-destructive"
                       onClick={async () => {
                         const ok = await confirmAction({
                           title: `Delete ${u.name}?`,
+                          description: 'Its movement history will be deleted too. This cannot be undone.',
                           confirmLabel: 'Delete',
                           variant: 'destructive',
                         });
@@ -533,20 +560,20 @@ function DemoEquipmentPageInner() {
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-1.5">
-              <Label>Name *</Label>
-              <Input
+              <Label htmlFor="demo-c-name">Name <span className="text-destructive" aria-hidden="true">*</span></Label>
+              <Input id="demo-c-name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ventilator demo #3"
+                placeholder="e.g. Demo unit #3"
               />
             </div>
             <div className="grid gap-1.5">
-              <Label>Kind</Label>
+              <Label htmlFor="demo-c-kind">Kind</Label>
               <Select
                 value={form.kind}
                 onValueChange={(v) => setForm({ ...form, kind: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-c-kind">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -560,29 +587,29 @@ function DemoEquipmentPageInner() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Serial number</Label>
-                <Input
+                <Label htmlFor="demo-c-serial">Serial number</Label>
+                <Input id="demo-c-serial"
                   value={form.serialNumber}
                   onChange={(e) => setForm({ ...form, serialNumber: e.target.value })}
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>Asset tag</Label>
-                <Input
+                <Label htmlFor="demo-c-tag">Asset tag</Label>
+                <Input id="demo-c-tag"
                   value={form.assetTag}
                   onChange={(e) => setForm({ ...form, assetTag: e.target.value })}
                 />
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label>Catalog product (optional)</Label>
+              <Label htmlFor="demo-c-product">Catalog product (optional)</Label>
               <Select
                 value={form.productId || '__none__'}
                 onValueChange={(v) =>
                   setForm({ ...form, productId: v === '__none__' ? '' : v })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-c-product">
                   <SelectValue placeholder="Link product" />
                 </SelectTrigger>
                 <SelectContent>
@@ -597,14 +624,14 @@ function DemoEquipmentPageInner() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Home location</Label>
+              <Label htmlFor="demo-c-loc">Home location</Label>
               <Select
                 value={form.currentLocationId || '__none__'}
                 onValueChange={(v) =>
                   setForm({ ...form, currentLocationId: v === '__none__' ? '' : v })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-c-loc">
                   <SelectValue placeholder="Warehouse / store" />
                 </SelectTrigger>
                 <SelectContent>
@@ -618,8 +645,8 @@ function DemoEquipmentPageInner() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Notes</Label>
-              <Textarea
+              <Label htmlFor="demo-c-notes">Notes</Label>
+              <Textarea id="demo-c-notes"
                 rows={2}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -654,20 +681,20 @@ function DemoEquipmentPageInner() {
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-1.5">
-              <Label>Name *</Label>
-              <Input
+              <Label htmlFor="demo-e-name">Name <span className="text-destructive" aria-hidden="true">*</span></Label>
+              <Input id="demo-e-name"
                 value={editForm.name}
                 onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Kind</Label>
+                <Label htmlFor="demo-e-kind">Kind</Label>
                 <Select
                   value={editForm.kind}
                   onValueChange={(v) => setEditForm({ ...editForm, kind: v })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="demo-e-kind">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -680,18 +707,18 @@ function DemoEquipmentPageInner() {
                 </Select>
               </div>
               <div className="grid gap-1.5">
-                <Label>Status</Label>
+                <Label htmlFor="demo-e-status">Status</Label>
                 <Select
                   value={editForm.status}
                   onValueChange={(v) => setEditForm({ ...editForm, status: v })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="demo-e-status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {STATUSES.map((s) => (
                       <SelectItem key={s} value={s}>
-                        {s.replace(/_/g, ' ')}
+                        {humanizeEnum(s)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -700,29 +727,29 @@ function DemoEquipmentPageInner() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">
-                <Label>Serial number</Label>
-                <Input
+                <Label htmlFor="demo-e-serial">Serial number</Label>
+                <Input id="demo-e-serial"
                   value={editForm.serialNumber}
                   onChange={(e) => setEditForm({ ...editForm, serialNumber: e.target.value })}
                 />
               </div>
               <div className="grid gap-1.5">
-                <Label>Asset tag</Label>
-                <Input
+                <Label htmlFor="demo-e-tag">Asset tag</Label>
+                <Input id="demo-e-tag"
                   value={editForm.assetTag}
                   onChange={(e) => setEditForm({ ...editForm, assetTag: e.target.value })}
                 />
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label>Catalog product</Label>
+              <Label htmlFor="demo-e-product">Catalog product</Label>
               <Select
                 value={editForm.productId || '__none__'}
                 onValueChange={(v) =>
                   setEditForm({ ...editForm, productId: v === '__none__' ? '' : v })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-e-product">
                   <SelectValue placeholder="Link product" />
                 </SelectTrigger>
                 <SelectContent>
@@ -737,7 +764,7 @@ function DemoEquipmentPageInner() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Location</Label>
+              <Label htmlFor="demo-e-loc">Location</Label>
               <Select
                 value={editForm.currentLocationId || '__none__'}
                 onValueChange={(v) =>
@@ -747,7 +774,7 @@ function DemoEquipmentPageInner() {
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-e-loc">
                   <SelectValue placeholder="Warehouse / store" />
                 </SelectTrigger>
                 <SelectContent>
@@ -761,8 +788,8 @@ function DemoEquipmentPageInner() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>Notes</Label>
-              <Textarea
+              <Label htmlFor="demo-e-notes">Notes</Label>
+              <Textarea id="demo-e-notes"
                 rows={2}
                 value={editForm.notes}
                 onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
@@ -777,7 +804,8 @@ function DemoEquipmentPageInner() {
               onClick={async () => {
                 if (!selectedId) return;
                 const ok = await confirmAction({
-                  title: 'Delete this unit?',
+                  title: `Delete ${detail?.name ?? 'this unit'}?`,
+                  description: 'Its movement history will be deleted too. This cannot be undone.',
                   confirmLabel: 'Delete',
                   variant: 'destructive',
                 });
@@ -818,12 +846,12 @@ function DemoEquipmentPageInner() {
           </DialogHeader>
           <div className="grid gap-3 py-2">
             <div className="grid gap-1.5">
-              <Label>Movement type</Label>
+              <Label htmlFor="demo-m-type">Movement type</Label>
               <Select
                 value={moveForm.type}
                 onValueChange={(v) => setMoveForm({ ...moveForm, type: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-m-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -836,7 +864,7 @@ function DemoEquipmentPageInner() {
               </Select>
             </div>
             <div className="grid gap-1.5">
-              <Label>To location</Label>
+              <Label htmlFor="demo-m-loc">To location</Label>
               <Select
                 value={moveForm.toLocationId || '__none__'}
                 onValueChange={(v) =>
@@ -846,7 +874,7 @@ function DemoEquipmentPageInner() {
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger id="demo-m-loc">
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -861,7 +889,7 @@ function DemoEquipmentPageInner() {
             </div>
             {moveForm.type !== 'RETURN' && moveForm.type !== 'RETIRE' ? (
               <div className="grid gap-1.5">
-                <Label>To customer (demo / site)</Label>
+                <Label htmlFor="demo-m-cust">To customer (demo / site)</Label>
                 <Select
                   value={moveForm.toCustomerId || '__none__'}
                   onValueChange={(v) =>
@@ -871,7 +899,7 @@ function DemoEquipmentPageInner() {
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="demo-m-cust">
                     <SelectValue placeholder="Customer" />
                   </SelectTrigger>
                   <SelectContent>
@@ -887,8 +915,8 @@ function DemoEquipmentPageInner() {
             ) : null}
             {(moveForm.type === 'CHECKOUT' || moveForm.type === 'TRANSFER') && (
               <div className="grid gap-1.5">
-                <Label>Expected return</Label>
-                <Input
+                <Label htmlFor="demo-m-return">Expected return</Label>
+                <Input id="demo-m-return"
                   type="date"
                   value={moveForm.expectedReturnAt}
                   onChange={(e) =>
@@ -898,16 +926,16 @@ function DemoEquipmentPageInner() {
               </div>
             )}
             <div className="grid gap-1.5">
-              <Label>Purpose</Label>
-              <Input
+              <Label htmlFor="demo-m-purpose">Purpose</Label>
+              <Input id="demo-m-purpose"
                 value={moveForm.purpose}
                 onChange={(e) => setMoveForm({ ...moveForm, purpose: e.target.value })}
                 placeholder="Demo visit, calibration, loan…"
               />
             </div>
             <div className="grid gap-1.5">
-              <Label>Notes</Label>
-              <Textarea
+              <Label htmlFor="demo-m-notes">Notes</Label>
+              <Textarea id="demo-m-notes"
                 rows={2}
                 value={moveForm.notes}
                 onChange={(e) => setMoveForm({ ...moveForm, notes: e.target.value })}
@@ -950,7 +978,7 @@ function DemoEquipmentPageInner() {
                   {KINDS.find((k) => k.value === detail.kind)?.label || detail.kind}
                 </Badge>
                 <Badge variant={statusVariant(detail.status)}>
-                  {detail.status.replace(/_/g, ' ')}
+                  {humanizeEnum(detail.status)}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -966,7 +994,7 @@ function DemoEquipmentPageInner() {
               {detail.expectedReturnAt ? (
                 <p className="text-xs text-amber-700 dark:text-amber-400">
                   Expected return{' '}
-                  {new Date(detail.expectedReturnAt).toLocaleDateString()}
+                  {format(new Date(detail.expectedReturnAt), 'd MMM yyyy')}
                 </p>
               ) : null}
               <ScrollArea className="h-64 rounded-md border">
@@ -983,7 +1011,7 @@ function DemoEquipmentPageInner() {
                             variant="outline"
                             className={cn('text-[10px] font-normal')}
                           >
-                            {m.type}
+                            {MOVE_TYPES.find((t) => t.value === m.type)?.label ?? humanizeEnum(m.type)}
                           </Badge>
                           <span className="text-[10px] text-muted-foreground">
                             {formatDistanceToNow(new Date(m.movedAt), {
@@ -1034,7 +1062,8 @@ function DemoEquipmentPageInner() {
               onClick={async () => {
                 if (!selectedId) return;
                 const ok = await confirmAction({
-                  title: 'Delete this unit?',
+                  title: `Delete ${detail?.name ?? 'this unit'}?`,
+                  description: 'Its movement history will be deleted too. This cannot be undone.',
                   confirmLabel: 'Delete',
                   variant: 'destructive',
                 });

@@ -27,6 +27,7 @@ import {
     Building,
     Wrench,
     AlertCircle,
+    Info,
     Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -216,7 +217,11 @@ export default function NewTicketPage() {
             }
 
             const ticket = body;
-            toast.success('Ticket created successfully and assigned');
+            toast.success(
+                ticket.assignedTechnician?.name
+                    ? `Ticket created and assigned to ${ticket.assignedTechnician.name}`
+                    : 'Ticket created'
+            );
             queryClient.invalidateQueries({ queryKey: ['tickets'] });
             router.push(path(`/dashboard/tickets/${ticket.id}`));
         } catch (error) {
@@ -234,7 +239,7 @@ export default function NewTicketPage() {
                     Back
                 </Button>
                 <div className="min-w-0">
-                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Create Support Ticket</h2>
+                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">New support ticket</h1>
                     <p className="text-sm text-muted-foreground">Log a support request with the right category and routing.</p>
                 </div>
             </div>
@@ -247,16 +252,16 @@ export default function NewTicketPage() {
                             <CardHeader className="bg-muted/30">
                                 <CardTitle className="text-lg flex items-center">
                                     <Ticket className="h-5 w-5 mr-2 text-primary" />
-                                    Ticket Description
+                                    Issue details
                                 </CardTitle>
-                                <CardDescription>Detailed information about the technical problem.</CardDescription>
+                                <CardDescription>What is going wrong, and what has the customer already tried?</CardDescription>
                             </CardHeader>
                             <CardContent className="pt-6 space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="subject">Subject / Issue Title</Label>
+                                    <Label htmlFor="subject">Subject</Label>
                                     <Input
                                         id="subject"
-                                        placeholder="e.g. Monitor display flicker on patient monitor"
+                                        placeholder="e.g. Unable to log in after password reset"
                                         value={formData.subject}
                                         onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                                         className="text-lg focus-visible:ring-primary"
@@ -264,7 +269,7 @@ export default function NewTicketPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="description">Detailed Description</Label>
+                                    <Label htmlFor="description">Description</Label>
                                     <Textarea
                                         id="description"
                                         placeholder="Describe the issue, steps to reproduce, or symptoms..."
@@ -284,12 +289,12 @@ export default function NewTicketPage() {
                             <CardHeader className="pb-3 bg-muted/20">
                                 <CardTitle className="text-sm font-semibold flex items-center">
                                     <Building className="h-4 w-4 mr-2" />
-                                    Facility & Context
+                                    Customer & context
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Request category</Label>
+                                    <Label htmlFor="ticket-type">Request category</Label>
                                     <Select
                                         value={formData.ticketType}
                                         onValueChange={(val) => {
@@ -303,7 +308,7 @@ export default function NewTicketPage() {
                                             });
                                         }}
                                     >
-                                        <SelectTrigger className="w-full">
+                                        <SelectTrigger id="ticket-type" className="w-full">
                                             <SelectValue placeholder="Select category" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -317,7 +322,7 @@ export default function NewTicketPage() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Client / site</Label>
+                                    <Label htmlFor="ticket-customer">Customer <span className="text-destructive" aria-hidden="true">*</span></Label>
                                     <Select
                                         value={formData.customerId}
                                         onValueChange={(val) =>
@@ -338,8 +343,8 @@ export default function NewTicketPage() {
                                             })
                                         }
                                     >
-                                        <SelectTrigger className="w-full">
-                                            <SelectValue placeholder={isLoadingCustomers ? "Loading clients..." : "Select client"} />
+                                        <SelectTrigger id="ticket-customer" className="w-full" aria-required="true">
+                                            <SelectValue placeholder={isLoadingCustomers ? "Loading customers…" : "Select customer"} />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {customerData?.customers?.map((customer: any) => (
@@ -349,10 +354,22 @@ export default function NewTicketPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {!isLoadingCustomers && !customerData?.customers?.length ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            No customers yet.{' '}
+                                            <Link
+                                                href={path('/dashboard/customers/new')}
+                                                className="text-primary underline underline-offset-2"
+                                            >
+                                                Add a customer
+                                            </Link>{' '}
+                                            to log a ticket for them.
+                                        </p>
+                                    ) : null}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Project (optional)</Label>
+                                    <Label htmlFor="ticket-project">Project (optional)</Label>
                                     <Select
                                         value={formData.projectId || '__none__'}
                                         onValueChange={(val) =>
@@ -362,7 +379,7 @@ export default function NewTicketPage() {
                                             })
                                         }
                                     >
-                                        <SelectTrigger className="w-full">
+                                        <SelectTrigger id="ticket-project" className="w-full">
                                             <SelectValue placeholder="Link to a project" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -378,7 +395,7 @@ export default function NewTicketPage() {
 
                                 {selectedType?.showEquipment ? (
                                 <div className="space-y-2">
-                                    <Label>Equipment (Optional)</Label>
+                                    <Label htmlFor="ticket-equipment">Equipment (optional)</Label>
                                     <Select
                                         value={formData.equipmentId}
                                         onValueChange={(val) =>
@@ -386,10 +403,10 @@ export default function NewTicketPage() {
                                         }
                                         disabled={!formData.customerId || isLoadingEquipment}
                                     >
-                                        <SelectTrigger className="w-full">
+                                        <SelectTrigger id="ticket-equipment" className="w-full">
                                             <SelectValue placeholder={
-                                                !formData.customerId ? "Select a client first" :
-                                                    isLoadingEquipment ? "Loading equipment..." :
+                                                !formData.customerId ? "Select a customer first" :
+                                                    isLoadingEquipment ? "Loading equipment…" :
                                                         selectedCustomer?.equipmentInstallations?.length === 0 ? "No equipment found" :
                                                             "Select equipment"
                                             } />
@@ -407,7 +424,7 @@ export default function NewTicketPage() {
 
                                 {formData.customerId && suggestedContracts.length > 0 ? (
                                 <div className="space-y-2">
-                                    <Label>Link to contract</Label>
+                                    <Label htmlFor="ticket-contract">Link to contract</Label>
                                     <Select
                                         value={formData.serviceContractId || 'none'}
                                         onValueChange={(val) =>
@@ -417,7 +434,7 @@ export default function NewTicketPage() {
                                             })
                                         }
                                     >
-                                        <SelectTrigger className="w-full">
+                                        <SelectTrigger id="ticket-contract" className="w-full">
                                             <SelectValue placeholder="Select contract" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -440,16 +457,17 @@ export default function NewTicketPage() {
                                     formData.customerId &&
                                     !isLoadingEquipment &&
                                     selectedCustomer?.equipmentInstallations?.length === 0 && (
-                                        <p className="text-[10px] text-muted-foreground italic mt-1">
-                                            No equipment records found for this client.
+                                        <p className="text-xs text-muted-foreground">
+                                            No equipment records found for this customer.
                                         </p>
                                     )}
 
                                 {selectedType?.fields.map((field) => (
                                     <div key={field.id} className="space-y-2">
-                                        <Label>{field.label}{field.required ? ' *' : ''}</Label>
+                                        <Label htmlFor={`tt-${field.id}`}>{field.label}{field.required ? ' *' : ''}</Label>
                                         {field.type === 'textarea' ? (
                                             <Textarea
+                                                id={`tt-${field.id}`}
                                                 value={formData.customFields[field.id] ?? ''}
                                                 onChange={(e) =>
                                                     setFormData({
@@ -465,6 +483,7 @@ export default function NewTicketPage() {
                                             />
                                         ) : (
                                             <Input
+                                                id={`tt-${field.id}`}
                                                 value={formData.customFields[field.id] ?? ''}
                                                 onChange={(e) =>
                                                     setFormData({
@@ -484,7 +503,7 @@ export default function NewTicketPage() {
 
                                 {companyCustomFields.map((field) => (
                                     <div key={field.id} className="space-y-2">
-                                        <Label>
+                                        <Label htmlFor={`cf-${field.key}`}>
                                             {field.name}
                                             {field.required ? ' *' : ''}
                                         </Label>
@@ -501,7 +520,7 @@ export default function NewTicketPage() {
                                                     })
                                                 }
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger id={`cf-${field.key}`}>
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -523,7 +542,7 @@ export default function NewTicketPage() {
                                                     })
                                                 }
                                             >
-                                                <SelectTrigger>
+                                                <SelectTrigger id={`cf-${field.key}`}>
                                                     <SelectValue placeholder="Select…" />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -536,6 +555,7 @@ export default function NewTicketPage() {
                                             </Select>
                                         ) : (
                                             <Input
+                                                id={`cf-${field.key}`}
                                                 type={
                                                     field.fieldType === 'number'
                                                         ? 'number'
@@ -565,48 +585,48 @@ export default function NewTicketPage() {
                             <CardHeader className="pb-3 bg-muted/20">
                                 <CardTitle className="text-sm font-semibold flex items-center">
                                     <AlertCircle className="h-4 w-4 mr-2" />
-                                    Priority & Logic
+                                    Priority & routing
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Urgency / Priority</Label>
+                                    <Label htmlFor="ticket-priority">Priority</Label>
                                     <Select
                                         value={formData.priority}
                                         onValueChange={(val) => setFormData({ ...formData, priority: val })}
                                     >
-                                        <SelectTrigger className="w-full border-l-4 border-l-yellow-500">
+                                        <SelectTrigger id="ticket-priority" className="w-full">
                                             <SelectValue placeholder="Select priority" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="LOW">Low - Maintenance/Query</SelectItem>
-                                            <SelectItem value="MEDIUM">Medium - Normal Fault</SelectItem>
-                                            <SelectItem value="HIGH">High - major business impact</SelectItem>
-                                            <SelectItem value="CRITICAL">Critical - System Down</SelectItem>
+                                            <SelectItem value="LOW">Low — question or minor request</SelectItem>
+                                            <SelectItem value="MEDIUM">Medium — normal issue</SelectItem>
+                                            <SelectItem value="HIGH">High — major business impact</SelectItem>
+                                            <SelectItem value="CRITICAL">Critical — service down</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
 
-                                <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-none border border-blue-100 flex items-start gap-2">
-                                    <Loader2 className="h-4 w-4 text-blue-600 mt-0.5 animate-spin" />
-                                    <div className="space-y-1">
-                                        <p className="text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">Round Robin System</p>
-                                        <p className="text-[10px] text-blue-700 dark:text-blue-400">This ticket will be automatically assigned to the least busy technician upon submission.</p>
-                                    </div>
+                                <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3">
+                                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                                    <p className="text-xs text-muted-foreground">
+                                        The ticket is routed to the right group and assigned to the
+                                        least busy available agent when you create it.
+                                    </p>
                                 </div>
 
                                 <Button
                                     type="submit"
-                                    className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-bold"
+                                    className="w-full h-11 font-semibold"
                                     disabled={isSubmitting}
                                 >
                                     {isSubmitting ? (
                                         <>
                                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Creating Ticket...
+                                            Creating ticket…
                                         </>
                                     ) : (
-                                        'Create Ticket'
+                                        'Create ticket'
                                     )}
                                 </Button>
                             </CardContent>

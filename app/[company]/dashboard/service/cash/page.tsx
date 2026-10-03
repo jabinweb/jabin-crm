@@ -9,7 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { formatCurrency } from '@/lib/currency';
+import { useCurrency } from '@/hooks/use-currency';
+import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
+import { CardListSkeleton, StatCardsSkeleton } from '@/components/loading';
+import { humanizeEnum } from '@/lib/humanize-enum';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 
@@ -22,6 +26,7 @@ export default function CashOnHandPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { data: session } = useSession();
+  const { formatCurrency } = useCurrency();
   const myId = session?.user?.id ?? '';
   // Technicians only log their own spending; managers record advances and settlements.
   const isManager = ['ADMIN', 'SUPER_ADMIN', 'SUPPORT_MANAGER'].includes(session?.user?.role ?? '');
@@ -36,7 +41,7 @@ export default function CashOnHandPage() {
   });
 
   const loadData = async () => {
-    setLoading(true);
+    // Initial state is loading; refreshes after a save keep the page visible.
     try {
       const featureRes = await fetch('/api/features/me');
       if (featureRes.ok) {
@@ -98,7 +103,10 @@ export default function CashOnHandPage() {
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to create entry');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(typeof err.error === 'string' ? err.error : 'Failed to create cash entry');
+      }
       toast.success('Cash entry recorded');
       setForm({
         technicianId: '',
@@ -110,23 +118,37 @@ export default function CashOnHandPage() {
       });
       loadData();
     } catch (error) {
-      toast.error('Failed to create cash entry');
+      toast.error(error instanceof Error ? error.message : 'Failed to create cash entry');
     } finally {
       setSaving(false);
     }
   };
 
+  const header = (
+    <div>
+      <h1 className="text-2xl font-semibold tracking-tight">Cash on hand</h1>
+      <p className="text-sm text-muted-foreground">Track technician advances, spending, and settlements.</p>
+    </div>
+  );
+
   if (loading) {
-    return <div className="space-y-6">Loading cash dashboard...</div>;
+    return (
+      <div className="space-y-6">
+        {header}
+        <StatCardsSkeleton count={3} />
+        <CardListSkeleton rows={4} />
+      </div>
+    );
   }
 
   if (!featureEnabled) {
     return (
       <div className="space-y-6">
+        {header}
         <Card>
-          <CardHeader><CardTitle>Module Disabled</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Cash on hand isn&apos;t enabled</CardTitle></CardHeader>
           <CardContent className="text-sm text-muted-foreground">
-            Cash On Hand is disabled by your Super Admin.
+            This module is turned off for your workspace. Ask your administrator to enable it.
           </CardContent>
         </Card>
       </div>
@@ -135,10 +157,7 @@ export default function CashOnHandPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Cash On Hand</h1>
-        <p className="text-sm text-muted-foreground">Track technician advances, spends, and settlements.</p>
-      </div>
+      {header}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3">
         {balances.length === 0 ? (
@@ -153,11 +172,11 @@ export default function CashOnHandPage() {
                 <CardDescription>Available cash balance</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className={`text-xl sm:text-2xl font-bold tabular-nums break-words ${item.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(item.balance, 'USD')}
+                <p className={`text-xl sm:text-2xl font-bold tabular-nums break-words ${item.balance >= 0 ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                  {formatCurrency(item.balance)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Advance: {formatCurrency(item.totalAdvance, 'USD')} • Spent: {formatCurrency(item.totalSpent, 'USD')}
+                  Advance: {formatCurrency(item.totalAdvance)} • Spent: {formatCurrency(item.totalSpent)}
                 </p>
               </CardContent>
             </Card>
@@ -167,18 +186,18 @@ export default function CashOnHandPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Add Cash Entry</CardTitle>
+          <CardTitle>Record a cash entry</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
-              <Label>Technician</Label>
+              <Label htmlFor="cash-tech">Technician</Label>
               <Select
                 value={isManager ? form.technicianId : myId}
                 disabled={!isManager}
                 onValueChange={(value) => setForm({ ...form, technicianId: value })}
               >
-                <SelectTrigger><SelectValue placeholder="Select technician" /></SelectTrigger>
+                <SelectTrigger id="cash-tech"><SelectValue placeholder="Select technician" /></SelectTrigger>
                 <SelectContent>
                   {technicians.map((tech) => (
                     <SelectItem key={tech.id} value={tech.id}>{tech.name || tech.email}</SelectItem>
@@ -187,13 +206,13 @@ export default function CashOnHandPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Entry Type</Label>
+              <Label htmlFor="cash-type">Entry type</Label>
               <Select
                 value={isManager ? form.entryType : 'EXPENSE'}
                 disabled={!isManager}
                 onValueChange={(value) => setForm({ ...form, entryType: value })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="cash-type"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ADVANCE">Advance</SelectItem>
                   <SelectItem value="EXPENSE">Expense</SelectItem>
@@ -203,9 +222,11 @@ export default function CashOnHandPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Amount</Label>
+              <Label htmlFor="cash-amount">Amount</Label>
               <Input
+                id="cash-amount"
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 value={form.amount}
@@ -217,9 +238,9 @@ export default function CashOnHandPage() {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Linked Ticket (Optional)</Label>
+              <Label htmlFor="cash-ticket">Linked ticket (optional)</Label>
               <Select value={form.ticketId} onValueChange={(value) => setForm({ ...form, ticketId: value })}>
-                <SelectTrigger><SelectValue placeholder="Select ticket" /></SelectTrigger>
+                <SelectTrigger id="cash-ticket"><SelectValue placeholder="Select ticket" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__NONE__">None</SelectItem>
                   {tickets.map((ticket) => (
@@ -229,17 +250,18 @@ export default function CashOnHandPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Reference No (Optional)</Label>
+              <Label htmlFor="cash-ref">Reference no. (optional)</Label>
               <Input
                 value={form.referenceNo}
                 onChange={(e) => setForm({ ...form, referenceNo: e.target.value })}
-                placeholder="Voucher / Cash Slip"
+                id="cash-ref"
+                placeholder="Voucher or cash slip number"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Description</Label>
+            <Label htmlFor="cash-desc">Description</Label>
             <Textarea
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -248,14 +270,15 @@ export default function CashOnHandPage() {
           </div>
 
           <Button className="w-full sm:w-auto" onClick={submitEntry} disabled={saving}>
-            {saving ? 'Saving...' : 'Record Entry'}
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            {saving ? 'Saving…' : 'Record entry'}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Entry Ledger</CardTitle>
+          <CardTitle>Ledger</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-none border overflow-x-auto">
@@ -266,7 +289,7 @@ export default function CashOnHandPage() {
                   <TableHead>Technician</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Ticket</TableHead>
-                  <TableHead>Amount</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
@@ -278,11 +301,11 @@ export default function CashOnHandPage() {
                 ) : (
                   entries.map((entry: any) => (
                     <TableRow key={entry.id}>
-                      <TableCell>{new Date(entry.recordedAt).toLocaleString()}</TableCell>
+                      <TableCell className="whitespace-nowrap">{format(new Date(entry.recordedAt), 'd MMM yyyy, HH:mm')}</TableCell>
                       <TableCell>{entry.technician?.name || entry.technician?.email}</TableCell>
-                      <TableCell><Badge variant="outline">{entry.entryType}</Badge></TableCell>
-                      <TableCell>{entry.ticket?.subject || '-'}</TableCell>
-                      <TableCell className={entry.entryType === 'ADVANCE' || entry.entryType === 'ADJUSTMENT' ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                      <TableCell><Badge variant="outline">{humanizeEnum(entry.entryType)}</Badge></TableCell>
+                      <TableCell>{entry.ticket?.subject || '—'}</TableCell>
+                      <TableCell className={`whitespace-nowrap text-right font-medium tabular-nums ${entry.entryType === 'ADVANCE' || entry.entryType === 'ADJUSTMENT' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                         {formatCurrency(entry.amount, entry.currency)}
                       </TableCell>
                       <TableCell>{entry.description}</TableCell>

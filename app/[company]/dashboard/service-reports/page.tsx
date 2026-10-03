@@ -13,7 +13,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { EmptyState } from '@/components/ui/empty-state';
-import { FileCheck } from 'lucide-react';
+import { AlertTriangle, FileCheck } from 'lucide-react';
+import { format } from 'date-fns';
+import { humanizeEnum } from '@/lib/humanize-enum';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { TableSkeleton } from '@/components/loading';
 
@@ -33,11 +35,8 @@ type ServiceReportRow = {
 };
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : format(d, 'd MMM yyyy');
 }
 
 function statusVariant(
@@ -59,7 +58,7 @@ function statusVariant(
 export default function ServiceReportsPage() {
   const { slug, path, workspaceFetch } = useWorkspacePaths();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['service-reports', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/service-reports');
@@ -92,11 +91,22 @@ export default function ServiceReportsPage() {
         <CardContent>
           {isLoading ? (
             <TableSkeleton columnCount={6} rowCount={5} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load service reports"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+              className="py-10"
+            />
           ) : !reports.length ? (
             <EmptyState
               icon={FileCheck}
               title="No service reports yet"
-              description="Reports appear here when technicians complete field visits."
+              description="Technicians file a report from a ticket when they finish a field visit. Reports will be listed here."
+              actionLabel="Open ticket queue"
+              actionHref={path('/dashboard/tickets')}
               className="py-10"
             />
           ) : (
@@ -111,7 +121,7 @@ export default function ServiceReportsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <p className="min-w-0 truncate text-sm font-medium">{r.ticket.subject}</p>
                     <Badge variant={statusVariant(r.ticket.status)} className="shrink-0">
-                      {r.ticket.status.replaceAll('_', ' ')}
+                      {humanizeEnum(r.ticket.status)}
                     </Badge>
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
@@ -130,7 +140,7 @@ export default function ServiceReportsPage() {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Ticket</TableHead>
-                  <TableHead>Client</TableHead>
+                  <TableHead>Customer</TableHead>
                   <TableHead>Technician</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Next maintenance</TableHead>
@@ -166,7 +176,7 @@ export default function ServiceReportsPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={statusVariant(r.ticket.status)}>
-                        {r.ticket.status.replaceAll('_', ' ')}
+                        {humanizeEnum(r.ticket.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap">

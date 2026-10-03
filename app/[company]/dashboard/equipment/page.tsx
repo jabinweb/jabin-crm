@@ -22,7 +22,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Plus, Wrench } from 'lucide-react';
+import { AlertTriangle, Plus, Wrench } from 'lucide-react';
+import { humanizeEnum } from '@/lib/humanize-enum';
 import { TableSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 
@@ -68,7 +69,14 @@ export default function EquipmentFleetPage() {
     return params.toString();
   }, [status, contractFilter, warrantyFilter]);
 
-  const { data: rows = [], isLoading } = useQuery({
+  const filtersActive = queryString !== '';
+  const clearFilters = () => {
+    setStatus('all');
+    setContractFilter('all');
+    setWarrantyFilter('all');
+  };
+
+  const { data: rows = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['equipment-fleet', queryString],
     queryFn: async () => {
       const res = await workspaceFetch(
@@ -85,7 +93,7 @@ export default function EquipmentFleetPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">Equipment fleet</h1>
           <p className="text-muted-foreground text-sm">
-            Company-wide serial register with warranty and active AMC/CMC.
+            Every installed unit by serial number, with warranty dates and active AMC/CMC coverage.
           </p>
         </div>
         <Button asChild>
@@ -103,7 +111,7 @@ export default function EquipmentFleetPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
           <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger className="w-full sm:w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px]" aria-label="Filter by status">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -114,7 +122,7 @@ export default function EquipmentFleetPage() {
             </SelectContent>
           </Select>
           <Select value={contractFilter} onValueChange={setContractFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filter by contract coverage">
               <SelectValue placeholder="Contract" />
             </SelectTrigger>
             <SelectContent>
@@ -124,12 +132,12 @@ export default function EquipmentFleetPage() {
             </SelectContent>
           </Select>
           <Select value={warrantyFilter} onValueChange={setWarrantyFilter}>
-            <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]" aria-label="Filter by warranty">
               <SelectValue placeholder="Warranty" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Any warranty</SelectItem>
-              <SelectItem value="90">Warranty expiring in 90d</SelectItem>
+              <SelectItem value="90">Warranty expiring in 90 days</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
@@ -139,6 +147,22 @@ export default function EquipmentFleetPage() {
         <CardContent className="pt-6">
           {isLoading ? (
             <TableSkeleton columnCount={7} />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load the fleet"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
+          ) : rows.length === 0 && filtersActive ? (
+            <EmptyState
+              icon={Wrench}
+              title="No units match these filters"
+              description="Try a different status, contract, or warranty filter."
+              actionLabel="Clear filters"
+              onAction={clearFilters}
+            />
           ) : rows.length === 0 ? (
             <EmptyState
               icon={Wrench}
@@ -166,7 +190,7 @@ export default function EquipmentFleetPage() {
                         ) : null}
                       </p>
                       <Badge variant="secondary" className="shrink-0">
-                        {row.status.replace(/_/g, ' ')}
+                        {humanizeEnum(row.status)}
                       </Badge>
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
@@ -224,7 +248,7 @@ export default function EquipmentFleetPage() {
                         ) : null}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{row.status.replace(/_/g, ' ')}</Badge>
+                        <Badge variant="secondary">{humanizeEnum(row.status)}</Badge>
                       </TableCell>
                       <TableCell>{formatDate(row.warrantyExpiry)}</TableCell>
                       <TableCell>

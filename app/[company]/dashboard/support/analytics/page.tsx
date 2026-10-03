@@ -8,15 +8,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   Ticket,
   Clock,
   Star,
   TrendingUp,
   BarChart3,
+  AlertTriangle,
 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { humanizeEnum, ENUM_LABEL_OVERRIDES } from '@/lib/humanize-enum';
 import { FeatureModuleGuard } from '@/components/feature-module-guard';
 import { SupportBackLink } from '@/components/support/support-back-link';
 import { StatCardsSkeleton, SectionSkeleton } from '@/components/loading';
@@ -25,7 +28,7 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 export default function SupportAnalyticsPage() {
   const { slug, workspaceFetch } = useWorkspacePaths();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['support-stats', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/dashboard/support-stats?days=30');
@@ -36,16 +39,26 @@ export default function SupportAnalyticsPage() {
 
   return (
     <FeatureModuleGuard module="TICKETS">
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div>
           <SupportBackLink />
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Support analytics</h1>
           <p className="text-muted-foreground mt-1">
-            Executive view — volume, SLA compliance, CSAT, and channel mix (last 30 days).
+            Ticket volume, SLA compliance, CSAT, and channel mix over the last 30 days.
           </p>
         </div>
 
-        {isLoading ? (
+        {isError || (!isLoading && !data?.summary) ? (
+          <Card>
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load support analytics"
+              description="Something went wrong while loading the numbers. Try again in a moment."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
+          </Card>
+        ) : isLoading ? (
           <div className="space-y-6">
             <StatCardsSkeleton />
             <div className="grid gap-6 lg:grid-cols-2">
@@ -137,7 +150,9 @@ export default function SupportAnalyticsPage() {
                   ) : (
                     data.volumeTrend.map((row: { date: string; count: number }) => (
                       <div key={row.date} className="flex items-center gap-3">
-                        <span className="text-xs text-muted-foreground w-20 shrink-0 sm:w-24">{row.date}</span>
+                        <span className="text-xs text-muted-foreground w-16 shrink-0 tabular-nums">
+                          {format(parseISO(row.date), 'd MMM')}
+                        </span>
                         <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                           <div
                             className="h-full bg-primary rounded-full"
@@ -158,12 +173,16 @@ export default function SupportAnalyticsPage() {
                   <CardTitle className="text-lg">Channel mix</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {data.byChannel.map((c: { channel: string; count: number }) => (
-                    <div key={c.channel} className="flex justify-between items-center">
-                      <Badge variant="secondary">{c.channel}</Badge>
-                      <span className="font-medium">{c.count}</span>
-                    </div>
-                  ))}
+                  {data.byChannel.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tickets in this period.</p>
+                  ) : (
+                    data.byChannel.map((c: { channel: string; count: number }) => (
+                      <div key={c.channel} className="flex justify-between items-center">
+                        <Badge variant="secondary">{humanizeEnum(c.channel, ENUM_LABEL_OVERRIDES)}</Badge>
+                        <span className="font-medium tabular-nums">{c.count}</span>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
@@ -172,12 +191,16 @@ export default function SupportAnalyticsPage() {
                   <CardTitle className="text-lg">By priority</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {data.byPriority.map((p: { priority: string; count: number }) => (
-                    <div key={p.priority} className="flex justify-between items-center">
-                      <span>{p.priority}</span>
-                      <span className="font-medium">{p.count}</span>
-                    </div>
-                  ))}
+                  {data.byPriority.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tickets in this period.</p>
+                  ) : (
+                    data.byPriority.map((p: { priority: string; count: number }) => (
+                      <div key={p.priority} className="flex justify-between items-center">
+                        <span>{humanizeEnum(p.priority)}</span>
+                        <span className="font-medium tabular-nums">{p.count}</span>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
@@ -186,12 +209,16 @@ export default function SupportAnalyticsPage() {
                   <CardTitle className="text-lg">By status</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {data.byStatus.map((s: { status: string; count: number }) => (
-                    <div key={s.status} className="flex justify-between items-center">
-                      <span>{s.status}</span>
-                      <span className="font-medium">{s.count}</span>
-                    </div>
-                  ))}
+                  {data.byStatus.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No tickets in this period.</p>
+                  ) : (
+                    data.byStatus.map((s: { status: string; count: number }) => (
+                      <div key={s.status} className="flex justify-between items-center">
+                        <span>{humanizeEnum(s.status)}</span>
+                        <span className="font-medium tabular-nums">{s.count}</span>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
             </div>

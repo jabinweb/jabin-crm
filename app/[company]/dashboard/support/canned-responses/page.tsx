@@ -14,7 +14,8 @@ import { SupportBackLink } from '@/components/support/support-back-link';
 import { CardListSkeleton } from '@/components/loading';
 import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { confirmAction } from '@/lib/confirm-action';
-import { Pencil, Trash2 } from 'lucide-react';
+import { AlertTriangle, Loader2, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
 
 type CannedResponse = {
   id: string;
@@ -34,7 +35,7 @@ export default function CannedResponsesPage() {
   const [category, setCategory] = useState('General');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  const { data: responses, isLoading } = useQuery({
+  const { data: responses, isLoading, isError, refetch } = useQuery({
     queryKey: ['canned-responses', slug],
     queryFn: async () => {
       const res = await workspaceFetch('/api/support/canned-responses');
@@ -115,9 +116,9 @@ export default function CannedResponsesPage() {
         <div className="flex flex-col items-start">
           <SupportBackLink />
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold">Canned responses</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Canned responses</h1>
             <p className="text-sm text-muted-foreground">
-              Quick replies for support agents on tickets
+              Reusable replies agents can insert into tickets.
             </p>
           </div>
         </div>
@@ -129,27 +130,29 @@ export default function CannedResponsesPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label>Title</Label>
+              <Label htmlFor="canned-title">Title</Label>
               <Input
+                id="canned-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Acknowledge receipt"
               />
             </div>
             <div>
-              <Label>Category</Label>
-              <Input value={category} onChange={(e) => setCategory(e.target.value)} />
+              <Label htmlFor="canned-category">Category</Label>
+              <Input id="canned-category" value={category} onChange={(e) => setCategory(e.target.value)} />
             </div>
             <div>
-              <Label>Body</Label>
-              <Textarea rows={5} value={body} onChange={(e) => setBody(e.target.value)} />
+              <Label htmlFor="canned-body">Body</Label>
+              <Textarea id="canned-body" rows={5} value={body} onChange={(e) => setBody(e.target.value)} />
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => saveMutation.mutate()}
-                disabled={!title || !body || saveMutation.isPending}
+                disabled={!title.trim() || !body.trim() || saveMutation.isPending}
               >
-                {editingId ? 'Update' : 'Save'}
+                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {editingId ? 'Update template' : 'Save template'}
               </Button>
               {editingId ? (
                 <Button type="button" variant="outline" onClick={resetForm}>
@@ -168,6 +171,14 @@ export default function CannedResponsesPage() {
           <CardContent className="space-y-3">
             {isLoading ? (
               <CardListSkeleton rows={3} />
+            ) : isError ? (
+              <EmptyState
+                icon={AlertTriangle}
+                title="Couldn't load templates"
+                description="Check your connection and try again."
+                actionLabel="Try again"
+                onAction={() => refetch()}
+              />
             ) : (
               responses?.map((r) => (
                 <div
@@ -189,6 +200,7 @@ export default function CannedResponsesPage() {
                       className="h-10 w-10 sm:h-8 sm:w-8"
                       onClick={() => startEdit(r)}
                       title="Edit"
+                      aria-label={`Edit ${r.title}`}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -210,6 +222,7 @@ export default function CannedResponsesPage() {
                         deleteMutation.mutate(r.id);
                       }}
                       title="Delete"
+                      aria-label={`Delete ${r.title}`}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -217,10 +230,17 @@ export default function CannedResponsesPage() {
                 </div>
               ))
             )}
-            {!isLoading && !responses?.length ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No templates yet
-              </p>
+            {!isLoading && !isError && !responses?.length ? (
+              <EmptyState
+                icon={MessageSquare}
+                title="No templates yet"
+                description={
+                  canEdit
+                    ? 'Add your first reply template above — agents can then insert it into any ticket.'
+                    : 'Ask a support manager to add reply templates for the team.'
+                }
+                className="py-8"
+              />
             ) : null}
           </CardContent>
         </Card>

@@ -12,6 +12,9 @@ import { useWorkspacePaths } from '@/hooks/use-workspace-paths';
 import { PipelineBoard, buildBoardState } from '@/components/pipelines/pipeline-board';
 import { usePipelineColumns } from '@/hooks/use-pipeline-columns';
 import { BoardSkeleton } from '@/components/loading';
+import { EmptyState } from '@/components/ui/empty-state';
+import { AlertTriangle, CalendarX2 } from 'lucide-react';
+import { humanizeEnum } from '@/lib/humanize-enum';
 
 type JobTicket = {
   id: string;
@@ -62,7 +65,7 @@ export default function ServiceJobBoardPage() {
   const [view, setView] = useState<BoardView>('status');
   const [dayFilter, setDayFilter] = useState(() => localDateKey(new Date()));
 
-  const { data: tickets, isLoading } = useQuery({
+  const { data: tickets, isLoading, isError, refetch } = useQuery({
     queryKey: ['service-job-board', slug],
     queryFn: async () => {
       const response = await workspaceFetch('/api/tickets?limit=200');
@@ -207,7 +210,7 @@ export default function ServiceJobBoardPage() {
         </p>
         <div className="flex flex-wrap gap-1">
           <Badge variant="secondary" className="text-[10px]">
-            {ticket.priority}
+            {humanizeEnum(ticket.priority)} priority
           </Badge>
           {ticket.assignedTechnician?.name && (
             <Badge variant="outline" className="text-[10px]">
@@ -217,14 +220,21 @@ export default function ServiceJobBoardPage() {
         </div>
       </button>
       <Input
+        // Remount when the saved value changes so the uncontrolled input reflects it.
+        key={ticket.scheduledFor ?? 'unscheduled'}
         type="datetime-local"
-        className="h-8 text-xs"
-        value={
+        aria-label={`Scheduled visit for ${ticket.subject}`}
+        className="h-10 text-xs sm:h-8"
+        defaultValue={
           ticket.scheduledFor
             ? toLocalInputValue(ticket.scheduledFor)
             : ''
         }
-        onChange={(e) => scheduleTicket(ticket.id, e.target.value)}
+        // Save once the user leaves the field, not on every segment edit.
+        onBlur={(e) => {
+          const current = ticket.scheduledFor ? toLocalInputValue(ticket.scheduledFor) : '';
+          if (e.target.value !== current) void scheduleTicket(ticket.id, e.target.value);
+        }}
         onClick={(e) => e.stopPropagation()}
       />
     </div>
@@ -278,6 +288,7 @@ export default function ServiceJobBoardPage() {
           {view === 'day' ? (
             <Input
               type="date"
+              aria-label="Show jobs scheduled on"
               className="mt-2 w-full sm:w-[200px]"
               value={dayFilter}
               onChange={(e) => setDayFilter(e.target.value)}
@@ -287,6 +298,22 @@ export default function ServiceJobBoardPage() {
         <CardContent>
           {isLoading || columnsLoading ? (
             <BoardSkeleton />
+          ) : isError ? (
+            <EmptyState
+              icon={AlertTriangle}
+              title="Couldn't load jobs"
+              description="Check your connection and try again."
+              actionLabel="Try again"
+              onAction={() => refetch()}
+            />
+          ) : jobs.length === 0 ? (
+            <EmptyState
+              icon={CalendarX2}
+              title="No active jobs"
+              description="Open, assigned, and scheduled tickets show up here for dispatch."
+              actionLabel="New ticket"
+              actionHref={path('/dashboard/tickets/new')}
+            />
           ) : view === 'status' ? (
             <PipelineBoard
               columns={statusBoard.columns}
@@ -306,7 +333,10 @@ export default function ServiceJobBoardPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {dayJobs.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No jobs scheduled for this day.</p>
+                <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-3">
+                  No jobs scheduled for this day. Pick another date, or set a visit time on a job in
+                  the status or technician view.
+                </p>
               ) : (
                 dayJobs.map((ticket) => (
                   <Card key={ticket.id}>{renderCard(ticket)}</Card>
